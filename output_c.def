@@ -1,0 +1,43 @@
+include: output.def
+
+page: output_c
+    type: pm
+    output_dir: lib/MyDef
+    ext: c
+    subcode: main
+	use MyDef::cfunctions;
+	$call output_main
+    subcode: init_page
+	MyDef::cfunctions::init();
+    subcode: modeswitch
+	MyDef::cfunctions::modeswitch($pmode, $mode, $out);
+    subcode: parsecode
+	MyDef::cfunctions::check_text_includes($l);
+	$ret=MyDef::cfunctions::parsecode($l, undef, $out);
+	return $ret;
+    subcode: dumpout
+	# Main Function 
+	my $func=$MyDef::cfunctions::functions{"main"};
+	my $has_main;
+	$if $func
+	    $func->{skip_declare}=1;
+	    $func->{ret_type}="int";
+	    $func->{param_list}=["int argc", "char** argv"];
+	    $func->{init}=["DUMP_STUB main_init"];
+	    $func->{finish}=["DUMP_STUB main_exit", "return 0;"];
+	    $has_main=1;
+	MyDef::cfunctions::process_function(MyDef::dumpout::get_func_list());
+	$if $has_main
+	    my $libstr;
+	    foreach my $i (keys %MyDef::cfunctions::includes){
+		$if $i=~/^lib(.*)/
+		    $libstr.=" -l$1";
+		$elif $i=~/math.h/
+		    $libstr.=" -lm";
+	    }
+	    push @$f, "START_Makefile";
+	    push @$f, "\tgcc -o \$@ \$< $libstr\n";
+	    push @$f, "END_SUBFILE";
+	unshift @$out, "\n/**** END GLOBAL INIT ****/\n";
+	unshift @$out, "DUMP_STUB global_init";
+	MyDef::cfunctions::dump_init($f);

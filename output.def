@@ -1,0 +1,54 @@
+subcode: output_main
+    use MyDef::dumpout;
+    package MyDef::$(pagename);
+
+    my $debug;
+
+    $sub get_interface
+	return (\&init_page, \&parsecode, \&modeswitch, \&dumpout);
+
+    $sub init_page
+	my ($page)=@_;
+
+	# ---- Set output file extension
+	my $ext="$(ext)";
+	$if $page->{type}
+	    $ext=$page->{type};
+	$call @init_page
+	return ($ext, "$(init_mode)");
+
+    # ---- php has php,  html and js mode ----------
+    # ---- In xs, modeswitch were hacked to initialize functions
+    $sub modeswitch
+	my ($pmode, $mode, $out)=@_;
+	$call @modeswitch
+
+    # ---- All specialized parsing goes here.
+    $sub parsecode
+	my ($l, $mode, $out)=@_;
+	$if $debug
+	    print "parsecode: [$l]\n"
+	$if $l=~/^DEBUG (ON|OFF)/
+	    $if $1 eq "ON"
+		$debug=1;
+	    $else
+		$debug=0;
+	$call parsecode
+
+    # ---- Final output, allows for 2nd pass translation
+    $sub dumpout
+	my ($f, $out)=@_;
+	$call @dumpout
+	MyDef::dumpout::dumpout({out=>$out,f=>$f, custom=>\&custom_dump});
+
+    $sub custom_dump
+	my ($rl, $dump)=@_;
+	$call @custom_dump
+	return 0;
+
+    $call @support_subs
+
+    1;
+
+subcode: parsecode
+    push @$out, $l

@@ -1,0 +1,562 @@
+page: parseutil
+    type: pm
+    output_dir: lib/MyDef
+    subcode: main
+	$call parse_main
+
+subcode: parse_main
+    package MyDef::parseutil;
+
+    our @indent_stack=(0);
+
+    sub splitlist {
+	my $param=shift;
+	if($param=~/^\s*(.*\S)\s*$/){
+	    return split(/\s*,\s*/, $1);
+	}
+	else{
+	    return;
+	}
+    }
+
+    sub getindent {
+	use integer;
+	my $s=shift;
+	1 while $s=~s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e;
+	my $i=length($s);
+	if($i==$indent_stack[-1]){
+	}
+	elsif($i>$indent_stack[-1]){
+	    push @indent_stack, $i;
+	}
+	else{
+	    while($i<$indent_stack[-1]){
+		pop @indent_stack;
+	    }
+	}
+	
+	return $#indent_stack;
+    }
+
+    sub expand_macro {
+	my ($lref, $macros)=@_;
+	while ($$lref=~/\$\(\w+\)/){
+	    my @segs=split /(\$\(\w+\))/, $$lref;
+	    my $j=0;
+	    my $flag=0;
+	    foreach my $s (@segs){
+		if($s=~/\$\((\w+)\)/){
+		    my $t=$macros->{$1};
+		    if($t eq $s){
+			die "Looping macro $1 in \"$$lref\"!\n";
+		    }
+		    if($t){
+			$segs[$j]=$t;
+			$flag++;
+		    }
+		}
+		$j++;
+	    }
+	    if($flag){
+		$$lref=join '', @segs;
+	    }
+	    else{
+		last;
+	    }
+	}
+    }
+
+    ################################################
+    # Load Def Files
+    ################################################
+
+    sub get_lines {
+	my ($file, $var)=@_;
+
+	my $filename="";
+	if(-f $file){
+	    $filename=$file;
+	}
+	if(!$filename and $var->{'include_path'}){
+	    my @dirs=split /:/, $var->{'include_path'};
+	    foreach my $dir (@dirs){
+		if(-f "$dir/$file"){
+		    $filename="$dir/$file";
+		    last;
+		}
+	    }
+	}
+	if(!-f $filename){
+	    print "include_path: $var->{include_path}\n";
+	    die "$file not found\n";
+	}
+	#print STDERR "Parsing Definition File: $filename\n";
+	open In, $filename or die "Can't open $file.\n";
+	my @lines=<In>;
+	close In;
+	return \@lines;
+    }
+
+    # ToFix: too complicated to read
+    sub import_data {
+	my ($plines, $var)=@_;
+	my $stage="";
+	my $laststage;
+	my $codeindent; # Marks the minimum code indent
+	my $item;
+	my $source;
+	my $lastindent;
+	my $curindent;
+	my ($item1, $item2, $item3);
+	# include files
+	my @includes;
+	my %includes;
+	# -- return $def
+	my $fieldsets={};
+	my $pages={};
+	my $codes={};
+	my $macros={};
+	my $def={"fieldsets"=>$fieldsets, "pages"=>$pages, "codes"=>$codes, "scripts"=>{}, "macros"=>$macros};
+	my @standard_includes;
+	if($var->{module} eq "php"){
+	    push @standard_includes, "std_php.def";
+	}
+	elsif($var->{module} eq "c"){
+	    push @standard_includes, "std_c.def";
+	}
+	elsif($var->{module} eq "xs"){
+	    push @standard_includes, "std_c.def";
+	}
+	elsif($var->{module} eq "apple"){
+	    push @standard_includes, "std_c.def";
+	}
+	elsif($var->{module} eq "win32"){
+	    push @standard_includes, "std_c.def";
+	    push @standard_includes, "std_win32.def";
+	}
+	
+	# Reading global macros from config file
+	while(my ($k, $v)=each %$var){
+	    if($k=~/macro_(\w+)/){
+		$macros->{$1}=$v;
+	    }
+	}
+
+    ParseFile:
+	$codeindent=0;
+	# --- grab ogdl
+	my $grab=undef;
+	my $grab_hash;
+	my $grab_key;
+	my $grab_indent;
+	my @grab;
+	# --- 
+	push @$plines, "END";
+	foreach (@$plines){
+	    my $linehead;
+	    my $line;
+	    # ---- Get Indent ----------------------
+	    # Skip empty lines
+	    if(/^\s*$/){ 
+		next;
+	    }
+	    # Skip comment lines
+	    elsif(/^\s*#/){
+		next;
+	    }
+	    # get current indentation and stripping starting spaces
+	    elsif(/^(\s*)(.*)/){
+		$curindent=getindent($1);
+		$linehead=$1;
+		$line=$2;
+		$line=~s/\s+$//;
+	    }
+	    # ---- Grab ----------------------
+	    if($grab){
+		if($curindent>$grab_indent){
+		    my $i=$curindent-$grab_indent-1;
+		    push @grab, "$i:$line";
+		    next;
+		}
+		else{
+		    if($grab eq "ogdl"){
+			$grab_hash->{$grab_key}=grab_ogdl(\@grab);
+		    }
+		    undef $grab;
+		    @grab=();
+		}
+	    }
+
+	    # ---- ----------------------
+	    if($line=~/^#/){
+		$line='';
+	    }
+	    # ---- Wrap Code Block
+	    if($curindent <$codeindent){ # Code End
+		while($codeindent<$lastindent){
+		    $lastindent--;
+		    push @$source, "SOURCE_DEDENT";
+		}
+		$codeindent=0;
+	    }
+	    # ---- Code Block ---------------------------
+	    if($codeindent>0){ # In Code
+		while($curindent>$lastindent){
+		    $lastindent++;
+		    push @$source, "SOURCE_INDENT";
+		}
+		while($curindent<$lastindent){
+		    $lastindent--;
+		    push @$source, "SOURCE_DEDENT";
+		}
+		push @$source, $line;
+	    }
+	    # ---- Stage Heading
+	    elsif($line=~/^(\w+)code:\s+(\w+)(.*)/){
+		### htmlcode, jscode, subcode, phpcode, fncode
+		$source=[];
+		my @params;
+		my $type=$1;
+		my $name=$2;
+		my $t=$3;
+		if($t=~/\((.*)\)/){
+		    $t=$1;
+		    @params=split /,\s*/, $t;
+		}
+		my $t_code={'type'=>$type, 'source'=>$source, 'params'=>\@params};
+		if($curindent == 0){
+		    if($codes->{$name}){
+			print STDERR "overwiritten $type code: $name\n" if $debug>1;
+		    }
+		    else{
+			$codes->{$name}=$t_code;
+		    }
+		    $stage='code';
+		    $codeindent=1;
+		}
+		elsif($stage eq 'page'){
+		    $item->{codes}->{$name}=$t_code;
+		    $codeindent=$curindent+1;
+		}
+		$lastindent=$codeindent;
+	    }
+	    elsif($curindent==0){
+		if($line=~/^include:? (.*)/){
+		    if($includes{$1}){
+			#So we only include once
+		    }
+		    else{
+			push @includes, $1;
+			$includes{$1}=1;
+			#print STDERR "    include $1\n";
+		    }
+		}
+		elsif($line=~/^(sub)?page: (.*)/){
+		    my $subpage=$1;
+		    my $t=$2;
+		    my $pagename;
+		    my $maincode;
+		    if($t=~/([a-zA-Z0-9_\-\$]+),\s*(\w.*)/){
+			$pagename=$1;
+			$maincode=$2;
+		    }
+		    elsif($t=~/([a-zA-Z0-9_\-\$]+)/){
+			$pagename=$1;
+		    }
+		    my $code={};
+		    if($maincode){
+			my $t_code={'type'=>'sub', 'source'=>["\$call $maincode"], 'params'=>[]};
+			$code->{main}=$t_code;
+		    }
+		    $item={pagename=>$pagename, codes=>$code};
+		    if($subpage){
+			$item->{subpage}=1;
+		    }
+		    if($pages->{$pagename}){
+			my $t=$pagename;
+			my $j=0;
+			while($pages->{$pagename}){
+			    $j++;
+			    $pagename=$t.$j;
+			}
+		    }
+		    $pages->{$pagename}=$item;
+		    $stage='page';
+		}
+		elsif($line=~/^(\w+)/){
+		    # fields, macros,
+		    $stage=$1;
+		    if(!$def->{$stage}){
+			$def->{$stage}={};
+		    }
+		}
+	    }
+	    else{
+		if($stage =~ /^(fields)$/){
+		    if($line=~/^optional:(.*)/){
+			my @tlist=split(/,/, $1);
+			foreach my $t (@tlist){
+			    if($t=~/(\w+)/){
+				if($def->{$stage}->{$1}){
+				    $def->{$stage}->{$1}->{optional}=1;
+				}
+				else{
+				    $def->{$stage}->{$1}={optional=>1};
+				}
+			    }
+			}
+		    }
+		    elsif($line=~/^(\w+):\|\s*$/){
+			$grab="ogdl";
+			$grab_indent=$curindent;
+			$grab_key=$1;
+			$grab_hash=$def->{$stage};
+		    }
+		    elsif($curindent==1){
+			if($line=~/^([a-zA-Z0-9-_]+):\s*(.*)$/){
+			    if($def->{$stage}->{$1}){
+				$item=$def->{$stage}->{$1};
+			    }
+			    else{
+				$item={};
+				$def->{$stage}->{$1}=$item;
+			    }
+			    if($2){
+				$item->{type}=$2;
+				$item->{value}=$2;
+				$item->{title}=$2;
+			    }
+			}
+		    }
+		    elsif($line=~/^(\w+): (.*)/){
+			my $k=$1;
+			my $v=$2;
+			expand_macro(\$v, $macros);
+			if($item->{$k}){
+			    print STDERR " Denied overwriting $k with $v\n" if $debug>1;
+			}
+			else{
+			    $item->{$k}=$v;
+			}
+		    }
+		}
+		elsif($stage =~/^macros$/){
+		    if($line=~/^(\w+): (.*\S)/){
+			my $k=$1;
+			my $v=$2;
+			if($macros->{$k}){
+			    print STDERR " Overriden macro $k\n" if $debug>1;
+			}
+			else{
+			    my $t=$v;
+			    expand_macro(\$t, $macros);
+			    $macros->{$k}=$t;
+			}
+		    }
+		}
+		elsif($stage =~/^(page)$/){
+		    if($line=~/^source: (.*)/){
+			$item->{codes}->{main}={'type'=>"sub", 'source'=>["\$call $1"], 'params'=>[]};
+		    }
+		    elsif($line=~/^(\w+): (.*)/){
+			my $k=$1;
+			my $v=$2;
+			expand_macro(\$v, $macros);
+			$item->{$k}=$v;
+		    }
+		}
+	    } # end secondary stage
+	    
+	    # -- PreInsert Indent so empty switch cases work
+	    if($line=~/^\$(if|elif)/){
+		$curindent=getindent($linehead."    ");
+		$lastindent++;
+		push @$source, "SOURCE_INDENT";
+	    }
+	}
+	# ---- End of Def file ---------------------------------
+	# ---- Wrap Code Block
+	if(0 <$codeindent){ # Code End
+	    while($codeindent<$lastindent){
+		$lastindent--;
+		push @$source, "SOURCE_DEDENT";
+	    }
+	    $codeindent=0;
+	}
+	if($file=pop(@includes)){
+	    $plines=get_lines($file, $var);
+	    goto ParseFile;
+	}
+	if($f=pop(@standard_includes)){
+	    $plines=get_lines($f, $var);
+	    goto ParseFile;
+	}
+	post_foreachfile($def);
+	post_matchblock($def);
+	return $def;
+    }
+
+    # Hack for the following work:
+    #page: order$1
+    #    output_dir: sales
+    #    foreachfile: templates/order(*).php
+    #    htmlcode: main
+    #        $call basic_process
+    #        $include templates/order$1.php
+
+    sub post_foreachfile {
+	my $def=shift;
+	my $pages=$def->{pages};
+	while(my ($name, $p)=each(%$pages)){
+	    if ($p->{foreachfile}){
+		my $pat_glob=$p->{foreachfile};
+		my $pat_regex=$p->{foreachfile};
+		my $n;
+		$n=$pat_glob=~s/\(\*\)/\*/g;
+		$pat_regex=~s/\(\*\)/\(\.\*\)/g;
+		my @files=glob($pat_glob);
+		foreach my $f(@files){
+		    #my @pat_list=($f=~/order(.*).php/);
+		    #$pat_glob="order(.*).php";
+		    my @pat_list=($f=~/$pat_regex/);
+		    dupe_page($def, $p, $n, @pat_list);
+		    #print "$f: ", join(",", @pat_list), "\n";
+		}
+		delete $pages->{$name};
+	    }
+	}
+    }
+
+    sub post_matchblock {
+	my $def=shift;
+	my $codes=$def->{codes};
+	my @codelist=keys(%$codes);
+	foreach $name (@codelist){
+	    if($name=~/^pre_(\w+)/ and !$codes->{"post_$1"}){
+		my $loopname=$1;
+		#print "Adding subcode post_$1\n";
+		my $params=$codes->{$name}->{params};
+		my $type=$codes->{$name}->{type};
+		my $presource=$codes->{$name}->{source};
+		my $source=[];
+		my $t_code={'type'=>$type, 'source'=>$source, 'params'=>$params};
+		foreach my $l(@$presource){
+		    if($l=~/\$openfor/){
+			push @$source, "DEDENT }";
+		    }
+		}
+		$codes->{"post_$loopname"}=$t_code;
+	    }
+	}
+    }
+
+    sub dupe_page {
+	my ($def, $page, $n, @pat_list)=@_;
+	my $pagename=dupe_line($page->{pagename}, $n, @pat_list);
+	print "    foreach file $pagename $n: ", join(",", @pat_list), "\n";
+	my $p={};
+	while(my ($k, $v)=each(%$page)){
+	    if($k eq "pagename"){
+		$p->{pagename}=$pagename;
+	    }
+	    elsif($k eq "codes"){
+		my $codes={};
+		while(my ($tk, $tv)=each(%$v)){
+		    my $tcode={};
+		    $tcode->{type}=$tv->{type};
+		    $tcode->{params}=$tv->{params};
+		    my @source;
+		    my $tsource=$tv->{source};
+		    foreach my $l (@$tsource){
+			push @source, dupe_line($l, $n, @pat_list);
+		    }
+		    $tcode->{source}=\@source;
+		    $codes->{$tk}=$tcode;
+		}
+		$p->{codes}=$codes;
+	    }
+	    elsif($k eq "foreachfile"){
+	    }
+	    else{
+		$p->{$k}=dupe_line($v);
+	    }
+	}
+	my $pages=$def->{pages};
+	if($pages->{$pagename}){
+	    my $t=$pagename;
+	    my $j=0;
+	    while($pages->{$pagename}){
+		$j++;
+		$pagename=$t."_$j";
+	    }
+	}
+	$pages->{$pagename}=$p;
+    }
+
+    sub dupe_line {
+	my ($l, $n, @pat_list)=@_;
+	for (my $i=1; $i<=$n; $i++){
+	    $rep=$pat_list[$i-1];
+	    $l=~s/\$$i/$rep/g;
+	}
+	return $l;
+    }
+
+    #####################################################
+    sub grab_ogdl {
+	my $llist=shift;
+	my @ogdl;
+	my $cur_i=0;
+	my $cur_list=\@ogdl;
+	my @list_stack;
+	foreach my $l (@$llist){
+	    my $i;
+	    if($l=~/^(\d)+:(.*)/){
+		$i=$1;
+		$l=$2;
+	    }
+	    # ---- check indentation
+	    if($i>$cur_i){
+		my @newlist=();
+		my $n=$#$cur_list;
+		$cur_list->[$n]={name=>$cur_list->[$n], list=>\@newlist};
+		push @list_stack, $cur_list;
+		$cur_list=\@newlist;
+		$cur_i=$i;
+	    }
+	    elsif($i<$cur_i){
+		while($i<$cur_i){
+		    $cur_list=pop @list_stack;
+		    $cur_i--;
+		}
+	    }
+	    # ---- add item
+	    if($l=~/(.+):(.+)/){
+		push @$cur_list, {name=>$1, list=>[$2]};
+	    }
+	    else{
+		my @t=split /,/, $l;
+		foreach my $t(@t){
+		    $t=~s/^\s+//;
+		    push @$cur_list, $t;
+		}
+	    }
+	}
+	return \@ogdl;
+    }
+
+    sub print_ogdl {
+	my $ogdl=shift;
+	my $indent=shift;
+	foreach my $t(@$ogdl){
+	    if(ref $t){
+		print '    'x$indent, $t->{name}, "\n";
+		print_ogdl($t->{list}, $indent+1);
+	    }
+	    else{
+		print '    'x$indent, $t, "\n";
+	    }
+	}
+    }
+
+    1;

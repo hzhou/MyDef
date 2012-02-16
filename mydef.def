@@ -1,0 +1,95 @@
+page: MyDef
+    type: pm
+    output_dir: lib
+    subcode: main
+	$call mydef_main
+
+subcode: mydef_main
+    package MyDef;
+
+    our $def;
+    our $page;
+    our $var={};
+    use MyDef::parseutil;
+    use MyDef::compileutil;
+
+    # ----------------------------------
+
+    import_config("config");
+    $if $ENV{MYDEFLIB}
+	$var->{include_path}.=":$ENV{MYDEFLIB}";
+
+    my $module=$var->{module};
+
+    $if !$module
+	die "Module type not defined in config!\n"
+    $map require_module, php, c, xs, apple, win32, perl, general
+    $else
+	die "Undefined module $module\n";
+
+    # ----
+    $call mydef_subs
+
+subcode: mydef_subs
+    sub addpath {
+	my ($path)=@_;
+	$var->{path}=$path;
+    }
+
+    sub createpage_lines {
+	my ($pagename)=@_;
+	$page=$def->{pages}->{$pagename};
+	my ($plines, $ext)=MyDef::compileutil::compile($pagename);
+	return $plines;
+    }
+
+    sub createpage {
+	my ($pagename)=@_;
+	$page=$def->{pages}->{$pagename};
+	my ($plines, $ext)=MyDef::compileutil::compile($pagename);
+	MyDef::compileutil::output($pagename, $plines, $ext);
+    }
+
+    sub import_data_lines {
+	my $plines=shift;
+	$def= MyDef::parseutil::import_data($plines, $var);
+    }
+    sub import_data {
+	my $file=shift;
+	my $plines=MyDef::parseutil::get_lines($file, $var);
+	$def= MyDef::parseutil::import_data($plines, $var);
+    }
+
+    sub is_sub {
+	my $subname=shift;
+	if($page->{codes}->{$subname}){
+	    return 1;
+	}
+	elsif($def->{codes}->{$subname}){
+	    return 1;
+	}
+	else{
+	    return 0;
+	}
+    }
+    # --------------------------
+    sub import_config {
+	my ($file)=@_;
+	# print STDERR "Reading Config File:  $file\n";
+	open In, $file or return;
+	while(<In>){
+	    if(/^(\w+):\s*(.*\S)/){
+		$var->{$1}=$2;
+	    }
+	}
+	close In;
+    }
+
+    1;
+
+################################################
+subcode: require_module(name)
+    $elif $module eq "$(name)"
+	require MyDef::output_$(name);
+	MyDef::compileutil::set_interface(MyDef::output_$(name)::get_interface());
+

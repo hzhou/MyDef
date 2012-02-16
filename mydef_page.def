@@ -1,0 +1,16 @@
+page: mydef_page
+    output_dir: script
+    subcode: main
+	#Usage: perl createpages.pl def_file
+	use MyDef;
+
+	if(!-f $ARGV[0]) {die "Please supply data definition file.";}
+
+	MyDef::import_data($ARGV[0]);
+
+	$pages=$MyDef::def->{pages};
+	while(my ($t, $p)=each (%$pages)){
+	    if(!$p->{subpage}){
+		MyDef::createpage($t);
+	    }
+	}

@@ -1,0 +1,300 @@
+include: output.def
+
+page: output_xs
+    type: pm
+    output_dir: lib/MyDef
+    ext: xs
+    subcode: main
+	use MyDef::cfunctions;
+	my $cur_page_name;
+	my @xs_globals;
+	$call output_main
+    subcode: init_page
+	$cur_page_name=$page->{pagename};
+	MyDef::cfunctions::register_type_prefix("hv", "HV*");
+	MyDef::cfunctions::register_type_prefix("av", "AV*");
+	MyDef::cfunctions::register_type_prefix("sv", "SV*");
+	MyDef::cfunctions::init();
+    subcode: modeswitch
+	$if $mode eq "xs" and $pmode ne "xs"
+	    push @$out, "XS_START";
+	    MyDef::cfunctions::set_function_flag("xs_mode", 1)
+	    MyDef::cfunctions::set_function_flag("skip_declare", 1)
+	MyDef::cfunctions::modeswitch($pmode, $mode, $out);
+    subcode: parsecode
+	my $ret=pre_parse(\$l, $out);
+	$if !$ret
+	    MyDef::cfunctions::check_text_includes($l);
+	    $ret=MyDef::cfunctions::parsecode($l, \&custom_parse, $out);
+	return $ret;
+    subcode: dumpout
+	MyDef::cfunctions::process_function(MyDef::dumpout::get_func_list(), \&custom_process_function);
+	MyDef::dumpout::dumpout({out=>$out,f=>$f, custom=>\&custom_dump});
+    subcode: support_subs
+	sub pre_parse {
+	    my ($rl, $out)=@_;
+	    if($$rl=~/^\s*\$(if|while|elif|elsif|elseif)\s*(.*)/){
+		$$rl="\$$1 ".translate_perl_cond($2, $out);
+		return 0;
+	    }
+	    elsif($$rl=~/^\$foreach\s+(\w+)\s+in\s+(av_\w+)/){
+		my $v_i=$1;
+		my $v_av=$2;
+		MyDef::cfunctions::func_add_var("i");
+		MyDef::cfunctions::func_add_var($v_i);
+		MyDef::cfunctions::func_add_var("t_psv");
+		push @$out, "for(i=0; i<=av_len($v_av); i++){";
+		push @$out, "INDENT";
+		push @$out, "t_psv=av_fetch($v_av, i, 0);";
+		translate_scalar($out, $v_i, MyDef::cfunctions::get_var_type($v_i), "*t_psv");
+		push @$out, "BLOCK";
+		push @$out, "DEDENT";
+		push @$out, "}";
+		return "NEWBLOCK";
+	    }
+	    elsif($$rl=~/^\$foreach\s+\((\w+),\s*(\w+)\)\s+in\s+(hv_\w+)/){
+		my ($v_name, $v_val, $v_hv)=($1, $2, $3);
+		MyDef::cfunctions::func_add_var("t_n");
+		MyDef::cfunctions::func_add_var($v_name);
+		MyDef::cfunctions::func_add_var($v_val);
+		MyDef::cfunctions::func_add_var("t_sv");
+		push @$out, "t_n=hv_iterinit($v_hv);";
+		push @$out, "while((t_sv=hv_iternextsv($v_hv, &$v_name, &t_n))){";
+		push @$out, "INDENT";
+		translate_scalar($out, $v_val, MyDef::cfunctions::get_var_type($v_val), "t_sv");
+		push @$out, "BLOCK";
+		push @$out, "DEDENT";
+		push @$out, "}";
+		return "NEWBLOCK";
+	    }
+	    elsif($$rl=~/^\$getparam\s+(.*)/){
+		my @vlist=split /,\s+/, $1;
+		my $j=0;
+		foreach my $v(@vlist){
+		    my $type=get_c_type($v);
+		    MyDef::cfunctions::func_add_var($v);
+		    translate_scalar($out, $v, $type, "ST($j)");
+		    $j++;
+		}
+	    }
+	}
+
+	sub custom_parse {
+	    my ($l, $out)=@_;
+	    return translate_perl($l, $out);
+	}
+
+	sub custom_process_function {
+	    my $func=shift;
+	    if($func->{xs_mode}){
+		my (@t0, @t1, @pre, @post);
+		my $name=$func->{name};
+		# what is case when $name is empty?
+		if($name){
+		    my $ret_type=$func->{'ret_type'};
+		    if(!$ret_type){$ret_type="void";}
+		    my $paramlist=$func->{'param_list'};
+		    my @param_name_list;
+		    foreach my $p(@$paramlist){
+			if($p=~/(\w+)\s*$/){
+			    push @param_name_list, $1;
+			}
+		    }
+		    my $param_name_list_str=join(",", @param_name_list);
+
+		    push @t0, "$ret_type";
+		    push @t0, "$name($param_name_list_str)";
+		    if(@$paramlist){
+			push @pre, "INDENT";
+			foreach my $p (@$paramlist){
+			    push @pre, "$p;";
+			}
+			push @pre, "DEDENT";
+		    }
+		}
+		# -- Local Variables
+		my $varlist=$func->{'var_list'};
+		if(@$varlist){
+		    push @pre, "PREINIT:";
+		    push @pre, "INDENT";
+		    foreach my $v (@$varlist){
+			push @pre, "$v;";
+		    }
+		    push @pre, "DEDENT";
+		}
+		push @pre, "PPCODE:";
+		push @pre, "INDENT";
+		# -- init and finish
+		foreach my $tl(@{$func->{init}}){
+		    push @pre, $tl;
+		}
+		foreach my $tl(@{$func->{finish}}){
+		    push @post, $tl;
+		}
+		if($name){
+		    push @post, "DEDENT";
+		    push @t1, "NEWLINE";
+		}
+		$func->{openblock}=\@t0;
+		$func->{closeblock}=\@t1;
+		$func->{preblock}=\@pre;
+		$func->{postblock}=\@post;
+		return 1;
+	    }
+	}
+	sub custom_global {
+	    my ($v)=@_;
+	    if($v=~/^[SHA]V/){
+		push @xs_globals, "$v;\n";
+		return 1;
+	    }
+	}
+	sub custom_dump {
+	    my ($rl, $dump)=@_;
+	    my $f=$dump->{f};
+	    if($$rl eq "DUMP_INIT"){
+		MyDef::cfunctions::dump_init($f, \&custom_global);
+		$dump->{xs_mode}=0;
+		return 1;
+	    }
+	    elsif($$rl=~/^\s*XS_START/){
+		init_xs($f);
+		$dump->{xs_mode}=1;
+		return 1;
+	    }
+	    return 0;
+	}
+	sub init_xs {
+	    my ($f)=@_;
+	    push @$f, "#include \"EXTERN.h\"\n";
+	    push @$f, "#include \"perl.h\"\n";
+	    push @$f, "#include \"XSUB.h\"\n";
+	    push @$f, "\n";
+	    push @$f, "#include \"ppport.h\"\n";
+	    push @$f, "\n";
+	    dump_global_xs($f);
+	    push @$f, "\n";
+	    push @$f, "MODULE = $cur_page_name\t\tPACKAGE = $cur_page_name\n";
+	    push @$f, "\n";
+	}
+
+	sub dump_global_xs {
+	    my ($f)=@_;
+	    foreach my $l (@xs_globals){
+		push @$f, $l;
+	    }
+	}
+	# ---- Perl XS Specific -----------------------
+	sub translate_scalar {
+	    my ($out, $var, $vartype, $sv)=@_;
+	    #print "$var, $vartype\n";
+	    if($vartype eq "int"){
+		push @$out, "$var = SvIV($sv);";
+	    }
+	    elsif($vartype eq "double" or $vartype eq "float"){
+		push @$out, "$var = SvNV($sv);";
+	    }
+	    elsif($vartype eq "char *"){
+		MyDef::cfunctions::func_add_var("t_strlen");
+		push @$out, "$var = SvPV($sv, t_strlen);";
+		push @$out, "$var\[t_strlen\] = '\\0';";
+	    }
+	    elsif($vartype =~ /^([SAH]V\*)/){
+		push @$out, "$var = ($1)SvRV($sv);";
+	    }
+	    else{
+		print "translate_scalar: unhandled $var - $vartype\n";
+	    }
+	}
+	sub translate_null {
+	    my ($out, $var, $vartype)=@_;
+	    if($vartype !~/int|float|double/){
+		push @$out, "    $var = NULL;";
+	    }
+	    elsif($vartype eq "int"){
+		push @$out, "    $var = 0;";
+	    }
+	    else{
+		push @$out, "    $var = 0.0;";
+	    }
+	}
+
+	sub translate_tpsv {
+	    my ($out, $var, $vartype)=@_;
+	    push @$out, "if(t_psv){";
+	    push @$out, "INDENT";
+	    translate_scalar($out, $var, $vartype, "*t_psv");
+	    push @$out, "DEDENT";
+	    push @$out, "}";
+	    push @$out, "else{";
+	    translate_null($out, $var, $vartype);
+	    push @$out, "}";
+	}
+
+	sub translate_perl {
+	    my ($l, $out)=@_;
+	    if($l=~/(\S+)=(\w+)->\{(.*)\}/){
+		my ($var, $hv, $key)=($1, $2, $3);
+		if($key=~/^['"](.*)['"]/){
+		    $key=$1;
+		}
+		my $keylen=length($key);
+		my $vartype;
+		if($var=~/(\S+)\.(\S+)/){
+		    $vartype=MyDef::cfunctions::get_c_type($2);
+		}
+		else{
+		    MyDef::cfunctions::func_add_var($var);
+		    $vartype=MyDef::cfunctions::get_var_type($var);
+		}
+
+		MyDef::cfunctions::func_add_var("t_psv");
+		push @$out, "t_psv=hv_fetch($hv, \"$key\", $keylen, 0);";
+		translate_tpsv($out, $var, $vartype);
+		return 1;
+	    }
+	    elsif($l=~/(\S+)=(\w+)->\[(.*)\]/){
+		my ($var, $av, $key)=($1, $2, $3);
+		my $vartype;
+		if($var=~/(\S+)\.(\S+)/){
+		    $vartype=MyDef::cfunctions::get_c_type($2);
+		}
+		else{
+		    MyDef::cfunctions::func_add_var($var);
+		    $vartype=MyDef::cfunctions::get_var_type($var);
+		}
+
+		MyDef::cfunctions::func_add_var("t_psv");
+		push @$out, "t_psv=av_fetch($av, $key, 0);";
+		translate_tpsv($out, $var, $vartype);
+		return 1;
+	    }
+	    elsif($l=~/\((\w+)->\{(.*)\}\)/){
+		my ($pre, $hv, $key, $post)=($`, $1, $2, $');
+		if($key=~/^['"](.*)['"]/){
+		    $key=$1;
+		}
+		my $keylen=length($key);
+		push @$out, "$pre(hv_exists($hv, $keylen))$post";
+		return 1;
+	    }
+	    return 0;
+	}
+	sub translate_perl_cond {
+	    my ($l, $out)=@_;
+	    if($l=~/^\s*(\w+)->\{(.+)\}\s*$/){
+		my ($hv, $key)=($1, $2);
+		my $keylen=length($key);
+		my $tl="hv_exists($hv, \"$key\", $keylen)";
+		return $tl;
+	    }
+	    elsif($l=~/^\s*(\w+)->\[(.+)\]\s*$/){
+		my ($hv, $key)=($1, $2);
+		my $tl="SvTRUE(*(av_fetch($hv, $key, 0)))";
+		return $tl;
+	    }
+	    else{
+		return $l;
+	    }
+	}
+
