@@ -1,8 +1,11 @@
+include: macros_util/debug.def
+
 subcode: output_main
     use MyDef::dumpout;
     package MyDef::$(pagename);
 
     my $debug;
+    $call @package_subs
 
     $sub get_interface
 	return (\&init_page, \&parsecode, \&modeswitch, \&dumpout);
@@ -26,25 +29,21 @@ subcode: output_main
     # ---- All specialized parsing goes here.
     $sub parsecode
 	my ($l, $mode, $out)=@_;
-	$if $debug
-	    print "parsecode: [$l]\n"
-	$if $l=~/^DEBUG (ON|OFF)/
-	    $if $1 eq "ON"
-		$debug=1;
+	$if $debug eq "parse"
+	    $call dump_line, parsecode
+	$if $l=~/^DEBUG (\w+)/
+	    $if $1 eq "OFF"
+		$debug=0
 	    $else
-		$debug=0;
+		$debug=$1
 	$call parsecode
 
     # ---- Final output, allows for 2nd pass translation
     $sub dumpout
 	my ($f, $out)=@_;
+	my $dump={out=>$out,f=>$f}
 	$call @dumpout
-	MyDef::dumpout::dumpout({out=>$out,f=>$f, custom=>\&custom_dump});
-
-    $sub custom_dump
-	my ($rl, $dump)=@_;
-	$call @custom_dump
-	return 0;
+	MyDef::dumpout::dumpout($dump);
 
     $call @support_subs
 

@@ -1,103 +1,74 @@
 include: output.def
+include: macros_c/cfunctions.def
+include: macros_win32/resource.def
 
-page: output_win32
+page: output_win32, output_main
     type: pm
     output_dir: lib/MyDef
     ext: c
-    subcode: main
-	use MyDef::cfunctions;
-	my %var_retain_hash;
-	$call output_main
+    init_mode: sub
+    subcode: package_subs
+	$call package_global
+	$call c_main
     subcode: init_page
-	MyDef::cfunctions::init();
+	$call c_init
     subcode: modeswitch
-	MyDef::cfunctions::modeswitch($pmode, $mode, $out);
+	$call c_modeswitch
     subcode: parsecode
-	my $ret=pre_parse(\$l, $out);
-	$if !$ret
-	    MyDef::cfunctions::check_text_includes($l);
-	    $ret=MyDef::cfunctions::parsecode($l, undef, $out);
-	return $ret;
+	$call pre_parse
+	$call check_text_includes
+	$call c_parsecode
     subcode: dumpout
 	push @$f, "#include <winsock2.h>\n";
 	push @$f, "#include <windows.h>\n";
-	# Main Function 
-	my $func=$MyDef::cfunctions::functions{"WinMain"};
-	my $has_main;
-	if($func){
+	# ----  Main Function -------------------
+	my $func=$functions{"WinMain"};
+	$if $func
 	    $func->{skip_declare}=1;
 	    $func->{ret_type}="int APIENTRY";
 	    $func->{param_list}=["HINSTANCE hInst", "HINSTANCE hPrev", "LPSTR lpstr_cmdline", "int n_cmdshow"];
 	    push @{$func->{init}}, "DUMP_STUB main_init";
 	    push @{$func->{finish}}, "DUMP_STUB main_exit";
 	    push @{$func->{finish}}, "return 0;";
-	    $has_main=1;
-	}
-	MyDef::cfunctions::process_function(MyDef::dumpout::get_func_list());
-	MyDef::cfunctions::dump_init($f);
-    subcode: support_subs
-	sub pre_parse {
-	    my ($rl, $out)=@_;
-	    if($$rl=~/\$MakeMenu\s+(\w+),\s*(\w+)/){
-		my $menu_var=$1;
-		my $menu_name=$2;
-		my $menu=$MyDef::def->{fields}->{$menu_name};
-		ogdl_menu($out, $menu_var, $menu, 0);
-		return 1;
-	    }
-	    elsif($$rl=~/\$MakeFont\((\w+)\)\s+(.*)/){
-		my $var=$1;
-		my @plist=split /,\s*/, $2;
-		my $height=12;
-		foreach my $p(@plist){
-		}
-		MyDef::cfunctions::func_add_var($var, "HFONT");
-		hgdi_pre_assign("HFONT", $var, "0", $out);
-		push @$out, "$var = CreateFont($height,  0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_ROMAN|DEFAULT_PITCH, \"$fontname\");";
-		push @$out, "hgdi_add($var);";
-		$var_retain_hash{$var}=1;
-		return 1;
-	    }
-	    elsif($$rl=~/\$hgdi_enable/){
-		hgdi_enable();
-	    }
-	}
 
-	$call extra_subs
+	# ---- process_function ------------------------
+	my $funclist=MyDef::dumpout::get_func_list()
+	$foreach my $func in @$funclist
+	    $call process_function_std
 
+	# --- c global stuff -----------------
+	unshift @$out, "DUMP_STUB global_init";
+	$call c_dump_init
 
 # ---------------------------
-subcode: extra_subs
-    sub ogdl_menu {
-	my ($out, $menuvar, $menu, $indent)=@_;
-	my $pos=0;
-	foreach my $t(@$menu){
-	    if(ref $t){
-		my $var=sprintf("hmenu_sub%d", $indent+1);
-		MyDef::cfunctions::func_add_var($var);
-		push @$out, "$var = CreatePopupMenu();";
-		ogdl_menu($out, $var, $t->{list}, $indent+1);
-		push @$out, "InsertMenu($menuvar, $pos, MF_POPUP|MF_BYPOSITION, (UINT_PTR)$var, \"$t->{name}\");";
-		push @$out, "DestroyMenu($var);";
-	    }
-	    else{
-		if($t eq "----"){
-		    push @$out, "AppendMenu($menuvar, MF_SEPARATOR, 0, NULL);";
-		}
-		else{
-		    my $tname="ID_$t";
-		    $tname=~s/[ &]//g;
-		    MyDef::cfunctions::parsecode_func($out, "define_id", $tname);
-		    push @$out, "AppendMenu($menuvar, MF_STRING, $tname, \"$t\");";
-		}
-	    }
-	    $pos++;
-	}
-    }
+subcode: pre_parse
+    $if $l=~/^(\w+)\s*=\s*\$MakeWindow\s+(\w+)/
+	my ($var, $name)=($1, $2)
+	$call make_window
+	return 1
+    $elif $l=~/^(\w+)\s*=\s*\$MakeMenu\s+(\w+)/
+	my ($var, $name)=($1, $2);
+	my $menu=$MyDef::def->{resource}->{$name};
+	func_add_var($var, "HMENU")
+	push @$out, "$var = CreateMenu();"
+	ogdl_menu($out, $var, $menu, 0);
+	return 1;
+    $elif $l=~/^(\w+)\s*=\s*\$MakeFont\s+(.*)/
+	my ($var, $spec)=($1, $2);
+	$call make_font
+	return 1;
+    $elif $l=~/\$hgdi_enable/
+	hgdi_enable();
+	return
+
+subcode:: package_global
+    my %var_retain_hash;
+
+subcode:: support_subs
     # ---------------------------
     sub hgdi_enable {
-	$MyDef::cfunctions::misc_vars{hgdi_enable}=1;
-	push @MyDef::cfunctions::func_var_hooks, {var_check=>\&is_hgdi_type, var_init=>\&hgdi_var_init, var_pre_assign=>\&hgdi_pre_assign, var_post_assign=>\&hgdi_post_assign, var_release=>\&hgdi_release};
+	$misc_vars{hgdi_enable}=1;
+	push @func_var_hooks, {var_check=>\&is_hgdi_type, var_init=>\&hgdi_var_init, var_pre_assign=>\&hgdi_pre_assign, var_post_assign=>\&hgdi_post_assign, var_release=>\&hgdi_release};
     }
 
     sub is_hgdi_type {

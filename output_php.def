@@ -1,6 +1,6 @@
 include: output.def
 
-page: output_php, output_main
+page: output_php
     type: pm
     output_dir: lib/MyDef
     ext: php
@@ -16,6 +16,7 @@ page: output_php, output_main
 	my $inphp=0;
 	my  $injs=0;
 	# ------ main
+	$call support_subs
 	$call output_main
     subcode: init_page
 	$php={};
@@ -30,9 +31,9 @@ page: output_php, output_main
 	    push @$out, "JS_END";
 	    $if $mode ne "html"
 		push @$out, "PHP_START";
-	$elsif $pmode ne "html" and $mode eq 'html'
+	$elsif $pmode ne "html" and $mode eq "html"
 	    push @$out, "PHP_END";
-	$elsif $pmode eq 'html' and $mode ne "html"
+	$elsif $pmode eq "html" and $mode ne "html"
 	    push @$out, "PHP_START";
     subcode: custom_dump
 	my $f=$dump->{f};
@@ -228,7 +229,7 @@ page: output_php, output_main
 			$t.=" class=\"$c\"";
 		    }
 		}
-		MyDef::dumpout::simple_block("PRINTLN <$func$t>", "PRINTLN </$func>", $out);
+		simple_block("PRINTLN <$func$t>", "PRINTLN </$func>", $out);
 	    }
 	    elsif($func =~ /^cell([az]*)/){
 		my $t=$1;
@@ -247,10 +248,10 @@ page: output_php, output_main
 		if($t=~/z/){
 		    $tr_end="</tr>";
 		}
-		MyDef::dumpout::simple_block("PRINTLN $tr_begin<td$attr>", "PRINTLN </td>$tr_end", $out);
+		simple_block("PRINTLN $tr_begin<td$attr>", "PRINTLN </td>$tr_end", $out);
 	    }
 	    elsif($func eq 'fieldset'){
-		MyDef::dumpout::simple_block("PRINTLN <fieldset><legend>$param</legend>", "PRINTLN </fieldset>", $out);
+		simple_block("PRINTLN <fieldset><legend>$param</legend>", "PRINTLN </fieldset>", $out);
 	    }
 	    elsif($func eq 'jssrc'){
 		push @$out, "PRINT <script type=\"text/javascript\" src='$param'></script>";
@@ -336,13 +337,13 @@ page: output_php, output_main
 		}
 	    }
 	    elsif($func eq 'postloadonly'){
-		foreach my $f (MyDef::parseutil::splitlist($param)){
+		foreach my $f (splitlist($param)){
 		    if($f=~/(\w+)\((\w+)\)/){$f=$1;}
 		    post_load_only($out, $f);
 		}
 	    }
 	    elsif($func eq 'postload'){
-		foreach my $f (MyDef::parseutil::splitlist($param)){
+		foreach my $f (splitlist($param)){
 		    if($f=~/(\w+)\((\w+)\)/){$f=$1;}
 		    post_load($out, $f);
 		}
@@ -386,40 +387,40 @@ page: output_php, output_main
 	    }
 	    # ---- block statements
 	    elsif($func eq "if"){
-		MyDef::dumpout::simple_block("if($param){", "}", $out);
+		simple_block("if($param){", "}", $out);
 	    }
 	    elsif($func eq "ifz"){
 		if($param=~/(\$\w+)\[(^[\]]*)\]/){
-		    MyDef::dumpout::simple_block("if(!(array_key_exists($2, $1) and $param)){", "}", $out);
+		    simple_block("if(!(array_key_exists($2, $1) and $param)){", "}", $out);
 		}
 		else{
-		    MyDef::dumpout::simple_block("if(empty($param)){", "}", $out);
+		    simple_block("if(empty($param)){", "}", $out);
 		}
 	    }
 	    elsif($func eq "ifnz"){
 		if($param=~/(\$\w+)\[(^[\]]*)\]/){
-		    MyDef::dumpout::simple_block("if((array_key_exists($2, $1) and $param)){", "}", $out);
+		    simple_block("if((array_key_exists($2, $1) and $param)){", "}", $out);
 		}
 		else{
-		    MyDef::dumpout::simple_block("if(!empty($param)){", "}", $out);
+		    simple_block("if(!empty($param)){", "}", $out);
 		}
 	    }
 	    elsif($func =~ /^(el|els|else)if$/){
 		if($mode eq 'html' or $mode eq 'js'){ # JavaScript
-		    MyDef::dumpout::simple_block("else if($param){", "}", $out);
+		    simple_block("else if($param){", "}", $out);
 		}
 		else{
-		    MyDef::dumpout::simple_block("elseif($param){", "}", $out);
+		    simple_block("elseif($param){", "}", $out);
 		}
 	    }
 	    elsif($func eq "else"){
-		MyDef::dumpout::simple_block("else{", "}", $out);
+		simple_block("else{", "}", $out);
 	    }
 	    elsif($func eq "foreach" or $func eq "for" or $func eq "while"){
-		MyDef::dumpout::simple_block("$func ($param){", "}", $out);
+		simple_block("$func ($param){", "}", $out);
 	    }
 	    elsif($func eq "function"){
-		MyDef::dumpout::simple_block("function $param {", "}", $out);
+		simple_block("function $param {", "}", $out);
 	    }
 	    elsif($func eq 'input'){
 		input($out, $param);
@@ -490,6 +491,15 @@ page: output_php, output_main
 	}
 
     subcode: support_subs
+	sub simple_block {
+	    my ($pre, $post, $out)=@_;
+	    push @$out, "$pre";
+	    push @$out, "INDENT";
+	    push @$out, "BLOCK";
+	    push @$out, "DEDENT";
+	    push @$out, "$post";
+	    return "NEWBLOCK";
+	}
 	sub terminate_php {
 	    my $l=shift;
 	    if($l!~/[\{\};]\s*$/){
@@ -2080,4 +2090,15 @@ page: output_php, output_main
 		}
 	    }
 	}
+
+subcode: support_subs
+    sub splitlist {
+	my $param=shift;
+	if($param=~/^\s*(.*\S)\s*$/){
+	    return split(/\s*,\s*/, $1);
+	}
+	else{
+	    return;
+	}
+    }
 

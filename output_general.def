@@ -3,11 +3,14 @@ include: output.def
 page: output_general, output_main
     type: pm
     output_dir: lib/MyDef
+    ext: txt
+    init_mode: sub
 
 page: output_perl, output_main
     type: pm
     output_dir: lib/MyDef
     ext: pl
+    init_mode: sub
     subcode: modeswitch
 	$if $mode=~/(\w+)-(.*)/
 	    my $fname=$1;
@@ -35,7 +38,7 @@ page: output_perl, output_main
 		return single_block("else", $out);
 	    $elif $func eq "sub"
 		return single_block("sub $param ", $out)
-	    $elif $func eq "for"
+	    $elif $func eq "for" or $func eq "foreach"
 		$if $param=~/(\$\w+)=(.*?):(.*?)(:.*)?$/
 		    my ($var, $i0, $i1, $step)=($1, $2, $3, $4);
 		    my $stepclause;
@@ -50,6 +53,9 @@ page: output_perl, output_main
 		    $else
 			$stepclause="my $var=$i0;$var<$i1;$var++";
 		    return single_block("for($stepclause)", $out);
+		$elif $param=~/(\$\w+) in (.*)/
+		    my ($var, $list)=($1, $2);
+		    return single_block("foreach my $var ($list)", $out)
 	    $else
 		check_termination(\$l);
 		push @$out, $l;

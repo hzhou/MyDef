@@ -12,7 +12,7 @@ page: Makefile
 	    AUTHOR            => 'Hui Zhou <hzhou@hzsolutions.net>',
 	    NAME              => 'MyDef',
 	    VERSION           => 0.2,
-	    PREREQ_PM         => {}, # e.g., Module::Name => 1.1
+	    PREREQ_PM         => {},
 	    EXE_FILES         => \@scripts,
 	);
 

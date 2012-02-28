@@ -14,19 +14,20 @@ subcode: mydef_main
     use MyDef::compileutil;
 
     # ----------------------------------
-
     import_config("config");
     $if $ENV{MYDEFLIB}
 	$var->{include_path}.=":$ENV{MYDEFLIB}";
 
-    my $module=$var->{module};
-
-    $if !$module
-	die "Module type not defined in config!\n"
-    $map require_module, php, c, xs, apple, win32, perl, general
-    $else
-	die "Undefined module $module\n";
-
+    $sub init
+	my (%config)=@_;
+	$while my ($k, $v) = each %config
+	    $var->{$k}=$v;
+	my $module=$var->{module};
+	$if !$module
+	    die "Module type not defined in config!\n"
+	$map require_module, php, c, xs, apple, win32, perl, general
+	$else
+	    die "Undefined module type $module\n";
     # ----
     $call mydef_subs
 
