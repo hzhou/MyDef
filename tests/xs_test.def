@@ -1,0 +1,9 @@
+page: test_xs
+    subcode: main
+	$call xs_main
+    xscode: xs_main
+	$list test
+
+fncode: test
+    printf("Hello, World!\n")
+

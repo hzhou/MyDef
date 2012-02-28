@@ -1,0 +1,189 @@
+include: ref_counting.def
+
+subcode: memory_utility
+    $call ref_counting, 97, mu, void *
+
+## Regular Expression
+
+## FILE IO
+subcode: mmap(filename, strname, strsize)
+    $include sys/mman
+    $include sys/stat
+    $include fcntl
+    $include unistd
+    tn_fd=open($(filename), O_RDONLY)
+    struct stat st
+    fstat(tn_fd, &st)
+    $(strsize)=st.st_size
+    $(strname)=mmap(0, $(strsize), PROT_READ, MAP_SHARED, tn_fd, 0)
+    BLOCK
+    munmap($(strname), $(strsize))
+    close(tn_fd)
+
+## hash
+subcode: text_hash(name, nbuckets)
+    unsigned int hash = 0
+    char * s =$(name)
+    unsigned c
+    while(c=*s++) hash=hash*9^c
+
+subcode: make_hash(name, nbuckets, node)
+    $struct($(name)_node) $(node), s_text, next
+    $(block:main_init)
+	$for i=0:$(nbuckets)
+	    DEBUG
+	    $(name)[i].s_text=NULL
+	    $(name)[i].next=NULL
+    $(block:global_init)
+	struct $(name)_node $(name)[$(nbuckets)]
+	struct $(name)_node * hash_lookup_$(name)(char * name){
+	    #int hash=text_hash(name) % $(nbuckets);
+	    $call text_hash, name, $(nbuckets)
+	    struct $(name)_node * p=&$(name)[hash]
+	    $while 1
+		$if p->s_text == NULL
+		    return p
+		$else
+		    $if strcmp(p->s_text, name)==0
+			return p
+		    $elif p->next
+			p=p->next
+		    $else
+			break
+	    p->next=(struct $(name)_node *)malloc(sizeof(struct $(name)_node))
+	    p->next->next=NULL
+	    p->next->s_text=NULL
+	    return p->next
+	}
+
+## single linked list
+#    $struct(name_node) prop1, prop2, ..., next 
+#    $struct(name) prop1, prop2, ..., list, tail
+#    the current node is always referred with p
+subcode: slist(name, list, node)
+    $struct($(name)_node) $(node), next
+    $struct($(name)) $(list), n, head, tail
+    struct $(name) * new_$(name)(){
+	struct $(name) * plist=(struct $(name) *)malloc(sizeof(struct $(name)))
+	plist->head=NULL
+	plist->tail=NULL
+	plist->n=0
+    }
+    struct $(name)_node * list_push_$(name)(struct $(name)* list){
+	struct $(name)_node * p=(struct $(name)_node *)malloc(sizeof(struct $(name)_node));
+	p->next=NULL
+	list->tail->next=p
+	list->tail=p
+	return p
+    }
+    struct $(name)_node * list_shift_$(name)(struct $(name)* list){
+	struct $(name)_node * p=list->list
+	$if p
+	    list->list=p->next
+	return p
+    }
+
+subcode: slist_each(var)
+    $call slist_common, $(var)
+    p=&$(var)$(->)list
+    $while p->next
+        p=p->next
+        BLOCK
+
+subcode: slist_each_2(var)
+    $call slist_common, $(var)
+    p2=&$(var)$(->)list
+    $while p2->next
+        p=p2->next
+        BLOCK
+	$if p2->next==p
+	    p2=p2->next
+
+subcode: slist_clear(var)
+    &call slist_each_2, $(var)
+	$call slist_delete, $(var)
+
+# -- to be used inside slist_each ...
+subcode: slist_insert(var)
+    $call slist_common, $(var)
+    p2=($(st)_node *)malloc(sizeof($(st)_node))
+    p2->next=p->next
+    p->next=p2
+    p=p2
+    $(var)$(->)n++
+
+# -- to be used inside slist_each_2 ...
+subcode: slist_delete(var)
+    $call slist_common, $(var)
+    p2->next=p->next
+    free(p)
+    $(var)$(->)n--
+
+# -- the following two are provided just as examples as they are simple
+subcode: slist_iter_start(var, iter)
+    $(iter)=&$(var)->list
+
+subcode: slist_iter_next(var, iter)
+    $(iter)=$(iter)->next
+
+###########################################################
+## single linked list (deprecated)
+subcode: list_init(name)
+    pst$(name)_tail=&st$(name)
+    pst$(name)_tail->next=NULL
+
+subcode: list_clear(name)
+    pst$(name)_tail=&st$(name)
+    $while pst$(name)_tail->next
+	tpst$(name)=pst$(name)_tail->next
+	pst$(name)_tail=pst$(name)_tail->next
+	free(tpst$(name))
+    $call list_init, $(name)
+
+## double linked list
+subcode: array_new(listname)
+    $globalinit stlinklist_$(listname)={NULL, &stlinklist_$(listname), &stlinklist_$(listname)}
+
+subcode: array_count(listname)
+    n_count=0
+    pstlinklist_t=&stlinklist_$(listname)
+    $while pstlinklist_t->next != &stlinklist_$(listname)
+	pstlinklist_t=pstlinklist_t->next
+	n_count++
+
+subcode: array_push_void(listname, element)
+    $new pstlinklist_t
+    pstlinklist_t->pointer=(void*) $(element)
+    pstlinklist_t->next=&stlinklist_$(listname)
+    pstlinklist_t->prev=stlinklist_$(listname).prev
+    pstlinklist_t->prev->next=pstlinklist_t
+    pstlinklist_t->next->prev=pstlinklist_t
+
+subcode: array_push(listname, element)
+    $new $(element)
+    $call array_push_void, $(listname), $(element)
+
+subcode: array_each(listname, element)
+    pstlinklist_t=&stlinklist_$(listname)
+    $while pstlinklist_t->next != &stlinklist_$(listname)
+	pstlinklist_t=pstlinklist_t->next
+	$(element)=pstlinklist_t->pointer
+	BLOCK
+
+subcode: array_delete
+    pstlinklist_t->prev->next=pstlinklist_t->next
+    pstlinklist_t->next->prev=pstlinklist_t->prev
+    free(pstlinklist_t->pointer)
+    free(pstlinklist_t)
+
+subcode: array_delete_each
+    pstlinklist_t2=pstlinklist_t->prev
+    $call array_delete
+    pstlinklist_t=pstlinklist_t2
+
+subcode: array_clear(listname)
+    pstlinklist_t=&stlinklist_$(listname)
+    $while pstlinklist_t->next != &stlinklist_$(listname)
+	pstlinklist_t=pstlinklist_t->next
+	$call array_delete_each
+

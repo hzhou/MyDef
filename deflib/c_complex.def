@@ -1,0 +1,52 @@
+## Complex #######################################
+subcode: c_set(ar, ai)
+    f_ar=$(ar)
+    f_ai=$(ai)
+
+subcode: c_get(ar, ai)
+    $(ar)=f_ar
+    $(ai)=f_ai
+
+subcode: c_get_neg(ar, ai)
+    $(ar)=-f_ar
+    $(ai)=-f_ai
+
+subcode: c_plus(br, bi)
+    f_br=$(br)
+    f_bi=$(bi)
+    f_ar+=f_br
+    f_ai+=f_bi
+
+subcode: c_minus(br, bi)
+    f_br=$(br)
+    f_bi=$(bi)
+    f_ar-=f_br
+    f_ai-=f_bi
+
+subcode: c_mult(br, bi)
+    f_br=$(br)
+    f_bi=$(bi)
+    f_temp=f_ar
+    f_ar=f_ar*f_br-f_ai*f_bi
+    f_ai=f_temp*f_bi+f_ai*f_br
+
+subcode: c_div(br, bi)
+    f_br=$(br)
+    f_bi=$(bi)
+    f_temp=f_ar
+    f_ar=f_ar*f_br+f_ai*f_bi
+    f_ai=f_ai*f_br-f_temp*f_bi
+    f_temp=f_br^2+f_bi^2
+    f_ar/=f_temp
+    f_ai/=f_temp
+
+subcode: c_sqrt(br, bi)
+    f_br=$(br)
+    f_bi=$(bi)
+    f_ar=sqrt(f_br^2+f_bi^2)
+    f_ai=sqrt((f_ar-f_br)/2)
+    $if f_bi<0.0
+	f_ai=-f_ai
+    f_ar=sqrt((f_ar+f_br)/2)
+    
+

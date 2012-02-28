@@ -1,0 +1,23 @@
+page: test
+    subcode: main
+	#$call memory_utility
+	$struct(record) n_id=1, char * name
+	/***********************************/
+	$list n_main
+	$list test, do_something
+    fncode: n_main
+	$local strecord[10]
+	$local pstrecord
+	test()
+    fncode: test
+	#DEBUG
+	pn_test=do_something()
+	$for i=0:10
+	    printf("%d: %d\n", i, pn_test[i])
+    fncode: do_something
+	$allocate(10) pn_test
+	$local s_buffer[100]
+	$for i=0:10 
+	    pn_test[i]=i*i
+	return pn_test
+

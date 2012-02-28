@@ -1,0 +1,27 @@
+page: test, basic_frame
+    fncode: WinMain
+	$CreateWindow hwnd_main, MainWindow
+	$call win_show, hwnd_main
+	$call win_loop
+
+    subcode: main_fn_list
+
+subcode: msg_MainWindow
+    &call WM_MSG, CREATE
+	$MakeMenu hmenu_main, MainMenu
+	SetMenu(hwnd, hmenu_main)
+	DestroyMenu(hmenu_main)
+    &call WM_PAINT
+	$call draw_hello
+
+resource: MainMenu
+    File
+        &Open, &Close, E&xit
+        ----
+        Recent &Files
+            File 1, File 2, File 3
+    Edit
+        Cut, Copy, Paste
+    Option
+        Range Adapt
+

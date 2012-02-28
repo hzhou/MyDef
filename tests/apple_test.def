@@ -1,0 +1,30 @@
+include: std_ios.def
+include: ios_cg.def
+
+page: test, basic_frame
+    subcode: appmain
+	$call root_controller
+	    
+subcode: root_controller
+    $call test_view
+    $subclass UIViewController, root_controller
+	$call SET_Rotate, No
+	$method loadView
+	    # -- view ----
+	    contentView=new test_view  $(AppFrame)
+	    contentView.backgroundColor=RGB(ffff80)
+	    self.view=contentView
+
+subcode: test_view
+    $subclass UIView, test_view
+	$method on_draw
+	    DEBUG parse
+	    $(set:BUFLEN=100)
+	    $local pc_buf[$(BUFLEN)]
+	    $call draw_hello
+
+subcode: draw_hello
+    $call setfont, Times New Roman, 16
+    tn=snprintf(pc_buf, $(BUFLEN), "Hello World")
+    $call text, 5, 20, pc_buf, tn
+

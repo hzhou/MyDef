@@ -1,0 +1,209 @@
+# Placehoder SubCodes: main_fn_list, main_msg_list
+
+subcode: basic_frame
+    $register_prefix(ui) UINT
+    $register_prefix(lpstr) LPSTR
+
+    $register_name(mii) MENUITEMINFO
+
+    $register_prefix(hwnd) HWND
+    $register_prefix(hmenu) HMENU
+    $register_prefix(rect) RECT
+    $register_prefix(hfont) HFONT
+
+    $register_prefix(bmph) BITMAPINFOHEADER
+    $register_prefix(bmp) DWORD *
+
+    # Main Window Handle
+    $global hwnd_main
+
+    $call init_error
+    #$call hgdiobj_collector
+    $call main_fn_list
+    $list WinMain
+    #$list on_paint, on_command, on_control, on_activate, on_inactivate
+
+###############################################################
+fncode: WinMain
+    hwnd_main = $MakeWindow MainWindow
+    $call win_show, hwnd_main
+    $call win_loop
+
+subcode: win_show(hwnd)
+    ShowWindow($(hwnd), n_cmdshow)
+    UpdateWindow($(hwnd))
+    NEWLINE
+
+subcode: win_loop
+    $local MSG msg
+    $while GetMessage(&msg, NULL, 0, 0)>0
+	TranslateMessage(&msg)
+	DispatchMessage(&msg)
+
+subcode: WM_MSG(MSG)
+    case WM_$(MSG):
+	BLOCK
+	break;
+
+subcode: WM_PAINT
+    case WM_PAINT:
+	$local PAINTSTRUCT ps, HDC hdc
+	hdc=BeginPaint(hwnd, &ps)
+	BLOCK
+	EndPaint(hwnd, &ps)
+	break
+###############################################################
+fncode: WindowProc(hwnd, ui_msg, wparam, lparam)
+    $return_type LRESULT CALLBACK
+    $global ts_msg_buffer[200]
+    $switch ui_msg
+	case WM_ACTIVATE:
+	    $if wparam==WA_ACTIVE || wparam==WA_CLICKACTIVE
+		on_activate()
+	    $else 
+		on_inactivate()
+	case WM_COMMAND:
+	    n_id=LOWORD(wparam);
+	    n_cmd=HIWORD(wparam);
+	    $if n_cmd==0 || n_cmd==1 
+		on_command(n_id)
+	    $else
+		on_control(n_id, n_cmd, (HWND)lparam)
+	    break;
+	case WM_DESTROY:
+	    PostQuitMessage(0)
+	    break
+	default:
+	    return DefWindowProc(hwnd, ui_msg, wparam, lparam)
+    return 0
+
+fncode: on_command(tn_id)
+    #MessageBox(hwnd_main, "Command", "MessageBox", MB_OK);
+fncode: on_control(tn_id, tn_cmd, hwnd_ctl)
+    #MessageBox(hwnd_main, "Control", "MessageBox", MB_OK);
+fncode: on_activate()
+    #MessageBox(hwnd_main, "Activate", "MessageBox", MB_OK);
+fncode: on_inactivate()
+    #MessageBox(hwnd_main, "Inactivate", "MessageBox", MB_OK);
+
+###############################################################
+# ----
+subcode: init_error
+    $global s_errormsg_buffer[1000], n_errormsg_end=0
+
+subcode: add_error_f(msg)
+    $if n_errormsg_end+128<1000
+	char* s=s_errormsg_buffer+n_errormsg_end+1
+	int n=sprintf(s, $(msg))
+	$if n>100
+	    n=sprintf(s, "Error Message Buffer Overrun!")
+	s_errormsg_buffer[n_errormsg_end]=n
+	n_errormsg_end+=n+1
+
+subcode: draw_hello
+    $call newfont
+    $if n_errormsg_end>0
+	int x=10
+	int y=50
+	char* s=s_errormsg_buffer
+	$while s-s_errormsg_buffer<n_errormsg_end
+	    #MoveToEx(hdc, x, y, NULL)
+	    TextOut(hdc, x, y, s+1, (int)*s)
+	    s+=*s+1
+	    y+=20
+    $else
+	$local rect_main
+	GetClientRect(hwnd_main, &rect_main)
+	DrawText(hdc,"Hello World",-1, &rect_main, DT_SINGLELINE|DT_CENTER|DT_VCENTER)
+
+# ----
+subcode: newfont
+    hfont = $MakeFont Times New Roman
+    SelectObject(hdc, hfont)
+
+# -----------------------------------------------------------------------
+subcode: hgdiobj_collector
+    $call ref_counting, 100, hgdi, HGDIOBJ
+
+subcode: hgdi_free
+    DeleteObject(tp->value)
+# ----
+subcode: init_println
+    $local n_cur_text_x, n_cur_text_y, n_text_height
+    n_cur_text_x=10
+    n_cur_text_y=10
+    n_text_height=20
+    $call newfont
+
+subcode: move_to(x, y)
+    n_cur_text_x=$(x)
+    n_cur_text_y=$(y)
+
+subcode: println(@msg)
+    $uselib gdi32
+    _snprintf(ts_msg_buffer, 200, $(msg))
+    TextOut(hdc, n_cur_text_x, n_cur_text_y, ts_msg_buffer, strlen(ts_msg_buffer))
+    n_cur_text_y+=n_text_height
+
+subcode: fillrect(left, top, right, bot)
+    $local t_rect
+    t_rect.left=$(left)
+    t_rect.top=$(top)
+    t_rect.right=$(right)
+    t_rect.bottom=$(bot)
+    FillRect(hdc, &t_rect, (HBRUSH)(COLOR_WINDOW+1))
+###############################################################
+subcode: msgbox(@msg)
+    sprintf(ts_msg_buffer, $(msg))
+    MessageBox(hwnd_main, ts_msg_buffer, "Message Box", MB_OK)
+
+subcode: init_console
+    AllocConsole()
+    freopen("conout$","w",stdout)
+    freopen("conout$","w",stderr)
+    printf("Console ready ...\n")     
+###############################################################
+subcode: openfilename
+    $uselib comdlg32
+    $register_name(ofn) OPENFILENAME
+    $local ofn, ts_file[260], b_result
+    ZeroMemory(&ofn, sizeof(ofn))
+    ofn.lStructSize=sizeof(ofn)
+    ofn.hwndOwner=hwnd_main
+    ofn.lpstrFile=ts_file
+    ofn.lpstrFile[0]='\0'
+    ofn.nMaxFile=sizeof(ts_file)
+    ofn.lpstrFilter="All\0*.*\0\0"
+    ofn.nFilterIndex=1
+    ofn.lpstrFileTitle=NULL
+    ofn.nMaxFileTitle=0
+    ofn.lpstrInitialDir=NULL
+    ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+    b_result=GetOpenFileName(&ofn)
+
+resource: default_wnd
+    cbSize: sizeof(WNDCLASSEX)
+    style: 0
+    cbClsExtra: 0
+    cbWndExtra: 0
+    hIcon: NULL
+    hIconSm: NULL
+    hCursor: LoadCursor(NULL, IDC_ARROW)
+    hbrBackground: (HBRUSH)GetStockObject(WHITE_BRUSH)
+    lpszMenuName: NULL
+
+resource: default_font
+    lfHeight: 12
+    lfWidth: 0
+    lfEscapement: 0
+    lfOrientation: 0
+    lfWeight: FW_DONTCARE
+    lfItalic: 0
+    lfUnderline: 0
+    lfStrikeOut: 0
+    lfCharSet: DEFAULT_CHARSET
+    lfOutPrecision: OUT_DEFAULT_PRECIS
+    lfClipPrecision: CLIP_DEFAULT_PRECIS
+    lfQuality: DEFAULT_QUALITY
+    lfPitchAndFamily: FF_ROMAN|DEFAULT_PITCH
+    lfFaceName: "Times New Roman"
