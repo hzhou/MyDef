@@ -1,0 +1,132 @@
+subcode:: c_support_subs
+    $sub comma_split
+	my $l=shift;
+	my @t
+	my $i0=0
+	my $n=length($l);
+	my @wait_stack;
+	my $cur_wait;
+	my %pairlist=("'"=>"'", '"'=>'"', '('=>')', '['=>']', '{'=>'}')
+	$for $i=0:$n
+	    $if substr($l, $i) eq "\\"
+		$i++
+		next
+	    $if $cur_wait
+		$if substr($l, $i) eq $cur_wait
+		    $cur_wait=pop @wait_stack
+		    next
+		$if substr($l, $i) =~ /['"\(\[\{]/ 
+		    $cur_wait=$pairlist{substr($l, $i)}
+		    push @wait_stack, $cur_wait
+		    next
+	    $else
+		$if substr($l, $i) =~ /['"\(\[\{]/ 
+		    $cur_wait=$pairlist{substr($l, $i)}
+		    next
+		$if substr($l, $i) eq ","
+		    $if $i>$i0
+			push @t, substr($l, $i0, $i-$i0-1)
+		    $else
+			push @t, ""
+		    $i0=$i+1
+		    next
+	$if $n>$i0
+	    push @t, substr($l, $i0, $n-$i0)
+	return @t
+    $sub check_assignment
+	my ($l, $out)=@_;
+	$if $cur_function and $$l=~/^[^'"]*=/
+	    my $tl=$$l;
+	    $tl=~s/;+\s*$//;
+	    $if $tl=~/^\s*(.*?\w)\s*=\s*([^=].*)/
+		undef $$l;
+		my ($left, $right)=($1, $2);
+		# multi-assignment
+		my @left=split /,\s*/, $left;
+		my @right=comma_split($right);
+		for(my $i=0; $i<=$#left; $i++){
+		    do_assignment($left[$i], $right[$i], $out);
+		}
+
+    sub do_assignment {
+	my ($left, $right, $out)=@_;
+	if($debug){ print "do_assignment: $left = $right\n"; }
+	my $type;
+	if($left=~/^(.*?)\s+(\S+)$/){
+	    $type=$1;
+	    $left=$2;
+	}
+	if($left=~/^\w+$/){
+	    func_add_var($left, $type, $right);
+	    $type=get_var_type($left);
+	    func_var_assign($type, $left, $right, $out);
+	}
+	elsif($left=~/(\w+)(\.|->)(\w+)/){
+	    my $v1=$1;
+	    my $v2=$3;
+	    if($v1=~/^gns_(\w+)/){
+		global_namespace($v1);
+		add_struct($v1, $v2, $right);
+	    }
+	    my $stype=get_struct_element_type($v1, $v2);
+	    func_var_assign($stype, $left, $right, $out);
+	}
+	else{
+	    push @$out, "$left = $right;";
+	}
+    }
+    sub global_namespace{
+	my $v=shift;
+	my $stname="ns$v";
+	if(!$structs{$stname}){
+	    push @struct_list, $stname;
+	    $structs{$stname}=make_struct($stname, "");
+	    $type_name{$v}="struct $stname";
+	    global_add_var($v);
+	}
+    }
+    sub last_exp {
+	my $l=shift;
+	my $tlen=length($l);
+	my $i=$tlen-1;
+	if(substr($l, $i, 1) eq ')'){
+	    my $level=1;
+	    while($i>1){
+		$i--;
+		if(substr($l, $i, 1) eq ')'){$level++;}
+		if(substr($l, $i, 1) eq '('){$level--;}
+		if($level==0){last;}
+	    }
+	}
+	else{
+	    while($i>0){
+		if(substr($l, $i, 1) eq ']'){
+		    my $level=1;
+		    while($i>1){
+			$i--;
+			if(substr($l, $i, 1) eq ']'){$level++;}
+			if(substr($l, $i, 1) eq '['){$level--;}
+			if($level==0){last;}
+		    }
+		    $i--;
+		    next;
+		}
+		elsif(substr($l, $i-1, 2) eq '->'){
+		    $i-=2;
+		    next;
+		}
+		elsif(substr($l, $i, 1)=~/[0-9a-zA-Z_.]/){
+		    $i--;
+		    next;
+		}
+		last;
+	    }
+	    if(substr($l, $i, 1)!~/[a-zA-Z_.]/){
+		$i++;
+	    }
+	}
+	my $t0=substr($l, 0, $i);
+	my $t3=substr($l, $i, $tlen-$i);
+	return ($t0, $t3);
+    }
+

@@ -1,0 +1,123 @@
+subcode: c_dump_init
+    my @dump_init
+    $dump->{block_init}=\@dump_init
+    unshift @$out, "INCLUDE_BLOCK block_init"
+
+    $call dump_includes
+    $call dump_defines
+    $call dump_enums
+    $call dump_structs
+    $call dump_function_declares
+    $call dump_declares
+    $call dump_structs_functions
+    $call dump_globals
+    $call dump_code_list
+
+
+# -----------------------------------------
+subcode: dump_includes
+    my $cnt=0
+    $while my ($k, $t)=each %includes
+	$if $k!~/^lib/
+	    push @dump_init, "#include $k\n";
+	    $cnt++
+    $if $cnt>0
+	push @dump_init, "\n";
+
+subcode: dump_defines
+    my $cnt=0
+    $while my ($k, $t)=each %defines
+	push @dump_init, "#define $k $t\n";
+	$cnt++
+    $if $cnt>0
+	push @dump_init, "\n";
+
+subcode: dump_enums
+    my $cnt=0
+    $foreach my $name in @enum_list
+	my $t=$enums{$name};
+	push @dump_init, "enum $name {$t};\n";
+	$cnt++
+    $if $cnt>0
+	push @dump_init, "\n";
+
+# ---- dump global variables -----------
+subcode: dump_globals
+    my $cnt=0
+    $foreach my $v in @global_list
+	$call dump_global
+    $if $cnt>0
+	push @dump_init, "\n";
+
+subcode: dump_global
+    $call dump_global_std
+
+subcode: dump_global_std
+    push @dump_init, "$v;\n";
+    $cnt++
+# ---- -----------
+
+subcode: dump_function_declares
+    my $cnt=0
+    $foreach my $t in @function_declare_list
+	my $func=$functions{$t};
+	$if !$func->{skip_declare}
+	    my $name=$func->{name};
+	    my $ret_type=$func->{'ret_type'};
+	    if(!$ret_type){$ret_type="void";}
+	    my $paramlist=$func->{'param_list'};
+	    my $param=join(', ', @$paramlist);
+	    push @dump_init, "$ret_type $name($param);\n";
+	    $cnt++
+    $if $cnt>0
+	push @dump_init, "\n";
+
+subcode: dump_code_list
+    $foreach my $l in @initcodes
+	push @dump_init, "$l\n";
+    $if @initcodes
+	push @dump_init, "\n";
+
+subcode: dump_declares
+    $foreach my $l in @declare_list
+	push @dump_init, "$l\n";
+    $if @declare_list
+	push @dump_init, "\n";
+
+subcode: dump_structs
+    $foreach my $name in @struct_list
+	push @dump_init, "struct $name {\n";
+	my @plist=@{$structs{$name}};
+	my $info=$plist[0];
+	my $i=0;
+	$foreach my $p in @plist
+	    $i++;
+	    $if $i==1
+		next;
+	    $if $p->{type} eq "function"
+		push @dump_init, "\t".$fntype{$p->{name}}.";\n";
+	    $else
+		push @dump_init, "\t$p->{type} $p->{name};\n";
+	push @dump_init, "};\n\n";
+
+subcode: dump_structs_functions
+    my $cnt=0
+    $foreach my $name in @struct_list
+	my $info=$structs{$name}->[0]
+	$if $info->{"constructor"}
+	    push @dump_init, "void $name\_constructor(struct $name* p){\n";
+	    foreach my $l(@{$info->{constructor}}){
+		push @dump_init, "    $l\n";
+	    }
+	    push @dump_init, "}\n";
+	    $cnt++
+	$if $info->{"destructor"}
+	    push @dump_init, "void $name\_destructor(struct $name* p){\n";
+	    foreach my $l(@{$info->{destructor}}){
+		push @dump_init, "    $l\n";
+	    }
+	    push @dump_init, "}\n";
+	    $cnt++
+	# ------------------------
+    $if $cnt>0
+	push @dump_init, "\n";

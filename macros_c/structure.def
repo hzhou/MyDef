@@ -1,0 +1,108 @@
+
+subcode:: c_support_subs
+    $sub make_struct
+	my ($name, $param)=@_;
+	my @struct;
+	my (@init, @exit);
+	push @struct, {constructor=>undef, destructor=>undef};
+	my @plist=split /,\s+/, $param;
+	$foreach my $p in @plist
+	    my $element={};
+	    push @struct, $element;
+	    $if $p=~/^@/
+		$element->{needfree}=1;
+		$p=$';
+
+	    my $init;
+	    $if $p=~/(.*?)(\S+)\s*=\s*(.*)/
+		$p="$1$2";
+		$init=1;
+		push @init, "p->$2=$3;";
+
+	    $if $p=~/(.*\S)\s+(\S+)\s*$/
+		$element->{type}=$1;
+		$element->{name}=$2;
+		$p=$2
+	    $else
+		$element->{name}=$p;
+		$if $p eq "next" or $p eq "prev"
+		    $element->{type}="struct $name\_node *";
+		    $if !@init
+			push @init, "p->$p=NULL;";
+		$elif $p eq "list"
+		    $element->{type}="struct $name\_node";
+		$elif $p eq "tail"
+		    $element->{type}="struct $name\_node *";
+		    $if !@init
+			push @init, "p->$p=&p->list;";
+		$elif $fntype{$p}
+		    $element->{type}="function";
+		$elif $p
+		    my $type=get_c_type($p);
+		    $element->{type}=$type;
+	    # -- init & exit
+	    my $type=$element->{type}
+	    my $name=$element->{name}
+	    $foreach my $fh in @func_var_hooks
+		$if $fh->{var_check}->($type)
+		    my $init=$fh->{var_init}->($type, "p->$name") 
+		    $if $init
+			push @init, "p->$p=$init;";
+		    my $exit=$fh->{var_release}->($type, "p->$name", "skipcheck")
+		    $if $exit
+			$foreach my $l in @$exit
+			    push @exit, $l;
+
+	$if @init
+	    $struct[0]->{constructor}=\@init;
+	$if @exit
+	    $struct[0]->{destructor}=\@exit;
+	return \@struct;
+
+    sub add_struct {
+	my ($stname, $pname)=@_;
+	my $struct=$structs{$stname};
+	#print "Struct $stname: $struct\n";
+	if($struct){
+	    foreach my $p(@$struct){
+		if($p->{name} eq $pname){
+		    return;
+		}
+	    }
+	    if($fntype{$pname}){
+		push @$struct, {type=>"function", name=>$pname};
+	    }
+	    else{
+		my $type=get_c_type($pname);
+		push @$struct, {type=>$type, name=>$pname};
+	    }
+	}
+    }
+    sub get_struct_element_type {
+	my ($svar, $evar)=@_;
+	my $stype=get_var_type($svar);
+	if($stype=~/struct\s+(\w+)/){
+	    my $struc=$structs{$1};
+	    foreach my $p(@$struc){
+		if($p->{name} eq $evar){
+		    return $p->{type};
+		}
+	    }
+	}
+	#print STDERR "failed get_struct_element_type($svar, $evar)\n";
+	return "void";
+    }
+
+    sub struct_free {
+	my ($out, $ptype, $name)=@_;
+	my $type=pointer_type($ptype);
+	if($type=~/struct\s+(\w+)/ and $structs{$1}){
+	    foreach my $p (@{$structs{$1}}){
+		if($p->{needfree}){
+		    struct_free($out, $p->{type}, "$name"."->".$p->{name});
+		}
+	    }
+	}
+	push @$out, "free($name);";
+    }
+

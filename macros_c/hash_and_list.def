@@ -1,0 +1,96 @@
+subcode:: c_support_subs
+    sub struct_set {
+	my ($struct_type, $struct_var, $val, $out)=@_;
+	my $struct=$structs{$struct_type};
+	my @vals=split /,\s*/, $val;
+	for(my $i=0; $i<=$#vals; $i++){
+	    my $sname=$struct->[$i]->{name};
+	    do_assignment("$struct_var\->$sname", $vals[$i], $out);
+	}
+    }
+    sub struct_get {
+	my ($struct_type, $struct_var, $var, $out)=@_;
+	my $struct=$structs{$struct_type};
+	my @vars=split /,\s*/, $var;
+	for(my $i=0; $i<=$#vars; $i++){
+	    my $sname=$struct->[$i]->{name};
+	    do_assignment( $vars[$i],"$struct_var\->$sname", $out);
+	}
+    }
+    # --
+    sub hash_check {
+	my ($out, $h, $name)=@_;
+	func_add_var("p_$h", "struct $h\_node *");
+	push @$out, "p_$h=hash_lookup_$h($name);";
+	return "p_$h\->s_text";
+    }
+    sub hash_assign {
+	my ($out, $h, $name, $val)=@_;
+	my $p="p_$h";
+	func_add_var("p_$h", "struct $h\_node *");
+	push @$out, "p_$h=hash_lookup_$h($name);";
+	push @$out, "if(p_$h\->s_text==NULL){p_$h->s_text=strdup($name);}";
+	struct_set("$h\_node", "p_$h", $val, $out);
+    }
+    sub hash_fetch {
+	my ($out, $h, $name, $var)=@_;
+	func_add_var("p_$h", "struct $h\_node *");
+	push @$out, "p_$h=hash_lookup_$h($name);";
+	push @$out, "if(p_$h\->s_text){";
+	struct_get("$h\_node", "p_$h", $var, $out);
+	push @$out, "}";
+	# use $except for the case where key does not exist.
+	$except="else";
+    }
+    # --
+    sub get_array_type {
+	my ($var)=@_;
+	if(my $type = get_var_type($var)){
+	    return $type;
+	}
+	elsif($var_type_cast/{$var}){
+	    return $var_type_cast{$var};
+	}
+	else{
+	    return $var;
+	}
+    }
+    sub array_push {
+	my ($out, $v, $val)=@_;
+	my $a=get_array_type($v);
+	func_add_var("p_$a", "struct $a\_node *");
+	push @$out, "p_$a=list_push_$a();";
+	struct_set("$a\_node", "p_$a", $val, $out);
+    }
+    sub array_unshift {
+	my ($out, $v, $val)=@_;
+	my $a=get_array_type($v);
+	func_add_var("p_$a", "struct $a\_node *");
+	push @$out, "p_$a=list_unshift_$a();";
+	struct_set("$a\_node", "p_$a", $val, $out);
+    }
+    sub array_pop {
+	my ($out, $v, $var)=@_;
+	my $a=get_array_type($v);
+	if($var){
+	    func_add_var("p_$a", "struct $a\_node *");
+	    push @$out, "p_$a=list_pop_$a();";
+	    struct_get("$a\_node", "p_$a", $var, $out);
+	}
+	else{
+	    push @$out, "list_pop_$a();";
+	}
+    }
+    sub array_shift {
+	my ($out, $v, $var)=@_;
+	my $a=get_array_type($v);
+	if($var){
+	    func_add_var("p_$a", "struct $a\_node *");
+	    push @$out, "p_$a=list_shift_$a();";
+	    struct_get("$a\_node", "p_$a", $var, $out);
+	}
+	else{
+	    push @$out, "list_shift_$a();";
+	}
+    }
+

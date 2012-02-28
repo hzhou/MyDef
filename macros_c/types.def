@@ -1,0 +1,95 @@
+subcode:: c_support_subs
+    $sub infer_c_type
+	my $val=shift;
+	$if $val=~/^[+-]?\d+\./
+	    return "float"
+	$elif $val=~/^[+-]?\d/
+	    return "int"
+	$elif $val=~/^"/
+	    $cur_function->{ret_type}="char *";
+	$elif $val=~/^'/
+	    $cur_function->{ret_type}="char";
+	$elif $val=~/(\w+)/
+	    return get_var_type($1);
+
+    sub get_c_type_word {
+	my $name=shift;
+	$if $debug
+	    print "get_c_type_word: [$name] -> $type_prefix{$name}\n";
+	if($name=~/^([a-z]+)/){
+	    $prefix=$1;
+	    if($type_prefix{$prefix}){
+		return $type_prefix{$prefix};
+	    }
+	    elsif(substr($prefix, 0, 1) eq "t"){
+		return get_c_type_word(substr($prefix,1));
+	    }
+	    elsif(substr($prefix, 0, 1) eq "p"){
+		return get_c_type_word(substr($prefix,1)).'*';
+	    }
+	    elsif($name=~/^st(\w+)/){
+		return "struct $1";
+	    }
+	    else{
+		#print "Failed to get_c_type_word $name";
+	    }
+	}
+    }
+
+    $sub get_c_type
+	my $name=shift;
+	my $check;
+	my $type="void";
+	$if $name=~/.*\.([a-zA-Z].+)/
+	    #print "ctype: $name->$1\n";
+	    $name=$1;
+	$if $type_name{$name}
+	    $type= $type_name{$name};
+	$elsif $name=~/([a-zA-Z]+)_(.*)/
+	    my $t1=$1;
+	    my $t2=$2;
+	    my $t=get_c_type_word($t1);
+	    $if !$t
+		$if $t1=~/^\w+$/
+		    $type=get_c_type_word($t2);
+	    $elsif $t=~/^\*/
+		$type=get_c_type_word($t2).$t;
+	    $else
+		$type=$t;
+	$else
+	    $type=get_c_type_word($name);
+
+	$if !$type
+	    $type="void";
+	$elsif $type =~/^\*/
+	    $type="void";
+	# --
+	$while $name=~/\[.*?\]/g
+	    $type=pointer_type($type);
+	# --
+	$if $type_include{$type}
+	    add_include($type_include{$type});
+	#if($type eq "void"){warn "get_c_type $name failed\n";}
+	return $type;
+
+    $sub pointer_type
+	my ($t)=@_;
+	$t=~s/\s*\*\s*$//;
+	return $t;
+
+    $sub get_name_type
+	my $t=shift
+	$if $t=~/(\S.*\S)\s+(\S+)/
+	    return ($1, $2)
+	$else
+	    return (get_c_type($t), $t)
+    # --------------------------------------------
+    $sub get_c_fmt 
+	my $name=shift;
+	my $type=get_var_type($name);
+	$if $type eq "int"
+	    return "%d";
+	$elsif $type eq "char"
+	    return "%c";
+	$elsif $type eq "char *"
+	    return "%s";

@@ -1,0 +1,201 @@
+include: macros_c/globals.def
+include: macros_c/parsing.def
+include: macros_c/last_checks.def
+include: macros_c/structure.def
+include: macros_c/functions.def
+include: macros_c/hash_and_list.def
+include: macros_c/types.def
+include: macros_c/dump.def
+
+subcode: c_main
+    use MyDef::dumpout;
+    use MyDef::regex;
+
+    my $cur_indent;
+    our $cur_function;
+
+    $call package_globals
+
+    ## -------------------------------------------------
+    our %misc_vars;
+    our $except;
+
+    $call c_support_subs
+
+subcode: c_init
+    %includes=();
+    $if $MyDef::def->{"macros"}->{"use_double"}
+	$type_name{f}="double";
+	$type_prefix{f}="double";
+    MyDef::dumpout::init_funclist();
+
+subcode: c_modeswitch
+    $if $mode=~/(\w+)-(.*)/
+	my $fname=$1;
+	my $t=$2;
+	$if $fname eq "n_main"
+	    $fname="main";
+	my $fidx=open_function($fname, $t);
+	push @$out, "OPEN_FUNC_$fidx";
+	$cur_indent=0;
+	return 1;
+
+subcode: c_main_function
+    my $func=$functions{"main"};
+    $if $func
+	$func->{skip_declare}=1;
+	$func->{ret_type}="int";
+	$func->{param_list}=["int argc", "char** argv"];
+	$func->{init}=["DUMP_STUB main_init"];
+	$func->{finish}=["DUMP_STUB main_exit", "return 0;"];
+
+############################################
+
+subcode: check_text_includes
+    $while my ($k, $v)=each %text_include
+	$if $l=~/$k/
+	    $if $v=~/(\S+)/
+		$includes{"<$1>"}=1
+
+subcode:: c_support_subs
+    sub declare_var {
+	my ($var, $type)=@_;
+	$cur_function->{var_type}->{$var}=$type;
+    }
+
+    sub single_block {
+	my ($t, $out)=@_;
+	push @$out, "$t\{";
+	push @$out, "INDENT";
+	push @$out, "BLOCK";
+	push @$out, "DEDENT";
+	push @$out, "}";
+	return "NEWBLOCK";
+    }
+    sub regex_init_code {
+	print "regex_init_code\n";
+	$includes{"<stdlib.h>"}=1;
+	if(!$structs{"VMInst"}){
+	    push @struct_list, "VMInst";
+	    $structs{"VMInst"}=make_struct("VMInst", "int opcode, int c, int x, int y");
+	    MyDef::regex::add_regex_vm_code(\@initcodes);
+	}
+	if(!$enums{"RegexOp"}){
+	    push @enum_list, "RegexOp";
+	    $enums{"RegexOp"}="Char, Match, Jmp, Split, AnyChar";
+	}
+    }
+    sub parse_condition {
+	my ($param, $out)=@_;
+	if($param=~/^\s*(!)?\/(.*)\//){
+	    my $var=$misc_vars{regex_var};
+	    my $pos=$misc_vars{regex_pos};
+	    my $end=$misc_vars{regex_end};
+	    my $t= MyDef::regex::parse_regex_match($2, $out, \&regex_init_code, $var, $pos, $end);
+	    if($1){
+		return "!($t)"
+	    }
+	    else{
+		return $t;
+	    }
+	}
+	elsif($param=~/(\w+)->\{(.*)\}/){
+	    return hash_check($out, $1, $2);
+	}
+	else{
+	    return $param;
+	}
+    }
+
+# ---- allocate ----
+subcode: allocate_dimension
+    my $init;
+    $if $dim=~/(.*),\s*(.*)/
+	$dim=$1;
+	$init=$2;
+    $if $dim=~/[+-]/
+	$dim="($dim)";
+
+subcode: allocate_one
+    push @$out, "$p=($type*)malloc(sizeof($type));";
+    $if $t->{constructor}
+	push @$out, "$1_constructor($p);";
+subcode: allocate_array
+    push @$out, "$p=($type*)malloc($dim*sizeof($type));";
+    $if $t->{constructor}
+	func_add_var("i", "int");
+	push @$out, "for(i=0;i<$dim;i++)$1_constructor($p\[i]);";
+subcode: check_destructor
+    $if $misc_vars{mu_enable}
+	my $destructor="NULL";
+	$if $type=~/struct (\w+)/
+	    my $t=$structs{$1}->[0];
+	    $if $t->{destructor}
+		$destructor="&$1_destructor";
+	push @$out, "mu_add((void*)$p, sizeof($type), $dim, $destructor);";
+subcode: allocate_init
+    $if defined $init and $init ne ""
+	func_add_var("i", "int");
+	push @$out, "for(i=0;i<$dim;i++){";
+	$foreach my $p in @plist
+	    $if $p
+		push @$out, "    $p\[i]=$init;";
+	push @$out, "}";
+subcode: allocate_debug
+    $if $misc_vars{"debug_mem"}==1
+	push @$out, "printf(\"Mem \%d - $p \%d $type [%x]\\n\", mu_lastmem, $dim, $p);";
+
+subcode:: c_support_subs
+    $sub allocate
+	my ($out, $dim, $param2)=@_;
+	$includes{"<stdlib.h>"}=1;
+	$call allocate_dimension
+	my @plist=split /,\s+/, $param2;
+	$foreach my $p in @plist
+	    $if $p
+		func_add_var($p);
+		$cur_function->{var_flag}->{$p}="retained";
+		my $type=pointer_type(get_var_type($p));
+		$if $dim == 1
+		    $call allocate_one
+		$else 
+		    $call allocate_array
+		$call check_destructor
+		$call allocate_debug
+		$call allocate_init
+
+# -------------------------------------
+subcode:: c_support_subs
+    sub debug_dump {
+	my ($param, $prefix, $out)=@_;
+	my @vlist=split /,\s+/, $param;
+	my @a1;
+	my @a2;
+	foreach my $v(@vlist){
+	    push @a2, $v;
+	    my $type=get_c_type($v);
+	    if($type=~/^(float|double)/){
+		push @a1,"$v=\%g";
+	    }
+	    elsif($type=~/^int/){
+		push @a1,"$v=\%d";
+	    }
+	    elsif($type=~/^char \*/){
+		push @a1, "$v=\%s";
+	    }
+	    elsif($type=~/^char/){
+		push @a1,"$v=\%d";
+	    }
+	    else{
+		print "debug_dump: unhandled $v - $type\n";
+	    }
+	}
+	if($prefix){
+	    push @$out, "fprintf(stderr, \"    :[$prefix] ".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
+	}
+	else{
+	    push @$out, "fprintf(stderr, \"    :".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
+	}
+	$includes{"<stdio.h>"}=1;
+    }
+

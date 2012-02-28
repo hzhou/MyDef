@@ -1,0 +1,339 @@
+# -----------------------------------------------------------------
+subcode:: c_support_subs
+    $sub open_function
+	my ($fname, $t)=@_;
+	my @plist=split /,/, $t;
+	# -- var_list: list of local variables
+	# -- var_type: types of local variables
+	# -- var_flag: flags
+	my $func= {param_list=>[], var_list=>[], var_type=>{}, var_flag=>{}, var_decl=>{}, init=>[], finish=>[]};
+
+	while(my ($k, $v)=each %function_flags){
+	    $func->{$k}=$v;
+	}
+	$func->{name}=$fname;
+	my $pbuf=$func->{param_list};
+	my $var_type=$func->{var_type};
+	foreach my $p(@plist){
+	    if($p=~/(\S.*)\s+(\S+)\s*$/){
+		push @$pbuf, "$1 $2";
+		$var_type->{$2}=$1;
+	    }
+	    else{
+		if($fntype{$p}){
+		    push @$pbuf, $fntype{$p};
+		    $var_type->{$p}="function";
+		}
+		else{
+		    my $t= get_c_type($p);
+		    push @$pbuf, "$t $p";
+		    $var_type->{$p}=$t;
+		}
+	    }
+	}
+	# --
+	if($func->{name}){
+	    my $name=$func->{name};
+	    push @function_declare_list, $name;
+	    $functions{$name}=$func;
+	}
+	# --
+	$cur_function=$func;
+	my $fidx=MyDef::dumpout::add_function($func);
+	return $fidx;
+
+    $sub open_closure
+	my ($open, $close)=@_;
+	my $func= {var_list=>[], var_type=>{}, var_flag=>{}, var_decl=>{}};
+	$func->{openblock}=[$open];
+	$func->{closeblock}=[$close];
+	# --
+	$cur_function=$func;
+	my $fidx=MyDef::dumpout::add_function($func);
+	return $fidx;
+
+# -----------------------------------------------------------------
+subcode:: c_support_subs
+    $sub get_var_type
+	my $name=shift;
+	$if $cur_function and $cur_function->{var_type}->{$name}
+	    return $cur_function->{var_type}->{$name};
+	$else
+	    return $global_type->{$name};
+    $sub get_var_flag
+	my $name=shift;
+	$if $cur_function->{var_flag}->{$name}
+	    return $cur_function->{var_flag}->{$name};
+	$else
+	    return $global_flag->{$name};
+# -----------------------------------------------------------------
+subcode:: c_support_subs
+    $sub global_add_var
+	my ($name, $type, $value)=@_;
+
+	$if $global_type->{$name}
+	    return;
+
+	$call split_name
+	$call infer_type
+	$if $array
+	    $type=pointer_type($type)
+	    $global_type->{$name}="$type *"
+	$else
+	    $global_type->{$name}=$type
+	$call var_init_line
+	push @global_list, $init_line
+
+    $sub func_add_var
+	my ($name, $type, $value)=@_;
+
+	$if !$cur_function
+	    return;
+	$if get_var_type($name)
+	    return;
+
+	my $var_list=$cur_function->{var_list};
+	my $var_decl=$cur_function->{var_decl};
+	my $var_type=$cur_function->{var_type};
+
+	$call split_name
+
+	push @$var_list, $name;
+
+	$call infer_type
+	$if $debug
+	    print "func_add_var: $name - $type - $array\n"
+	$if $array
+	    $type=pointer_type($type)
+	    $var_type->{$name}="$type *"
+	$else
+	    $var_type->{$name}=$type
+
+	$if !$tail
+	    $call var_init
+	$call var_init_line
+	$var_decl->{$name}=$init_line;
+	#print "Add var $name, type: $var_type->{$name}, init: $var_decl->{$name}\n";
+	# ----
+	$if $type=~/struct (\w+)$/
+	    $if $structs{$1}->[0]->{constructor}
+		$if $array
+		    func_add_var("i", "int");
+		    push @{$cur_function->{init}}, "for(i=0;i<$array;i++){$1_constructor(&$name\[i]);}";
+		$else
+		    push @{$cur_function->{init}}, "$1_constructor(&$name);"
+
+# ----
+subcode: split_name
+    my ($tail, $array);
+    $if $name=~/(\S+)(=.*)/
+	$name=$1;
+	$tail=$2;
+    $if $name=~/(\w+)\[(.*)\]/
+	$name=$1;
+	$array=$2;
+
+subcode: infer_type
+    $if !$type
+	$if $fntype{$name}
+	    $type="function"
+	$elif $value
+	    $type=infer_c_type($value);
+	$if !$type
+	    $type=get_c_type($name);
+
+subcode: var_init
+    my $init_value=func_var_init($name, $type);
+    $if $init_value
+	$if $array
+	    func_add_var("i", "int");
+	    push @{$cur_function->{init}}, "for(i=0;i<$array;i++){$name\[i] = $init_value;}";
+	$else
+	    $tail=" = $init_value";
+
+subcode: var_init_line
+    my $init_line
+    $if $type eq "function"
+	$init_line=$fntype{$name};
+    $elif $array
+	$init_line="$type $name\[$array]$tail";
+    $else
+	$init_line="$type $name$tail";
+
+#-------------------------------------------------------------
+subcode:: c_support_subs
+    $sub func_return
+	my ($l, $out)=@_;
+	$if !$cur_function->{ret_type}
+	    $if $l=~/return\s+(.*)/
+		my $t=$1;
+		$if $t=~/(\w+)/
+		    $cur_function->{ret_var}=$1;
+		$cur_function->{ret_type}=infer_c_type($t)
+	    $else
+		$cur_function->{ret_type}="void";
+	$if $cur_indent<=1
+	    $cur_function->{has_return}=1;
+
+	func_var_release($out);
+
+    $sub func_var_init
+	my ($v, $type)=@_;
+	my $init;
+	$foreach my $fh in @func_var_hooks
+	    $if $fh->{var_check}->($type)
+		$init=$fh->{var_init}->($v, $type);
+	$if $init
+	    return $init;
+
+    $sub func_var_release
+	my ($out)=@_;
+	my $ret_type=$cur_function->{ret_type};
+	my $ret_var=$cur_function->{ret_var};
+	my $var_list=$cur_function->{var_list};
+	my $var_type=$cur_function->{var_type};
+	$if @$var_list and @func_var_hooks
+	    $foreach my $name in @$var_list
+		my $type=$var_type->{$name};
+		$if $name ne $ret_var
+		    $foreach my $fh in @func_var_hooks
+			$if $fh->{var_check}->($type)
+			    my $exit=$fh->{var_release}->($type, $name);
+			    $if $exit
+				$foreach my $l in @$exit
+				    push @$out, $l;
+
+
+    $sub func_var_assign
+	my ($type, $name, $val, $out)=@_;
+	if($debug){print "func_var_assign: $type $name = $val\n"}
+	my $done_out;
+	$if @func_var_hooks
+	    $foreach my $fh in @func_var_hooks
+		$if $fh->{var_check}->($type)
+		    $fh->{var_pre_assign}->($type, $name, $val, $out);
+		    push @$out, "$name = $val;";
+		    $fh->{var_post_assign}->($type, $name, $val, $out);
+		    $done_out=1;
+		    last;
+	$if !$done_out
+	    push @$out, "$name = $val;";
+
+# -----------------------------------------------------------------
+subcode: process_function_std
+    my $name=$func->{name};
+
+    # ---- open block ------------------
+    $if !$func->{openblock}
+	my @t
+	my $ret_type=$func->{ret_type};
+	if(!$ret_type){$ret_type="void";}
+	my $paramlist=$func->{'param_list'};
+	my $param=join(', ', @$paramlist);
+	push @t,  "$ret_type $name($param){"
+	$func->{openblock}=\@t
+
+    # ---- close block ----------------------
+    $if !$func->{closeblock}
+	my @t
+	push @t, "}";
+	push @t, "NEWLINE";
+	$func->{closeblock}=\@t
+
+    my (@pre, @post);
+    $func->{preblock}=\@pre;
+    $func->{postblock}=\@post;
+
+    # ---- pre block -----------------------
+    my $var_decl=$func->{var_decl};
+    my $var_list=$func->{var_list};
+    $if @$var_list
+	$foreach my $v in @$var_list
+	    push @pre, "$var_decl->{$v};";
+	push @pre, "NEWLINE";
+
+    $foreach my $tl in @{$func->{init}}
+	push @pre, $tl;
+
+    # ---- post block ----------------------- 
+    $if !$func->{has_return}
+	$cur_function=$func
+	func_var_release(\@post);
+
+    $foreach my $tl in @{$func->{finish}}
+	push @post, $tl;
+
+
+############################################################################
+subcode:: c_support_subs
+    sub mu_enable {
+	$misc_vars{mu_enable}=1;
+	push @func_var_hooks, {var_check=>\&mu_var_check, var_init=>\&mu_var_init, var_pre_assign=>\&mu_pre_assign, var_post_assign=>\&mu_post_assign, var_release=>\&mu_release};
+    }
+
+    sub mu_var_check {
+	my ($type)=@_;
+	if($type=~/\*$/){
+	    return 1;
+	}
+	else{
+	    return 0;
+	}
+    }
+
+    sub mu_var_init {
+	return "NULL";
+    }
+    sub mu_pre_assign {
+	my ($type, $name, $val, $out)=@_;
+	if($var_flag->{$name} eq "retained"){
+	    my $var_flag=$cur_function->{var_flag};
+	    push @$out, "if($name){mu_release($name);}";
+	    $var_flag->{$name}=0;
+	}
+    }
+    sub mu_post_assign {
+	my ($type, $name, $val, $out)=@_;
+	print "mu_post_assign: $type $name = $val\n";
+	my $var_flag=$cur_function->{var_flag};
+	print "mu_post_assign: $name = $val\n";
+	if($val=~/^\s*(NULL|0)\s*$/i){
+	}
+	elsif($val=~/^\s*(\w+)(.*)/){
+	    $var_flag->{$name}="retained";
+	    print "retain $name\n";
+	    my $name=$1;
+	    my $tail=$2;
+	    if($tail=~/^\s*\(/ and MyDef::is_sub($name)){
+	    }
+	    else{
+		push @$out, "mu_retain($name);";
+	    }
+	}
+    }
+    $sub mu_release
+	my ($type, $name, $skipcheck)=@_;
+	$if $skipcheck
+	    return mu_release_0($type, $name, $out)
+	$else
+	    my $var_flag=$cur_function->{var_flag};
+	    #print "$cur_function->{name} mu_release($name): flag: $var_flag->{$name}\n";
+	    $if $func->{mu_skip}->{$name}
+	    $elsif $var_flag->{$name} eq "retained"
+		return mu_release_0($type, $name, $out)
+
+    $sub mu_release_0
+	my ($type, $name)=@_;
+	my @out;
+	push @out, "if($name){";
+	push @out, "INDENT";
+	if($type=~/^struct\s+(\w+)\s*$/){
+	    my $t=$structs{$1}->[0];
+	    if($t->{destructor}){
+		push @out, "$1_destructor($name);";
+	    }
+	}
+	push @out, "mu_release($name);";
+	push @out, "DEDENT";
+	push @out, "}";
+	return \@out

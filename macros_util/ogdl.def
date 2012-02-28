@@ -1,0 +1,68 @@
+subcode: support_ogdl
+    $sub grab_ogdl
+	my ($name, $llist)=@_;
+	my @ogdl_stack;
+	my $cur_i=0;
+	my $cur_item={"_list"=>[], "_name"=>$name}
+	my $last_item;
+	my $last_item_type;
+	my $last_item_key;
+	my $ogdl=$cur_item
+
+	$foreach my $l in @$llist
+	    $if $l=~/^(\d)+:(.*)/
+		my ($i, $l)=($1, $2)
+		# ---- check indentation
+		$if $i>$cur_i
+		    push @ogdl_stack, $cur_item;
+		    $cur_item={"_list"=>[]}
+		    $if $last_item_type eq "array"
+			$cur_item->{_name}=$last_item->[-1]
+			$last_item->[-1]=$cur_item
+		    $elif $last_item_type eq "hash"
+			$cur_item->{_name}=$last_item->{$last_item_key}
+			$last_item->{$last_item_key}=$cur_item
+		    # ----
+		    $cur_i=$i;
+		$elif $i<$cur_i
+		    $while $i<$cur_i
+			$cur_item=pop @ogdl_stack
+			$cur_i--;
+
+		# ---- add item
+		$if $cur_item
+		    $if $l=~/([^"]+):\s*(.+)/
+			my ($k, $v)=($1, $2);
+			    $cur_item->{$k}=$v;
+			    $last_item=$cur_item
+			    $last_item_type="hash"
+			    $last_item_key=$k
+		    $elif $l=~/(.*):\s*$/
+			$cur_item->{$k}="_"
+			$last_item=$cur_item
+			$last_item_type="hash"
+			$last_item_key=$k
+		    $else
+			my @t=split /,\s*/, $l;
+			$foreach my $t in @t
+			    push @{$cur_item->{_list}}, $t
+			    $last_item=$cur_item->{_list}
+			    $last_item_type="array"
+	return $ogdl;
+
+    $sub print_ogdl
+	my $ogdl=shift;
+	my $indent=shift;
+	$if ref($ogdl) eq "HASH"
+	    $if $ogdl->{_name} ne "_"
+		print "    "x$indent, $ogdl->{_name}, "\n";
+		$indent++
+	    $while my ($k, $v) = each %$ogdl
+		$if $k!~/^_(list|name)/ 
+		    print "    "x$indent, $k, ":\n";
+		    print_ogdl($v, $indent+1)
+	    $foreach my $v in @{$ogdl->{_list}}
+		print_ogdl($v, $indent)
+	$else
+	    print "    "x$indent, $ogdl, "\n";
+
