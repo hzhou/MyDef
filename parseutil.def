@@ -218,46 +218,34 @@ subcode: start_page
     $stage='page';
 
 subcode: process_fields
-    if($line=~/^optional:(.*)/){
+    $if $line=~/^optional:(.*)/
 	my @tlist=split(/,/, $1);
-	foreach my $t (@tlist){
-	    if($t=~/(\w+)/){
-		if($def->{$stage}->{$1}){
+	$foreach my $t in @tlist
+	    $if $t=~/(\w+)/
+		$if $def->{$stage}->{$1}
 		    $def->{$stage}->{$1}->{optional}=1;
-		}
-		else{
+		$else
 		    $def->{$stage}->{$1}={optional=>1};
-		}
-	    }
-	}
-    }
-    elsif($curindent==1){
-	if($line=~/^([a-zA-Z0-9-_]+):\s*(.*)$/){
-	    if($def->{$stage}->{$1}){
+    $elsif $curindent==1
+	$if $line=~/^([a-zA-Z0-9-_]+):\s*(.*)$/
+	    $if $def->{$stage}->{$1}
 		$item=$def->{$stage}->{$1};
-	    }
-	    else{
+	    $else
 		$item={};
 		$def->{$stage}->{$1}=$item;
-	    }
-	    if($2){
+	    $if $2
 		$item->{type}=$2;
 		$item->{value}=$2;
 		$item->{title}=$2;
-	    }
-	}
-    }
-    elsif($line=~/^(\w+): (.*)/){
+    $elsif $line=~/^(\w+): (.*)/
 	my $k=$1;
 	my $v=$2;
 	expand_macro(\$v, $macros);
-	if($item->{$k}){
+	$if $item->{$k}
 	    print STDERR " Denied overwriting $k with $v\n" if $debug>1;
-	}
-	else{
+	$else
 	    $item->{$k}=$v;
-	}
-    }
+
 subcode: process_macros
     $if $line=~/^(\w+): (.*\S)/
 	my $k=$1;
