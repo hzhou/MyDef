@@ -4,8 +4,6 @@ subcode: basic_frame
     $register_prefix(ui) UINT
     $register_prefix(lpstr) LPSTR
 
-    $register_name(mii) MENUITEMINFO
-
     $register_prefix(hwnd) HWND
     $register_prefix(hmenu) HMENU
     $register_prefix(rect) RECT
@@ -15,23 +13,23 @@ subcode: basic_frame
     $register_prefix(bmp) DWORD *
 
     # Main Window Handle
-    $global hwnd_main
 
     $call init_error
     #$call hgdiobj_collector
     $call main_fn_list
     $list WinMain
-    #$list on_paint, on_command, on_control, on_activate, on_inactivate
 
-###############################################################
 fncode: WinMain
-    hwnd_main = $MakeWindow MainWindow
-    $call win_show, hwnd_main
+    $call win_main
     $call win_loop
 
-subcode: win_show(hwnd)
-    ShowWindow($(hwnd), n_cmdshow)
-    UpdateWindow($(hwnd))
+subcode: win_main
+    $struct(controller_main) type, hwnd, sublist, layout
+    $global struct controller_main main
+    $MakeWindow main, main
+
+    ShowWindow(main.hwnd, n_cmdshow)
+    UpdateWindow(main.hwnd)
     NEWLINE
 
 subcode: win_loop
@@ -39,6 +37,13 @@ subcode: win_loop
     $while GetMessage(&msg, NULL, 0, 0)>0
 	TranslateMessage(&msg)
 	DispatchMessage(&msg)
+
+###############################################################
+subcode: msg_main
+    &call WM_MSG, CREATE
+	$LoadView main
+    &call WM_MSG, DESTROY
+	PostQuitMessage(0)
 
 subcode: WM_MSG(MSG)
     case WM_$(MSG):
@@ -52,42 +57,8 @@ subcode: WM_PAINT
 	BLOCK
 	EndPaint(hwnd, &ps)
 	break
-###############################################################
-fncode: WindowProc(hwnd, ui_msg, wparam, lparam)
-    $return_type LRESULT CALLBACK
-    $global ts_msg_buffer[200]
-    $switch ui_msg
-	case WM_ACTIVATE:
-	    $if wparam==WA_ACTIVE || wparam==WA_CLICKACTIVE
-		on_activate()
-	    $else 
-		on_inactivate()
-	case WM_COMMAND:
-	    n_id=LOWORD(wparam);
-	    n_cmd=HIWORD(wparam);
-	    $if n_cmd==0 || n_cmd==1 
-		on_command(n_id)
-	    $else
-		on_control(n_id, n_cmd, (HWND)lparam)
-	    break;
-	case WM_DESTROY:
-	    PostQuitMessage(0)
-	    break
-	default:
-	    return DefWindowProc(hwnd, ui_msg, wparam, lparam)
-    return 0
-
-fncode: on_command(tn_id)
-    #MessageBox(hwnd_main, "Command", "MessageBox", MB_OK);
-fncode: on_control(tn_id, tn_cmd, hwnd_ctl)
-    #MessageBox(hwnd_main, "Control", "MessageBox", MB_OK);
-fncode: on_activate()
-    #MessageBox(hwnd_main, "Activate", "MessageBox", MB_OK);
-fncode: on_inactivate()
-    #MessageBox(hwnd_main, "Inactivate", "MessageBox", MB_OK);
 
 ###############################################################
-# ----
 subcode: init_error
     $global s_errormsg_buffer[1000], n_errormsg_end=0
 
@@ -115,11 +86,6 @@ subcode: draw_hello
 	$local rect_main
 	GetClientRect(hwnd_main, &rect_main)
 	DrawText(hdc,"Hello World",-1, &rect_main, DT_SINGLELINE|DT_CENTER|DT_VCENTER)
-
-# ----
-subcode: newfont
-    hfont = $MakeFont Times New Roman
-    SelectObject(hdc, hfont)
 
 # -----------------------------------------------------------------------
 subcode: hgdiobj_collector
@@ -181,6 +147,10 @@ subcode: openfilename
     ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
     b_result=GetOpenFileName(&ofn)
 
+resource: view_main
+    size: 800, 600
+    text: default window
+
 resource: default_wnd
     cbSize: sizeof(WNDCLASSEX)
     style: 0
@@ -191,6 +161,15 @@ resource: default_wnd
     hCursor: LoadCursor(NULL, IDC_ARROW)
     hbrBackground: (HBRUSH)GetStockObject(WHITE_BRUSH)
     lpszMenuName: NULL
+
+resource: default_view
+    wndclass: mydefwin
+    style_ex: 0
+    style: 0
+    position: 10, 10
+    size: 800, 600
+    id: NULL
+    text: No Name
 
 resource: default_font
     lfHeight: 12
@@ -207,3 +186,16 @@ resource: default_font
     lfQuality: DEFAULT_QUALITY
     lfPitchAndFamily: FF_ROMAN|DEFAULT_PITCH
     lfFaceName: "Times New Roman"
+
+###############################################################
+resource: ctl_label
+    wndclass: STATIC
+    skip_register: 1
+    style: WS_CHILD|WS_VISIBLE|SS_LEFT
+    font: Arial, 12
+
+resource: ctl_button
+    wndclass: button
+    skip_register: 1
+    style: WS_CHILD|WS_VISIBLE|BS_PUSHBUTTON
+

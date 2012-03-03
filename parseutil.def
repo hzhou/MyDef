@@ -148,7 +148,13 @@ subcode: grab_block
 	$else
 	    $if $grab eq "ogdl"
 		my $ogdl=grab_ogdl($grab_key, \@grab)
-		$grab_hash->{$grab_key}=$ogdl;
+		$if !$grab_hash->{$grab_key}
+		    $grab_hash->{$grab_key}=$ogdl;
+		$else
+		    my $t=$grab_hash->{$grab_key}
+		    $while my ($k, $v)=each %$ogdl
+			$if !defined $t->{$k}
+			    $t->{$k}=$v
 		#print_ogdl($ogdl, 0)
 	    undef $grab;
 	    @grab=();

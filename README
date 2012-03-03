@@ -8,34 +8,30 @@ The literate programming: Arange the code in the way best for human reading.
 
 Here is an example:
 
-###### Example: Win32 program that says hello world #############
-include: std_win32.def
-page: test, basic_frame
-    fncode: WinMain
-        $CreateWindow hwnd_main, MainWindow
-        $call win_show, hwnd_main
-        $call win_loop
 
-    subcode: main_fn_list
-
-subcode: msg_MainWindow
-    &call WM_MSG, CREATE
-        $MakeMenu hmenu_main, MainMenu
-        SetMenu(hwnd, hmenu_main)
-        DestroyMenu(hmenu_main)
-    &call WM_PAINT
-        $call draw_hello
-
-resource: MainMenu
-    File
-        &Open, &Close, E&xit
-        ----
-        Recent &Files
-            File 1, File 2, File 3
-    Edit
-        Cut, Copy, Paste
-    Option
-        Range Adapt
+################ $ cat tests/c_structures.def #####################
+page: test
+    subcode: main
+        #$call memory_utility
+        $struct(record) n_id=1, char * name
+        /***********************************/
+        $list n_main
+        $list test, do_something
+    fncode: n_main
+        $local strecord[10]
+        $local pstrecord
+        test()
+    fncode: test
+        #DEBUG
+        pn_test=do_something()
+        $for i=0:10
+            printf("%d: %d\n", i, pn_test[i])
+    fncode: do_something
+        $allocate(10) pn_test
+        $local s_buffer[100]
+        $for i=0:10
+            pn_test[i]=i*i
+        return pn_test
 
 #----------------------------------------------------------
 
@@ -85,5 +81,5 @@ INSTALL
 
 6. Interested for more? 
     Hui Zhou
-    hzhou@hzsolutions.net
+    hzhou @ hzsolutions . net
 

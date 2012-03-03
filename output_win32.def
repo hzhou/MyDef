@@ -12,6 +12,7 @@ page: output_win32, output_main
 	$call c_main
     subcode: init_page
 	$call c_init
+	global_add_var("cur_instance", "HINSTANCE")
     subcode: modeswitch
 	$call c_modeswitch
     subcode: parsecode
@@ -27,9 +28,17 @@ page: output_win32, output_main
 	    $func->{skip_declare}=1;
 	    $func->{ret_type}="int APIENTRY";
 	    $func->{param_list}=["HINSTANCE hInst", "HINSTANCE hPrev", "LPSTR lpstr_cmdline", "int n_cmdshow"];
+	    my $initblock=$func->{init}
+	    push @$initblock, "cur_instance = hInst;"
+
+	    $while my $wnd = shift @window_list
+		register_window($wnd)
+		push @$initblock, "register_$wnd();"
+	    push @$initblock, "NEWLINE"
 	    push @{$func->{init}}, "DUMP_STUB main_init";
 	    push @{$func->{finish}}, "DUMP_STUB main_exit";
 	    push @{$func->{finish}}, "return 0;";
+
 
 	# ---- process_function ------------------------
 	my $funclist=MyDef::dumpout::get_func_list()
@@ -42,16 +51,17 @@ page: output_win32, output_main
 
 # ---------------------------
 subcode: pre_parse
-    $if $l=~/^(\w+)\s*=\s*\$MakeWindow\s+(\w+)/
-	my ($var, $name)=($1, $2)
+    $if $l=~/^\$MakeWindow\s+(\w+),\s*(\S+)/
+	my ($name, $controller)=($1, $2)
 	$call make_window
 	return 1
+    $elif $l=~/^\$LoadView\s+(\w+)/
+	my ($name)=($1)
+	$call load_view
+	return 1
     $elif $l=~/^(\w+)\s*=\s*\$MakeMenu\s+(\w+)/
-	my ($var, $name)=($1, $2);
-	my $menu=$MyDef::def->{resource}->{$name};
-	func_add_var($var, "HMENU")
-	push @$out, "$var = CreateMenu();"
-	ogdl_menu($out, $var, $menu, 0);
+	my ($var, $name)=($1, $2)
+	$call load_menu
 	return 1;
     $elif $l=~/^(\w+)\s*=\s*\$MakeFont\s+(.*)/
 	my ($var, $spec)=($1, $2);

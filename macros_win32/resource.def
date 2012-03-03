@@ -1,58 +1,120 @@
+subcode: fetch_named_resource(type)
+    my $$(type) = $MyDef::def->{resource}->{"$(type)_$name"}
+    $if !$$(type)
+	print "Resource $(type): $name does not exist\n"
+	return
+
 # -------- Window ---------------------------------------
 subcode:: package_global
     my %window_hash
+    my @window_list
     my $resource_id=1000
 
-subcode: register_window
-    my $block=MyDef::compileutil::get_named_block("global_init")
-    my $old_function=$cur_function;
-    &call replace_output, $block
-	# ---- window proc  ----------------
-	my $fidx=open_function("wndproc_$name", "HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam")
-	$cur_function->{ret_type}="LRESULT CALLBACK";
-	&call push_open_function
-	    push @$out, "switch(msg){";
-	    &call push_indent_block
-		MyDef::compileutil::call_sub("\@msg_$name", 0)
-		push @$out, "case WM_DESTROY:";
-		&call push_indent_block
-		    push @$out, "PostQuitMessage(0);"
-		    push @$out, "break;";
-		push @$out, "default:";
-		&call push_indent_block
-		    push @$out, "return DefWindowProc(hwnd, msg, wparam, lparam);"
-	    push @$out, "}";
-	    push @$out, "return 0;"
-
-	# ---- register window function ----------------
-	my $fidx=open_function("register_$name", "HINSTANCE hInst")
-	$cur_function->{ret_type}="int"
-	&call push_open_function
-	    push @$out, "if(!GetClassInfoEx(hInst, \"$name\", \&wc)){"
-	    &call push_indent_block
-		func_add_var("wc", "WNDCLASSEX")
-		push @$out, "memset(&wc, 0, sizeof(wc));"
-		push @$out, "wc.hInstance = hInst;"
-		push @$out, "wc.lpszClassName = \"$name\";"
-		push @$out, "wc.lpfnWndProc = wndproc_$name;"
-		$call res_init_attr, wnd
-		$call res_update, "wnd_$name"
-		$call res_fill, wc
-		push @$out, "if(!RegisterClassEx(\&wc)) return 0;"
-	    push @$out, "}"
-	    push @$out, "return 1;"
-    $cur_function=$old_function
-
 subcode: make_window
-    $if !$window_hash{$name}
-	$call register_window
-    push @$out, "register_$name(hInst);"
-    push @$out, "$var = CreateWindowEx(0, \"$name\", \"$name\", WS_OVERLAPPEDWINDOW, 0, 0, 1000, 800, NULL, NULL, hInst, NULL);"
+    $call fetch_named_resource, view
+    create_window($out, $view, $controller, 0)
+
+subcode: load_view
+    $call fetch_named_resource, view
+    my $list=$view->{_list}
+    $foreach my $v in @$list
+	create_window($out, $v, "hwnd_child", "hwnd")
+    $if $view->{menu}
+	my ($var, $name)=("hmenu", $view->{menu})
+	$call load_menu
+	push @$out, "SetMenu(hwnd, hmenu);"
+	push @$out, "DestroyMenu(hmenu);"
+
+subcode:: support_subs
+    $sub register_window
+	my ($name)=@_
+	my $controller_type=$window_hash{$name}
+	my $block=MyDef::compileutil::get_named_block("global_init")
+	my $old_function=$cur_function;
+	&call replace_output, $block
+	    # ---- window proc  ----------------
+	    my $fidx=open_function("wndproc_$name", "HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam")
+	    $cur_function->{ret_type}="LRESULT CALLBACK";
+	    &call push_open_function
+		$if $controller_type=~/struct (\w+)/
+		    func_add_var("controller", "struct $1 *")
+		    push @$out, "if(msg==WM_NCCREATE){"
+		    &call push_indent_block
+			push @$out, "controller=(struct $1 *)((LPCREATESTRUCT)lparam)->lpCreateParams;"
+			push @$out, "SetWindowLong(hwnd, GWL_USERDATA, (LONG)controller);"
+		    push @$out, "}"
+		    push @$out, "else{"
+		    &call push_indent_block
+			push @$out, "controller=(struct $1 *)GetWindowLong(hwnd, GWL_USERDATA);"
+		    push @$out, "}"
+		push @$out, "switch(msg){";
+		&call push_indent_block
+		    MyDef::compileutil::call_sub("msg_$name", 0)
+		    push @$out, "default:";
+		    &call push_indent_block
+			push @$out, "return DefWindowProc(hwnd, msg, wparam, lparam);"
+		push @$out, "}";
+		push @$out, "return 0;"
+
+	    # ---- register window function ----------------
+	    my $fidx=open_function("register_$name")
+	    $cur_function->{ret_type}="int"
+	    &call push_open_function
+		push @$out, "if(!GetClassInfoEx(cur_instance, \"$name\", \&wc)){"
+		&call push_indent_block
+		    func_add_var("wc", "WNDCLASSEX")
+		    push @$out, "memset(&wc, 0, sizeof(wc));"
+		    push @$out, "wc.hInstance = cur_instance;"
+		    push @$out, "wc.lpszClassName = \"$name\";"
+		    push @$out, "wc.lpfnWndProc = wndproc_$name;"
+		    $call res_init_attr, wnd
+		    $call res_update, "wnd_$name"
+		    $call res_fill, wc
+		    push @$out, "if(!RegisterClassEx(\&wc)) return 0;"
+		push @$out, "}"
+		push @$out, "return 1;"
+	$cur_function=$old_function
+
+    $sub create_window
+	my ($out, $view, $var, $parent)=@_
+	my $controller_type=get_var_type($var)
+	my $hwnd=$var
+	my $data="NULL"
+	$if $controller_type=~/^struct .*\*/
+	    $hwnd="$var->hwnd"
+	    $data=$var
+	$elif $controller_type=~/^struct/
+	    $hwnd="$var.hwnd"
+	    $data="&".$var
+	$else
+	    func_add_var($hwnd, "HWND");
+	$call res_init_attr, view
+	my $name=$view->{_name}
+	$call res_update, "view_$name"
+	$call res_update, "ctl_$name"
+	$call res_update_attr, $view 
+	# ----
+	$if !$attr{skip_register}
+	    $window_hash{$attr{wndclass}}=$controller_type
+	    push @window_list, $attr{wndclass}
+	my ($x, $y)=split /,\s*/, $attr{position}
+	my ($w, $h)=split /,\s*/, $attr{size}
+	push @$out, "$hwnd = CreateWindowEx($attr{style_ex}, \"$attr{wndclass}\", \"$attr{text}\", $attr{style}, $x, $y, $w, $h, $parent, $attr{id}, cur_instance, $data);"
+	$if $attr{font}
+	    my ($var, $spec)=("hfont", $attr{font})
+	    $call make_font
+	    push @$out, "SendMessage($hwnd, WM_SETFONT, (WPARAM)hfont, 0);"
 
 # -------- Menu ---------------------------------------
+subcode: load_menu
+    $call fetch_named_resource, menu
+    func_add_var($var, "HMENU")
+    push @$out, "$var = CreateMenu();"
+    ogdl_menu($out, $var, $menu, 0);
+
 subcode:: support_subs
     $sub ogdl_menu
-	my ($out, $menuvar, $menu, $indent)=@_;
+	my ($out, $menuvar, $menu, $level)=@_;
 	my $pos=0;
 	my $menu_item_list=$menu->{_list}
 	#print "menu: $menu, list: $menu_item_list\n";
@@ -61,10 +123,10 @@ subcode:: support_subs
 		my $sublist=$t->{_list}
 		$if @$sublist
 		    #---- PopUp SubMenu ----
-		    my $var=sprintf("hmenu_sub%d", $indent+1);
+		    my $var=sprintf("hmenu_sub%d", $level+1);
 		    func_add_var($var, "HMENU");
 		    push @$out, "$var = CreatePopupMenu();";
-		    ogdl_menu($out, $var, $t, $indent+1);
+		    ogdl_menu($out, $var, $t, $level+1);
 		    push @$out, "InsertMenu($menuvar, $pos, MF_POPUP|MF_BYPOSITION, (UINT_PTR)$var, \"$t->{_name}\");";
 		    push @$out, "DestroyMenu($var);";
 		$else
@@ -118,18 +180,21 @@ subcode: make_font
     $var_retain_hash{$var}=1;
 
 # -------- ---------------------------------------
+subcode: res_update_attr(a)
+    $while my ($k, $v)=each %$(a)
+	$if $k!~/^_(name|list)/
+	    $attr{$k}=$v
+# ----	    
 subcode: res_init_attr(type)
     my %attr;
     my $default=$MyDef::def->{resource}->{default_$(type)}
-    $while my ($k, $v)=each %$default
-	$if $k!~/^_(name|list)/
-	    $attr{$k}=$v
+    $call res_update_attr, $default
+
 subcode: res_update(tag)
     my $a=$MyDef::def->{resource}->{$(tag)}
     $if $a
-	$while my ($k, $v)=each %$a
-	    $if $k!~/^_(name|list)/
-		$attr{$k}=$v
+	$call res_update_attr, $a
+
 subcode: res_fill(s)
     $while my ($k, $v)=each %attr
 	$if $k!~/^_(name|list)/
