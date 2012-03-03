@@ -1,3 +1,4 @@
+# 
 subcode: fetch_named_resource(type)
     my $$(type) = $MyDef::def->{resource}->{"$(type)_$name"}
     $if !$$(type)
