@@ -1,5 +1,7 @@
 include: output.def
 
+# Many Legacy/Ugly code here. Wish I will have to time/interest to clean it up.
+
 page: output_php
     type: pm
     output_dir: lib/MyDef
@@ -16,8 +18,9 @@ page: output_php
 	my $inphp=0;
 	my  $injs=0;
 	# ------ main
-	$call support_subs
 	$call output_main
+	$call custom_dump
+	$call support_subs
     subcode: init_page
 	$php={};
 	$style={};
@@ -35,99 +38,9 @@ page: output_php
 	    push @$out, "PHP_END";
 	$elsif $pmode eq "html" and $mode ne "html"
 	    push @$out, "PHP_START";
-    subcode: custom_dump
-	my $f=$dump->{f};
+    subcode: dumpout
+	$dump->{custom}=\&custom_dump
 
-	if($$rl=~/^\s*PHP_START/){
-	    push @$f, "<?php\n";
-	    $$rl="INDENT";
-	    $inphp=1;
-	    return 0;
-	}
-	elsif($$rl=~/^\s*PHP_END/){
-	    if($f->[-1]=~/^<\?php/){
-		pop @$f;
-	    }
-	    else{
-		push @$f, "?>\n";
-	    }
-	    $$rl="DEDENT";
-	    $inphp=0;
-	    return 0;
-	}
-	elsif($$rl=~/^\s*JS_START/){
-	    push @$f, "<script type=\"text/javascript\">\n";
-	    $$rl="INDENT";
-	    $injs=1;
-	    return 0;
-	}
-	elsif($$rl=~/^\s*JS_END/){
-	    if($f->[-1]=~/^<script type=/){
-		pop @$f;
-	    }
-	    else{
-		push @$f, "</script>\n";
-	    }
-	    $$rl="DEDENT";
-	    $injs=0;
-	    return 0;
-	}
-	elsif($$rl=~/^\s*HTML_START\s*(.*)/){
-	    push @$f, '<!DOCTYPE HTML PUBLIC "-//W3C/DTD HTML 4.0//EN" "http://www.w3.org/TR/html4/strict.dtd">'."\n";
-	    push @$f, "<html><head>\n";
-	    dumpmeta($f);
-	    dumpstyle($f, $style);
-	    push @$f, "</head>\n";
-	    push @$f, "<body $1>\n";
-	    return 1;
-	}
-	elsif($$rl=~/^\s*HTML_HEAD_START/){
-	    push @$f, '<!DOCTYPE HTML PUBLIC "-//W3C/DTD HTML 4.0//EN" "http://www.w3.org/TR/html4/strict.dtd">'."\n";
-	    push @$f, "<html><head>\n";
-	    return 1;
-	}
-	elsif($$rl=~/^\s*HTML_HEAD_STUFF/){
-	    dumpmeta($f);
-	    dumpstyle($f, $style);
-	    return 1;
-	}
-	elsif($$rl=~/^\s*HTML_STYLE/){
-	    dumpstyle($f, $style);
-	    return 1;
-	}
-	elsif($$rl=~/^\s*HTML_BODY_START\s*(.*)/){
-	    push @$f, "</head>\n";
-	    push @$f, "<body $1>\n";
-	    return 1;
-	}
-	elsif($$rl=~/^\s*HTML_END/){
-	    push @$f, "</body></html>\n";
-	    return 1;
-	}
-	else{
-	    if($$rl=~/\\span_(\w+)\{([^}]*)\}/){
-		my $t="<span class=\"$1\">$2</span>";
-		$$rl=$`.$t.$';
-	    }
-	    if($$rl=~/PRINT(LN)? (.*)/){
-		my $ln=$1;
-		my $t=$2;
-		if($inphp){
-		    $t=~s/\\/\\\\/g;
-		    $t=~s/"/\\"/g;
-		    if($ln){
-			$$rl="echo \"$t\\n\";";
-		    }
-		    else{
-			$$rl="echo \"$t\";";
-		    }
-		}
-		else{
-		    $$rl=$t;
-		}
-	    }
-	}
-	
     subcode: parsecode
 	if($l=~/^\s*CSS: (.*)\s*\{(.*)\}/){
 	    if($style->{$1}){
@@ -191,44 +104,31 @@ page: output_php
 		my $align;
 
 		$t="";
-		if($func eq 'tag' and @tt_list){
+		$if $func eq "tag" and @tt_list
 		    $func=shift @tt_list;
-		}
-		if($func eq "script"){
+		$if $func eq "script"
 		    $t= " type=\"text/javascript\"";
-		}
-		foreach my $tt (@tt_list){
-		    if($tt=~/^(\d+)x(\d+)$/){
-			if($func eq 'table'){
+		$foreach my $tt in @tt_list
+		    $if $tt=~/^(\d+)x(\d+)$/
+			$if $func eq 'table'
 			    $t.=" cellspacing=\"$1\" cellpadding=\"$2\"";
-			}
-			elsif ($func eq 'td'){
+			$elsif  $func eq 'td'
 			    $t.=" colspan=\"$1\" rowspan=\"$2\"";
-			}
-		    }
-		    elsif($tt=~/^(\d+)$/){
-			if($func eq 'td' or $func eq 'th'){
+		    $elsif $tt=~/^(\d+)$/
+			$if $func eq 'td' or $func eq 'th'
 			    $t.=" colspan=\"$1\"";
-			}
-		    }
-		    elsif($tt=~/^(\d+(px|%))$/){
+		    $elsif $tt=~/^(\d+(px|%))$/
 			$t.=" width=\"$1\"";
-		    }
-		    elsif($tt=~/^(top|bottom|middle)$/){
+		    $elsif $tt=~/^(top|bottom|middle)$/
 			$t.=" valign=\"$1\"";
-		    }
-		    elsif($tt=~/^(left|right|center)$/){
+		    $elsif $tt=~/^(left|right|center)$/
 			$t.=" align=\"$1\"";
-		    }
-		    elsif($tt=~/^#([a-zA-Z_0-9\$]+)$/){
+		    $elsif $tt=~/^#([a-zA-Z_0-9\$]+)$/
 			$t.=" id=\"$1\"";
-		    }
-		    elsif($tt=~/^([\$0-9a-zA-Z_+]+)$/){
+		    $elsif $tt=~/^([\$0-9a-zA-Z_+]+)$/
 			my $c=$1;
 			$c=~s/\+/ /g; # multiple classes
 			$t.=" class=\"$c\"";
-		    }
-		}
 		simple_block("PRINTLN <$func$t>", "PRINTLN </$func>", $out);
 	    }
 	    elsif($func =~ /^cell([az]*)/){
@@ -489,6 +389,95 @@ page: output_php
 	else{
 	    push @$out, $l;
 	}
+
+    subcode: custom_dump
+	$sub custom_dump
+	    my ($f, $rl)=@_;
+	    if($$rl=~/^\s*PHP_START/){
+		push @$f, "<?php\n";
+		$$rl="INDENT";
+		$inphp=1;
+		return 0;
+	    }
+	    elsif($$rl=~/^\s*PHP_END/){
+		if($f->[-1]=~/^<\?php/){
+		    pop @$f;
+		}
+		else{
+		    push @$f, "?>\n";
+		}
+		$$rl="DEDENT";
+		$inphp=0;
+		return 0;
+	    }
+	    elsif($$rl=~/^\s*JS_START/){
+		push @$f, "<script type=\"text/javascript\">\n";
+		$$rl="INDENT";
+		$injs=1;
+		return 0;
+	    }
+	    elsif($$rl=~/^\s*JS_END/){
+		if($f->[-1]=~/^<script type=/){
+		    pop @$f;
+		}
+		else{
+		    push @$f, "</script>\n";
+		}
+		$$rl="DEDENT";
+		$injs=0;
+		return 0;
+	    }
+	    elsif($$rl=~/^\s*HTML_START\s*(.*)/){
+		push @$f, '<!DOCTYPE HTML PUBLIC "-//W3C/DTD HTML 4.0//EN" "http://www.w3.org/TR/html4/strict.dtd">'."\n";
+		push @$f, "<html><head>\n";
+		dumpmeta($f);
+		dumpstyle($f, $style);
+		push @$f, "</head>\n";
+		push @$f, "<body $1>\n";
+		return 1;
+	    }
+	    elsif($$rl=~/^\s*HTML_HEAD_START/){
+		push @$f, '<!DOCTYPE HTML PUBLIC "-//W3C/DTD HTML 4.0//EN" "http://www.w3.org/TR/html4/strict.dtd">'."\n";
+		push @$f, "<html><head>\n";
+		return 1;
+	    }
+	    elsif($$rl=~/^\s*HTML_HEAD_STUFF/){
+		dumpmeta($f);
+		dumpstyle($f, $style);
+		return 1;
+	    }
+	    elsif($$rl=~/^\s*HTML_STYLE/){
+		dumpstyle($f, $style);
+		return 1;
+	    }
+	    elsif($$rl=~/^\s*HTML_BODY_START\s*(.*)/){
+		push @$f, "</head>\n";
+		push @$f, "<body $1>\n";
+		return 1;
+	    }
+	    elsif($$rl=~/^\s*HTML_END/){
+		push @$f, "</body></html>\n";
+		return 1;
+	    }
+	    else{
+		$if $$rl=~/\\span_(\w+)\{([^}]*)\}/
+		    my $t="<span class=\"$1\">$2</span>";
+		    $$rl=$`.$t.$';
+		$if $$rl=~/PRINT(LN)? (.*)/
+		    my $ln=$1;
+		    my $t=$2;
+		    $if $inphp
+			$t=~s/\\/\\\\/g;
+			$t=~s/"/\\"/g;
+			$if $ln
+			    $$rl="echo \"$t\\n\";";
+			$else
+			    $$rl="echo \"$t\";";
+		    $else
+			$$rl=$t;
+		return 0
+	    }
+	    
 
     subcode: support_subs
 	sub simple_block {
@@ -1500,15 +1489,24 @@ page: output_php
 	    my ($ff, $type) =@_;
 	    my $size=$ff->{size};
 	    if(!$size){
-		if($type eq "year"){$size=4;}
-		elsif($type eq "date"){$size=10; if($ff->{optional}){$valign="valign=\"middle\"";}}
-		elsif($type eq "money"){$size=10;}
-		elsif($type eq "zip"){$size=5;}
-		elsif($type eq "int"){$size=5;}
-		elsif($type eq "phone"){$size=15;}
-		elsif($type eq "email"){$size=25;}
-		elsif($type eq "usdollar"){$size=12;$prefix='\$';}
-		else{$size=50;}
+		$if $type eq "year"
+		    $size=4;
+		$elsif $type eq "date"
+		    $size=10; if($ff->{optional}){$valign="valign=\"middle\"";}
+		$elsif $type eq "money"
+		    $size=10;
+		$elsif $type eq "zip"
+		    $size=5;
+		$elsif $type eq "int"
+		    $size=5;
+		$elsif $type eq "phone"
+		    $size=15;
+		$elsif $type eq "email"
+		    $size=25;
+		$elsif $type eq "usdollar"
+		    $size=12;$prefix='\$';
+		$else
+		    $size=50;
 	    }
 	    return $size;
 	}
@@ -1731,25 +1729,6 @@ page: output_php
 	    return $type;
 	}
 
-
-	sub get_f_size {
-	    my $f=shift;
-	    my $ff=$MyDef::def->{fields}->{$f};
-	    if(!$ff){return 50;}
-	    my $size=$ff->{size};
-	    if(!$size){
-		if($type eq "year"){$size=4;}
-		elsif($type eq "date"){$size=10; if($ff->{optional}){$valign="valign=\"middle\"";}}
-		elsif($type eq "money"){$size=10;}
-		elsif($type eq "zip"){$size=5;}
-		elsif($type eq "int"){$size=5;}
-		elsif($type eq "phone"){$size=15;}
-		elsif($type eq "email"){$size=25;}
-		elsif($type eq "usdollar"){$size=12;$prefix='\$';}
-		else{$size=50;}
-	    }
-	    return $size;
-	}
 
 	sub get_f_name {
 	    my $f=shift;

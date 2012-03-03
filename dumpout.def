@@ -45,6 +45,7 @@ subcode: dump_main
 	my $dump=shift;
 	my $f=$dump->{f};
 	my $out=$dump->{out};
+	my $custom=$dump->{custom};
 	$if !$out
 	    die "missing \$out\n";
 	$call dumpout
@@ -73,7 +74,9 @@ subcode: dumpout
 	    $else
 		next;
 	#print "dumpout: [$l]\n";
-	$if $l =~/^INCLUDE_BLOCK (\w+)/
+	$if $custom and $custom->($f, \$l)
+	    # custom dump -- used in output_php.def
+	$elif $l =~/^INCLUDE_BLOCK (\w+)/
 	    push @source_stack, $out
 	    $out=$dump->{$1}
 	$elif $l =~ /^DUMP_STUB\s+(\w+)/

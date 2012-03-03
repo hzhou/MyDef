@@ -43,6 +43,10 @@ if($f=~/([a-z0-9]+)_.*\.def$/){
     }
     elsif($1 eq "general"){
     }
+    elsif($1 eq "php"){
+	print "$yellow*** Dumpt test.php ***$normal\n";
+	system "cat test.php"
+    }
     else{
 	print "unknown module [$1]\n";
     }
