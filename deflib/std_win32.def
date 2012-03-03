@@ -1,4 +1,13 @@
-# Placehoder SubCodes: main_fn_list, main_msg_list
+# GUI needs Model View Controller Model
+# think about the editor: 
+#    View is the window
+#    Model is the text buffer
+#    Controller is the code that connects View and Model
+
+# To me, both view and model are simple and can be picked from the library or outsourced
+# The controller is the only real code
+
+# An effective GUI framework should handle the views and reduce the programming part to a property list just like Visual Basic does.
 
 subcode: basic_frame
     $register_prefix(ui) UINT
