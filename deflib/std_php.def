@@ -1,3 +1,22 @@
+## Frames -------------------------------------------------------------
+htmlcode: basic_frame
+    $call process
+    $html
+	$head
+	    DUMP_STUB meta
+	    $call meta
+	$body
+	    $call content
+
+## ----------------------------------------------------------------
+subcode: meta_refresh(time, content)
+    PRINT <meta http-equiv="refresh" content="$(time);url=$(content)">
+
+jscode: set_onload(fname)
+    if (window.attachEvent) {window.attachEvent("onload", $(fname));}
+    else if (window.addEventListener) {window.addEventListener("load", $(fname), false);}
+    else {document.addEventListener("load", $(fname), false);}
+## ---------------------------------------------------------------------
 phpcode: mysqlerror
     $if mysql_errno()
 	$errors[]='Database: '.mysql_error()
@@ -259,21 +278,3 @@ subcode: submit(label)
 subcode: button(label, mode)
     PRINT <input class="formbutton" type="submit" value="$(label)" onmouseover="this.style.borderColor='silver'" onmouseout="this.style.borderColor='gray'" onclick="this.form.MODE.value='$(mode)'; return true;">
 
-## Frames -------------------------------------------------------------
-htmlcode: raw_frame
-    $call process
-    HTML_HEAD_START
-    $call meta
-    HTML_HEAD_STUFF
-    HTML_BODY_START
-    $call content
-    HTML_END
-
-subcode: meta_refresh(time, content)
-    PRINT <meta http-equiv="refresh" content="$(time);url=$(content)">
-
-jscode: set_onload(fname)
-    if (window.attachEvent) {window.attachEvent("onload", $(fname));}
-    else if (window.addEventListener) {window.addEventListener("load", $(fname), false);}
-    else {document.addEventListener("load", $(fname), false);}
-## ---------------------------------------------------------------------

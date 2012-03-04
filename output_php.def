@@ -13,7 +13,8 @@ page: output_php
 	# ------ global variables
 	my $php;
 	my $style;
-	my $style_sheet;
+	my $style_sheets
+	my $java_scripts
 	# ------ custom dump states
 	my $inphp=0;
 	my  $injs=0;
@@ -24,7 +25,8 @@ page: output_php
     subcode: init_page
 	$php={};
 	$style={};
-	$style_sheet=[];
+	$style_sheets=[]
+	$java_scripts=[]
     subcode: modeswitch
 	$if $mode eq "js" and $pmode ne "js"
 	    $if $pmode ne "html"
@@ -39,6 +41,10 @@ page: output_php
 	$elsif $pmode eq "html" and $mode ne "html"
 	    push @$out, "PHP_START";
     subcode: dumpout
+	my $metablock=MyDef::compileutil::get_named_block("meta")
+	dumpmeta($metablock)
+	dumpstyle($metablock, $style)
+	$call debug_array, $metablock
 	$dump->{custom}=\&custom_dump
 
     subcode: parsecode
@@ -51,34 +57,15 @@ page: output_php
 		$style->{$1}=$2;
 	    }
 	}
-	elsif($l=~/^\s*CSS:\s*(\S+)/){
-	    push @$style_sheet, $1;
+	elsif($l=~/^\s*(CSS|JS):\s*(\S+)/){
+	    $if $1 eq "CSS"
+		push @$style_sheets, $2
+	    $elif $1 eq "JS"
+		push @$java_scripts, $2
 	}
 	elsif($l=~/^\s*PRINT/){
 	    push @$out, $l;
 	}
-	elsif($l=~/^\s*TITLE: (.*)/){
-	    $MyDef::page->{title}=$1;
-	}
-	# Straight passthru for alll lines not start with '$'
-	elsif($l!~/^\s*\$/){
-	    if($mode ne 'html' and $mode ne 'js'){
-		$l=terminate_php($l);
-	    }
-	    push @$out, $l;
-	}
-	# Passthru except following $tag for non subcode
-	elsif($mode ne 'sub' and $l!~/^\s*\$(log|call|map|include|tag|script|style|p|h[1-5]|center|pre|div|span|b|ol|ul|li|table|tr|td|th|fieldset|jssrc|divbox|if|ifz|ifnz|elif|elsif|elseif|else|foreach|for|while|function)\b/){
-	    if($mode eq 'php'){
-		$l=terminate_php($l);
-	    }
-	    if($mode eq 'js' and $l=~/\$jq/){
-		$l=~s/\$jq\(/\$\(/g;
-		$MyDef::var->{use_jquery}=1;
-	    }
-	    push @$out, $l;
-	}
-	# -- $call $map ---
 	elsif($l=~/^\s*\$(\w+)(.*)$/){
 	    my $func=$1;
 	    my $param=$2;
@@ -86,310 +73,321 @@ page: output_php
 	    $param=~s/:?\s*$//;
 	    
 	    # --------------- php pass through
-	    if($func eq 'php'){
+	    $if $func eq "php"
 		push @$out, terminate_php($param);
-	    }
-	    elsif($param =~ /^\s*[\[=+-\.\/\*]/){
+	    $elsif $param =~ /^\s*[\[=+-\.\/\*]/
 		push @$out, '$'.$func.terminate_php($param);
-	    }
-	    # -------- HTML handy notions --------
-	    elsif($func =~ /^(tag|div|span|center|ol|ul|li|table|tr|td|th|b|script|style|p|h[1-5]|center|pre)$/){
-		my $t;
-		my @tt_list=split /,\s*/, $param;
-		my @tlist;
-		my @dlist;
-		my $id;
-		my $class;
-		my $valign;
-		my $align;
-
-		$t="";
-		$if $func eq "tag" and @tt_list
-		    $func=shift @tt_list;
-		$if $func eq "script"
-		    $t= " type=\"text/javascript\"";
-		$foreach my $tt in @tt_list
-		    $if $tt=~/^(\d+)x(\d+)$/
-			$if $func eq 'table'
-			    $t.=" cellspacing=\"$1\" cellpadding=\"$2\"";
-			$elsif  $func eq 'td'
-			    $t.=" colspan=\"$1\" rowspan=\"$2\"";
-		    $elsif $tt=~/^(\d+)$/
-			$if $func eq 'td' or $func eq 'th'
-			    $t.=" colspan=\"$1\"";
-		    $elsif $tt=~/^(\d+(px|%))$/
-			$t.=" width=\"$1\"";
-		    $elsif $tt=~/^(top|bottom|middle)$/
-			$t.=" valign=\"$1\"";
-		    $elsif $tt=~/^(left|right|center)$/
-			$t.=" align=\"$1\"";
-		    $elsif $tt=~/^#([a-zA-Z_0-9\$]+)$/
-			$t.=" id=\"$1\"";
-		    $elsif $tt=~/^([\$0-9a-zA-Z_+]+)$/
-			my $c=$1;
-			$c=~s/\+/ /g; # multiple classes
-			$t.=" class=\"$c\"";
-		simple_block("PRINTLN <$func$t>", "PRINTLN </$func>", $out);
-	    }
-	    elsif($func =~ /^cell([az]*)/){
-		my $t=$1;
-		my $attr="";
-		my ($tr_begin, $tr_end);
-
-		if($param=~/(\d+)/){
-		    $attr=" colspan=$&";
-		}
-		elsif($param){
-		    $attr=" class=\"$param\"";
-		}
-		if($t=~/a/){
-		    $tr_begin="<tr valign=\"top\">";
-		}
-		if($t=~/z/){
-		    $tr_end="</tr>";
-		}
-		simple_block("PRINTLN $tr_begin<td$attr>", "PRINTLN </td>$tr_end", $out);
-	    }
-	    elsif($func eq 'fieldset'){
-		simple_block("PRINTLN <fieldset><legend>$param</legend>", "PRINTLN </fieldset>", $out);
-	    }
-	    elsif($func eq 'jssrc'){
-		push @$out, "PRINT <script type=\"text/javascript\" src='$param'></script>";
-	    }
-	    elsif($func eq 'divbox'){
-		push @$out, "PRINT <div id='$param' ></div>";
-	    }
-	    # ----------- End HTML handy notions 
-	    elsif($func eq 'include'){
-		if(open my $in, $param){
-		    MyDef::compileutil::modepush("html");
-		    my $omit=0;
-		    while(<$in>){
-			if(/<!-- start omit -->/){
-			    $omit=1;
-			}
-			elsif(/<!-- end omit -->/){
-			    $omit=0;
-			}
-			elsif($omit){
-			    next;
-			}
-			elsif(/(.*)<call>(\w+)<\/call>(.*)/){
-			    my ($a, $b, $c)=($1, $2, $3);
-			    push @$out, $a;
-			    print "    call $b\n";
-			    MyDef::compileutil::call_sub($b);
-			    push @$out, $c;
-			}
-			elsif(/^\s*<\/HEAD>/i){
-			    push @$out, "HTML_HEAD_STUFF";
-			    push @$out, $_;
-			}
-			elsif(/<\/body>/i){
-			    MyDef::compileutil::call_sub("js_ga");
-			    push @$out, $_;
-			}
-			else{
-			    push @$out, $_;
-			}
-		    }
-		    close $in;
-		    MyDef::compileutil::modepop();
-		}
-		else{
-		    print STDERR " Can't open [$param]\n";
-		}
-	    }
-	    elsif($func eq 'error'){
-		push @$out, "\$errors[]=$param;";
-	    }
-	    elsif($func eq 'formhead'){
-		formhead($out, $param);
-	    }
-	    elsif($func eq 'formtail'){
-		my @p=split /,\s*/, $param;
-		foreach my $n(@p){
-		    push @$out, "if(isset(\$$n)){";
-		    push @$out, "    print \"<input type=\\\"hidden\\\" name=\\\"$n\\\", value=\\\"\$$n\\\" />\";";
-		    push @$out, "}";
-		    push @$out, "else{";
-		    push @$out, "    print \"<input type=\\\"hidden\\\" name=\\\"$n\\\", value=\\\"\\\" />\";";
-		    push @$out, "}";
-		}
-		push @$out, 'print "</form>";';
-	    }
-	    elsif($func eq 'loadoptlist'){
-		my @flist=split /,\s*/, $param;
-		foreach my $f(@flist){
-		    loadoptlist($out, $f);
-		}
-	    }
-	    elsif($func eq 'forminit'){
-		forminit($out, $param);
-	    }
-	    elsif($func eq 'formshow'){
-		formshow($out, $param);
-	    }
-	    elsif($func eq 'hidden'){
-		my @p=split /,\s*/, $param;
-		foreach my $n(@p){
-		    push @$out, "print \"<input type=\\\"hidden\\\" name=\\\"$n\\\" value=\\\"\$$n\\\" />\";";
-		}
-	    }
-	    elsif($func eq 'postloadonly'){
-		foreach my $f (splitlist($param)){
-		    if($f=~/(\w+)\((\w+)\)/){$f=$1;}
-		    post_load_only($out, $f);
-		}
-	    }
-	    elsif($func eq 'postload'){
-		foreach my $f (splitlist($param)){
-		    if($f=~/(\w+)\((\w+)\)/){$f=$1;}
-		    post_load($out, $f);
-		}
-	    }
-	    elsif($func eq 'redirect'){
-		push @$out, "header('Location: $param.php');";
-		push @$out, "exit();";
-	    }
-	    elsif($func eq 'setvar'){
-		if($param=~/(.*), (.*)/){
-		    push @$out, "\$$1 = '$2';";
-		}
-	    }
-	    elsif($func eq 'sqlruncache'){
-		sqlrun($out, $param, 1);
-	    }
-	    elsif($func eq 'sqlrunusedb'){
-		$MyDef::var->{usedb}=$param;
-	    }
-	    elsif($func eq 'sqlrun'){
-		sqlrun($out, $param);
-	    }
-	    elsif($func =~ /tablelistfull(.*)/){
-		tablelist($out, $param, 'full', $1);
-	    }
-	    elsif($func =~ /tablelist(.*)/){
-		tablelist($out, $param, "", $1);
-	    }
-	    elsif($func =~ /csvlistfull(.*)/){
-		csvlist($out, $param, 'full', $1);
-	    }
-	    elsif($func =~ /csvlist(.*)/){
-		csvlist($out, $param, "", $1);
-	    }
-	    elsif($func=~/^(post|get|cookie)var$/){
-		my $group='$_'.uc($1);
-		my @tlist=split /,\s*/, $param;
-		foreach my $p (@tlist){
-		    push @$out, "\$$p=$group\['$p'\];";
-		}
-	    }
-	    # ---- block statements
-	    elsif($func eq "if"){
-		simple_block("if($param){", "}", $out);
-	    }
-	    elsif($func eq "ifz"){
-		if($param=~/(\$\w+)\[(^[\]]*)\]/){
-		    simple_block("if(!(array_key_exists($2, $1) and $param)){", "}", $out);
-		}
-		else{
-		    simple_block("if(empty($param)){", "}", $out);
-		}
-	    }
-	    elsif($func eq "ifnz"){
-		if($param=~/(\$\w+)\[(^[\]]*)\]/){
-		    simple_block("if((array_key_exists($2, $1) and $param)){", "}", $out);
-		}
-		else{
-		    simple_block("if(!empty($param)){", "}", $out);
-		}
-	    }
-	    elsif($func =~ /^(el|els|else)if$/){
-		if($mode eq 'html' or $mode eq 'js'){ # JavaScript
-		    simple_block("else if($param){", "}", $out);
-		}
-		else{
-		    simple_block("elseif($param){", "}", $out);
-		}
-	    }
-	    elsif($func eq "else"){
-		simple_block("else{", "}", $out);
-	    }
-	    elsif($func eq "foreach" or $func eq "for" or $func eq "while"){
-		simple_block("$func ($param){", "}", $out);
-	    }
-	    elsif($func eq "function"){
-		simple_block("function $param {", "}", $out);
-	    }
-	    elsif($func eq 'input'){
-		input($out, $param);
-	    }
-	    elsif($func eq 'button'){
-		formbutton($out, $param);
-	    }
-	    elsif($func eq 'makeiconmenu'){
-		my @items=split /,\s*/, $param;
-		push @$out, "PRINT <table class=\"menutable\">";
-		my $j=0;
-		my $col=6;
-		foreach my $i(@items){
-		    if($i eq '|'){
-			if($j>0){push @$out, "PRINT </tr>"; $j=0;}
-			push @$out, "PRINT <tr><td colspan=$col><hr /></td></tr>";
-			$j=0;
-		    }
-		    else{
-			my $ii=$MyDef::def->{menuitems}->{$i};
-			my $l=$ii->{href};
-			if($l!~/\.(php|html)$/){
-			    $l=$l.".php";
-			}
-			my $icon=$ii->{icon};
-			my $label=$ii->{label};
-			if($j==0){push @$out, "PRINT <tr>";}
-			push @$out, "PRINT <td align=center>";
-			push @$out, "PRINT <a href=\"$l\"><img src=\"$icon\" width=100 height=100></a><br />";
-			push @$out, "PRINT <a href=\"$l\">$label</a>";
-			push @$out, "PRINT </td>";
-			$j++;
-			if($j==$col){push @$out, "PRINT </tr>"; $j=0;}
-		    }
-		}
-		push @$out, "PRINT </table>";
-	    }
-	    elsif($func eq 'makelistmenu'){
-		my @items=split /,\s*/, $param;
-		push @$out, "PRINT <ul class=\"menulist\">";
-		foreach my $i(@items){
-		    push @$out, "PRINT <li>";
-		    if($i eq '|'){
-			push @$out, "PRINT <hr>";
-		    }
-		    else{
-			my $ii=$MyDef::def->{menuitems}->{$i};
-			my $l=$ii->{href};
-			if($l!~/\.(php|html)$/){
-			    $l=$l.".php";
-			}
-			my $icon=$ii->{icon};
-			my $label=$ii->{label};
-			push @$out, "PRINT <a href=\"$l\">$label</a>";
-		    }
-		    push @$out, "PRINT </li>";
-		}
-		push @$out, "PRINT </ul>";
-	    }
-	    # -------------------------------------
-	    else{
-		print STDERR "Function \$$func Not Defined.\n";
-	    }
+	    $call parse_function
+	    $else
+		$if $mode eq "js" and $l=~/\$jq/
+		    $l=~s/\$jq\(/\$\(/g;
+		    $MyDef::var->{use_jquery}=1;
+		$elif $mode eq "js" or $mode eq "html"
+		    print STDERR "Function \$$func Not Defined.\n";
+		$else
+		    $l=terminate_php($l);
+		    push @$out, $l;
 	}
 	# -- Dump everything else out
 	else{
+	    $if $mode ne 'html' and $mode ne 'js'
+		$l=terminate_php($l);
 	    push @$out, $l;
 	}
 
+    subcode: parse_function
+	# -------- HTML handy notions --------
+	elsif($func =~ /^(tag|div|span|center|ol|ul|li|table|tr|td|th|b|script|style|p|h[1-5]|center|pre|html|head|body)$/){
+	    my $t;
+	    my @tt_list=split /,\s*/, $param;
+	    my $is_empty_tag=0
+
+	    $t="";
+	    $if $func eq "tag" and @tt_list
+		$func=shift @tt_list;
+	    $if $func eq "script"
+		$t= " type=\"text/javascript\"";
+	    $foreach my $tt in @tt_list
+		$if $tt eq "/"
+		    $is_empty_tag=1
+		$elif $tt=~/^(\d+)x(\d+)$/
+		    $if $func eq 'table'
+			$t.=" cellspacing=\"$1\" cellpadding=\"$2\"";
+		    $elsif  $func eq 'td'
+			$t.=" colspan=\"$1\" rowspan=\"$2\"";
+		$elsif $tt=~/^(\d+)$/
+		    $if $func eq 'td' or $func eq 'th'
+			$t.=" colspan=\"$1\"";
+		$elsif $tt=~/^(\d+(px|%))$/
+		    $t.=" width=\"$1\"";
+		$elsif $tt=~/^(top|bottom|middle)$/
+		    $t.=" valign=\"$1\"";
+		$elsif $tt=~/^(left|right|center)$/
+		    $t.=" align=\"$1\"";
+		$elsif $tt=~/^#([a-zA-Z_\-0-9\$]+)$/
+		    $t.=" id=\"$1\"";
+		$elif $tt=~/^(\w+):"(.*)"/
+		    $t.=" $1=\"$2\""
+		$elif $tt=~/^(\w+):(.*)/
+		    $t.=" $1=\"$2\""
+		$elif $tt=~/^"(.*)"/
+		    $t.=" class=\"$1\"";
+		$else
+		    $t.=" class=\"$tt\"";
+	    $if $is_empty_tag
+		push @$out, "PRINTLN <$func$t></$func>"
+	    $else
+		simple_block("PRINTLN <$func$t>", "PRINTLN </$func>", $out);
+	}
+	elsif($func =~ /^cell([az]*)/){
+	    my $t=$1;
+	    my $attr="";
+	    my ($tr_begin, $tr_end);
+
+	    if($param=~/(\d+)/){
+		$attr=" colspan=$&";
+	    }
+	    elsif($param){
+		$attr=" class=\"$param\"";
+	    }
+	    if($t=~/a/){
+		$tr_begin="<tr valign=\"top\">";
+	    }
+	    if($t=~/z/){
+		$tr_end="</tr>";
+	    }
+	    simple_block("PRINTLN $tr_begin<td$attr>", "PRINTLN </td>$tr_end", $out);
+	}
+	elsif($func eq 'fieldset'){
+	    simple_block("PRINTLN <fieldset><legend>$param</legend>", "PRINTLN </fieldset>", $out);
+	}
+	elsif($func eq 'jssrc'){
+	    push @$out, "PRINT <script type=\"text/javascript\" src='$param'></script>";
+	}
+	elsif($func eq 'divbox'){
+	    push @$out, "PRINT <div id='$param' ></div>";
+	}
+	# ----------- End HTML handy notions 
+	elsif($func eq 'include'){
+	    if(open my $in, $param){
+		MyDef::compileutil::modepush("html");
+		my $omit=0;
+		while(<$in>){
+		    if(/<!-- start omit -->/){
+			$omit=1;
+		    }
+		    elsif(/<!-- end omit -->/){
+			$omit=0;
+		    }
+		    elsif($omit){
+			next;
+		    }
+		    elsif(/(.*)<call>(\w+)<\/call>(.*)/){
+			my ($a, $b, $c)=($1, $2, $3);
+			push @$out, $a;
+			print "    call $b\n";
+			MyDef::compileutil::call_sub($b);
+			push @$out, $c;
+		    }
+		    elsif(/^\s*<\/HEAD>/i){
+			push @$out, "HTML_HEAD_STUFF";
+			push @$out, $_;
+		    }
+		    elsif(/<\/body>/i){
+			MyDef::compileutil::call_sub("js_ga");
+			push @$out, $_;
+		    }
+		    else{
+			push @$out, $_;
+		    }
+		}
+		close $in;
+		MyDef::compileutil::modepop();
+	    }
+	    else{
+		print STDERR " Can't open [$param]\n";
+	    }
+	}
+	elsif($func eq 'error'){
+	    push @$out, "\$errors[]=$param;";
+	}
+	elsif($func eq 'formhead'){
+	    formhead($out, $param);
+	}
+	elsif($func eq 'formtail'){
+	    my @p=split /,\s*/, $param;
+	    foreach my $n(@p){
+		push @$out, "if(isset(\$$n)){";
+		push @$out, "    print \"<input type=\\\"hidden\\\" name=\\\"$n\\\", value=\\\"\$$n\\\" />\";";
+		push @$out, "}";
+		push @$out, "else{";
+		push @$out, "    print \"<input type=\\\"hidden\\\" name=\\\"$n\\\", value=\\\"\\\" />\";";
+		push @$out, "}";
+	    }
+	    push @$out, 'print "</form>";';
+	}
+	elsif($func eq 'loadoptlist'){
+	    my @flist=split /,\s*/, $param;
+	    foreach my $f(@flist){
+		loadoptlist($out, $f);
+	    }
+	}
+	elsif($func eq 'forminit'){
+	    forminit($out, $param);
+	}
+	elsif($func eq 'formshow'){
+	    formshow($out, $param);
+	}
+	elsif($func eq 'hidden'){
+	    my @p=split /,\s*/, $param;
+	    foreach my $n(@p){
+		push @$out, "print \"<input type=\\\"hidden\\\" name=\\\"$n\\\" value=\\\"\$$n\\\" />\";";
+	    }
+	}
+	elsif($func eq 'postloadonly'){
+	    foreach my $f (splitlist($param)){
+		if($f=~/(\w+)\((\w+)\)/){$f=$1;}
+		post_load_only($out, $f);
+	    }
+	}
+	elsif($func eq 'postload'){
+	    foreach my $f (splitlist($param)){
+		if($f=~/(\w+)\((\w+)\)/){$f=$1;}
+		post_load($out, $f);
+	    }
+	}
+	elsif($func eq 'redirect'){
+	    push @$out, "header('Location: $param.php');";
+	    push @$out, "exit();";
+	}
+	elsif($func eq 'setvar'){
+	    if($param=~/(.*), (.*)/){
+		push @$out, "\$$1 = '$2';";
+	    }
+	}
+	elsif($func eq 'sqlruncache'){
+	    sqlrun($out, $param, 1);
+	}
+	elsif($func eq 'sqlrunusedb'){
+	    $MyDef::var->{usedb}=$param;
+	}
+	elsif($func eq 'sqlrun'){
+	    sqlrun($out, $param);
+	}
+	elsif($func =~ /tablelistfull(.*)/){
+	    tablelist($out, $param, 'full', $1);
+	}
+	elsif($func =~ /tablelist(.*)/){
+	    tablelist($out, $param, "", $1);
+	}
+	elsif($func =~ /csvlistfull(.*)/){
+	    csvlist($out, $param, 'full', $1);
+	}
+	elsif($func =~ /csvlist(.*)/){
+	    csvlist($out, $param, "", $1);
+	}
+	elsif($func=~/^(post|get|cookie)var$/){
+	    my $group='$_'.uc($1);
+	    my @tlist=split /,\s*/, $param;
+	    foreach my $p (@tlist){
+		push @$out, "\$$p=$group\['$p'\];";
+	    }
+	}
+	# ---- block statements
+	elsif($func eq "if"){
+	    simple_block("if($param){", "}", $out);
+	}
+	elsif($func eq "ifz"){
+	    if($param=~/(\$\w+)\[(^[\]]*)\]/){
+		simple_block("if(!(array_key_exists($2, $1) and $param)){", "}", $out);
+	    }
+	    else{
+		simple_block("if(empty($param)){", "}", $out);
+	    }
+	}
+	elsif($func eq "ifnz"){
+	    if($param=~/(\$\w+)\[(^[\]]*)\]/){
+		simple_block("if((array_key_exists($2, $1) and $param)){", "}", $out);
+	    }
+	    else{
+		simple_block("if(!empty($param)){", "}", $out);
+	    }
+	}
+	elsif($func =~ /^(el|els|else)if$/){
+	    if($mode eq 'html' or $mode eq 'js'){ # JavaScript
+		simple_block("else if($param){", "}", $out);
+	    }
+	    else{
+		simple_block("elseif($param){", "}", $out);
+	    }
+	}
+	elsif($func eq "else"){
+	    simple_block("else{", "}", $out);
+	}
+	elsif($func eq "foreach" or $func eq "for" or $func eq "while"){
+	    simple_block("$func ($param){", "}", $out);
+	}
+	elsif($func eq "function"){
+	    simple_block("function $param {", "}", $out);
+	}
+	elsif($func eq 'input'){
+	    input($out, $param);
+	}
+	elsif($func eq 'button'){
+	    formbutton($out, $param);
+	}
+	elsif($func eq 'makeiconmenu'){
+	    my @items=split /,\s*/, $param;
+	    push @$out, "PRINT <table class=\"menutable\">";
+	    my $j=0;
+	    my $col=6;
+	    foreach my $i(@items){
+		if($i eq '|'){
+		    if($j>0){push @$out, "PRINT </tr>"; $j=0;}
+		    push @$out, "PRINT <tr><td colspan=$col><hr /></td></tr>";
+		    $j=0;
+		}
+		else{
+		    my $ii=$MyDef::def->{menuitems}->{$i};
+		    my $l=$ii->{href};
+		    if($l!~/\.(php|html)$/){
+			$l=$l.".php";
+		    }
+		    my $icon=$ii->{icon};
+		    my $label=$ii->{label};
+		    if($j==0){push @$out, "PRINT <tr>";}
+		    push @$out, "PRINT <td align=center>";
+		    push @$out, "PRINT <a href=\"$l\"><img src=\"$icon\" width=100 height=100></a><br />";
+		    push @$out, "PRINT <a href=\"$l\">$label</a>";
+		    push @$out, "PRINT </td>";
+		    $j++;
+		    if($j==$col){push @$out, "PRINT </tr>"; $j=0;}
+		}
+	    }
+	    push @$out, "PRINT </table>";
+	}
+	elsif($func eq 'makelistmenu'){
+	    my @items=split /,\s*/, $param;
+	    push @$out, "PRINT <ul class=\"menulist\">";
+	    foreach my $i(@items){
+		push @$out, "PRINT <li>";
+		if($i eq '|'){
+		    push @$out, "PRINT <hr>";
+		}
+		else{
+		    my $ii=$MyDef::def->{menuitems}->{$i};
+		    my $l=$ii->{href};
+		    if($l!~/\.(php|html)$/){
+			$l=$l.".php";
+		    }
+		    my $icon=$ii->{icon};
+		    my $label=$ii->{label};
+		    push @$out, "PRINT <a href=\"$l\">$label</a>";
+		}
+		push @$out, "PRINT </li>";
+	    }
+	    push @$out, "PRINT </ul>";
+	}
     subcode: custom_dump
 	$sub custom_dump
 	    my ($f, $rl)=@_;
@@ -499,20 +497,13 @@ page: output_php
 
 	sub dumpstyle {
 	    my ($f, $style)=@_;
-	    if($style_sheet){
-		my %t;
-		foreach my $s (@$style_sheet){
-		    if(!$t{$s}){
-			$t{$s}=1;
-			push @$f, "<link rel=\"stylesheet\" type=\"text/css\" href=\"$s\" />\n";
-		    }
-		}
-	    }
-	    if($style){
-		my @keys=sort keys %$style;
-		if($MyDef::page->{type} ne "css"){
+
+	    my @keys=sort keys %$style
+	    $if @keys
+		print "Dumping style: $style\n"
+		$call dump_hash, $style
+		$if $MyDef::page->{type} ne "css"
 		    push @$f, "<style>\n";
-		}
 		foreach my $k (@keys){
 		    my %attr;
 		    my @tlist=split /;/, $style->{$k};
@@ -527,17 +518,24 @@ page: output_php
 		    }
 		    push @$f, "    $k {". join('; ', @tlist)."}\n";
 		}
-		if($MyDef::page->{type} ne "css"){
+		$if $MyDef::page->{type} ne "css"
 		    push @$f, "</style>\n";
-		}
-	    }
 	}
 
 	sub dumpmeta {
 	    my ($f)=@_;
-	    if($MyDef::page->{title}){
+	    $if $MyDef::page->{title}
 		push @$f, "<title>$MyDef::page->{title}</title>\n";
-	    }
+	    my %sheet_hash;
+	    $foreach my $s in @$style_sheets
+		$if !$sheet_hash{$s}
+		    $sheet_hash{$s}=1;
+		    push @$f, "<link rel=\"stylesheet\" type=\"text/css\" href=\"$s\" />\n";
+	    my %js_hash;
+	    $foreach my $s in @$java_scripts
+		$if !$js_hash{$s}
+		    $js_hash{$s}=1;
+		    push @$f, "<script type=\"text/javascript\" src=\"$s\" />\n";
 	}
 
 
