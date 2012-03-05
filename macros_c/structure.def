@@ -1,108 +1,86 @@
 
 subcode:: c_support_subs
-    $sub make_struct
+    $sub declare_struct 
 	my ($name, $param)=@_;
-	my @struct;
-	my (@init, @exit);
-	push @struct, {constructor=>undef, destructor=>undef};
+	my ($s_list, $s_hash)
+	$if $structs{$name}
+	    $s_list=$structs{$name}->{list}
+	    $s_hash=$structs{$name}->{hash}
+	    $s_init=$s_hash->{"-init"}
+	    $s_exit=$s_hash->{"-exit"}
+	$else
+	    $s_init=[]
+	    $s_exit=[]
+	    $s_list=[]
+	    $s_hash={"-init"=>$s_init, "-exit"=>$s_exit}
+	    $structs{$name}={list=>$s_list, hash=>$s_hash}
+	    push @struct_list, $name
+
 	my @plist=split /,\s+/, $param;
 	$foreach my $p in @plist
-	    my $element={};
-	    push @struct, $element;
+	    my ($name, $type, $needfree);
 	    $if $p=~/^@/
-		$element->{needfree}=1;
+		$needfree=1
 		$p=$';
 
-	    my $init;
 	    $if $p=~/(.*?)(\S+)\s*=\s*(.*)/
 		$p="$1$2";
-		$init=1;
-		push @init, "p->$2=$3;";
+		push @$s_init, "p->$2=$3;";
 
 	    $if $p=~/(.*\S)\s+(\S+)\s*$/
-		$element->{type}=$1;
-		$element->{name}=$2;
+		$type=$1;
+		$name=$2;
 		$p=$2
 	    $else
-		$element->{name}=$p;
+		$name=$p;
 		$if $p eq "next" or $p eq "prev"
-		    $element->{type}="struct $name\_node *";
-		    $if !@init
-			push @init, "p->$p=NULL;";
+		    $type="struct $name\_node *";
+		    $if !@$s_init
+			push @$s_init, "p->$p=NULL;";
 		$elif $p eq "list"
-		    $element->{type}="struct $name\_node";
+		    $type="struct $name\_node";
 		$elif $p eq "tail"
-		    $element->{type}="struct $name\_node *";
-		    $if !@init
-			push @init, "p->$p=&p->list;";
+		    $type="struct $name\_node *";
+		    $if !@$s_init
+			push @$s_init, "p->$p=&p->list;";
 		$elif $fntype{$p}
-		    $element->{type}="function";
+		    $type="function";
 		$elif $p
 		    my $type=get_c_type($p);
-		    $element->{type}=$type;
+		    $type=$type;
 	    # -- init & exit
-	    my $type=$element->{type}
-	    my $name=$element->{name}
 	    $foreach my $fh in @func_var_hooks
 		$if $fh->{var_check}->($type)
 		    my $init=$fh->{var_init}->($type, "p->$name") 
 		    $if $init
-			push @init, "p->$p=$init;";
+			push @$s_init, "p->$p=$init;";
 		    my $exit=$fh->{var_release}->($type, "p->$name", "skipcheck")
 		    $if $exit
 			$foreach my $l in @$exit
-			    push @exit, $l;
+			    push @$s_exit, $l;
+	    # ----
+	    $if !$s_hash{$name}
+		push @$s_list, $name
+	    $s_hash{$name}=$type
+	    $if $needfree
+		$s_hash{"$name-needfree"}=1
 
-	$if @init
-	    $struct[0]->{constructor}=\@init;
-	$if @exit
-	    $struct[0]->{destructor}=\@exit;
-	return \@struct;
-
-    sub add_struct {
-	my ($stname, $pname)=@_;
-	my $struct=$structs{$stname};
-	#print "Struct $stname: $struct\n";
-	if($struct){
-	    foreach my $p(@$struct){
-		if($p->{name} eq $pname){
-		    return;
-		}
-	    }
-	    if($fntype{$pname}){
-		push @$struct, {type=>"function", name=>$pname};
-	    }
-	    else{
-		my $type=get_c_type($pname);
-		push @$struct, {type=>$type, name=>$pname};
-	    }
-	}
-    }
-    sub get_struct_element_type {
+    $sub get_struct_element_type 
 	my ($svar, $evar)=@_;
 	my $stype=get_var_type($svar);
-	if($stype=~/struct\s+(\w+)/){
+	$if $stype=~/struct\s+(\w+)/
 	    my $struc=$structs{$1};
-	    foreach my $p(@$struc){
-		if($p->{name} eq $evar){
-		    return $p->{type};
-		}
-	    }
-	}
-	#print STDERR "failed get_struct_element_type($svar, $evar)\n";
+	    $if $struc->{hash}->{$evar}
+		return $struc->{hash}->{$evar}
 	return "void";
-    }
 
-    sub struct_free {
+    $sub struct_free
 	my ($out, $ptype, $name)=@_;
 	my $type=pointer_type($ptype);
-	if($type=~/struct\s+(\w+)/ and $structs{$1}){
-	    foreach my $p (@{$structs{$1}}){
-		if($p->{needfree}){
-		    struct_free($out, $p->{type}, "$name"."->".$p->{name});
-		}
-	    }
-	}
+	$if $type=~/struct\s+(\w+)/ and $structs{$1}
+	    $s_list=$structs{$1}->{list}
+	    $s_hash=$structs{$1}->{hash}
+	    $foreach my $p in @$s_list
+		$if $s_hash->{"$p-needfree"}
+		    struct_free($out, $s_hash->{$p}, "$name->$p")
 	push @$out, "free($name);";
-    }
-

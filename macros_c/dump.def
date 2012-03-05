@@ -87,33 +87,33 @@ subcode: dump_declares
 subcode: dump_structs
     $foreach my $name in @struct_list
 	push @dump_init, "struct $name {\n";
-	my @plist=@{$structs{$name}};
-	my $info=$plist[0];
+	my $s_list=$structs{$name}->{list}
+	my $s_hash=$structs{$name}->{hash}
 	my $i=0;
-	$foreach my $p in @plist
+	$foreach my $p in @$s_list
 	    $i++;
-	    $if $i==1
-		next;
-	    $if $p->{type} eq "function"
-		push @dump_init, "\t".$fntype{$p->{name}}.";\n";
+	    $if $s_hash->{$p} eq "function"
+		push @dump_init, "\t".$fntype{$p}.";\n";
 	    $else
-		push @dump_init, "\t$p->{type} $p->{name};\n";
+		push @dump_init, "\t$s_hash->{$p} $p;\n";
 	push @dump_init, "};\n\n";
 
 subcode: dump_structs_functions
     my $cnt=0
     $foreach my $name in @struct_list
-	my $info=$structs{$name}->[0]
-	$if $info->{"constructor"}
+	my $s_hash=$structs{$name}->{hash}
+	my $s_init=$s_hash->{"-init"}
+	$if @$s_init
 	    push @dump_init, "void $name\_constructor(struct $name* p){\n";
-	    foreach my $l(@{$info->{constructor}}){
+	    foreach my $l(@$s_init){
 		push @dump_init, "    $l\n";
 	    }
 	    push @dump_init, "}\n";
 	    $cnt++
-	$if $info->{"destructor"}
+	my $s_exit=$s_hash->{"-exit"}
+	$if @$s_exit
 	    push @dump_init, "void $name\_destructor(struct $name* p){\n";
-	    foreach my $l(@{$info->{destructor}}){
+	    foreach my $l(@$s_exit){
 		push @dump_init, "    $l\n";
 	    }
 	    push @dump_init, "}\n";

@@ -41,11 +41,9 @@ subcode: parsecode_func_param
 	$type_include{$param1}.=",$param2";
     }
     elsif($func eq "struct"){
-	if(!$structs{$param1}){
-	    push @struct_list, $param1;
-	    $structs{$param1}=make_struct($param1, $param2);
+	$if !$structs{$param1}
+	    declare_struct($param1, $param2);
 	    $type_prefix{"st$param1"}="struct $param1";
-	}
     }
     elsif($func eq "get_type"){
 	my $type=get_var_type($param2);

@@ -76,8 +76,7 @@ subcode:: c_support_subs
 	print "regex_init_code\n";
 	$includes{"<stdlib.h>"}=1;
 	if(!$structs{"VMInst"}){
-	    push @struct_list, "VMInst";
-	    $structs{"VMInst"}=make_struct("VMInst", "int opcode, int c, int x, int y");
+	    declare_struct("VMInst", "int opcode, int c, int x, int y");
 	    MyDef::regex::add_regex_vm_code(\@initcodes);
 	}
 	if(!$enums{"RegexOp"}){

@@ -77,18 +77,24 @@ subcode:: support_subs
 	$cur_function=$old_function
 
     $sub create_window
-	my ($out, $view, $var, $parent)=@_
-	my $controller_type=get_var_type($var)
-	my $hwnd=$var
-	my $data="NULL"
-	$if $controller_type=~/^struct .*\*/
-	    $hwnd="$var->hwnd"
-	    $data=$var
-	$elif $controller_type=~/^struct/
-	    $hwnd="$var.hwnd"
-	    $data="&".$var
+	my ($out, $view, $is_main)=@_
+	my ($controller_type, $hwnd, $parent, $data)
+	$if $is_main
+	    $controller_type="struct controller_main"
+	    $data="&main"
+	    $hwnd="main.hwnd"
+	    $parent="NULL"
 	$else
+	    $hwnd="hwnd_child"
+	    $parent="hwnd"
 	    func_add_var($hwnd, "HWND");
+	    $if $view->{controller}
+		$controller_type="struct $view->{controller}"
+		$data="controller"
+	    $else
+		$controller_type="1"
+		$data="NULL"
+
 	$call res_init_attr, view
 	my $name=$view->{_name}
 	$call res_update, "view_$name"
