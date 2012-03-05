@@ -49,13 +49,10 @@ page: output_php
 
     subcode: parsecode
 	if($l=~/^\s*CSS: (.*)\s*\{(.*)\}/){
-	    if($style->{$1}){
-		#print STDERR "CSS: $1 overriding denied.\n" if $debug>1;
+	    $if $style->{$1}
 		$style->{$1}.=";$2";
-	    }
-	    else{
+	    $else
 		$style->{$1}=$2;
-	    }
 	}
 	elsif($l=~/^\s*(CSS|JS):\s*(\S+)/){
 	    $if $1 eq "CSS"
@@ -95,45 +92,36 @@ page: output_php
 	    push @$out, $l;
 	}
 
-    subcode: parse_function
-	# -------- HTML handy notions --------
-	elsif($func =~ /^(tag|div|span|center|ol|ul|li|table|tr|td|th|b|script|style|p|h[1-5]|center|pre|html|head|body)$/){
-	    my $t;
-	    my @tt_list=split /,\s*/, $param;
-	    my $is_empty_tag=0
+    subcode: parse_tag_attributes
+	my @tt_list=split /,\s*/, $param;
+	my $is_empty_tag=0
 
-	    $t="";
-	    $if $func eq "tag" and @tt_list
-		$func=shift @tt_list;
-	    $if $func eq "script"
-		$t= " type=\"text/javascript\"";
-	    $foreach my $tt in @tt_list
-		$if $tt eq "/"
-		    $is_empty_tag=1
-		$elif $tt=~/^(\d+)x(\d+)$/
-		    $if $func eq 'table'
-			$t.=" cellspacing=\"$1\" cellpadding=\"$2\"";
-		    $elsif  $func eq 'td'
-			$t.=" colspan=\"$1\" rowspan=\"$2\"";
-		$elsif $tt=~/^(\d+)$/
-		    $if $func eq 'td' or $func eq 'th'
-			$t.=" colspan=\"$1\"";
-		$elsif $tt=~/^(\d+(px|%))$/
-		    $t.=" width=\"$1\"";
-		$elsif $tt=~/^(top|bottom|middle)$/
-		    $t.=" valign=\"$1\"";
-		$elsif $tt=~/^(left|right|center)$/
-		    $t.=" align=\"$1\"";
-		$elsif $tt=~/^#([a-zA-Z_\-0-9\$]+)$/
-		    $t.=" id=\"$1\"";
-		$elif $tt=~/^(\w+):"(.*)"/
-		    $t.=" $1=\"$2\""
-		$elif $tt=~/^(\w+):(.*)/
-		    $t.=" $1=\"$2\""
-		$elif $tt=~/^"(.*)"/
-		    $t.=" class=\"$1\"";
-		$else
-		    $t.=" class=\"$tt\"";
+	my $t="";
+	$if $func eq "tag" and @tt_list
+	    $func=shift @tt_list;
+	$if $func eq "script"
+	    $t= " type=\"text/javascript\"";
+	$foreach my $tt in @tt_list
+	    $if $tt eq "/"
+		$is_empty_tag=1
+	    $elsif $tt=~/^#(\S+)$/
+		$t.=" id=\"$1\"";
+	    $elif $tt=~/^(\S+):"(.*)"/
+		$t.=" $1=\"$2\""
+	    $elif $tt=~/^(\S+):(.*)/
+		$t.=" $1=\"$2\""
+	    $elif $tt=~/^"(.*)"/
+		$t.=" class=\"$1\"";
+	    $else
+		$t.=" class=\"$tt\"";
+    subcode: parse_function
+	# -------- HTML tags --------
+	elsif($func=~/^(img|input)$/)
+	    $call parse_tag_attributes
+	    push @$out, "PRINTLN <$func$t />"
+	}
+	elsif($func =~ /^(tag|div|span|center|ol|ul|li|table|tr|td|th|b|script|style|p|h[1-5]|center|pre|html|head|body|a|form|label)$/){
+	    $call parse_tag_attributes
 	    $if $is_empty_tag
 		push @$out, "PRINTLN <$func$t></$func>"
 	    $else
