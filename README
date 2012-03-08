@@ -1,4 +1,4 @@
-For examples and philosophies, visit the wiki page <https://github.com/hzhou/MyDef/wiki>. 
+For demonstrations and philosophies, visit <https://github.com/hzhou/MyDef/wiki>. 
 
 MyDef is a macro system that allows us to write source code of almost any language in our own way -- in specific, python indented block style, flexibility of a macro system, and some merits of literate programing.
 
