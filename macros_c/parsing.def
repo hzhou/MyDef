@@ -1,6 +1,7 @@
 include: macros_c/parsing_short.def
 subcode: c_parsecode
     my $should_return=1
+    #print "c_parsecode: [$l]\n";
     $if $l=~/^\s*PRINT\s+(.*)$/
 	$call fmt_print
     $elsif $l=~/^\s*\$(\w+)\((.*)\)\s+(.*)$/
@@ -237,12 +238,6 @@ subcode: parsecode_func
 	    my $ptype=get_var_type($p);
 	    struct_free($out, $ptype, $p);
 	}
-    }
-    elsif($func eq "regex_setup"){
-	my @plist=split /,\s+/, $param;
-	$misc_vars{regex_var}=$plist[0];
-	$misc_vars{regex_pos}=$plist[1];
-	$misc_vars{regex_end}=$plist[2];
     }
     elsif($func eq "dump"){
 	debug_dump($param, undef, $out);

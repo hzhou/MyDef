@@ -8,24 +8,25 @@ subcode:: c_support_subs
 	my $cur_wait;
 	my %pairlist=("'"=>"'", '"'=>'"', '('=>')', '['=>']', '{'=>'}')
 	$for $i=0:$n
-	    $if substr($l, $i) eq "\\"
+	    my $c=substr($l, $i, 1)
+	    $if $c eq "\\"
 		$i++
 		next
 	    $if $cur_wait
-		$if substr($l, $i) eq $cur_wait
+		$if $c eq $cur_wait
 		    $cur_wait=pop @wait_stack
 		    next
-		$if substr($l, $i) =~ /['"\(\[\{]/ 
-		    $cur_wait=$pairlist{substr($l, $i)}
+		$if $c =~ /['"\(\[\{]/ 
+		    $cur_wait=$pairlist{$c}
 		    push @wait_stack, $cur_wait
 		    next
 	    $else
-		$if substr($l, $i) =~ /['"\(\[\{]/ 
-		    $cur_wait=$pairlist{substr($l, $i)}
+		$if $c =~ /['"\(\[\{]/ 
+		    $cur_wait=$pairlist{$c}
 		    next
-		$if substr($l, $i) eq ","
+		$if $c eq ","
 		    $if $i>$i0
-			push @t, substr($l, $i0, $i-$i0-1)
+			push @t, substr($l, $i0, $i-$i0)
 		    $else
 			push @t, ""
 		    $i0=$i+1
@@ -38,7 +39,7 @@ subcode:: c_support_subs
 	$if $cur_function and $$l=~/^[^'"]*=/
 	    my $tl=$$l;
 	    $tl=~s/;+\s*$//;
-	    $if $tl=~/^\s*(.*?\w)\s*=\s*([^=].*)/
+	    $if $tl=~/^\s*\((.*?\w)\)\s*=\s*\((.*)\)/
 		undef $$l;
 		my ($left, $right)=($1, $2);
 		# multi-assignment
@@ -47,6 +48,10 @@ subcode:: c_support_subs
 		for(my $i=0; $i<=$#left; $i++){
 		    do_assignment($left[$i], $right[$i], $out);
 		}
+	    $elif $tl=~/^\s*(.*?\w)\s*=\s*([^=].*)/
+		undef $$l;
+		my ($left, $right)=($1, $2);
+		do_assignment($left, $right, $out);
 
     sub do_assignment {
 	my ($left, $right, $out)=@_;

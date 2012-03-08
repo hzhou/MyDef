@@ -99,11 +99,11 @@ subcode: type_hashes
     );
 
     my %text_include=(
-	"printf"=>"stdio.h",
-	"sin|cos|sqrt"=>"math.h",
+	"printf|perror"=>"stdio.h",
 	"malloc"=>"stdlib.h",
-	"strlen"=>"string.h",
-	"strdup"=>"string.h",
+	"str(len|dup|cpy)"=>"string.h",
+	"\\bopen\\("=>"fcntl.h",
+	"sin|cos|sqrt"=>"math.h",
 	"fstat"=>"sys/stat.h",
     );
 

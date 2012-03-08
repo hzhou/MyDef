@@ -46,8 +46,7 @@ subcode:: c_support_subs
 		$elif $fntype{$p}
 		    $type="function";
 		$elif $p
-		    my $type=get_c_type($p);
-		    $type=$type;
+		    $type=get_c_type($p);
 	    # -- init & exit
 	    $foreach my $fh in @func_var_hooks
 		$if $fh->{var_check}->($type)
@@ -59,11 +58,11 @@ subcode:: c_support_subs
 			$foreach my $l in @$exit
 			    push @$s_exit, $l;
 	    # ----
-	    $if !$s_hash{$name}
+	    $if !$s_hash->{$name}
 		push @$s_list, $name
-	    $s_hash{$name}=$type
+	    $s_hash->{$name}=$type
 	    $if $needfree
-		$s_hash{"$name-needfree"}=1
+		$s_hash->{"$name-needfree"}=1
 
     $sub get_struct_element_type 
 	my ($svar, $evar)=@_;

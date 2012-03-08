@@ -116,7 +116,8 @@ subcode:: c_support_subs
 	#print "Add var $name, type: $var_type->{$name}, init: $var_decl->{$name}\n";
 	# ----
 	$if $type=~/struct (\w+)$/
-	    $if $structs{$1}->[0]->{constructor}
+	    my $s_init=$structs{$1}->{hash}->{"-init"}
+	    $if @$s_init
 		$if $array
 		    func_add_var("i", "int");
 		    push @{$cur_function->{init}}, "for(i=0;i<$array;i++){$1_constructor(&$name\[i]);}";

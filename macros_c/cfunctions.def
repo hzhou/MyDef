@@ -6,10 +6,10 @@ include: macros_c/functions.def
 include: macros_c/hash_and_list.def
 include: macros_c/types.def
 include: macros_c/dump.def
+include: macros_c/regex.def
 
 subcode: c_main
     use MyDef::dumpout;
-    use MyDef::regex;
 
     my $cur_indent;
     our $cur_function;
@@ -72,39 +72,25 @@ subcode:: c_support_subs
 	push @$out, "}";
 	return "NEWBLOCK";
     }
-    sub regex_init_code {
-	print "regex_init_code\n";
-	$includes{"<stdlib.h>"}=1;
-	if(!$structs{"VMInst"}){
-	    declare_struct("VMInst", "int opcode, int c, int x, int y");
-	    MyDef::regex::add_regex_vm_code(\@initcodes);
-	}
-	if(!$enums{"RegexOp"}){
-	    push @enum_list, "RegexOp";
-	    $enums{"RegexOp"}="Char, Match, Jmp, Split, AnyChar";
-	}
-    }
-    sub parse_condition {
+    $sub parse_condition
 	my ($param, $out)=@_;
-	if($param=~/^\s*(!)?\/(.*)\//){
-	    my $var=$misc_vars{regex_var};
-	    my $pos=$misc_vars{regex_pos};
-	    my $end=$misc_vars{regex_end};
-	    my $t= MyDef::regex::parse_regex_match($2, $out, \&regex_init_code, $var, $pos, $end);
-	    if($1){
+	$if $param=~/^(\S+)\s*(!~|=~)\s*\/(.*)\//
+	    my ($var, $eq, $pattern)=($1, $2, $3)
+	    my ($pos, $end)
+	    $if $var=~/(.*)\[(.*)\]/
+		($var, $pos)=($1, $2)
+	    $else
+		($pos, $end)=(0, 0)
+	    my $t= parse_regex_match($pattern, $out, $var, $pos, $end);
+	    $if $eq =~/!~/
 		return "!($t)"
-	    }
-	    else{
+	    $else
 		return $t;
-	    }
-	}
-	elsif($param=~/(\w+)->\{(.*)\}/){
+
+	$elsif $param=~/(\w+)->\{(.*)\}/
 	    return hash_check($out, $1, $2);
-	}
-	else{
+	$else
 	    return $param;
-	}
-    }
 
 # ---- allocate ----
 subcode: allocate_dimension
@@ -117,20 +103,18 @@ subcode: allocate_dimension
 
 subcode: allocate_one
     push @$out, "$p=($type*)malloc(sizeof($type));";
-    $if $t->{constructor}
+    $if $init
 	push @$out, "$1_constructor($p);";
 subcode: allocate_array
     push @$out, "$p=($type*)malloc($dim*sizeof($type));";
-    $if $t->{constructor}
+    $if $init
 	func_add_var("i", "int");
 	push @$out, "for(i=0;i<$dim;i++)$1_constructor($p\[i]);";
 subcode: check_destructor
     $if $misc_vars{mu_enable}
 	my $destructor="NULL";
-	$if $type=~/struct (\w+)/
-	    my $t=$structs{$1}->[0];
-	    $if $t->{destructor}
-		$destructor="&$1_destructor";
+	$if $exit
+	    $destructor="&$1_destructor";
 	push @$out, "mu_add((void*)$p, sizeof($type), $dim, $destructor);";
 subcode: allocate_init
     $if defined $init and $init ne ""
@@ -144,6 +128,12 @@ subcode: allocate_debug
     $if $misc_vars{"debug_mem"}==1
 	push @$out, "printf(\"Mem \%d - $p \%d $type [%x]\\n\", mu_lastmem, $dim, $p);";
 
+subcode: check_struct_init_exit
+    my ($init, $exit)
+    $if $type=~/struct (\w+)/
+	$init=@{$structs{$1}->{hash}->{"-init"}}
+	$exit=@{$structs{$1}->{hash}->{"-exit"}}
+
 subcode:: c_support_subs
     $sub allocate
 	my ($out, $dim, $param2)=@_;
@@ -155,6 +145,7 @@ subcode:: c_support_subs
 		func_add_var($p);
 		$cur_function->{var_flag}->{$p}="retained";
 		my $type=pointer_type(get_var_type($p));
+		$call check_struct_init_exit
 		$if $dim == 1
 		    $call allocate_one
 		$else 
