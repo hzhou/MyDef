@@ -33,9 +33,7 @@ fncode: WinMain
     $call win_loop
 
 subcode: win_main
-    $struct(controller_main) hwnd
-    $global struct controller_main main
-    $MakeWindow main, main
+    $MakeWindow main
 
     ShowWindow(main.hwnd, n_cmdshow)
     UpdateWindow(main.hwnd)
@@ -48,12 +46,6 @@ subcode: win_loop
 	DispatchMessage(&msg)
 
 ###############################################################
-subcode: msg_main
-    &call WM_MSG, CREATE
-	$LoadView main
-    &call WM_MSG, DESTROY
-	PostQuitMessage(0)
-
 subcode: WM_MSG(MSG)
     case WM_$(MSG):
 	BLOCK
@@ -160,6 +152,7 @@ resource: view_main
     size: 800, 600
     text: default window
 
+########## Defaults ######################################
 resource: default_wnd
     cbSize: sizeof(WNDCLASSEX)
     style: 0
@@ -172,7 +165,6 @@ resource: default_wnd
     lpszMenuName: NULL
 
 resource: default_view
-    wndclass: mydefwin
     style_ex: 0
     style: 0
     position: 10, 10
@@ -196,15 +188,13 @@ resource: default_font
     lfPitchAndFamily: FF_ROMAN|DEFAULT_PITCH
     lfFaceName: "Times New Roman"
 
-###############################################################
+######### Control Views #########################################
 resource: ctl_label
     wndclass: STATIC
-    skip_register: 1
     style: WS_CHILD|WS_VISIBLE|SS_LEFT
     font: Arial, 12
 
 resource: ctl_button
     wndclass: button
-    skip_register: 1
     style: WS_CHILD|WS_VISIBLE|BS_PUSHBUTTON
 

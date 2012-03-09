@@ -51,8 +51,8 @@ page: output_win32, output_main
 
 # ---------------------------
 subcode: pre_parse
-    $if $l=~/^\$MakeWindow\s+(\w+),\s*(\S+)/
-	my ($name, $controller)=($1, $2)
+    $if $l=~/^\$MakeWindow\s+(\w+)/
+	my ($name)=($1)
 	$call make_window
 	return 1
     $elif $l=~/^\$LoadView\s+(\w+)/
