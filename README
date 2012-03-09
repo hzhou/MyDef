@@ -1,43 +1,10 @@
 For demonstrations and philosophies, visit <https://github.com/hzhou/MyDef/wiki>. 
 
-MyDef is a macro system that allows us to write source code of almost any language in our own way -- in specific, python indented block style, flexibility of a macro system, and some merits of literate programing.
+MyDef is a macro system that allows us to write source code of almost any language in our own way -- in specific, python indented block style, flexibility of a macro system, and with some merits of literate programing.
 
-The python style: we write our codes in indented block style already, why do we still bother those brackets and semicolons? A coding style is so important then why not force it.
-
-The macro system: macros allow us to refactor codes without limitations -- unlike functions, which need maintain interfaces.
-
-The literate programming: Arange the code in the way best for human reading.
-
-Here is an example:
-
-
-################ $ cat tests/c_structures.def #####################
-page: test
-    subcode: main
-        #$call memory_utility
-        $struct(record) n_id=1, char * name
-        /***********************************/
-        $list n_main
-        $list test, do_something
-    fncode: n_main
-        $local strecord[10]
-        $local pstrecord
-        test()
-    fncode: test
-        #DEBUG
-        pn_test=do_something()
-        $for i=0:10
-            printf("%d: %d\n", i, pn_test[i])
-    fncode: do_something
-        $allocate(10) pn_test
-        $local s_buffer[100]
-        $for i=0:10
-            pn_test[i]=i*i
-        return pn_test
-
-#----------------------------------------------------------
 
 INSTALL
+=======
 
 1. MyDef currently is in perl. First setup a custome installation environment:
     PATH=$PATH:/home/hzhou/bin
