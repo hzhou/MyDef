@@ -33,7 +33,7 @@ fncode: WinMain
     $call win_loop
 
 subcode: win_main
-    $struct(controller_main) type, hwnd, sublist, layout
+    $struct(controller_main) hwnd
     $global struct controller_main main
     $MakeWindow main, main
 
