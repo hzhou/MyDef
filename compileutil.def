@@ -266,6 +266,7 @@ subcode: parse_call_sub
 subcode: parse_line
     my $idx=$#$out+1;
     my $output;
+    print "parse_line: [$l]\n"
     my $msg=$f_parse->($l, $modelist->[-1], $out);
     $if $msg
 	$if ref($msg) eq "ARRAY"
@@ -318,6 +319,7 @@ subcode:: package_global
 
     our @block_stack;    # maintain state for each parseblock
     our @callback_stack; # &call
+    my @callsub_stack;
 
     my $debug;
 
@@ -480,6 +482,10 @@ subcode: call_sub
 	print STDERR "    Code $codename not found!\n";
 	return;
     }
+    $foreach my $name in @callsub_stack
+	$if $name eq $codename
+	    die "Recursive subcode: $codename\n"
+    push @callsub_stack, $codename
     modepush($codelib->{type});
     my $params=$codelib->{params};
     my $source=$codelib->{source};
@@ -528,9 +534,10 @@ subcode: call_sub
 	pop @$deflist;
     }
     modepop();
+    pop @callsub_stack
 
 ###########################################################
-subcode: support_subs
+subcode:: support_subs
     sub get_def {
 	my ($name)=@_;
 	for (my $i=$#$deflist; $i>=0; $i--){
@@ -552,91 +559,73 @@ subcode: support_subs
 	return undef;
     }
 
-    sub expand_macro {
+subcode: expand_macro_seg
+    $if $s=~/^\$\((\w+)\.(\w+)\)/
+	my $t=$macros->{$1};
+	$if $t
+	    my $tt=$MyDef::def->{fields}->{$t};
+	    $if $tt
+		$if $tt->{$2}
+		    $segs[$j]=$tt->{$2};
+		    $flag++;
+		$elsif $2 eq "title"
+		    $segs[$j]=$t;
+		    $flag++;
+		$else
+		    $segs[$j]="";
+	    $else
+		$if $2 eq "title"
+		    $segs[$j]=$t;
+		    $flag++;
+    $elsif $s=~/^\$\((\w+):(\d+)-(\d+)\)/
+	my $t=$macros->{$1};
+	#print "expand_macro: $s, $1: $t\n";
+	$if $t
+	    $segs[$j]=substr($t, $2, $3-$2+1);
+	    $flag++;
+    $elsif $s=~/^\$\((.+)\)/
+	$if exists($macros->{$1})
+	    my $t=$macros->{$1};
+	    $if $t eq $s
+		die "Looping macro $1 in \"$$lref\"!\n";
+	    $segs[$j]=$t;
+	    $flag++;
+	#print "Macro: [$1] [$macros->{$1}]\n";
+
+subcode:: support_subs
+    $sub expand_macro
 	my ($lref, $macros)=@_;
 	my $hasmacro=0;
-	while ($$lref=~/\$\([^)]+\)/){
+	$while  $$lref=~/\$\(\w[^)]+\)/
 	    #print "expand_macro: $$lref\n";
-	    my @segs=split /(\$\([^)]+\))/, $$lref;
+	    my @segs=split /(\$\(\w[^)]+\))/, $$lref;
 	    my $j=0;
 	    my $flag=0;
-	    foreach my $s (@segs){
-		if($s=~/^\$\((\w+)\.(\w+)\)/){
-		    my $t=$macros->{$1};
-		    if($t){
-			my $tt=$MyDef::def->{fields}->{$t};
-			if($tt){
-			    if($tt->{$2}){
-				$segs[$j]=$tt->{$2};
-				$flag++;
-			    }
-			    elsif($2 eq "title"){
-				$segs[$j]=$t;
-				$flag++;
-			    }
-			    else{
-				$segs[$j]="";
-			    }
-			}
-			else{
-			    if($2 eq "title"){
-				$segs[$j]=$t;
-				$flag++;
-			    }
-			    else{
-				#print "Macro $t.$2 not found!\n";
-			    }
-			}
-		    }
-		}
-		elsif($s=~/^\$\((\w+):(\d+)-(\d+)\)/){
-		    my $t=$macros->{$1};
-		    #print "expand_macro: $s, $1: $t\n";
-		    if($t){
-			$segs[$j]=substr($t, $2, $3-$2+1);
-			$flag++;
-		    }
-		}
-		elsif($s=~/^\$\((.+)\)/){
-		    if(exists($macros->{$1})){
-			my $t=$macros->{$1};
-			if($t eq $s){
-			    die "Looping macro $1 in \"$$lref\"!\n";
-			}
-			$segs[$j]=$t;
-			$flag++;
-		    }
-		    #print "Macro: [$1] [$macros->{$1}]\n";
-		}
+	    $foreach my $s in  @segs
+		$call expand_macro_seg
 		$j++;
-	    }
-	    if($flag){
+	    $if $flag
 		$$lref=join '', @segs;
-	    }
-	    else{
+	    $else
 		$hasmacro=1;
 		last;
-	    }
-	}
 	return $hasmacro;
-    }
 
-    sub expand_macro_recurse {
+subcode:: support_subs
+    $sub expand_macro_recurse
 	my $lref=shift;
 	my $hasmacro
 	for(my $j=$#$deflist; $j>=0; $j--){
 	    $hasmacro=expand_macro($lref, $deflist->[$j]);
-	    if(!$hasmacro){
+	    $if !$hasmacro
 		last;
-	    }
 	}
 	$if $hasmacro
 	    $while $$lref=~/(\$\([^)]+\))/g
 		$if substr($`, -1) ne "\\"
 		    warn "Macro $1 not defined in $$lref\n"
 
-    }
-
+subcode:: support_subs
     sub testcondition {
 	my ($name)=@_;
 	if(!$name){
@@ -705,6 +694,7 @@ subcode: support_subs
 	return 0;
     }
 
+subcode:: support_subs
     # MODES
     sub modepush {
 	my ($mode)=@_;
