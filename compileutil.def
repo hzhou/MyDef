@@ -266,7 +266,6 @@ subcode: parse_call_sub
 subcode: parse_line
     my $idx=$#$out+1;
     my $output;
-    print "parse_line: [$l]\n"
     my $msg=$f_parse->($l, $modelist->[-1], $out);
     $if $msg
 	$if ref($msg) eq "ARRAY"
@@ -596,9 +595,9 @@ subcode:: support_subs
     $sub expand_macro
 	my ($lref, $macros)=@_;
 	my $hasmacro=0;
-	$while  $$lref=~/\$\(\w[^)]+\)/
+	$while  $$lref=~/\$\(\w[^)]*\)/
 	    #print "expand_macro: $$lref\n";
-	    my @segs=split /(\$\(\w[^)]+\))/, $$lref;
+	    my @segs=split /(\$\(\w[^)]*\))/, $$lref;
 	    my $j=0;
 	    my $flag=0;
 	    $foreach my $s in  @segs

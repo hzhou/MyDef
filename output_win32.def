@@ -1,6 +1,8 @@
 include: output.def
 include: macros_c/cfunctions.def
+include: macros_util/tool_output.def
 include: macros_win32/resource.def
+include: macros_win32/graphics.def
 
 page: output_win32, output_main
     type: pm
@@ -28,13 +30,18 @@ page: output_win32, output_main
 	    $func->{skip_declare}=1;
 	    $func->{ret_type}="int APIENTRY";
 	    $func->{param_list}=["HINSTANCE hInst", "HINSTANCE hPrev", "LPSTR lpstr_cmdline", "int n_cmdshow"];
-	    my $initblock=$func->{init}
-	    push @$initblock, "cur_instance = hInst;"
 
-	    $while my $wnd = shift @window_list
-		register_window($wnd)
-		push @$initblock, "register_$wnd();"
-	    push @$initblock, "NEWLINE"
+	    my $initblock=$func->{init}
+	    $cur_function=$func
+	    &call replace_output, $initblock
+		push @$out, "cur_instance = hInst;"
+		$while my $wnd = shift @window_list
+		    register_window($wnd)
+		$foreach $var in sort(keys(%hgdi_hash))
+		    $if $var=~/^font_\w+/
+			$call make_font
+		push @$out, "NEWLINE"
+
 	    push @{$func->{init}}, "DUMP_STUB main_init";
 	    push @{$func->{finish}}, "DUMP_STUB main_exit";
 	    push @{$func->{finish}}, "return 0;";
@@ -59,11 +66,20 @@ subcode: pre_parse
 	my ($name)=($1)
 	$call load_view
 	return 1
+    $elif $l=~/^\$g_(\w+)(.*)/
+	my ($cat, $param)=($1, $2)
+	$param=~s/^\s*//
+	$call graphics, $cat, $param
+	return 1
     $elif $l=~/^(\w+)\s*=\s*\$MakeMenu\s+(\w+)/
 	my ($var, $name)=($1, $2)
-	$call load_menu
+	$call fetch_named_resource, menu
+	func_add_var($var, "HMENU")
+	push @$out, "$var = CreateMenu();"
+	my $commands={}
+	ogdl_menu($out, $var, $menu, 0, $commands);
 	return 1;
-    $elif $l=~/^(\w+)\s*=\s*\$MakeFont\s+(.*)/
+    $elif $l=~/^(\S+)\s*=\s*\$MakeFont\s+(.*)/
 	my ($var, $spec)=($1, $2);
 	$call make_font
 	return 1;

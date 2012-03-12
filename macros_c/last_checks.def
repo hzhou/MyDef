@@ -53,29 +53,25 @@ subcode:: c_support_subs
 		my ($left, $right)=($1, $2);
 		do_assignment($left, $right, $out);
 
-    sub do_assignment {
+    $sub do_assignment
 	my ($left, $right, $out)=@_;
 	if($debug){ print "do_assignment: $left = $right\n"; }
 	my $type;
-	if($left=~/^(.*?)\s+(\S+)$/){
+	$if $left=~/^(.*?)\s+(\S+)$/
 	    $type=$1;
 	    $left=$2;
-	}
-	if($left=~/^\w+$/){
+	$if $left=~/^\w+$/
 	    func_add_var($left, $type, $right);
 	    $type=get_var_type($left);
 	    func_var_assign($type, $left, $right, $out);
-	}
-	elsif($left=~/(\w+)(\.|->)(\w+)/){
+	$elsif $left=~/(\w+)(\.|->)(\w+)/
 	    my $v1=$1;
 	    my $v2=$3;
 	    my $stype=get_struct_element_type($v1, $v2);
 	    func_var_assign($stype, $left, $right, $out);
-	}
-	else{
+	$else
 	    push @$out, "$left = $right;";
-	}
-    }
+
     sub last_exp {
 	my $l=shift;
 	my $tlen=length($l);
