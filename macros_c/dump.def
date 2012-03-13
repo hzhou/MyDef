@@ -72,12 +72,6 @@ subcode: dump_function_declares
     $if $cnt>0
 	push @dump_init, "\n";
 
-subcode: dump_code_list
-    $foreach my $l in @initcodes
-	push @dump_init, "$l\n";
-    $if @initcodes
-	push @dump_init, "\n";
-
 subcode: dump_declares
     $foreach my $l in @declare_list
 	push @dump_init, "$l\n";
@@ -121,3 +115,10 @@ subcode: dump_structs_functions
 	# ------------------------
     $if $cnt>0
 	push @dump_init, "\n";
+
+subcode: dump_code_list
+    $foreach my $l in @initcodes
+	push @dump_init, "$l\n";
+    $if @initcodes
+	push @dump_init, "\n";
+
