@@ -1,6 +1,10 @@
 $ENV{MYDEFLIB}="../MyDef/deflib";
 $ENV{PERL5LIB}="../MyDef/blib/lib";
 
+if(!-d "out"){
+    mkdir "out" or die "Can't mkdir out\n";
+}
+
 my $yellow="\033[33;1m";
 my $normal="\033[0m";
 my $f=$ARGV[0];
@@ -41,7 +45,7 @@ if($f=~/([a-z0-9]+)_.*\.def$/){
 	}
 	system "cp test.c test_win32/";
     }
-    elsif($1 eq "general"){
+    elsif($1 =~ /(general|apple)/){
     }
     elsif($1 eq "php"){
 	print "$yellow*** Dumpt test.php ***$normal\n";

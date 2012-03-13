@@ -18,7 +18,7 @@ subcode: root_controller
 subcode: test_view
     $subclass UIView, test_view
 	$method on_draw
-	    DEBUG parse
+	    #DEBUG parse
 	    $(set:BUFLEN=100)
 	    $local pc_buf[$(BUFLEN)]
 	    $call draw_hello
