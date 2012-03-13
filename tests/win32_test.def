@@ -1,27 +1,73 @@
 page: test, basic_frame
-    fncode: WinMain
-	$CreateWindow hwnd_main, MainWindow
-	$call win_show, hwnd_main
-	$call win_loop
-
     subcode: main_fn_list
+	# Non-GUI functions and declarations here
+	# The Model part of MVP also may go here
 
-subcode: msg_MainWindow
-    &call WM_MSG, CREATE
-	$MakeMenu hmenu_main, MainMenu
-	SetMenu(hwnd, hmenu_main)
-	DestroyMenu(hmenu_main)
-    &call WM_PAINT
-	$call draw_hello
+#### GUI Part ########################################
+fncode: WinMain
+    $call win_main
+    $call win_loop
 
-resource: MainMenu
+# ---- Controller part for main window -----------------
+subcode: main_on_paint
+    $g_font font_main
+    $g_moveto 10, 10
+    $g_text "Hello World!"
+
+subcode: main_on_click
+    MessageBox(hwnd, "Button clicked!", "MsgBox", MB_OK)
+
+subcode: main_on_file_open
+    MessageBox(hwnd, "Menu -> File -> Open!", "MsgBox", MB_OK)
+
+# ---- View part for main window -----------------------
+resource: view_main
+    style: WS_OVERLAPPEDWINDOW
+    size: 500, 350
+    menu: main
+    text: Hello World from MyDef
+    label
+	text: static label
+	position: 5, 100
+	size: 200, 20
+	font: font_main
+    button
+	text: push me
+	position: 5, 200
+	size: 80, 40
+	action: on_click
+    editor
+	position: 120, 50
+	size: -10, -10
+    
+# ---- Controller part for editor window -----------------
+subcode: editor_on_paint
+    $g_font font_editor
+    TextOut(hdc, 10, 10, "MyDef Editor", 12)
+
+# ---- View part for editor window -----------------------
+resource: view_editor
+    style: WS_CHILD|WS_VISIBLE|WS_BORDER
+
+# ---- Other GUI resources --------------------------------
+resource: menu_main
     File
-        &Open, &Close, E&xit
+	Open
+	    action: on_file_open
+	Close
+	Exit
         ----
         Recent &Files
-            File 1, File 2, File 3
+            File 1
+	    File 2
+	    File 3
     Edit
         Cut, Copy, Paste
-    Option
-        Range Adapt
 
+resource: font_main
+    lfFaceName: "Arial"
+    lfHeight: 24
+
+resource: font_editor
+    lfFaceName: "Courier New"
+    lfHeight: 16

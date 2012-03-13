@@ -7,6 +7,7 @@ page: output_apple, output_main
     ext: m
     init_mode: sub
     subcode: package_subs
+	$call package_global
 	$call apple_functions
 	$call c_main
     subcode: init_page
@@ -30,8 +31,10 @@ page: output_apple, output_main
 	    $call process_class
 	# ---- c global stuff -----------------------
 	$call objc_dump_includes
+	unshift @$out, "DUMP_STUB global_init";
 	$call c_dump_init
 
+subcode: package_global
 subcode: process_class
     my $interface=$class->{interface};
     $if $class->{protocols}
