@@ -1,0 +1,58 @@
+subcode:: package_global
+    my %view_hash;
+
+subcode: process_views
+    # foreach view in @view_list 
+    #     push @$out, "
+
+subcode: load_controller
+    my $controller_name="controller_$name"
+    func_add_var($var, "controller_$name")
+    push @$out, "$var = [[controller_$name alloc] init];"
+    $view_hash{$name}="controller"
+
+subcode: load_view
+    $call fetch_named_resource, view
+    load_view($out, $view)
+
+subcode:: support_subs 
+    $sub load_view
+	my ($out, $view, $level)=@_
+	my $var="view$level"
+	func_add_var($var, "id")
+	# ---- get view attr ----
+	my $name=$view->{_name}
+	$if $name=~/^view_(\w+)/
+	    $name=$1
+	$call get_res_view_attr
+	# ----
+	$if $attr{class}
+	    push @$out, "$var=[[$attr{class} alloc] init];"
+	# ----
+	my $list=$view->{_list}
+	$foreach my $v in @$list
+	    my $subview_var = load_view($out, $v, $level+1)
+	    push @$out, "[$var addSubview: $subview_var];"
+
+
+subcode:: support_subs
+    $sub check_window_dock
+	my ($view)=@_
+	$call get_res_view_attr
+	$if $x=~/-(.*)/ and $w=~/-.*/
+	    $x=$1
+	$if $y=~/-(.*)/ and $h=~/-.*/
+	    $y=$1
+	$if $x=~/-(.*)/
+	    $x="rect_client.right-$w-$1"
+	$if $y=~/-(.*)/
+	    $y="rect_client.bottom-$h-$1"
+	$if $w=~/-(.*)/
+	    $w="rect_client.right-$x-$1"
+	$if $h=~/-(.*)/
+	    $h="rect_client.bottom-$y-$1"
+	$view->{position}="$x, $y"
+	$view->{size}="$w, $h"
+
+
+
