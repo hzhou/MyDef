@@ -3,13 +3,7 @@
 #    View is the window
 #    Model is the text buffer
 #    Controller is the code that connects View and Model
-
-# To me, both view and model are simple and can be picked from the library or outsourced
-# The controller is the only real code
-
-# An effective GUI framework should handle the views and reduce the programming part to a property list just like Visual Basic does.
-
-subcode: basic_frame
+subcode: win32_autoload
     $register_prefix(ui) UINT
     $register_prefix(lpstr) LPSTR
 
@@ -21,8 +15,7 @@ subcode: basic_frame
     $register_prefix(bmph) BITMAPINFOHEADER
     $register_prefix(bmp) DWORD *
 
-    # Main Window Handle
-
+subcode: basic_frame
     $call init_error
     #$call hgdiobj_collector
     $call main_fn_list

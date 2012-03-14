@@ -13,6 +13,7 @@ subcode:: package_global
     my $resource_id=1000
 
 # ---- MakeWindow ----
+#     $MakeWindow main
 subcode: make_window
     $call fetch_named_resource, view
     create_window($out, $view)
@@ -102,6 +103,7 @@ subcode: load_view
 subcode:: support_subs
     $sub check_window_dock
 	my ($view)=@_
+	my $docked=0
 	$call get_res_view_attr
 	$if $x<0 and $w<0
 	    $x=-$x
@@ -109,14 +111,19 @@ subcode:: support_subs
 	    $y=-$y
 	$if $x<0
 	    $x="rect_client.right-$w$x"
+	    $docked=1
 	$if $y<0
 	    $y="rect_client.bottom-$h$y"
+	    $docked=1
 	$if $w<0
 	    $w="rect_client.right-$x$w"
+	    $docked=1
 	$if $h<0
 	    $h="rect_client.bottom-$y$h"
+	    $docked=1
 	$view->{position}="$x, $y"
 	$view->{size}="$w, $h"
+	return $docked
 
 ###### Window Proc Handling
 subcode: wndproc_get_view_pointer

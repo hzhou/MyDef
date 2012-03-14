@@ -1,7 +1,8 @@
-page: test, basic_frame
-    subcode: main_fn_list
+page: test
+    subcode: main
 	# Non-GUI functions and declarations here
 	# The Model part of MVP also may go here
+	$list WinMain
 
 #### GUI Part ########################################
 fncode: WinMain

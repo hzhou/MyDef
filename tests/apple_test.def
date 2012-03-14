@@ -4,6 +4,9 @@ include: ios_cg.def
 page: test, basic_frame
     subcode: appmain
 	$call root_controller
+    subcode: on_start
+	root = $load_controller, main
+	self.window->addSubview root.view
 	    
 subcode: root_controller
     $call test_view
@@ -28,3 +31,52 @@ subcode: draw_hello
     tn=snprintf(pc_buf, $(BUFLEN), "Hello World")
     $call text, 5, 20, pc_buf, tn
 
+#### GUI Part ########################################
+
+# ---- Controller part for main window -----------------
+subcode: main_on_paint
+    $g_font font_main
+    $g_moveto 10, 10
+    $g_text "Hello World!"
+
+subcode: main_on_click
+    MessageBox(hwnd, "Button clicked!", "MsgBox", MB_OK)
+
+subcode: main_on_file_open
+    MessageBox(hwnd, "Menu -> File -> Open!", "MsgBox", MB_OK)
+
+# ---- View part for main window -----------------------
+resource: view_main
+    position: 0, 0
+    size: -0, -0
+    text: Hello World from MyDef
+    label
+	text: static label
+	position: 5, 100
+	size: 200, 20
+	font: font_main
+    button
+	text: push me
+	position: 5, 200
+	size: 80, 40
+	action: on_click
+    editor
+	position: 120, 50
+	size: -10, -10
+    
+# ---- Controller part for editor window -----------------
+subcode: editor_on_paint
+    $g_font font_editor
+    TextOut(hdc, 10, 10, "MyDef Editor", 12)
+
+# ---- View part for editor window -----------------------
+resource: view_editor
+
+# ---- Other GUI resources --------------------------------
+resource: font_main
+    lfFaceName: "Arial"
+    lfHeight: 24
+
+resource: font_editor
+    lfFaceName: "Courier New"
+    lfHeight: 16
