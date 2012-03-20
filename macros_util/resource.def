@@ -1,0 +1,108 @@
+# 
+subcode: fetch_named_resource(type)
+    my $$(type) = $MyDef::def->{resource}->{"$(type)_$name"}
+    $if !$$(type)
+	print "Resource $(type): $name does not exist\n"
+	return
+
+# -----------------------------------
+subcode: collect_view_attr(view)
+    my ($x, $y, $w, $h)
+    $if !$view->{processed}
+	my $name=$(view)->{_name}
+	# default 0
+	$call res_init_attr, view
+	# default 1
+	$call res_update, "view_$name"
+	$call res_update, "ctl_$name"
+	# last
+	$call res_fill_attr, $(view)
+	# ---- position, size ---------
+	($x, $y)=split /,\s*/, $(view)->{position}
+	($w, $h)=split /,\s*/, $(view)->{size}
+	$if $x=~/-(.*)/ and $w=~/-.*/
+	    $x=$1
+	$if $y=~/-(.*)/ and $h=~/-.*/
+	    $y=$1
+	$(view)->{x}=$x
+	$(view)->{y}=$y
+	$(view)->{w}=$w
+	$(view)->{h}=$h
+	$if $x=~/-(.*)/ or $y=~/-(.*)/ or $w=~/-(.*)/ or $h=~/-(.*)/
+	    $(view)->{docked}=1
+	$else
+	    $(view)->{docked}=0
+	# ---- flag ----
+	$(view)->{processed}=1
+    $else
+	$x=$(view)->{x}
+	$y=$(view)->{y}
+	$w=$(view)->{w}
+	$h=$(view)->{h}
+
+
+subcode: get_res_view_attr(view)
+    # default 0
+    $call res_init_attr, view
+    # default 1
+    $call res_update, "view_$name"
+    $call res_update, "ctl_$name"
+    # last
+    $call res_update_attr, $(view) 
+    my ($x, $y)=split /,\s*/, $attr{position}
+    my ($w, $h)=split /,\s*/, $attr{size}
+    $if $x=~/-(.*)/ and $w=~/-.*/
+	$x=$1
+    $if $y=~/-(.*)/ and $h=~/-.*/
+	$y=$1
+
+
+subcode: check_window_dock(view)
+    my $docked=0
+    $call get_res_view_attr, $(view)
+    $if $x=~/-(.*)/
+	$docked=1
+	$x="rect_client.right-$w-$1"
+    $if $y=~/-(.*)/
+	$docked=1
+	$y="rect_client.bottom-$h-$1"
+    $if $w=~/-(.*)/
+	$docked=1
+	$w="rect_client.right-$x-$1"
+    $if $h=~/-(.*)/
+	$docked=1
+	$h="rect_client.bottom-$y-$1"
+    $view->{position}="$x, $y"
+    $view->{size}="$w, $h"
+    $view->{docked}=$docked
+
+
+# -------- ---------------------------------------
+subcode: res_update_attr(a)
+    $while my ($k, $v)=each %$(a)
+	$if $k!~/^_(name|list)/
+	    $attr{$k}=$v
+
+subcode: res_fill_attr(a)
+    $while my ($k, $v)=each %attr
+	$if !defined $(a)->{$k}
+	    $(a)->{$k} = $v
+# ----	    
+subcode: res_init_attr(type)
+    my %attr;
+    my $default=$MyDef::def->{resource}->{default_$(type)}
+    $call res_update_attr, $default
+
+subcode: res_update(tag)
+    my $a=$MyDef::def->{resource}->{$(tag)}
+    $if $a
+	$call res_update_attr, $a
+
+subcode: res_fill(s)
+    $while my ($k, $v)=each %attr
+	$if $k!~/^_(name|list)/
+	    $if $v=~/^"(.*)"/
+		push @$out, "strcpy($(s).$k, $v);"
+	    $else
+		push @$out, "$(s).$k = $v;"
+
