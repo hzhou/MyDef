@@ -26,10 +26,10 @@ fncode: WinMain
     $call win_loop
 
 subcode: win_main
-    $MakeWindow main
+    $MakeView main
 
-    ShowWindow(main.hwnd, n_cmdshow)
-    UpdateWindow(main.hwnd)
+    ShowWindow(view->hwnd, n_cmdshow)
+    UpdateWindow(view->hwnd)
     NEWLINE
 
 subcode: win_loop

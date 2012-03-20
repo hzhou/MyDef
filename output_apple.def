@@ -14,6 +14,8 @@ page: output_apple, output_main
 	$call c_main
     subcode: init_page
 	$call c_init
+	register_type_prefix("obj", "id")
+	$class_default=$MyDef::def->{resource}->{"class_default"}
     subcode: modeswitch
 	$call c_modeswitch
     subcode: parsecode
@@ -36,20 +38,23 @@ page: output_apple, output_main
 
 	# ---- process views ----
 	$call process_views
-	# ---- process_class ------------------------
-	my @class_list
-	$while my ($name, $class)=each %classes
-	    my @class_block;
-	    $dump->{"class_$name"}=\@class_block
-	    $call process_class
-	my $block=MyDef::compileutil::get_named_block("global_init")
-	$foreach my $class in @class_list
-	    push @$block, "class $class;";
-	push @$block, "NEWLINE"
-	$foreach my $class in @class_list
-	    push @$block, "INCLUDE_BLOCK class_$class"
-	    push @$block, "NEWLINE"
 
+	my $block=MyDef::compileutil::get_named_block("global_init")
+	# ---- dump classes ----
+	my @class_list = sort keys %classes;
+	$foreach my $name in @class_list
+	    push @$block, "\@class $name;";
+	push @$block, "NEWLINE"
+	$foreach my $name in @class_list
+	    my $class=$classes{$name}
+	    $call dump_class_interface, $block
+	$foreach my $name in @class_list
+	    my $class=$classes{$name}
+	    $call dump_class_implementation, $block
+
+	# ----
+	$while my ($k, $v)=each %method_hash
+	    $dump->{$k}=$v
 	# ---- c global stuff -----------------------
 	$call objc_dump_includes
 	unshift @$out, "DUMP_STUB global_init";
@@ -58,8 +63,6 @@ page: output_apple, output_main
 subcode:: package_global
     my %view_hash;
     my %imports=("UIKit/UIKit.h"=>1);
-    my %classes;
-    my $cur_class;
 
 subcode: objc_dump_includes
     my @includes=keys %imports;
@@ -70,9 +73,11 @@ subcode: objc_dump_includes
 
 # -------------- Parsing --------------------------
 subcode: objc_parsecode
-    $if $l=~/^\$subclass\s+(\w+)(.*)/
-	my ($name, $tail)=($1, $2)
-	$call new_class
+    $if $l=~/^\$MakeController\s+(\w+)/
+	create_controller($1)
+	return 
+    $elif $l=~/^\$subclass\s+(\w+)(.*)/
+	new_class($1, $2)
 	return
     $elsif $l=~/^\$implement\s+(\w+)/
 	my $protocol=$1;
@@ -80,18 +85,17 @@ subcode: objc_parsecode
 	return
     $elsif $l=~/^\$method\s+(\w+)(.*)/
 	my ($name, $tail)=($1, $2)
-	my @method_block;
-	$call new_method
+	$call new_method, $name, BLOCK
 	return \@method_block;
     # -------------------------------------------------
     # ---- Properties
     $elsif $l=~/^\s*\$prop\s+(.*)/
 	my ($t, $attr)=($1, undef)
-	$call add_property
+	$call add_property, $t, $attr
 	return
     $elsif $l=~/^\s*\$prop\((.*)\)\s+(.*)/
 	my ($t, $attr)=($2, $1)
-	$call add_property
+	$call add_property, $t, $attr
 	return
     # ---- Properties
     $elsif $l=~/^\s*@(\w+)\s*=\s*(.*)/
@@ -181,4 +185,69 @@ subcode: objc_parsecode
 		return;
 	    }
 	}
+
+###################################################################
+subcode: translate_macros
+    $if $l=~/(RGB|RCT|IMG|FILE|ARRAY|HASH|CSTRING)\((.*?)\)/
+	my $pre=$`;
+	my $post=$';
+	my $fn=$1;
+	my $param=$2;
+	$if $fn eq "RGB"
+	    $call translate_macro_RGB
+	$elsif $fn eq "RCT"
+	    $l=$pre."CGRectMake($param)".$post;
+	$elsif $fn eq "IMG"
+	    my $t=nsstring($param);
+	    $l=$pre."[UIImage imageNamed:$t]".$post;
+	$elsif $fn eq "FILE"
+	    $call translate_macro_FILE
+	$elsif $fn eq "ARRAY"
+	    $call translate_macro_ARRAY
+	$elsif $fn eq "HASH"
+	    $call translate_macro_HASH
+	$elsif $fn eq "CSTRING"
+	    $l=$pre."(char *)[$param cStringUsingEncoding:NSASCIIStringEncoding]". $post;
+
+subcode: translate_macro_RGB
+    $if length($param)==6
+	my ($r, $g, $b)=(hex(substr($param, 0, 2)), hex(substr($param, 2, 2)), hex(substr($param, 4, 2)));
+	$l=$pre."[UIColor colorWithRed:$r/255.0 green:$g/255.0 blue:$b/255.0 alpha:1]".$post;
+    $elif length($param)==8
+	my ($r, $g, $b, $a)=(hex(substr($param, 0, 2)), hex(substr($param, 2, 2)), hex(substr($param, 4, 2)), hex(substr($param, 6, 2)));
+	$l=$pre."[UIColor colorWithRed:$r/255.0 green:$g/255.0 blue:$b/255.0 alpha:$a/255.0]".$post;
+
+subcode: translate_macro_FILE
+    $if $param=~/(Documents|Library)\/(.*)/i
+	my $dir;
+	$if lc($1) eq "documents"
+	    $dir="NSDocumentDirectory";
+	$elif lc($1) eq "library"
+	    $dir="NSLibraryDirectory";
+	my $s=nsstring($2);
+	$l=$pre."[[NSSearchPathForDirectoriesInDomains($dir, NSUserDomainMask, YES) objectAtIndex:0] stringByAppendingPathComponent:$s]".$post;
+    $else
+	my $s=nsstring($param);
+	$l=$pre."[[[NSBundle mainBundle] resourcePath] stringByAppendingPathComponent:$s]".$post;
+subcode: translate_macro_ARRAY
+    my @plist=split /, \s*/, $param;
+    my @objs;
+    foreach my $p(@plist){
+	push @objs, nsnumber($p);
+    }
+    my $objlist=join(", ", @objs);
+    $l=$pre."[NSArray arrayWithObjects: $objlist, nil]". $post;
+
+subcode: translate_macro_HASH
+    my @plist=split /,\s*/, $param;
+    my @objs;
+    my @keys;
+    foreach my $p(@plist){
+	my ($key, $val)=split /=>/, $p;
+	push @objs, $val;
+	push @keys, "@\"$keys\"";
+    }
+    my $objlist=join(", ", @objs);
+    my $keylist=join(", ", @keys);
+    $l=$pre."[NSDictionary dictionaryWithObjects:[arrayWithObjects $objlist, nil] forKeys:[arrayWithObjects $keylist, nil]]". $post;
 

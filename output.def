@@ -5,6 +5,8 @@ subcode: output_main
     package MyDef::$(pagename);
 
     my $debug;
+    my $mode;
+    my $out;
     $call @package_subs
 
     $sub get_interface
@@ -23,12 +25,13 @@ subcode: output_main
     # ---- php has php,  html and js mode ----------
     # ---- In xs, modeswitch were hacked to initialize functions
     $sub modeswitch
-	my ($pmode, $mode, $out)=@_;
+	my $pmode
+	($pmode, $mode, $out)=@_;
 	$call @modeswitch
 
     # ---- All specialized parsing goes here.
     $sub parsecode
-	my ($l, $mode, $out)=@_;
+	my $l=shift;
 	$if $debug eq "parse"
 	    $call dump_line, parsecode
 	$if $l=~/^DEBUG (\w+)/

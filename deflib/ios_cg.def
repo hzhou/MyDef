@@ -1,7 +1,26 @@
 subcode: cg_start
+    $local CGContextRef cgcontext
     $(export:ctx=cgcontext)
     cgcontext=UIGraphicsGetCurrentContext()
 
+subcode: g_moveto(x, y)
+    CGContextMoveToPoint($(ctx), $(x), $(y))
+
+subcode: g_lineto(x, y)
+    CGContextAddLineToPoint($(ctx), $(x), $(y))
+
+subcode: g_curveto(x1, y1, x2, y2)
+    CGContextAddQuadCurveToPoint($(ctx), $(x1), $(y1), $(x2), $(y2))
+
+subcode: g_text(s, len)
+    CGContextShowText($(ctx), $(s), $(len))
+
+# --------------------------------------------------------
+subcode: g_font(name, size)
+    CGContextSelectFont($(ctx), "$(name)", $(size), kCGEncodingMacRoman)
+    CGContextSetTextMatrix($(ctx), CGAffineTransformMake(1.0,0.0, 0.0, -1.0, 0.0, 0.0))
+
+# --------------------------------------------------------
 subcode: roundrect(x, y, w, h, r)
     $call move_to, $(x)+$(r), $(y)
     $call line_to, $(x)+$(w)-$(r), $(y)
@@ -24,14 +43,6 @@ subcode: set_gray(v)
 subcode: set_gray_fill(v)
     CGContextSetRGBFillColor($(ctx), $(v), $(v), $(v), 1.0)
 
-subcode: move_to(x, y)
-    CGContextMoveToPoint($(ctx), $(x), $(y))
-
-subcode: line_to(x, y)
-    CGContextAddLineToPoint($(ctx), $(x), $(y))
-
-subcode: curve_to(x1, y1, x2, y2)
-    CGContextAddQuadCurveToPoint($(ctx), $(x1), $(y1), $(x2), $(y2))
 
 subcode: stroke
     CGContextStrokePath($(ctx))
@@ -57,13 +68,6 @@ subcode: strokefill
 
 subcode: closepath
     CGContextClosePath($(ctx))
-
-subcode: setfont(name, size)
-    CGContextSelectFont($(ctx), "$(name)", $(size), kCGEncodingMacRoman)
-    CGContextSetTextMatrix($(ctx), CGAffineTransformMake(1.0,0.0, 0.0, -1.0, 0.0, 0.0))
-
-subcode: showtext(s, len)
-    CGContextShowText($(ctx), $(s), $(len))
 
 subcode: text(x, y, s, len)
     CGContextShowTextAtPoint($(ctx), $(x), $(y), $(s), $(len))

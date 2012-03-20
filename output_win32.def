@@ -1,7 +1,7 @@
 include: output.def
 include: macros_c/cfunctions.def
 include: macros_util/tool_output.def
-include: macros_win32/resource.def
+include: macros_win32/views.def
 include: macros_win32/graphics.def
 
 page: output_win32, output_main
@@ -15,6 +15,7 @@ page: output_win32, output_main
     subcode: init_page
 	$call c_init
 	global_add_var("cur_instance", "HINSTANCE")
+	declare_struct("VIEW", "HWND hwnd")
     subcode: modeswitch
 	$call c_modeswitch
     subcode: parsecode
@@ -58,14 +59,9 @@ page: output_win32, output_main
 
 # ---------------------------
 subcode: pre_parse
-    $if $l=~/^\$MakeWindow\s+(\w+)/
-	my ($name)=($1)
-	$call make_window
-	return 1
-    $elif $l=~/^\$LoadView\s+(\w+)/
-	my ($name)=($1)
-	$call load_view
-	return 1
+    $if $l=~/^\s*\$MakeView\s+(\w+)/
+	my $view={"_name"=>$1}
+	create_view($out, $view, {hwnd=>"NULL", child=>"hwnd"})
     $elif $l=~/^\$g_(\w+)(.*)/
 	my ($cat, $param)=($1, $2)
 	$param=~s/^\s*//
@@ -80,7 +76,7 @@ subcode: pre_parse
 	ogdl_menu($out, $var, $menu, 0, $commands);
 	return 1;
     $elif $l=~/^(\S+)\s*=\s*\$MakeFont\s+(.*)/
-	my ($var, $spec)=($1, $2);
+	my ($var, $name)=($1, $2);
 	$call make_font
 	return 1;
 

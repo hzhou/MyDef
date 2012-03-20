@@ -31,19 +31,24 @@ subcode: support_ogdl
 
 		# ---- add item
 		$if $cur_item
-		    $if $l=~/([^"]+):\s*(.+)/
+		    $if $l=~/([^"]+?):\s*(.+)/
 			my ($k, $v)=($1, $2);
 			    $cur_item->{$k}=$v;
 			    $last_item=$cur_item
 			    $last_item_type="hash"
 			    $last_item_key=$k
 		    $elif $l=~/(.*):\s*$/
-			$cur_item->{$k}="_"
+			my $k=$1;
+			$cur_item->{$k}=""
 			$last_item=$cur_item
 			$last_item_type="hash"
 			$last_item_key=$k
 		    $else
-			my @t=split /,\s*/, $l;
+			my @t
+			$if $l !~/\(/
+			    @t=split /,\s*/, $l;
+			$else
+			    push @t, $l
 			$foreach my $t in @t
 			    push @{$cur_item->{_list}}, $t
 			    $last_item=$cur_item->{_list}

@@ -1,82 +1,61 @@
 include: std_ios.def
 include: ios_cg.def
 
-page: test, basic_frame
-    subcode: appmain
-	$call root_controller
+page: test
+    subcode: main
+	# Non-GUI functions and declarations here
+	# The Model part of MVP also may go here
+	$subclass AppDelegate
+	    $prop(strong,nonatomic) UIWindow * window
+	    $method on_start
+		self.window=new UIWindow
+		self.window.backgroundColor = [UIColor whiteColor]
+		$call on_start
+		self.window->makeKeyAndVisible
+		return YES
+	    $method on_finish
+		$call @on_finish
+	$list n_main
+
+    fncode: n_main
+	@autoreleasepool {
+	    return UIApplicationMain(argc, argv, nil, @"AppDelegate")
+	}
+
     subcode: on_start
-	root = $load_controller, main
-	self.window->addSubview root.view
+	$MakeController main
+	self.window->addSubview controller.view
 	    
-subcode: root_controller
-    $call test_view
-    $subclass UIViewController, root_controller
-	$call SET_Rotate, No
-	$method loadView
-	    # -- view ----
-	    contentView=new test_view  $(AppFrame)
-	    contentView.backgroundColor=RGB(ffff80)
-	    self.view=contentView
-
-subcode: test_view
-    $subclass UIView, test_view
-	$method on_draw
-	    #DEBUG parse
-	    $(set:BUFLEN=100)
-	    $local pc_buf[$(BUFLEN)]
-	    $call draw_hello
-
-subcode: draw_hello
-    $call setfont, Times New Roman, 16
-    tn=snprintf(pc_buf, $(BUFLEN), "Hello World")
-    $call text, 5, 20, pc_buf, tn
-
 #### GUI Part ########################################
 
 # ---- Controller part for main window -----------------
-subcode: main_on_paint
-    $g_font font_main
-    $g_moveto 10, 10
-    $g_text "Hello World!"
+subcode: main_on_draw
+    $call g_font, Times New Roman, 16
+    $call g_moveto, 10, 10
+    $local s_buffer[20]
+    n=sprintf(s_buffer, "Clicked %d times", n_clicked)
+    #$call g_text, "Hello World!", 12
+    $call g_text, s_buffer, n
 
 subcode: main_on_click
-    MessageBox(hwnd, "Button clicked!", "MsgBox", MB_OK)
-
-subcode: main_on_file_open
-    MessageBox(hwnd, "Menu -> File -> Open!", "MsgBox", MB_OK)
+    n_clicked++
+    [self setNeedsDisplay]
 
 # ---- View part for main window -----------------------
 resource: view_main
     position: 0, 0
     size: -0, -0
-    text: Hello World from MyDef
+    property: n_clicked=0
     label
-	text: static label
+	text: Hello World!
 	position: 5, 100
 	size: 200, 20
-	font: font_main
     button
 	text: push me
 	position: 5, 200
 	size: 80, 40
 	action: on_click
-    editor
-	position: 120, 50
-	size: -10, -10
     
-# ---- Controller part for editor window -----------------
-subcode: editor_on_paint
-    $g_font font_editor
-    TextOut(hdc, 10, 10, "MyDef Editor", 12)
-
-# ---- View part for editor window -----------------------
-resource: view_editor
-
-# ---- Other GUI resources --------------------------------
 resource: font_main
-    lfFaceName: "Arial"
-    lfHeight: 24
-
-resource: font_editor
-    lfFaceName: "Courier New"
-    lfHeight: 16
+    name: Times New Roman
+    size: 16

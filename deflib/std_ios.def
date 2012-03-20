@@ -1,5 +1,6 @@
 subcode: ios_autoload
     $register_prefix(id) id
+    $register_prefix(obj) id
     $register_prefix(rct) CGRect
     $register_prefix(pt) CGPoint
     $register_prefix(sz) CGSize
@@ -7,7 +8,6 @@ subcode: ios_autoload
     $register_prefix(nsarray) NSArray *
     $register_prefix(nsdict) NSDictionary *
 
-    $register_name(cgcontext) CGContextRef
     $register_name(touch) UITouch *
 
 #### Basic Frame
@@ -100,8 +100,9 @@ subcode: tableview_on_cell
 	$else
 	    cell.textLabel.text=@"Empty."
 	return cell
+
 #### Fields and Macroes
-fields:
+resource: class_default
     Default:
 	dealloc_post: [super dealloc]
     ## Basics
@@ -131,8 +132,6 @@ fields:
     UIPop:
 	class: UIPopoverController
 	init_spec: initWithContentViewController:$1
-    UIButton:
-	create_spec: buttonWithType:UIButtonTypeRoundedRect
     UIBarSystem:
 	class: UIBarButtonItem
 	init_spec: initWithBarButtonSystemItem:UIBarButtonSystemItem$1 target:$2 action:@selector($3)
@@ -162,24 +161,18 @@ fields:
     UIWindow:
 	init_default: initWithFrame:[[UIScreen mainScreen] bounds]
 
-    UIImageView:
-	super: UIView
-    UILabel:
-	super: UIView
-    UITextField:
-	super: UIView
     UIView:
 	init_spec: initWithFrame:$1
 	layerClass: + (Class) layerClass
 	on_init: - (id)initWithFrame:(CGRect)aRect
-	on_init_pre: [super initWithFrame:aRect]
-	on_init_post: return self
+	    pre: [super initWithFrame:aRect]
+	    post: return self
 	on_layout: - (void)layoutSubviews
 	touchesBegan: - (void)touchesBegan: (NSSet *)touches withEvent:(UIEvent *)event
 	touchesMoved: - (void)touchesMoved: (NSSet *)touches withEvent:(UIEvent *)event
 	touchesEnded: - (void)touchesEnded: (NSSet *)touches withEvent:(UIEvent *)event
 	on_draw: - (void)drawRect: (CGRect)rect
-	on_draw_pre: CALL cg_start
+	    pre: $call cg_start
 
     ## Multimedia
     AVAudioPlayer:
@@ -192,3 +185,20 @@ fields:
 macros:
     MainScreen: [UIScreen mainScreen]
     AppFrame: [$(MainScreen) applicationFrame]
+
+##################################################
+resource: ctl_label
+    class: UILabel
+    do_text: $view.text=@"$text"
+
+resource: ctl_edit
+    class: UITextField
+    
+resource: ctl_image
+    class: UIImageView
+
+resource: ctl_button
+    class: UIButton
+    type: UIButtonTypeRoundedRect
+    create: $view = [UIButton buttonWithType:$type]
+    do_text: [$view setTitle:@"$text" forState:UIControlStateNormal]
