@@ -31,13 +31,13 @@ subcode: support_ogdl
 
 		# ---- add item
 		$if $cur_item
-		    $if $l=~/([^"]+?):\s*(.+)/
+		    $if $l=~/(^\S+?):\s*(.+)/
 			my ($k, $v)=($1, $2);
 			    $cur_item->{$k}=$v;
 			    $last_item=$cur_item
 			    $last_item_type="hash"
 			    $last_item_key=$k
-		    $elif $l=~/(.*):\s*$/
+		    $elif $l=~/(^\S+):\s*$/
 			my $k=$1;
 			$cur_item->{$k}=""
 			$last_item=$cur_item

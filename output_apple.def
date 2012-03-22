@@ -15,6 +15,7 @@ page: output_apple, output_main
     subcode: init_page
 	$call c_init
 	register_type_prefix("obj", "id")
+	$global_type->{self}=1
 	$class_default=$MyDef::def->{resource}->{"class_default"}
     subcode: modeswitch
 	$call c_modeswitch
@@ -163,28 +164,14 @@ subcode: objc_parsecode
 	return single_block("for($1 in $2)", $out);
     # ---- Object-C message syntax --------------------------------
     $elsif $l=~/^\s*([a-zA-Z0-9._]+)->(\w+)(\s*)(.*)/
-	# -- Control Target-Action
-	if($2 eq "action"){
-	    my $control=$1;
-	    my ($object, $method)=split /,\s+/, $4;
-	    my $event="UIControlEventTouchUpInside";
-	    if($control=~/^button/){
-		$event="UIControlEventTouchUpInside";
-	    }
-	    push @$out, "[$control addTarget:$object action:\@selector($method) forControlEvents:$event];";
-	    return;
-	}
-	elsif(!$4){
+	$if !$4
 	    push @$out, "[$1 $2];";
 	    return;
-	}
-	else{
+	$else
 	    my ($obj, $mtd, $s, $t)=($1, $2, $3, $4);
-	    if($s=~/\s/){
+	    $if $s=~/\s/
 		push @$out, "[$obj $mtd:$t];";
 		return;
-	    }
-	}
 
 ###################################################################
 subcode: translate_macros

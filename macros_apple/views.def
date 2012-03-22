@@ -3,6 +3,7 @@ include: macros_util/tool_output.def
 
 subcode:: package_global
     my %view_hash;
+    my %view_id_hash;
     my %controller_hash;
     my @cur_method_stack
     my @cur_class_stack
@@ -58,8 +59,8 @@ subcode: process_view_class_controller
 		$mainview->{actionlist}=$actionlist
 		$mainview->{proplist}=$proplist
 		$mainview->{initlist}=$initlist
-		create_view($mainview, 1)
-		push @$out, "[self setView:view1];";
+		my $view_var=create_view($mainview, 1)
+		push @$out, "[self setView:$view_var];";
 	$call add_view_properties
 	$call add_view_actions
 
@@ -93,7 +94,7 @@ subcode:: support_subs
 	$call fetch_named_resource, view
 	my $controller_name="controller_$name"
 	my $var="controller"
-	func_add_var($var, "controller_$name")
+	func_add_var($var, "controller_$name *")
 	push @$out, "$var = [[controller_$name alloc] init];"
 	$if !$controller_hash{$name}
 	    $controller_hash{$name}="controller_$name"
@@ -106,28 +107,59 @@ subcode: check_need_viewclass
 	$actionlist->{on_draw}=1
 	$need_view=1
     $if $need_view
-	$actionlist->{_target}="view$level"
+	$actionlist->{_target}=$cur_view
 	$view->{actionlist}=$actionlist
 	$view->{proplist}={}
 	$view->{initlist}=[]
 	$view_type="view_$name"
 
+subcode: run_view_custom
+    my @codelist
+    my $error
+    $if ref($l) eq "HASH"
+	$foreach my $tl in @{$l->{_list}}
+	    $tl=~s/\$view/$cur_view/g
+	    $tl=res_get_str($view, $tl)
+	    $if $tl
+		push @codelist, $tl
+	    $else
+		$error=1
+    $else
+	$l=~s/\$view/$cur_view/g
+	my $tl=res_get_str($view, $l)
+	$if $tl
+	    push @codelist, $tl
+	$else
+	    $error=1
+    $if !$error
+	MyDef::compileutil::parseblock(\@codelist)
+
 subcode:: support_subs
     $sub create_view
-	my ($view, $level)=@_
+	my ($view, $level, $parent_view)=@_
 	my $name=$view->{_name}
 	$call collect_view_attr, $view
 	my $view_type="UIView"
 	$if $view->{class}
 	    $view_type=$view->{class}
+
+	my $cur_view
+	$if $view->{id}
+	    $cur_view=$view->{id}
+	$else
+	    my $idx=1
+	    $while $view_id_hash{"$name$idx"}
+		$idx++
+	    $cur_view="$name$idx"
+	    $view_id_hash{$cur_view}=1
 	# ----
 	$call check_need_viewclass
 	# ----
 	func_add_var("frame$level", "CGRect")
-	my ($parent_frame, $parent_view)
+	$view->{frame}="frame$level"
+	my $parent_frame
 	my $plevel=$level-1
 	$parent_frame="frame".$plevel
-	$parent_view="view".$plevel
 	$if $x=~/-(.*)/
 	    $x="$parent_frame.size.width-$1-$w"
 	$if $y=~/-(.*)/
@@ -138,24 +170,18 @@ subcode:: support_subs
 	    $h="$parent_frame.size.height-$1-$y"
 	push @$out, "frame$level=CGRectMake($x, $y, $w, $h);"
 
-	func_add_var("view$level", "$view_type *")
+	func_add_var($cur_view, "$view_type *")
 	$if $view->{create}
 	    my $l=$view->{create}
-	    $l=~s/\$view/view$level/g
-	    my $tl=res_get_str($view, $l)
-	    $if $tl
-		push @$out, "$tl;"
-	    $else
+	    $call run_view_custom
+	    $if $error
 		die "$name create [$l] missing variables\n"
 	$else
-	    push @$out, "view$level=[[$view_type alloc] initWithFrame:frame$level];"
-	# --
+	    push @$out, "$cur_view=[[$view_type alloc] initWithFrame:frame$level];"
+	# -- set text, color, etc.
 	$while my ($k, $l)=each %$view
 	    $if $k=~/^do_(\w+)/
-		$l=~s/\$view/view$level/g
-		my $tl=res_get_str($view, $l)
-		$if $tl
-		    push @$out, "$tl;"
+		$call run_view_custom
 
 	# ---- actions
 	$if $view->{property}
@@ -181,29 +207,31 @@ subcode:: support_subs
 	    my @alist=split /,/, $view->{action}
 	    $foreach $a in @alist
 		$if $a=~/(\w+):\s*(\w+)/
-		    push @$out, "[view$level addTarget:$target action:$2 forControlEvents:$1];"
+		    push @$out, "[$cur_view addTarget:$target action:\@selector($2:) forControlEvents:$1];"
 		    $actionlist->{$2}="event"
 		$elif $view->{default_event}
-		    push @$out, "[view$level addTarget:$target action:$a forControlEvents:$view->{default_event}];"
+		    push @$out, "[$cur_view addTarget:$target action:\@selector($a:) forControlEvents:$view->{default_event}];"
 		    $actionlist->{$a}="event"
 		$else
-		    push @$out, "[view$level addTarget:$target action:$a];"
+		    push @$out, "[$cur_view addTarget:$target action:\@selector($a:)];"
 		    $actionlist->{$a}="event"
 	# ----
-	$if $level>1
-	    push @$out, "[$parent_view addSubview:view$level];";
+	$if $parent_view
+	    push @$out, "[$parent_view addSubview:$cur_view];";
 	push @$out, "NEWLINE"
 
 	# ----
 	my $list=$view->{_list}
 	$foreach my $v in @$list
 	    $v->{actionlist}=$view->{actionlist}
-	    create_view($v, $level+1)
+	    create_view($v, $level+1, $cur_view)
 
 	# ---- add view class ----
 	$if $need_view and !$view_hash{$name}
 	    $view_hash{$name}="view_$name"
 	    $call process_view_class_view
+
+	return $cur_view
 
     $sub res_get_str
 	my ($view, $l)=@_
@@ -214,7 +242,7 @@ subcode:: support_subs
 		$if $view->{$1}
 		    $tlist[$i]=$view->{$1}
 		$else
-		    print STDERR "res_get_str: missing [$1]\n"
+		    #print STDERR "res_get_str: missing [$1]\n"
 		    return undef
 	    $i++
 	return join("", @tlist)

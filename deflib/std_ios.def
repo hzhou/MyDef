@@ -165,7 +165,7 @@ resource: class_default
 	init_spec: initWithFrame:$1
 	layerClass: + (Class) layerClass
 	on_init: - (id)initWithFrame:(CGRect)aRect
-	    pre: [super initWithFrame:aRect]
+	    pre: self = [super initWithFrame:aRect]
 	    post: return self
 	on_layout: - (void)layoutSubviews
 	touchesBegan: - (void)touchesBegan: (NSSet *)touches withEvent:(UIEvent *)event
@@ -187,6 +187,9 @@ macros:
     AppFrame: [$(MainScreen) applicationFrame]
 
 ##################################################
+resource: default_view
+    do_background_color: $view.backgroundColor=RGB($background_color)
+
 resource: ctl_label
     class: UILabel
     do_text: $view.text=@"$text"
@@ -200,5 +203,8 @@ resource: ctl_image
 resource: ctl_button
     class: UIButton
     type: UIButtonTypeRoundedRect
-    create: $view = [UIButton buttonWithType:$type]
+    default_event: UIControlEventTouchUpInside
+    create: 
+	$view = [UIButton buttonWithType:$type]
+	$view.frame = $frame
     do_text: [$view setTitle:@"$text" forState:UIControlStateNormal]

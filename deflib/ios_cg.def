@@ -21,6 +21,13 @@ subcode: g_font(name, size)
     CGContextSetTextMatrix($(ctx), CGAffineTransformMake(1.0,0.0, 0.0, -1.0, 0.0, 0.0))
 
 # --------------------------------------------------------
+subcode: g_set_gray_stroke(v)
+    CGContextSetRGBStrokeColor($(ctx), $(v), $(v), $(v), 1.0)
+
+subcode: g_set_gray_fill(v)
+    CGContextSetRGBFillColor($(ctx), $(v), $(v), $(v), 1.0)
+
+# --------------------------------------------------------
 subcode: roundrect(x, y, w, h, r)
     $call move_to, $(x)+$(r), $(y)
     $call line_to, $(x)+$(w)-$(r), $(y)
@@ -36,12 +43,6 @@ subcode: roundrect(x, y, w, h, r)
 
 subcode: set_lw(lw)
     CGContextSetLineWidth($(ctx), $(lw))
-
-subcode: set_gray(v)
-    CGContextSetRGBStrokeColor($(ctx), $(v), $(v), $(v), 1.0)
-
-subcode: set_gray_fill(v)
-    CGContextSetRGBFillColor($(ctx), $(v), $(v), $(v), 1.0)
 
 
 subcode: stroke

@@ -34,7 +34,7 @@ subcode: main_on_draw
     $call g_moveto, 10, 10
     $local s_buffer[20]
     n=sprintf(s_buffer, "Clicked %d times", n_clicked)
-    #$call g_text, "Hello World!", 12
+    $call g_set_gray_fill, 0.2
     $call g_text, s_buffer, n
 
 subcode: main_on_click
@@ -46,6 +46,7 @@ resource: view_main
     position: 0, 0
     size: -0, -0
     property: n_clicked=0
+    background_color: ffffff
     label
 	text: Hello World!
 	position: 5, 100
