@@ -29,17 +29,6 @@ subcode: c_init
 	$type_prefix{f}="double";
     MyDef::dumpout::init_funclist();
 
-subcode: c_modeswitch
-    $if $mode=~/(\w+)-(.*)/
-	my $fname=$1;
-	my $t=$2;
-	$if $fname eq "n_main"
-	    $fname="main";
-	my $fidx=open_function($fname, $t);
-	push @$out, "OPEN_FUNC_$fidx";
-	$cur_indent=0;
-	return 1;
-
 subcode: c_main_function
     my $func=$functions{"main"};
     $if $func

@@ -22,7 +22,6 @@ page: output_xs, output_main
 	    push @$out, "INCLUDE_BLOCK xs_start"
 	    set_function_flag("xs_mode", 1)
 	    set_function_flag("skip_declare", 1)
-	$call c_modeswitch
     subcode: parsecode
 	$call pre_parse
 	$call check_text_includes

@@ -16,8 +16,6 @@ page: output_win32, output_main
 	$call c_init
 	global_add_var("cur_instance", "HINSTANCE")
 	declare_struct("VIEW", "HWND hwnd")
-    subcode: modeswitch
-	$call c_modeswitch
     subcode: parsecode
 	$call pre_parse
 	$call check_text_includes

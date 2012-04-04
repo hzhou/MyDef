@@ -6,13 +6,19 @@ page: output_general, output_main
     ext: txt
     init_mode: sub
 
+page: output_js, output_main
+    type: pm
+    output_dir: lib/MyDef
+    ext: js
+    init_mode: sub
+
 page: output_perl, output_main
     type: pm
     output_dir: lib/MyDef
     ext: pl
     init_mode: sub
-    subcode: modeswitch
-	$if $mode=~/(\w+)-(.*)/
+    subcode: parsecode
+	$if $l=~/^FUNC (\w+)-(.*)/
 	    my $fname=$1;
 	    my $t=$2;
 	    my $openblock=[];
@@ -26,8 +32,7 @@ page: output_perl, output_main
 	    push @$closeblock, "}";
 	    my $fidx=MyDef::dumpout::add_function($func);
 	    push @$out, "OPEN_FUNC_$fidx";
-    subcode: parsecode
-	$if $l=~/^\s*\$(\w+)\s*(.*)$/
+	$elif $l=~/^\s*\$(\w+)\s*(.*)$/
 	    my $func=$1;
 	    my $param=$2;
 	    $if $func =~ /^(if|while)$/

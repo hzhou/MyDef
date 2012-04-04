@@ -429,12 +429,15 @@ subcode: list_sub
 	my $params=$codelib->{params};
 	my $source=$codelib->{source};
 	my $line=$codename."-".join(",", @$params);
-	push @$modelist, "$codelib->{type}";
-	$f_modeswitch->($codelib->{type}, $line, $out);
+	modepush($codelib->{type});
+	$f_parse->("FUNC $line")
+	#push @$modelist, "$codelib->{type}";
+	#$f_modeswitch->($codelib->{type}, $line, $out);
 	parseblock(["SOURCE_INDENT"]);
 	parseblock($source);
 	parseblock(["SOURCE_DEDENT"]);
-	pop @$modelist;
+	modepop()
+	#pop @$modelist;
 
 subcode: call_sub
     my $codename;

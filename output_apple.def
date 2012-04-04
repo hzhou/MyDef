@@ -17,8 +17,6 @@ page: output_apple, output_main
 	register_type_prefix("obj", "id")
 	$global_type->{self}=1
 	$class_default=$MyDef::def->{resource}->{"class_default"}
-    subcode: modeswitch
-	$call c_modeswitch
     subcode: parsecode
 	$call translate_macros
 	$call objc_parsecode
