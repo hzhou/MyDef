@@ -62,6 +62,8 @@ page: output_xs, output_main
 	    $else
 		func_add_var($var);
 		$vartype=get_var_type($var);
+		$if $debug
+		    print "func_add_var: $var - $vartype [$l]\n"
 
 	    func_add_var("t_psv");
 	    push @$out, "t_psv=hv_fetch($hv, \"$key\", $keylen, 0);";
@@ -90,27 +92,22 @@ page: output_xs, output_main
 
     subcode: support_subs
 	# ---- Perl XS Specific -----------------------
-	sub translate_scalar {
+	$sub translate_scalar
 	    my ($out, $var, $vartype, $sv)=@_;
 	    #print "$var, $vartype\n";
-	    if($vartype eq "int"){
+	    $if $vartype eq "int"
 		push @$out, "$var = SvIV($sv);";
-	    }
-	    elsif($vartype eq "double" or $vartype eq "float"){
+	    $elsif $vartype eq "double" or $vartype eq "float"
 		push @$out, "$var = SvNV($sv);";
-	    }
-	    elsif($vartype eq "char *"){
+	    $elsif $vartype eq "char *"
 		func_add_var("t_strlen");
 		push @$out, "$var = SvPV($sv, t_strlen);";
 		push @$out, "$var\[t_strlen\] = '\\0';";
-	    }
-	    elsif($vartype =~ /^([SAH]V\*)/){
+	    $elsif $vartype =~ /^([SAH]V\*)/
 		push @$out, "$var = ($1)SvRV($sv);";
-	    }
-	    else{
+	    $else
 		print "translate_scalar: unhandled $var - $vartype\n";
-	    }
-	}
+
 	sub translate_null {
 	    my ($out, $var, $vartype)=@_;
 	    if($vartype !~/int|float|double/){

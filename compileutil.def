@@ -443,15 +443,13 @@ subcode: call_sub
     my $codename;
     my $attr;
     my (@pre_plist, $pline, @plist);
-    if($param=~/^(@)?(\w+)(.*)/){
+    $if $param=~/^(@)?(\w+)(.*)/
 	$attr=$1;
 	$codename=$2;
 	my $t=$3;
-	if($t=~/\(([^\)]*)\)/){
-	    my $t1=$1;
-	    my $t-$';
-	    @pre_plist=split /,\s*/, $t1;
-	}
+	$if $t=~/^\(([^\)]*)\)/
+	    @pre_plist=split /,\s*/, $1;
+	    $t=$';
 	$t=~s/^\s*,?\s*//;
 	$pline=$t;
 	# ---- Single parameter slurp
@@ -468,11 +466,10 @@ subcode: call_sub
 	else{
 	    @plist=split /,\s*/, $t;
 	}
-    }
-    else{
+    $else
 	print STDERR "    call_sub [$param] parse failure\n";
 	return;
-    }
+
     my $codelib=get_def_attr("codes", $codename);
     if(!$codelib and $attr ne '@'){
 	print STDERR "    Code $codename not found!\n";

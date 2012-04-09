@@ -141,6 +141,8 @@ subcode: read_config
 	}
     }
     close In;
+    $if $ENV{MYDEFLIB}
+	push @include_folders, $ENV{MYDEFLIB}
 ## ----------------------------------------------------------------------
 subcode: read_copylist
     $if -f "copylist"

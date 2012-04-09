@@ -293,16 +293,15 @@ subcode:: c_support_subs
 	    $var_flag->{$name}=0;
 	}
     }
-    sub mu_post_assign {
+    $sub mu_post_assign
 	my ($type, $name, $val, $out)=@_;
-	print "mu_post_assign: $type $name = $val\n";
+	#print "mu_post_assign: $type $name = $val\n";
 	my $var_flag=$cur_function->{var_flag};
-	print "mu_post_assign: $name = $val\n";
 	if($val=~/^\s*(NULL|0)\s*$/i){
 	}
 	elsif($val=~/^\s*(\w+)(.*)/){
 	    $var_flag->{$name}="retained";
-	    print "retain $name\n";
+	    #print "retain $name\n";
 	    my $name=$1;
 	    my $tail=$2;
 	    if($tail=~/^\s*\(/ and MyDef::is_sub($name)){
@@ -311,7 +310,6 @@ subcode:: c_support_subs
 		push @$out, "mu_retain($name);";
 	    }
 	}
-    }
     $sub mu_release
 	my ($type, $name, $skipcheck)=@_;
 	$if $skipcheck

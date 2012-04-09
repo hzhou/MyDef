@@ -14,7 +14,7 @@ subcode:: c_support_subs
 
     sub get_c_type_word {
 	my $name=shift;
-	$if $debug
+	$if $debug eq "type"
 	    print "get_c_type_word: [$name] -> $type_prefix{$name}\n";
 	if($name=~/^([a-z]+)/){
 	    $prefix=$1;
@@ -69,7 +69,8 @@ subcode:: c_support_subs
 	# --
 	$if $type_include{$type}
 	    add_include($type_include{$type});
-	#if($type eq "void"){warn "get_c_type $name failed\n";}
+	$if $debug eq "type"
+	    print "get_c_type:   $name: $type\n";
 	return $type;
 
     $sub pointer_type
