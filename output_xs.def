@@ -171,12 +171,13 @@ subcode: pre_parse
     $elsif $l=~/^\$foreach\s+(\w+)\s+in\s+(av_\w+)/
 	my $v_i=$1;
 	my $v_av=$2;
-	func_add_var("i");
-	func_add_var($v_i);
-	func_add_var("t_psv");
-	push @$out, "for(i=0; i<=av_len($v_av); i++){";
+	my $v_idx=$2."_index"
+	func_add_var($v_idx, "int")
+	func_add_var($v_i)
+	func_add_var("t_psv")
+	push @$out, "for($v_idx=0; $v_idx<=av_len($v_av); $v_idx++){";
 	push @$out, "INDENT";
-	push @$out, "t_psv=av_fetch($v_av, i, 0);";
+	push @$out, "t_psv=av_fetch($v_av, $v_idx, 0);";
 	translate_scalar($out, $v_i, get_var_type($v_i), "*t_psv");
 	push @$out, "BLOCK";
 	push @$out, "DEDENT";
@@ -236,12 +237,15 @@ subcode: process_function_xs
 	    push @pre, "DEDENT";
 
     # ---- Local Variables ---------------------------
-    my $varlist=$func->{'var_list'};
-    $if @$varlist
+    my $var_decl=$func->{var_decl};
+    my $var_list=$func->{'var_list'};
+    $if @$var_list
 	push @pre, "PREINIT:";
 	push @pre, "INDENT";
-	$foreach my $v in @$varlist
-	    push @pre, "$v;";
+	$foreach my $v in @$var_list
+	    $if $global_type->{$v}
+		print "  [warning] In $name: local variable $v with exisiting global\n"
+	    push @pre, "$var_decl->{$v};";
 	push @pre, "DEDENT";
     push @pre, "PPCODE:";
     push @pre, "INDENT";

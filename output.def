@@ -39,6 +39,7 @@ subcode: output_main
 		$debug=0
 	    $else
 		$debug=$1
+	    return
 	$call parsecode
 
     # ---- Final output, allows for 2nd pass translation

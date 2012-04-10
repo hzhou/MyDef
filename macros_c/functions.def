@@ -71,6 +71,8 @@ subcode:: c_support_subs
     $sub global_add_var
 	my ($name, $type, $value)=@_;
 
+	$if $name=~/n_thread/
+	    print "global_add_var $name ($type) [$value]\n"
 	$if $global_type->{$name}
 	    return;
 
@@ -81,22 +83,25 @@ subcode:: c_support_subs
 	    $global_type->{$name}="$type *"
 	$else
 	    $global_type->{$name}=$type
+
 	$call var_init_line
+	$if defined $value
+	    $init_line.="=$value"
 	push @global_list, $init_line
 
     $sub func_add_var
 	my ($name, $type, $value)=@_;
-
 	$if !$cur_function
 	    return;
+
+	$call split_name
+
 	$if get_var_type($name)
 	    return;
 
 	my $var_list=$cur_function->{var_list};
 	my $var_decl=$cur_function->{var_decl};
 	my $var_type=$cur_function->{var_type};
-
-	$call split_name
 
 	push @$var_list, $name;
 
@@ -136,12 +141,16 @@ subcode: split_name
 
 subcode: infer_type
     $if !$type
+	$type=get_c_type($name)
 	$if $fntype{$name}
 	    $type="function"
-	$elif $value
-	    $type=infer_c_type($value);
-	$if !$type
-	    $type=get_c_type($name);
+	$if $value
+	    my $val_type=infer_c_type($value)
+	    $if $debug eq "type" and $type ne $val_type
+		print "infer_type: $type -- $val_type\n"
+	    $if !$type or $type eq "void"
+		$if $val_type and $val_type ne "void"
+		    $type = $val_type
 
 subcode: var_init
     my $init_value=func_var_init($name, $type);
@@ -173,6 +182,8 @@ subcode:: c_support_subs
 		$cur_function->{ret_type}=infer_c_type($t)
 	    $else
 		$cur_function->{ret_type}="void";
+	    $if $debug eq "type"
+		print "Check ret_type: $cur_function->{name} [$l] -> $cur_function->{ret_type}\n";
 	$if $cur_indent<=1
 	    $cur_function->{has_return}=1;
 
@@ -218,7 +229,7 @@ subcode:: c_support_subs
 		    $done_out=1;
 		    last;
 	$if !$done_out
-	    push @$out, "$name = $val;";
+	    push @$out, "$name=$val;";
 
 # -----------------------------------------------------------------
 subcode: process_function_std
@@ -250,6 +261,8 @@ subcode: process_function_std
     my $var_list=$func->{var_list};
     $if @$var_list
 	$foreach my $v in @$var_list
+	    $if $global_type->{$v}
+		print "  [warning] In $name: local variable $v with exisiting global\n"
 	    push @pre, "$var_decl->{$v};";
 	push @pre, "NEWLINE";
 

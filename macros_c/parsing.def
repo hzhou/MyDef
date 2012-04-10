@@ -28,57 +28,43 @@ subcode: c_parsecode
     $call parsecode_other
 
 subcode: parsecode_func_param
-    if($func eq "allocate"){
+    $if $func eq "allocate"
 	allocate($out, $param1, $param2);
-    }
-    elsif($func eq "dump"){
+    $elsif $func eq "dump"
 	debug_dump($param2, $param1, $out);
-    }
-    elsif($func eq "register_prefix"){
+    $elsif $func eq "register_prefix"
 	$param2=~s/^\s+//;
 	$param2=~s/\s+$//;
 	$type_prefix{$param1}=$param2;
-    }
-    elsif($func eq "register_name"){
+    $elsif $func eq "register_name"
 	$param2=~s/^\s+//;
 	$param2=~s/\s+$//;
 	$type_name{$param1}=$param2;
-    }
-    elsif($func eq "register_include"){
+    $elsif $func eq "register_include"
 	$param2=~s/^\s+//;
 	$param2=~s/\s+$//;
 	$type_include{$param1}.=",$param2";
-    }
-    elsif($func eq "struct"){
-	$if !$structs{$param1}
-	    declare_struct($param1, $param2);
-	    $type_prefix{"st$param1"}="struct $param1";
-    }
-    elsif($func eq "get_type"){
+    $elsif $func eq "struct"
+	declare_struct($param1, $param2);
+	$type_prefix{"st$param1"}="struct $param1";
+    $elsif $func eq "get_type"
 	my $type=get_var_type($param2);
 	return "SET:$param1=$type";
-    }
-    elsif($func eq "get_pointer_type"){
+    $elsif $func eq "get_pointer_type"
 	my $type=pointer_type(get_var_type($param2));
 	return "SET:$param1=$type";
-    }
-    elsif($func eq "enum"){
-	if(!$enums{$param1}){
+    $elsif $func eq "enum"
+	$if !$enums{$param1}
 	    push @enum_list, $param1;
 	    $enums{$param1}=$param2;
-	}
-    }
-    elsif($func eq "enumbit"){
+    $elsif $func eq "enumbit"
 	my $base=0;
 	my @plist=split /,\s+/, $param2;
-	foreach my $t(@plist){
+	$foreach my $t in @plist
 	    $defines{"$param1\_$t"}=0x1<<$base;
 	    $base++;
-	}
-    }
-    else{
+    $else
 	$should_return=0
-    }
 
 subcode: parsecode_func
     ## Pre-Process condition clause
@@ -88,230 +74,116 @@ subcode: parsecode_func
 	$param=$`."strncmp($var, \"$key\", $keylen)==0".$';
     }
     ## All the functions
-    if($func eq "block"){
+    $if $func eq "block"
 	return single_block($param, $out);
-    }
-    elsif($func eq "allocate"){
+    $elsif $func eq "allocate"
 	allocate($out, 1, $param);
-    }
-    elsif($func =~/^except/){
+    $elsif $func =~/^except/
 	return single_block($except, $out);
-    }
-    elsif($func =~ /^(if|while|switch|(el|els|else)if)$/){
+    $elsif $func =~ /^(if|while|switch|(el|els|else)if)$/
 	my $name=$1;
-	if($2){
+	$if $2
 	    $name="else if";
-	}
 	my $p=parse_condition($param, $out);
 	return single_block("$name($p)", $out);
-    }
-    elsif($func eq "else"){
+    $elsif $func eq "else"
 	return single_block("else", $out);
-    }
-    elsif($func eq "for"){
-	if($param=~/(\w+)=(.*?):(.*?)(:.*)?$/){
-	    my ($var, $i0, $i1, $step)=($1, $2, $3, $4);
-	    func_add_var($var, undef, $i0);
-	    my $stepclause;
-	    if($step){
-		my $t=substr($step, 1);
-		if($t eq "-1"){
-		    $stepclause="$var=$i0;$var>$i1;$var--";
-		}
-		elsif($t=~/^-/){
-		    $stepclause="$var=$i0;$var>$i1;$var=$var$t";
-		}
-		elsif($t eq "1"){
-		    $stepclause="$var=$i0;$var<$i1;$var++";
-		}
-		else{
-		    $stepclause="$var=$i0;$var<$i1;$var+=$t";
-		}
-	    }
-	    else{
-		$stepclause="$var=$i0;$var<$i1;$var++";
-	    }
-	    return single_block("for($stepclause)", $out);
-	}
-	else{
-	    print "\$for mismatch [$param]\n";
-	}
-    }
-    elsif($func eq "return_type"){
+    $elsif $func eq "for"
+	$call c_parse_for
+    $elsif $func eq "return_type"
 	$cur_function->{ret_type}=$param;
-    }
-    elsif($func eq "parameter"){
+    $elsif $func eq "parameter"
 	my @plist=split /,\s*/, $param;
 	my $fplist=$cur_function->{param_list};
-	foreach my $p(@plist){
+	$foreach my $p in @plist
 	    push @$fplist, $p;
-	    if($p=~/(.*)\s+(\w+)\s*$/){
+	    $if $p=~/(.*)\s+(\w+)\s*$/
 		$cur_function->{var_type}->{$2}=$1;
-	    }
-	}
-    }
-    elsif($func eq "mu_skip"){
+    $elsif $func eq "mu_skip"
 	my @plist=split /,\s*/, $param;
-	foreach my $p(@plist){
+	$foreach my $p in @plist
 	    $cur_function->{mu_skip}->{$p}=1;
-	}
-    }
-    elsif($func eq "mu_enable"){
+    $elsif $func eq "mu_enable"
 	mu_enable();
-    }
-    elsif($func eq "include"){
+    $elsif $func eq "include"
 	my @flist=split /,\s+/, $param;
-	foreach my $f(@flist){
-	    if($f=~/\.h$/){
+	$foreach my $f in @flist
+	    $if $f=~/\.h$/
 		$includes{"\"$f\""}=1;
-	    }
-	    else{
+	    $else
 		$includes{"<$f.h>"}=1;
-	    }
-	}
-    }
-    elsif($func eq "declare"){
+    $elsif $func eq "declare"
 	push @declare_list, $param
-    }
-    elsif($func eq "define") {
+    $elsif $func eq "define"
 	push @$out, "#define $param";
-    }
-    elsif($func eq "uselib"){
+    $elsif $func eq "uselib"
 	my @flist=split /,\s+/, $param;
-	foreach my $f(@flist){
+	$foreach my $f in @flist
 	    $includes{"lib$f"}=1;
-	    if($lib_include{$f}){
+	    $if $lib_include{$f}
 		add_include($lib_include{$f});
-	    }
-	}
-    }
-    elsif($func eq "fntype"){
+    $elsif $func eq "fntype"
 	# Similar to type_name, but for funtion pointer types
-	if($param=~/^.*?\(\s*\*\s*(\w+)\s*\)/){
+	$if $param=~/^.*?\(\s*\*\s*(\w+)\s*\)/
 	    $fntype{$1}=$param;
-	}
-    }
-    elsif($func eq "debug_mem"){
+    $elsif $func eq "debug_mem"
 	push @$out, "debug_mem=1;";
 	$misc_vars{"debug_mem"}=1;
-    }
-    elsif($func eq "namespace"){
+    $elsif $func eq "namespace"
 	my @vlist=split /,\s+/, $param;
-	foreach my $v(@vlist){
+	$foreach my $v in @vlist
 	    global_namespace($v);
-	}
-    }
-    elsif($func eq "global"){
+    $elsif $func eq "global"
 	my @vlist=split /,\s+/, $param;
-	foreach my $v(@vlist){
-	    if($v=~/^(\S.*)\s+(\S+)$/){
-		global_add_var($2, $1);
-	    }
-	    else{
-		global_add_var($v);
-	    }
-	}
-    }
-    elsif($func eq "globalinit"){
+	$foreach my $v in @vlist
+	    my ($type, $val)
+	    $if $v=~/^(.*)?\s*=\s*(.*)/
+		$val=$2
+		$v=$1
+	    $if $v=~/^(\S.*)\s+(\S+)$/
+		$type=$1
+		$v=$2
+	    global_add_var($v, $type, $val)
+    $elsif $func eq "globalinit"
 	global_add_var($param);
-    }
-    elsif($func eq "local"){
+    $elsif $func eq "local"
 	my @vlist=split /,\s+/, $param;
-	foreach my $v(@vlist){
-	    if($v=~/^(\S.*)\s+(\S+)$/){
+	$foreach my $v in @vlist
+	    $if $v=~/^(\S.*)\s+(\S+)$/
 		func_add_var($2, $1);
-	    }
-	    else{
+	    $else
 		func_add_var($v);
-	    }
-	}
-    }
-    elsif($func eq "localinit"){
+    $elsif $func eq "localinit"
 	func_add_var($param);
-    }
-    elsif($func eq "new"){
+    $elsif $func eq "new"
 	my @plist=split /,\s+/, $param;
-	foreach my $p(@plist){
-	    if($p){
+	$foreach my $p in @plist
+	    $if $p
 		func_add_var($p);
 		my $type=pointer_type(get_var_type($p));
 		$includes{"<stdlib.h>"}=1;
 		push @$out, "$p=($type*) malloc(sizeof($type));";
-	    }
-	}
-    }
-    elsif($func eq "free"){
+    $elsif $func eq "free"
 	my @plist=split /,\s+/, $param;
-	foreach my $p(@plist){
+	$foreach my $p in @plist
 	    my $ptype=get_var_type($p);
 	    struct_free($out, $ptype, $p);
-	}
-    }
-    elsif($func eq "dump"){
+    $elsif $func eq "dump"
 	debug_dump($param, undef, $out);
-    }
-    elsif($func eq "getopt"){
-	$includes{"<stdlib.h>"}=1;
-	$includes{"<unistd.h>"}=1;
+    $elsif $func eq "getopt"
 	my @vlist=split /,\s+/, $param;
-	my $cstr='';
-	foreach my $v(@vlist){
-	    if($v=~/(\w+):(\w+)(=.*)?/){
-		func_add_var($1);
-		if(substr($1, 0, 2) eq "b_"){
-		    $cstr.=$2;
-		    push @$out, "$1=0;";
-		}
-		elsif($3){
-		    push @$out, "$1$3;";
-		    $cstr.="$2::";
-		}
-		else{
-		    $cstr.="$2:";
-		}
-	    }
-	}
-	push @$out, "opterr = 1;";
-	func_add_var("c", "char");
-	push @$out, "while ((c=getopt(argc, argv, \"$cstr\"))!=-1){";
-	push @$out, "    switch(c){";
-	foreach my $v(@vlist){
-	    if($v=~/(\w+):(\w+)/){
-		push @$out, "        case '$2':";
-		my $type=get_var_type($1);
-		if(substr($1, 0, 2) eq "b_"){
-		    push @$out, "            $1=1;";
-		}
-		elsif($type eq "char *"){
-		    push @$out, "            $1=optarg;";
-		}
-		elsif($type eq "int" or $type eq "long"){
-		    push @$out, "            $1=atoi(optarg);";
-		}
-		elsif($type eq "float" or $type eq "double"){
-		    push @$out, "            $1=atof(optarg);";
-		}
-	    }
-	    push @$out, "            break;";
-	}
-	push @$out, "    }";
-	push @$out, "}";
-    }
-    else{
+	$call c_parse_getopt
+    $else
 	$should_return=0
-    }
 
 subcode: parsecode_other
     #print "parsecode residue: [$l]\n";
-    if($l=~/^return\b/){
+    $if $l=~/^return\b/
 	func_return($l, $out);
-    }
-    elsif($l=~/^SOURCE_INDENT/){
+    $elsif $l=~/^SOURCE_INDENT/
 	$cur_indent++;
-    }
-    elsif($l=~/^SOURCE_DEDENT/){
+    $elsif $l=~/^SOURCE_DEDENT/
 	$cur_indent--;
-    }
 
     $call check_exponential
     $call check_push_shift
@@ -331,3 +203,60 @@ subcode: parsecode_other
 	check_assignment(\$l, $out);
     $if $l
 	push @$out, $l;
+
+# ----------------------------------------------
+subcode: c_parse_for
+    $if $param=~/(\w+)=(.*?):(.*?)(:.*)?$/
+	my ($var, $i0, $i1, $step)=($1, $2, $3, $4);
+	func_add_var($var, undef, $i0);
+	my $stepclause;
+	$if $step
+	    my $t=substr($step, 1);
+	    $if $t eq "-1"
+		$stepclause="$var=$i0;$var>$i1;$var--";
+	    $elsif $t=~/^-/
+		$stepclause="$var=$i0;$var>$i1;$var=$var$t";
+	    $elsif $t eq "1"
+		$stepclause="$var=$i0;$var<$i1;$var++";
+	    $else
+		$stepclause="$var=$i0;$var<$i1;$var+=$t";
+	$else
+	    $stepclause="$var=$i0;$var<$i1;$var++";
+	return single_block("for($stepclause)", $out);
+    $else
+	print "\$for mismatch [$param]\n";
+
+subcode: c_parse_getopt
+    $includes{"<stdlib.h>"}=1;
+    $includes{"<unistd.h>"}=1;
+    my $cstr='';
+    $foreach my $v in @vlist
+	$if $v=~/(\w+):(\w+)(=.*)?/
+	    func_add_var($1);
+	    $if substr($1, 0, 2) eq "b_"
+		$cstr.=$2;
+		push @$out, "$1=0;";
+	    $elsif $3
+		push @$out, "$1$3;";
+		$cstr.="$2::";
+	    $else
+		$cstr.="$2:";
+    push @$out, "opterr = 1;";
+    func_add_var("c", "char");
+    push @$out, "while ((c=getopt(argc, argv, \"$cstr\"))!=-1){";
+    push @$out, "    switch(c){";
+    $foreach my $v in @vlist
+	$if $v=~/(\w+):(\w+)/
+	    push @$out, "        case '$2':";
+	    my $type=get_var_type($1);
+	    $if substr($1, 0, 2) eq "b_"
+		push @$out, "            $1=1;";
+	    $elsif $type eq "char *"
+		push @$out, "            $1=optarg;";
+	    $elsif $type eq "int" or $type eq "long"
+		push @$out, "            $1=atoi(optarg);";
+	    $elsif $type eq "float" or $type eq "double"
+		push @$out, "            $1=atof(optarg);";
+	push @$out, "            break;";
+    push @$out, "    }";
+    push @$out, "}";

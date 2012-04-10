@@ -55,7 +55,8 @@ subcode:: c_support_subs
 
     $sub do_assignment
 	my ($left, $right, $out)=@_;
-	if($debug){ print "do_assignment: $left = $right\n"; }
+	$if $debug eq "type"
+	    print "do_assignment: $left = $right\n"
 	my $type;
 	$if $left=~/^(.*?)\s+(\S+)$/
 	    $type=$1;
@@ -70,7 +71,7 @@ subcode:: c_support_subs
 	    my $stype=get_struct_element_type($v1, $v2);
 	    func_var_assign($stype, $left, $right, $out);
 	$else
-	    push @$out, "$left = $right;";
+	    push @$out, "$left=$right;";
 
     sub last_exp {
 	my $l=shift;

@@ -1,16 +1,42 @@
 subcode:: c_support_subs
     $sub infer_c_type
 	my $val=shift;
+	$if $debug eq "type"
+	    print "infer_c_type: [$val]\n"
 	$if $val=~/^[+-]?\d+\./
 	    return "float"
 	$elif $val=~/^[+-]?\d/
 	    return "int"
 	$elif $val=~/^"/
-	    $cur_function->{ret_type}="char *";
+	    return "char *";
 	$elif $val=~/^'/
-	    $cur_function->{ret_type}="char";
-	$elif $val=~/(\w+)/
-	    return get_var_type($1);
+	    return "char";
+	$elif $val=~/^\((\w+)\)\w/
+	    return $1
+	$elif $val=~/(\w+)(.*)/
+	    my $tail=$2;
+	    my $type=get_var_type($1)
+	    $if !$type
+		$type=get_c_type($1)
+	    # --
+	    my $check_tail=1
+	    $while $check_tail
+		$check_tail=0
+		$if $type=~/struct (\w+)/
+		    $if $structs{$1}
+			my $s_hash=$structs{$1}->{hash}
+			$if $tail=~/^(->|\.)(\w+)/
+			    $tail=$';
+			    $type=$s_hash->{$2}
+			    $check_tail=1
+		    $else
+			return;
+		$if $type=~/\*\s*$/
+		    $if $tail=~/^\[.*?\]/
+			$tail=$';
+			$type=~s/\s*\*\s*$//;
+			$check_tail=1
+	    return $type
 
     sub get_c_type_word {
 	my $name=shift;

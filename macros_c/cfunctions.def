@@ -83,10 +83,10 @@ subcode:: c_support_subs
 
 # ---- allocate ----
 subcode: allocate_dimension
-    my $init;
+    my $init_value;
     $if $dim=~/(.*),\s*(.*)/
 	$dim=$1;
-	$init=$2;
+	$init_value=$2;
     $if $dim=~/[+-]/
 	$dim="($dim)";
 
@@ -105,14 +105,6 @@ subcode: check_destructor
 	$if $exit
 	    $destructor="&$1_destructor";
 	push @$out, "mu_add((void*)$p, sizeof($type), $dim, $destructor);";
-subcode: allocate_init
-    $if defined $init and $init ne ""
-	func_add_var("i", "int");
-	push @$out, "for(i=0;i<$dim;i++){";
-	$foreach my $p in @plist
-	    $if $p
-		push @$out, "    $p\[i]=$init;";
-	push @$out, "}";
 subcode: allocate_debug
     $if $misc_vars{"debug_mem"}==1
 	push @$out, "printf(\"Mem \%d - $p \%d $type [%x]\\n\", mu_lastmem, $dim, $p);";
@@ -141,8 +133,16 @@ subcode:: c_support_subs
 		    $call allocate_array
 		$call check_destructor
 		$call allocate_debug
-		$call allocate_init
+	$call allocate_init_value
 
+subcode: allocate_init_value
+    $if defined $init_value and $init_value ne ""
+	func_add_var("i", "int");
+	push @$out, "for(i=0;i<$dim;i++){";
+	$foreach my $p in @plist
+	    $if $p
+		push @$out, "    $p\[i]=$init_value;";
+	push @$out, "}";
 # -------------------------------------
 subcode:: c_support_subs
     sub debug_dump {

@@ -24,7 +24,7 @@ subcode: parse_main
 	# -------- global macros from config ---------
 	$while my ($k, $v)=each %$var
 	    $if $k=~/macro_(\w+)/
-		$macros->{$1}=$v;
+		$def->{macros}->{$1}=$v;
 	# -------- include files ---------
 	my @includes;
 	my %includes;
