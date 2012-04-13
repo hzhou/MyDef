@@ -49,19 +49,6 @@ if(!-f "config"){
         $module=prompt("Please enter module type [php]:");
         if(!$module){$module="php";};
         print Out "module: $module\n";
-        if($module eq "perl" or $module eq "xs" and !-d $config_outputdir){
-            if($config_outputdir=~/^\w[0-9a-zA-Z_\-]*$/){
-                my $name=$config_outputdir;
-                $name=~s/-/::/g;
-                print "Running h2xs ... ...\n";
-                if($module eq "perl"){
-                    system "h2xs -X $config_outputdir";
-                }
-                else{
-                    system "h2xs -n $config_outputdir";
-                }
-            }
-        }
     }
     close Out;
 }
@@ -281,9 +268,6 @@ print Out "\n";
 my @var_hash;
 my @tlist;
 while(my ($f, $l) = each %folder){
-    if(!-d $f){
-        warn "Output folder $f not exisit\n";
-    }
     my $name;
     if($f=~/.*\/(.*)/){
         $name=uc($1);
@@ -377,11 +361,12 @@ if(@make_folders){
 }
 close Out;
 if($config_outputdir){
-    if(!-d $config_outputdir){
-        mkdir $config_outputdir;
-    }
     if($module eq "win32"){
+        if(!-d $config_outputdir){
+            mkdir $config_outputdir;
+        }
         if((-d $config_outputdir) and (!-f "$config_outputdir/make.bat")){
+            print "Create win32 $config_outputdir/make.bat\n";
             open Out, ">$config_outputdir/make.bat";
             if($folder{toproot}){
                 my $tlist=$folder{toproot};
@@ -394,6 +379,37 @@ if($config_outputdir){
             }
             close Out;
         }
+    }
+    if($module eq "perl" or $module eq "xs" and !-d $config_outputdir){
+        if($config_outputdir=~/^\w[0-9a-zA-Z_\-]*$/){
+            my $name=$config_outputdir;
+            $name=~s/-/::/g;
+            print "Running h2xs ... ...\n";
+            if($module eq "perl"){
+                system "h2xs -X $config_outputdir";
+            }
+            else{
+                system "h2xs -n $config_outputdir";
+            }
+        }
+    }
+}
+if($config_outputdir){
+    if(!-d $config_outputdir){
+        print "Create output folder $config_outputdir ...\n";
+        mkdir $config_outputdir;
+    }
+}
+else{
+    $config_outputdir=".";
+}
+foreach my $f (keys(%folder)){
+    if($f !~/^\//){
+        $f=$config_outputdir."/".$f;
+    }
+    if(!-d $f){
+        print "Create output folder $f ...\n";
+        system "mkdir -p $f";
     }
 }
 sub prompt {
