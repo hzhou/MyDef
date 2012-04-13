@@ -380,7 +380,7 @@ if($config_outputdir){
             close Out;
         }
     }
-    if($module eq "perl" or $module eq "xs" and !-d $config_outputdir){
+    if(($module eq "perl" or $module eq "xs") and !-d $config_outputdir){
         if($config_outputdir=~/^\w[0-9a-zA-Z_\-]*$/){
             my $name=$config_outputdir;
             $name=~s/-/::/g;
@@ -404,6 +404,9 @@ else{
     $config_outputdir=".";
 }
 foreach my $f (keys(%folder)){
+    if($f=~/toproot|ROOT/){
+        next;
+    }
     if($f !~/^\//){
         $f=$config_outputdir."/".$f;
     }

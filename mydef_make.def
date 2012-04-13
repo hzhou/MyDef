@@ -411,7 +411,7 @@ subcode: module_specific
 		    #print Out "gcc -Wl,-subsystem,windows -o $name.exe $name.c\r\n";
 		    print Out "cl $name.c user32.lib\r\n";
 		close Out;
-	$if $module eq "perl" or $module eq "xs" and !-d $config_outputdir
+	$if ($module eq "perl" or $module eq "xs") and !-d $config_outputdir
 	    $if $config_outputdir=~/^\w[0-9a-zA-Z_\-]*$/
 		my $name=$config_outputdir;
 		$name=~s/-/::/g;
@@ -430,6 +430,8 @@ subcode: create_outputdir
 	$config_outputdir="."
 
     $foreach $f in keys(%folder)
+	$if $f=~/toproot|ROOT/
+	    next
 	$if $f !~/^\//
 	    $f=$config_outputdir."/".$f
 	$if !-d $f
