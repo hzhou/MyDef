@@ -8,7 +8,7 @@ sub import_data {
         };
     while(my ($k, $v)=each %$var){
         if($k=~/macro_(\w+)/){
-            $macros->{$1}=$v;
+            $def->{macros}->{$1}=$v;
         }
     }
     my @includes;
@@ -70,14 +70,22 @@ sub import_file {
         if($line=~/^\s*$/){
             next;
         }
-        elsif($line=~/^\s*#/){
-            next;
-        }
         elsif($line=~/^(\s*)(.*)/){
-            $curindent=getindent($1);
+            my $indent=getindent($1);
             $line=$2;
-            $line=~s/\s+$//;
-            $line=~s/\s+#\s+.*$//;
+            if($line=~/^#/){
+                if($codeindent>0 and $indent>$lastindent){
+                    $line="NOOP";
+                }
+                else{
+                    next;
+                }
+            }
+            else{
+                $line=~s/\s+$//;
+                $line=~s/\s+#\s.*$//;
+            }
+            $curindent=$indent;
         }
         if($grab){
             if($curindent>$grab_indent){
@@ -88,7 +96,17 @@ sub import_file {
             else{
                 if($grab eq "ogdl"){
                     my $ogdl=grab_ogdl($grab_key, \@grab);
-                    $grab_hash->{$grab_key}=$ogdl;
+                    if(!$grab_hash->{$grab_key}){
+                        $grab_hash->{$grab_key}=$ogdl;
+                    }
+                    else{
+                        my $t=$grab_hash->{$grab_key};
+                        while(my ($k, $v)=each %$ogdl){
+                            if(!defined $t->{$k}){
+                                $t->{$k}=$v;
+                            }
+                        }
+                    }
                 }
                 undef $grab;
                 @grab=();
@@ -258,11 +276,6 @@ sub import_file {
                     $page->{$k}=$v;
                 }
             }
-        }
-        if($line=~/^\$(if|elif)/){
-            $curindent++;
-            $lastindent++;
-            push @$source, "SOURCE_INDENT";
         }
     }
 }
@@ -457,21 +470,28 @@ sub grab_ogdl {
                 }
             }
             if($cur_item){
-                if($l=~/([^"]+):\s*(.+)/){
+                if($l=~/(^\S+?):\s*(.+)/){
                     my ($k, $v)=($1, $2);
                         $cur_item->{$k}=$v;
                         $last_item=$cur_item;
                         $last_item_type="hash";
                         $last_item_key=$k;
                 }
-                elsif($l=~/(.*):\s*$/){
-                    $cur_item->{$k}="_";
+                elsif($l=~/(^\S+):\s*$/){
+                    my $k=$1;
+                    $cur_item->{$k}="";
                     $last_item=$cur_item;
                     $last_item_type="hash";
                     $last_item_key=$k;
                 }
                 else{
-                    my @t=split /,\s*/, $l;
+                    my @t;
+                    if($l !~/\(/){
+                        @t=split /,\s*/, $l;
+                    }
+                    else{
+                        push @t, $l;
+                    }
                     foreach my $t (@t){
                         push @{$cur_item->{_list}}, $t;
                         $last_item=$cur_item->{_list};

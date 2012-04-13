@@ -25,6 +25,7 @@ sub dumpout {
     my $dump=shift;
     my $f=$dump->{f};
     my $out=$dump->{out};
+    my $custom=$dump->{custom};
     if(!$out){
         die "missing \$out\n";
     }
@@ -49,7 +50,9 @@ sub dumpout {
                 next;
             }
         }
-        if($l =~/^INCLUDE_BLOCK (\w+)/){
+        if($custom and $custom->($f, \$l)){
+        }
+        elsif($l =~/^INCLUDE_BLOCK (\w+)/){
             push @source_stack, $out;
             $out=$dump->{$1};
         }

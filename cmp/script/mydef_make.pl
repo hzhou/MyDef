@@ -14,7 +14,7 @@ if(-d $ARGV[0]){
 }
 my @master_config;
 my $module="php";
-my %module_type=(perl=>"pl", php=>"php", xs=>"xs", win32=>"c", c=>"c", apple=>"m");
+my %module_type=(perl=>"pl", php=>"php", xs=>"xs", win32=>"c", c=>"c", apple=>"m", js=>"js", general=>"txt");
 my %macros;
 my @include_folders;
 my $config_outputdir;
@@ -82,6 +82,9 @@ while(<In>){
     }
 }
 close In;
+if($ENV{MYDEFLIB}){
+    push @include_folders, $ENV{MYDEFLIB};
+}
 my $default_type=$module_type{$module};
 if(!$default_type){
     die "No default module type for $module\n";
@@ -277,7 +280,10 @@ print Out "MakePage=mydef_page.pl\n";
 print Out "\n";
 my @var_hash;
 my @tlist;
-while( my ($f, $l) = each %folder){
+while(my ($f, $l) = each %folder){
+    if(!-d $f){
+        warn "Output folder $f not exisit\n";
+    }
     my $name;
     if($f=~/.*\/(.*)/){
         $name=uc($1);
@@ -285,7 +291,9 @@ while( my ($f, $l) = each %folder){
     else{
         $name=uc($f);
     }
-    if(!$name){$name="ROOT";};
+    if(!$name){
+        $name="ROOT";};
+    }
     if($var_hash{$name}){
         my $j=2;
         while($var_hash{"$name$j"}){$j++;};
@@ -294,7 +302,7 @@ while( my ($f, $l) = each %folder){
     $var_hash{$name}=1;
     push @tlist, "\${$name}";
     print Out "$name=";
-    foreach my $p(@$l){
+    foreach my $p (@$l){
         print Out $h_page{$p}->{path}, ".", $h_page{$p}->{type}, " ";
     }
     print Out "\n";

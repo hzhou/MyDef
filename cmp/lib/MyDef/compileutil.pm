@@ -18,6 +18,7 @@ our $deflist;
 our $modelist;
 our @block_stack;
 our @callback_stack;
+my @callsub_stack;
 my $debug;
 our $out;
 our @output_list;
@@ -28,11 +29,11 @@ sub init_output {
 }
 sub new_output {
     my $flag_nest=shift;
-    my $out=[];
-    push @output_list, $out;
+    my $new_out=[];
+    push @output_list, $new_out;
     if($flag_nest and @callback_stack){
         my $outlist=$callback_stack[-1];
-        push @$outlist, $out;
+        push @$outlist, $new_out;
     }
     my $nidx=$#output_list;
     return $nidx;
@@ -63,11 +64,11 @@ sub get_def_attr {
 sub expand_macro {
     my ($lref, $macros)=@_;
     my $hasmacro=0;
-    while ($$lref=~/\$\([^)]+\)/){
-        my @segs=split /(\$\([^)]+\))/, $$lref;
+    while($$lref=~/\$\(\w[^)]*\)/){
+        my @segs=split /(\$\(\w[^)]*\))/, $$lref;
         my $j=0;
         my $flag=0;
-        foreach my $s (@segs){
+        foreach my $s ( @segs){
             if($s=~/^\$\((\w+)\.(\w+)\)/){
                 my $t=$macros->{$1};
                 if($t){
@@ -89,8 +90,6 @@ sub expand_macro {
                         if($2 eq "title"){
                             $segs[$j]=$t;
                             $flag++;
-                        }
-                        else{
                         }
                     }
                 }
@@ -257,6 +256,8 @@ sub compile {
     my $page=$MyDef::def->{pages}->{$pagename};
     init_output();
     my ($ext, $mode)=$f_init->($page);
+    $modelist=[$mode];
+    $f_modeswitch->($modelist->[-1], $modelist->[-1], $out);
     print STDERR "PAGE: $pagename\n";
     my %varsave;
     while(my ($k, $v)=each %$page){
@@ -264,7 +265,6 @@ sub compile {
         $MyDef::var->{$k}=$v;
     }
     $deflist=[$MyDef::def, $MyDef::def->{macros}, $page];
-    $modelist=[$mode];
     my $codelist=$MyDef::def->{codes};
         if($codename=~/_autoload$/){
             parse_code($codelist->{$codename});
@@ -390,6 +390,7 @@ sub parseblock {
         if(@indent_stack and $indent==$indent_stack[-1]){
             if($l eq "SOURCE_INDENT"){
                 $out=$output_stack[-1];
+                $f_modeswitch->($modelist->[-1], $modelist->[-1], $out);
                 $indent++;
                 next;
             }
@@ -408,6 +409,7 @@ sub parseblock {
                 else{
                     $out=$block_stack[-1]->{out};
                 }
+                $f_modeswitch->($modelist->[-1], $modelist->[-1], $out);
                 $indent--;
                 next;
             }
@@ -499,72 +501,73 @@ sub parseblock {
                 push @{$named_blocks{$name}}, "BLOCK_$n";
                 my $temp=$out;
                 $out=$output_list[-1];
-                $f_parse->("SCOPE: $name", $modelist->[-1], $out);
+                $f_modeswitch->($modelist->[-1], $modelist->[-1], $out);
+                $f_parse->("SCOPE: $name");
                 parseblock($subblock);
-                $f_parse->("SCOPE: NONE", $modelist->[-1], $out);
+                $f_parse->("SCOPE: NONE");
                 $out=$temp;
+                $f_modeswitch->($modelist->[-1], $modelist->[-1], $out);
             }
         }
         else{
             undef $context;
             expand_macro_recurse(\$l);
-            if($l=~/^(&call|\$call|\$map|\$list)\s+(.*)$/){
-                my ($func, $param)=($1, $2);
-                $param=~s/\s*$//;
-                if($func eq "\$map"){
-                    call_sub($param, 1);
-                }
-                elsif($func eq "\$call"){
-                    call_sub($param, 0);
-                }
-                elsif($func eq "\$list"){
-                    list_sub($param);
-                }
-                elsif($func eq "\&call"){
-                    my @tlist;
-                    push @callback_stack, \@tlist;
-                    call_sub($param, 0);
-                    pop @callback_stack;
-                    while(my $o=shift @tlist){
-                        push @indent_stack, $indent;
-                        push @output_stack, $o;
+            while(1){
+                if($l=~/^(&call|\$call|\$map|\$list)\s+(.*)$/){
+                    my ($func, $param)=($1, $2);
+                    $param=~s/\s*$//;
+                    if($func eq "\$map"){
+                        call_sub($param, 1);
+                    }
+                    elsif($func eq "\$call"){
+                        call_sub($param, 0);
+                    }
+                    elsif($func eq "\$list"){
+                        list_sub($param);
+                    }
+                    elsif($func eq "\&call"){
+                        my @newoutput_list;
+                        push @callback_stack, \@newoutput_list;
+                        call_sub($param, 0);
+                        pop @callback_stack;
+                        while(my $o=shift @newoutput_list){
+                            push @indent_stack, $indent;
+                            push @output_stack, $o;
+                        }
                     }
                 }
-            }
-            else{
-                my $idx=$#$out+1;
-                my $output;
-                my $msg=$f_parse->($l, $modelist->[-1], $out);
-                if($msg){
-                    if(ref($msg) eq "ARRAY"){
-                        $output=$msg;
-                        $idx=0;
-                    }
-                    elsif($msg=~/^NEWBLOCK/){
-                        $output=$out;
-                    }
-                    elsif($msg=~/^SET:(\w+)=(.*)/){
-                        $deflist->[-1]->{$1}=$2;
-                    }
-                    if($output){
-                        for(my $i=$idx; $i<=$#$output; $i++){
-                            if($output->[$i]=~/^BLOCK$/){
-                                my $n=new_output();
-                                $output->[$i]="BLOCK_$n";
-                                push @indent_stack, $indent;
-                                push @output_stack, $output_list[-1];
-                            }
-                            elsif($output->[$i]=~/^CALL\s+(.+)/){
-                                my $n=new_output();
-                                $output->[$i]="BLOCK_$n";
-                                my $temp=$out;
-                                $out=$output_list[-1];
-                                call_sub($1, 0);
-                                $out=$temp;
+                else{
+                    my $idx=$#$out+1;
+                    my $output;
+                    my $msg=$f_parse->($l);
+                    if($msg){
+                        if(ref($msg) eq "ARRAY"){
+                            $output=$msg;
+                            $idx=0;
+                        }
+                        elsif($msg=~/^NEWBLOCK/){
+                            $output=$out;
+                        }
+                        elsif($msg=~/^SET:(\w+)=(.*)/){
+                            $deflist->[-1]->{$1}=$2;
+                        }
+                        elsif($msg=~/^PARSE:(.*)/){
+                            $l=$1;
+                            next;
+                        }
+                        if($output){
+                            for(my $i=$idx;$i<$#$output+1;$i++){
+                                if($output->[$i]=~/^BLOCK$/){
+                                    my $n=new_output();
+                                    $output->[$i]="BLOCK_$n";
+                                    push @indent_stack, $indent;
+                                    push @output_stack, $output_list[-1];
+                                }
                             }
                         }
                     }
                 }
+                last;
             }
         }
     }
@@ -584,16 +587,21 @@ sub list_sub {
     my ($param)=@_;
     my @plist=split(/,\s*/, $param);
     foreach my $codename (@plist){
+        my $funcname = $codename;
+        if($codename=~/(\w+)\((\w+)\)/){
+            $codename=$1;
+            $funcname=$2;
+        }
         my $codelib=get_def_attr("codes", $codename);
         my $params=$codelib->{params};
         my $source=$codelib->{source};
-        my $line=$codename."-".join(",", @$params);
-        push @$modelist, "$codelib->{type}";
-        $f_modeswitch->($codelib->{type}, $line, $out);
+        my $line=$funcname."-".join(",", @$params);
+        modepush($codelib->{type});
+        $f_parse->("FUNC $line");
         parseblock(["SOURCE_INDENT"]);
         parseblock($source);
         parseblock(["SOURCE_DEDENT"]);
-        pop @$modelist;
+        modepop();
     }
 }
 sub call_sub {
@@ -605,10 +613,9 @@ sub call_sub {
         $attr=$1;
         $codename=$2;
         my $t=$3;
-        if($t=~/\(([^\)]*)\)/){
-            my $t1=$1;
-            my $t-$';
-            @pre_plist=split /,\s*/, $t1;
+        if($t=~/^\(([^\)]*)\)/){
+            @pre_plist=split /,\s*/, $1;
+            $t=$';
         }
         $t=~s/^\s*,?\s*//;
         $pline=$t;
@@ -632,6 +639,12 @@ sub call_sub {
         print STDERR "    Code $codename not found!\n";
         return;
     }
+    foreach my $name (@callsub_stack){
+        if($name eq $codename){
+            die "Recursive subcode: $codename\n";
+        }
+    }
+    push @callsub_stack, $codename;
     modepush($codelib->{type});
     my $params=$codelib->{params};
     my $source=$codelib->{source};
@@ -678,5 +691,6 @@ sub call_sub {
         pop @$deflist;
     }
     modepop();
+    pop @callsub_stack;
 }
 1;

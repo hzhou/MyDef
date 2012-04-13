@@ -41,6 +41,10 @@ sub init {
         require MyDef::output_perl;
         MyDef::compileutil::set_interface(MyDef::output_perl::get_interface());
     }
+    elsif($module eq "js"){
+        require MyDef::output_js;
+        MyDef::compileutil::set_interface(MyDef::output_js::get_interface());
+    }
     elsif($module eq "general"){
         require MyDef::output_general;
         MyDef::compileutil::set_interface(MyDef::output_general::get_interface());
