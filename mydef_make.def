@@ -368,7 +368,7 @@ subcode: write_var_folder
 	$else
 	    $name=uc($f);
 	$if !$name
-	    $name="ROOT";}
+	    $name="ROOT"
 	$if $var_hash{$name}
 	    my $j=2;
 	    while($var_hash{"$name$j"}){$j++;}

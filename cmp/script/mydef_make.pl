@@ -292,7 +292,7 @@ while(my ($f, $l) = each %folder){
         $name=uc($f);
     }
     if(!$name){
-        $name="ROOT";};
+        $name="ROOT";
     }
     if($var_hash{$name}){
         my $j=2;
