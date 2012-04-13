@@ -38,7 +38,7 @@ subcode:: c_support_subs
 	$if $name
 	    func_add_var("p_$name", "struct $name\_node *");
 	    push @$out, "p_$name=$name\_push($v);";
-	    struct_set("$name\_node", "p_$1", $val, $out);
+	    struct_set("$name\_node", "p_$name", $val, $out);
 
     $sub list_unshift
 	my ($out, $v, $val)=@_;
