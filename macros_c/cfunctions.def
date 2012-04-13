@@ -131,8 +131,12 @@ subcode:: c_support_subs
 		    $call allocate_one
 		$else 
 		    $call allocate_array
+		$if $global_type->{mu_total_mem}
+		    push @$out, "mu_total_mem+=(float)$dim*sizeof($type)/1e6;"
+		$if $global_type->{p_memlist}
+		    push @$out, "mu_add_pointer((void*)$p, \"$p\", $dim*sizeof($type));"
 		$call check_destructor
-		$call allocate_debug
+		#$call allocate_debug
 	$call allocate_init_value
 
 subcode: allocate_init_value

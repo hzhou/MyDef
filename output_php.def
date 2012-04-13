@@ -44,7 +44,7 @@ page: output_php
 	my $metablock=MyDef::compileutil::get_named_block("meta")
 	dumpmeta($metablock)
 	dumpstyle($metablock, $style)
-	$call debug_array, $metablock
+	#$call debug_array, $metablock
 	$dump->{custom}=\&custom_dump
 
     subcode: parsecode

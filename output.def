@@ -23,7 +23,6 @@ subcode: output_main
 	return ($ext, "$(init_mode)");
 
     # ---- php has php,  html and js mode ----------
-    # ---- In xs, modeswitch were hacked to initialize functions
     $sub modeswitch
 	my $pmode
 	($pmode, $mode, $out)=@_;
@@ -39,6 +38,8 @@ subcode: output_main
 		$debug=0
 	    $else
 		$debug=$1
+	    return
+	$elif $l=~/^NOOP/
 	    return
 	$call parsecode
 

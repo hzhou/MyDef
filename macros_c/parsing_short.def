@@ -40,13 +40,3 @@ subcode: check_functioncall
 	$t=~s/\s+$//;
 	$l="$fn($t);";
 
-subcode: check_push_shift
-    $if $l=~/^(push|unshift|pop|shift)\s+(\w+),\s*(.*)/
-	$if $1 eq "push"
-	    $l=array_push($out, $2, $3);
-	$elif $1 eq "unshift"
-	    $l=array_unshift($out, $2, $3);
-	$elif $1 eq "pop"
-	    $l=array_pop($out, $2);
-	$elif $1 eq "shift"
-	    $l=array_shift($out, $2);

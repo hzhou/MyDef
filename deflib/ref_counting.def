@@ -26,8 +26,6 @@ subcode: ref_counting(nbuckets, prefix, type)
 	    void(*destroy)(void* p)
     };
     struct $(prefix)node * $(prefix)_count_list[$(nbuckets)]
-    $(if:prefix=mu)
-	float mu_total_mem=0.0
     $(block:main_init)
 	$(prefix)_init()
     $(block:main_exit)

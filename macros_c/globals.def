@@ -8,7 +8,6 @@ subcode: package_globals
     $call global
     our %functions;
     our @function_declare_list;
-    our %var_type_cast;
     our @declare_list
 
     our @initcodes;

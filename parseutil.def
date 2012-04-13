@@ -100,12 +100,6 @@ subcode: parse_main
 		    $call process_macros
 		$elsif $stage =~/^(page)$/
 		    $call process_page_macros
-	    # -------------------------------
-	    # -- PreInsert Indent so empty switch cases work
-	    $if $line=~/^\$(if|elif)/
-		$curindent++
-		$lastindent++
-		push @$source, "SOURCE_INDENT";
 
 subcode: perfile_variables
     my $stage="";
@@ -129,15 +123,22 @@ subcode: get_indentation
     $if $line=~/^\s*$/
 	# Skip empty lines
 	next;
-    $elif $line=~/^\s*#/
-	# Skip comment lines
-	next;
     $elif $line=~/^(\s*)(.*)/
 	# get current indentation and stripping starting spaces
-	$curindent=getindent($1);
+	my $indent=getindent($1)
 	$line=$2
-	$line=~s/\s+$//
-	$line=~s/\s+#\s+.*$//
+	$if $line=~/^#/
+	    $if $codeindent>0 and $indent>$lastindent
+		# preserve the block structure
+		$line="NOOP"
+	    $else
+		# Skip comment lines
+		next
+	$else
+	    # Trim the tail
+	    $line=~s/\s+$//
+	    $line=~s/\s+#\s.*$//
+	$curindent=$indent
 
 subcode: grab_block
     $if $grab

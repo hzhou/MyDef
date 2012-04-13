@@ -173,6 +173,21 @@ subcode: parsecode_func
     $elsif $func eq "getopt"
 	my @vlist=split /,\s+/, $param;
 	$call c_parse_getopt
+    $elif $func eq "push"
+	$if $param=~/(\w+),\s*(.*)/
+	    list_push($out, $1, $2);
+    $elif $func eq "unshift"
+	$if $param=~/(\w+),\s*(.*)/
+	    list_unshift($out, $1, $2);
+    $elif $func eq "pop"
+	$if $param=~/(\w+)/
+	    list_pop($out, $1);
+    $elif $func eq "shift"
+	$if $param=~/(\w+)/
+	    list_shift($out, $1);
+    $elif $func eq "foreach"
+	$if $param=~/(\w+)\s+in\s+(\w+)/
+	    return list_foreach($out, $iv, $v)
     $else
 	$should_return=0
 
@@ -186,7 +201,6 @@ subcode: parsecode_other
 	$cur_indent--;
 
     $call check_exponential
-    $call check_push_shift
     $call check_functioncall
     $call check_termination
 

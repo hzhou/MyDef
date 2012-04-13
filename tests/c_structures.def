@@ -19,5 +19,11 @@ page: test
 	$local s_buffer[100]
 	$for i=0:10 
 	    pn_test[i]=i*i
+	$if 0
+	    # empty case
+	$elsif 1
+	    printf("empty if case test ok\n")
+	$else
+	    # trailing empty case
 	return pn_test
 

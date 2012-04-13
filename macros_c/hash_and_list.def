@@ -1,23 +1,4 @@
 subcode:: c_support_subs
-    sub struct_set {
-	my ($struct_type, $struct_var, $val, $out)=@_;
-	my $struct=$structs{$struct_type};
-	my @vals=split /,\s*/, $val;
-	for(my $i=0; $i<=$#vals; $i++){
-	    my $sname=$struct->[$i]->{name};
-	    do_assignment("$struct_var\->$sname", $vals[$i], $out);
-	}
-    }
-    sub struct_get {
-	my ($struct_type, $struct_var, $var, $out)=@_;
-	my $struct=$structs{$struct_type};
-	my @vars=split /,\s*/, $var;
-	for(my $i=0; $i<=$#vars; $i++){
-	    my $sname=$struct->[$i]->{name};
-	    do_assignment( $vars[$i],"$struct_var\->$sname", $out);
-	}
-    }
-    # --
     sub hash_check {
 	my ($out, $h, $name)=@_;
 	func_add_var("p_$h", "struct $h\_node *");
@@ -43,54 +24,53 @@ subcode:: c_support_subs
 	$except="else";
     }
     # --
-    sub get_array_type {
+    $sub get_list_type
 	my ($var)=@_;
-	if(my $type = get_var_type($var)){
-	    return $type;
-	}
-	elsif($var_type_cast/{$var}){
-	    return $var_type_cast{$var};
-	}
-	else{
-	    return $var;
-	}
-    }
-    sub array_push {
+	$if my $type = get_var_type($var)
+	    $if $type=~/struct (\w+)/
+		return $1
+	print "Warning: $var not a list type\n"
+	return undef
+
+    $sub list_push
 	my ($out, $v, $val)=@_;
-	my $a=get_array_type($v);
-	func_add_var("p_$a", "struct $a\_node *");
-	push @$out, "p_$a=list_push_$a();";
-	struct_set("$a\_node", "p_$a", $val, $out);
-    }
-    sub array_unshift {
+	my $name=get_list_type($v);
+	$if $name
+	    func_add_var("p_$name", "struct $name\_node *");
+	    push @$out, "p_$name=$name\_push($v);";
+	    struct_set("$name\_node", "p_$1", $val, $out);
+
+    $sub list_unshift
 	my ($out, $v, $val)=@_;
-	my $a=get_array_type($v);
-	func_add_var("p_$a", "struct $a\_node *");
-	push @$out, "p_$a=list_unshift_$a();";
-	struct_set("$a\_node", "p_$a", $val, $out);
-    }
-    sub array_pop {
+	my $name=get_list_type($v);
+	$if $name
+	    func_add_var("p_$name", "struct $name\_node *");
+	    push @$out, "p_$name=$name\_unshift($v);";
+	    struct_set("$name_node", "p_$name", $val, $out);
+
+    $sub list_pop
 	my ($out, $v, $var)=@_;
-	my $a=get_array_type($v);
-	if($var){
-	    func_add_var("p_$a", "struct $a\_node *");
-	    push @$out, "p_$a=list_pop_$a();";
-	    struct_get("$a\_node", "p_$a", $var, $out);
-	}
-	else{
-	    push @$out, "list_pop_$a();";
-	}
-    }
-    sub array_shift {
+	my $name=get_list_type($v);
+	$if $var
+	    func_add_var("p_$name", "struct $name\_node *");
+	    push @$out, "p_$name=$name\_pop($v);";
+	    struct_get("$name\_node", "p_$name", $var, $out);
+	$else
+	    push @$out, "$name\_pop($v);";
+
+    $sub list_shift
 	my ($out, $v, $var)=@_;
-	my $a=get_array_type($v);
-	if($var){
-	    func_add_var("p_$a", "struct $a\_node *");
-	    push @$out, "p_$a=list_shift_$a();";
-	    struct_get("$a\_node", "p_$a", $var, $out);
-	}
-	else{
-	    push @$out, "list_shift_$a();";
-	}
-    }
+	my $name=get_list_type($v);
+	$if $var
+	    func_add_var("p_$name", "struct $name\_node *");
+	    push @$out, "p_$name=$name\_pop($v);";
+	    struct_get("$name\_node", "p_$name", $var, $out);
+	$else
+	    push @$out, "$name\_pop($v);";
+
+    $sub list_foreach
+	my ($out, $iv, $v)=@_;
+	my $name=get_list_type($v);
+	func_add_var("$iv", "struct $name\_node *");
+	return "PARSE:&call dlist_each, $v, $iv"
 

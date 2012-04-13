@@ -14,29 +14,24 @@ subcode:: c_support_subs
 	$func->{name}=$fname;
 	my $pbuf=$func->{param_list};
 	my $var_type=$func->{var_type};
-	foreach my $p(@plist){
-	    if($p=~/(\S.*)\s+(\S+)\s*$/){
+	# -- parsing param list
+	$foreach my $p in @plist
+	    $if $p=~/(\S.*)\s+(\S+)\s*$/
 		push @$pbuf, "$1 $2";
 		$var_type->{$2}=$1;
-	    }
-	    else{
-		if($fntype{$p}){
+	    $else
+		$if $fntype{$p}
 		    push @$pbuf, $fntype{$p};
 		    $var_type->{$p}="function";
-		}
-		else{
+		$else
 		    my $t= get_c_type($p);
 		    push @$pbuf, "$t $p";
 		    $var_type->{$p}=$t;
-		}
-	    }
-	}
 	# --
-	if($func->{name}){
+	$if $func->{name}
 	    my $name=$func->{name};
 	    push @function_declare_list, $name;
 	    $functions{$name}=$func;
-	}
 	# --
 	$cur_function=$func;
 	my $fidx=MyDef::dumpout::add_function($func);
@@ -71,8 +66,6 @@ subcode:: c_support_subs
     $sub global_add_var
 	my ($name, $type, $value)=@_;
 
-	$if $name=~/n_thread/
-	    print "global_add_var $name ($type) [$value]\n"
 	$if $global_type->{$name}
 	    return;
 
@@ -224,7 +217,7 @@ subcode:: c_support_subs
 	    $foreach my $fh in @func_var_hooks
 		$if $fh->{var_check}->($type)
 		    $fh->{var_pre_assign}->($type, $name, $val, $out);
-		    push @$out, "$name = $val;";
+		    push @$out, "$name=$val;";
 		    $fh->{var_post_assign}->($type, $name, $val, $out);
 		    $done_out=1;
 		    last;
@@ -285,44 +278,39 @@ subcode:: c_support_subs
 	push @func_var_hooks, {var_check=>\&mu_var_check, var_init=>\&mu_var_init, var_pre_assign=>\&mu_pre_assign, var_post_assign=>\&mu_post_assign, var_release=>\&mu_release};
     }
 
-    sub mu_var_check {
+    $sub mu_var_check
 	my ($type)=@_;
-	if($type=~/\*$/){
+	$if $type=~/\*$/
 	    return 1;
-	}
-	else{
+	$else
 	    return 0;
-	}
-    }
 
-    sub mu_var_init {
+    $sub mu_var_init
 	return "NULL";
-    }
-    sub mu_pre_assign {
+
+    $sub mu_pre_assign
 	my ($type, $name, $val, $out)=@_;
-	if($var_flag->{$name} eq "retained"){
+	$if $var_flag->{$name} eq "retained"
 	    my $var_flag=$cur_function->{var_flag};
 	    push @$out, "if($name){mu_release($name);}";
 	    $var_flag->{$name}=0;
-	}
-    }
+
     $sub mu_post_assign
 	my ($type, $name, $val, $out)=@_;
 	#print "mu_post_assign: $type $name = $val\n";
 	my $var_flag=$cur_function->{var_flag};
-	if($val=~/^\s*(NULL|0)\s*$/i){
-	}
-	elsif($val=~/^\s*(\w+)(.*)/){
-	    $var_flag->{$name}="retained";
-	    #print "retain $name\n";
-	    my $name=$1;
-	    my $tail=$2;
-	    if($tail=~/^\s*\(/ and MyDef::is_sub($name)){
-	    }
-	    else{
-		push @$out, "mu_retain($name);";
-	    }
-	}
+	$if $val=~/^\s*(NULL|0)\s*$/i
+	    NOOP
+	$elsif $val=~/^\s*(\w+)(.*)/
+	    my $v_name=$1;
+	    my $v_tail=$2;
+	    $if $v_tail=~/^\s*\(/ and MyDef::is_sub($v_name)
+		$var_flag->{$name}="retained";
+		#print "retain $name\n";
+	    $else
+		NOOP
+		#push @$out, "mu_retain($name);";
+
     $sub mu_release
 	my ($type, $name, $skipcheck)=@_;
 	$if $skipcheck
