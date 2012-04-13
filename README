@@ -27,6 +27,7 @@ INSTALL
     mydef_make.pl 
     make
     cd MyDef # It is the output folder, cmp was copied from there
+    ln -s ../deflib .
     pmake 
     make
     make install
