@@ -58,7 +58,7 @@ subcode: structs
 
 subcode: type_hashes
     our %type_name=(
-	c=>"char",
+	c=>"unsigned char",
 	i=>"int",
 	j=>"int",
 	k=>"int",
@@ -71,7 +71,7 @@ subcode: type_hashes
     our %type_prefix=(
 	n=>"int",
 	ui=>"unsigned int",
-	c=>"char",
+	c=>"unsigned char",
 	"uc"=>"unsigned char",
 	b=>"int",
 	s=>"char *",

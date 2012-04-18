@@ -39,7 +39,7 @@ fncode: mu_clean_up
     $if p_memlist
 	&call dlist_each_safe, p_memlist, p, p2
 	    $call dlist_unlink, p_memlist, p
-	    $(if:DEBUG_MEM)
+	    $(if:mu_debug)
 		printf("Freeing pointer %s: %x (%x)\n", p->name, p->p, p)
 	    free(p->p)
 	    free(p)
