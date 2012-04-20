@@ -170,11 +170,11 @@ subcode: dlist_each(plist, p)
         $(p)=$(p)->next
 
 subcode: dlist_each_safe(plist, p, p2)
-    $(p2)=$(plist)->head
-    $while $(p2)->next != $(plist)->head
-	$(p)=$(p2)->next
-        BLOCK
+    $(p2)=$(plist)->head->next
+    $while $(p2) != $(plist)->head
+	$(p)=$(p2)
         $(p2)=$(p2)->next
+        BLOCK
 
 subcode: dlist_each_inverse(plist, p)
     $(p)=$(plist)->head->prev

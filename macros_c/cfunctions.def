@@ -169,6 +169,9 @@ subcode:: c_support_subs
 	    elsif($type=~/^char/){
 		push @a1,"$v=\%d";
 	    }
+	    elsif($type=~/^unsigned char/){
+		push @a1,"$v=\%d";
+	    }
 	    else{
 		print "debug_dump: unhandled $v - $type\n";
 	    }
