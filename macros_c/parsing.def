@@ -86,6 +86,14 @@ subcode: parsecode_func
 	    $name="else if";
 	my $p=parse_condition($param, $out);
 	return single_block("$name($p)", $out);
+    $elsif $func =~/^dowhile/
+	my $p=parse_condition($param, $out);
+	push @$out, "do{";
+	push @$out, "INDENT";
+	push @$out, "BLOCK";
+	push @$out, "DEDENT";
+	push @$out, "}while($p);";
+	return "NEWBLOCK";
     $elsif $func eq "else"
 	return single_block("else", $out);
     $elsif $func eq "for"
