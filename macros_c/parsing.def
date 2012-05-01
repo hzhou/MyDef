@@ -243,7 +243,10 @@ subcode: c_parse_for
 	    $else
 		$stepclause="$var=$i0;$var<$i1;$var+=$t";
 	$else
-	    $stepclause="$var=$i0;$var<$i1;$var++";
+	    $if $i1<$i0
+		$stepclause="$var=$i0;$var>$i1;$var--";
+	    $else
+		$stepclause="$var=$i0;$var<$i1;$var++";
 	return single_block("for($stepclause)", $out);
     $else
 	print "\$for mismatch [$param]\n";

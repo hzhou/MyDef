@@ -78,6 +78,8 @@ subcode:: c_support_subs
 
 	$elsif $param=~/(\w+)->\{(.*)\}/
 	    return hash_check($out, $1, $2);
+	$elsif $param=~/\$(\w+)\s+(.*)/
+	    return MyDef::compileutil::inline_macro($1, $2)
 	$else
 	    return $param;
 

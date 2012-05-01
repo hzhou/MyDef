@@ -66,12 +66,12 @@ subcode:: c_support_subs
     $sub global_add_var
 	my ($name, $type, $value)=@_;
 
+	$call split_name
 	$if $global_type->{$name}
 	    return;
 
-	$call split_name
 	$call infer_type
-	$if $array
+	$if defined $array
 	    $type=pointer_type($type)
 	    $global_type->{$name}="$type *"
 	$else
@@ -88,7 +88,6 @@ subcode:: c_support_subs
 	    return;
 
 	$call split_name
-
 	$if get_var_type($name)
 	    return;
 
@@ -101,7 +100,7 @@ subcode:: c_support_subs
 	$call infer_type
 	$if $debug
 	    print "func_add_var: $name - $type - $array\n"
-	$if $array
+	$if defined $array
 	    $type=pointer_type($type)
 	    $var_type->{$name}="$type *"
 	$else
@@ -158,7 +157,7 @@ subcode: var_init_line
     my $init_line
     $if $type eq "function"
 	$init_line=$fntype{$name};
-    $elif $array
+    $elif defined $array
 	$init_line="$type $name\[$array]$tail";
     $else
 	$init_line="$type $name$tail";

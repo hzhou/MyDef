@@ -38,29 +38,22 @@ subcode:: c_support_subs
 			$check_tail=1
 	    return $type
 
-    sub get_c_type_word {
+    $sub get_c_type_word
 	my $name=shift;
 	$if $debug eq "type"
 	    print "get_c_type_word: [$name] -> $type_prefix{$name}\n";
-	if($name=~/^([a-z]+)/){
+	$if $type_prefix{$name}
+	    return $type_prefix{$name}
+	$elsif substr($name, 0, 1) eq "t"
+	    return get_c_type_word(substr($name,1));
+	$elsif substr($name, 0, 1) eq "p"
+	    return get_c_type_word(substr($name,1)).'*';
+	$elsif $name=~/^st(\w+)/
+	    return "struct $1";
+	$elif $name=~/^([a-z]+)/
 	    $prefix=$1;
-	    if($type_prefix{$prefix}){
+	    $if $type_prefix{$prefix}
 		return $type_prefix{$prefix};
-	    }
-	    elsif(substr($prefix, 0, 1) eq "t"){
-		return get_c_type_word(substr($prefix,1));
-	    }
-	    elsif(substr($prefix, 0, 1) eq "p"){
-		return get_c_type_word(substr($prefix,1)).'*';
-	    }
-	    elsif($name=~/^st(\w+)/){
-		return "struct $1";
-	    }
-	    else{
-		#print "Failed to get_c_type_word $name";
-	    }
-	}
-    }
 
     $sub get_c_type
 	my $name=shift;
@@ -71,7 +64,7 @@ subcode:: c_support_subs
 	    $name=$1;
 	$if $type_name{$name}
 	    $type= $type_name{$name};
-	$elsif $name=~/([a-zA-Z]+)_(.*)/
+	$elsif $name=~/(\w+)_(.*)/
 	    my $t1=$1;
 	    my $t2=$2;
 	    my $t=get_c_type_word($t1);

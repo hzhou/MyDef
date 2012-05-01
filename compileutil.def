@@ -93,6 +93,13 @@ subcode: compile_main
 	my ($param, $domap)=@_;
 	$call call_sub
 
+    $sub set_macro($m, $p)
+	$if $p=~/(\w+)=(.*)/
+	    $m->{$1}=$2
+	$elif my $t=get_def($p)
+	    $m->{$p}=$t
+	$else
+	    warn "compileutil::set_macro parse error: [$p]\n"
     # --------------------------------------------------------
     1;
 
@@ -177,19 +184,20 @@ subcode: parse_preproc
 	    parseblock($subblock);
 	    pop @$deflist;
 	}
-    $elsif $preproc=~/^export:\s*([^)]+)=(.*)/
-	$deflist->[-2]->{$1}=$2;
-    $elsif $preproc=~/^export:\s*([^)]+)/
-	my $t=get_def($1);
-	$deflist->[-2]->{$1}=$t;
-    $elsif $preproc=~/^set:\s*([^)]+)=(.*)/
-	$deflist->[-1]->{$1}=$2;
-    $elsif $preproc=~/^set:\s*([^)]+)\+=(\d+)/
+    $elsif $preproc=~/^reset:\s*(\w+)([+])=(\d+)/
 	my $i=@$deflist;
-	while($i>0 and !defined $deflist->[$i]->{$1}){
+	$while $i>0 and !defined $deflist->[$i]->{$1}
 	    $i--;
-	}
-	$deflist->[$i]->{$1}+=$2;
+	$if $2 eq '+'
+	    $deflist->[$i]->{$1}+=$2;
+    $elsif $preproc=~/^mset:\s*(.*)/
+	my @plist=split /,\s*/, $1
+	$foreach $p in @plist
+	    set_macro($deflist->[-1], $p)
+    $elsif $preproc=~/^set:\s*(.*)/
+	set_macro($deflist->[-1], $1)
+    $elsif $preproc=~/^export:\s*(.*)/
+	set_macro($deflist->[-2], $1)
     $elsif $preproc=~/^preset:([^:]+):(.*)/
 	my $preset=$1;
 	my $t=$2;
@@ -563,59 +571,74 @@ subcode: expand_macro_seg
 	    $if $tt
 		$if $tt->{$2}
 		    $segs[$j]=$tt->{$2};
-		    $flag++;
+		    $updated++;
 		$elsif $2 eq "title"
 		    $segs[$j]=$t;
-		    $flag++;
+		    $updated++;
 		$else
 		    $segs[$j]="";
 	    $else
 		$if $2 eq "title"
 		    $segs[$j]=$t;
-		    $flag++;
+		    $updated++;
     $elsif $s=~/^\$\((\w+):(\d+)-(\d+)\)/
 	my $t=$macros->{$1};
 	#print "expand_macro: $s, $1: $t\n";
 	$if $t
 	    $segs[$j]=substr($t, $2, $3-$2+1);
-	    $flag++;
+	    $updated++;
     $elsif $s=~/^\$\((.+)\)/
 	$if exists($macros->{$1})
 	    my $t=$macros->{$1};
 	    $if $t eq $s
 		die "Looping macro $1 in \"$$lref\"!\n";
 	    $segs[$j]=$t;
-	    $flag++;
-	#print "Macro: [$1] [$macros->{$1}]\n";
+	    $updated++;
 
 subcode:: support_subs
     $sub expand_macro
 	my ($lref, $macros)=@_;
-	my $hasmacro=0;
-	$while  $$lref=~/\$\(\w[^)]*\)/
-	    #print "expand_macro: $$lref\n";
+	#$if $debug
+	#    print "expand_macro [$$lref] $macros\n"
+	my $hasmacro=0
+	my $updated=0
+	$if  $$lref=~/\$\(\w[^)]*\)/
 	    my @segs=split /(\$\(\w[^)]*\))/, $$lref;
 	    my $j=0;
-	    my $flag=0;
 	    $foreach my $s in  @segs
 		$call expand_macro_seg
 		$j++;
-	    $if $flag
+	    $if $updated
 		$$lref=join '', @segs;
 	    $else
 		$hasmacro=1;
-		last;
-	return $hasmacro;
+	#$if $debug
+	#    print "    ->  return hasmacro=$hasmacro, updated=$updated\n";
+	return ($hasmacro, $updated)
 
 subcode:: support_subs
+    $sub inline_macro
+	my ($name, $param)=@_
+	my @plist=split /,\s*/, $param
+	my $macro={};
+	$for $i=0:@plist
+	    my $idx=$i+1
+	    $macro->{$idx}=$plist[$i]
+	my $l="\$($name)"
+	push @$deflist, $macro;
+	expand_macro_recurse(\$l)
+	pop @$deflist;
+	return $l
+
     $sub expand_macro_recurse
 	my $lref=shift;
-	my $hasmacro
-	for(my $j=$#$deflist; $j>=0; $j--){
-	    $hasmacro=expand_macro($lref, $deflist->[$j]);
-	    $if !$hasmacro
-		last;
-	}
+	my ($hasmacro, $updated)
+	$updated=1
+	$while $updated
+	    $for $j=$#$deflist:-1:-1
+		($hasmacro, $updated)=expand_macro($lref, $deflist->[$j]);
+		$if $updated or !$hasmacro
+		    last;
 	$if $hasmacro
 	    $while $$lref=~/(\$\([^)]+\))/g
 		$if substr($`, -1) ne "\\"

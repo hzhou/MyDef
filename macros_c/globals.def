@@ -70,9 +70,18 @@ subcode: type_hashes
     );
     our %type_prefix=(
 	n=>"int",
+	n1=>"int8_t",
+	n2=>"int16_t",
+	n4=>"int32_t",
+	n8=>"int64_t",
 	ui=>"unsigned int",
+	u=>"unsigned int",
+	u1=>"uint8_t",
+	u2=>"uint16_t",
+	u4=>"uint32_t",
+	u8=>"uint64_t",
 	c=>"unsigned char",
-	"uc"=>"unsigned char",
+	uc=>"unsigned char",
 	b=>"int",
 	s=>"char *",
 	v=>"unsigned char *",
@@ -95,12 +104,20 @@ subcode: type_hashes
 
     my %type_include=(
 	time_t=>"time.h",
+	int8_t=>"stdlib.h",
+	int16_t=>"stdlib.h",
+	int32_t=>"stdlib.h",
+	int64_t=>"stdlib.h",
+	uint8_t=>"stdlib.h",
+	uint16_t=>"stdlib.h",
+	uint32_t=>"stdlib.h",
+	uint64_t=>"stdlib.h",
     );
 
     my %text_include=(
 	"printf|perror"=>"stdio.h",
 	"malloc"=>"stdlib.h",
-	"str(len|dup|cpy)"=>"string.h",
+	"str(len|dup|cpy)|memcpy"=>"string.h",
 	"\\bopen\\("=>"fcntl.h",
 	"sin|cos|sqrt"=>"math.h",
 	"fstat"=>"sys/stat.h",
