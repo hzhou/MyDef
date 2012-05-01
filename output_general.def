@@ -59,7 +59,7 @@ page: output_perl, output_main
 			$else
 			    $stepclause="my $var=$i0;$var<$i1;$var+=$t";
 		    $else
-			$if $i1<$i0
+			$if $i1=~/^-?\d+/ and $i0=~/^-?\d+/ and $i1<$i0
 			    $stepclause="my $var=$i0;$var>$i1;$var--";
 			$else
 			    $stepclause="my $var=$i0;$var<$i1;$var++";
