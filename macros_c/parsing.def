@@ -243,7 +243,7 @@ subcode: c_parse_for
 	    $else
 		$stepclause="$var=$i0;$var<$i1;$var+=$t";
 	$else
-	    $if $i1<$i0
+	    $if $i1=~/^-?\d+/ and $i0=~/^-?\d+/ and $i1<$i0
 		$stepclause="$var=$i0;$var>$i1;$var--";
 	    $else
 		$stepclause="$var=$i0;$var<$i1;$var++";
