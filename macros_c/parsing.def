@@ -144,25 +144,16 @@ subcode: parsecode_func
     $elsif $func eq "global"
 	my @vlist=split /,\s+/, $param;
 	$foreach my $v in @vlist
-	    my ($type, $val)
-	    $if $v=~/^(.*)?\s*=\s*(.*)/
-		$val=$2
-		$v=$1
-	    $if $v=~/^(\S.*)\s+(\S+)$/
-		$type=$1
-		$v=$2
-	    global_add_var($v, $type, $val)
+	    global_add_var($v)
     $elsif $func eq "globalinit"
+	# just to allow , in initline
 	global_add_var($param);
     $elsif $func eq "local"
 	my @vlist=split /,\s+/, $param;
 	$foreach my $v in @vlist
-	    $if $v=~/^(\S.*)\s+(\S+)$/
-		func_add_var($2, $1);
-	    $else
-		func_add_var($v);
+	    func_add_var($v, "local");
     $elsif $func eq "localinit"
-	func_add_var($param);
+	func_add_var($param, "local");
     $elsif $func eq "new"
 	my @plist=split /,\s+/, $param;
 	$foreach my $p in @plist

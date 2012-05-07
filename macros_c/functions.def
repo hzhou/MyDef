@@ -63,22 +63,32 @@ subcode:: c_support_subs
 	    return $global_flag->{$name};
 # -----------------------------------------------------------------
 subcode:: c_support_subs
-    $sub global_add_var
+    $sub global_add_var($name, $type, $value)
 	$call add_var, global
-    $sub func_add_var
+    $sub func_add_var($name, $type, $value)
+	my $scope
+	$if $type eq "local"
+	    undef $type
+	    $scope="local"
 	$call add_var, func
 
 subcode: add_var(scope)
-    my ($name, $type, $value)=@_;
     $call split_name
     $(if:scope=global)
 	$if $global_type->{$name}
-	    return;
+	    return
     $(else)
+	my $var_list=$cur_function->{var_list};
+	my $var_decl=$cur_function->{var_decl};
+	my $var_type=$cur_function->{var_type};
+
 	$if !$cur_function
-	    return;
-	$if get_var_type($name)
-	    return;
+	    return
+	$if $scope eq "local"
+	    $if $var_type->{$name}
+		return
+	$elif get_var_type($name)
+	    return
 
     $call infer_type
     $if $debug
@@ -96,10 +106,6 @@ subcode: add_var(scope)
 	$global_type->{$name}=$vtype
 	push @global_list, $vinit
     $(else)
-	my $var_list=$cur_function->{var_list};
-	my $var_decl=$cur_function->{var_decl};
-	my $var_type=$cur_function->{var_type};
-
 	push @$var_list, $name;
 	$var_type->{$name}=$vtype
 	# ----
@@ -131,9 +137,15 @@ subcode: c_struct_init
 # ----
 subcode: split_name
     my ($tail, $array);
-    $if $name=~/(\S+)(=.*)/
+    # NOTE: space sensitive!
+    $if !$type and $name=~/(\S.*)\s+(\S+)/
+	$type=$1
+	$name=$2
+    $if $name=~/(\S+)(=(.*))/
 	$name=$1;
 	$tail=$2;
+	$if !$value
+	    $value=$3
     $if $name=~/(\w+)\[(.*)\]/
 	$name=$1;
 	$array=$2;
@@ -159,69 +171,6 @@ subcode: var_init_line
 	$vinit="$type $name\[$array]$tail";
     $else
 	$vinit="$type $name$tail";
-
-    $if defined $value
-	$vinit.="=$value"
-
-# ----
-subcode: add_var_old
-    $sub global_add_var
-	my ($name, $type, $value)=@_;
-
-	$call split_name
-	$if $global_type->{$name}
-	    return;
-
-	$call infer_type
-	$if defined $array
-	    $type=pointer_type($type)
-	    $global_type->{$name}="$type *"
-	$else
-	    $global_type->{$name}=$type
-
-	$call var_init_line
-	$if defined $value
-	    $init_line.="=$value"
-	push @global_list, $init_line
-
-    $sub func_add_var
-	my ($name, $type, $value)=@_;
-	$if !$cur_function
-	    return;
-
-	$call split_name
-	$if get_var_type($name)
-	    return;
-
-	my $var_list=$cur_function->{var_list};
-	my $var_decl=$cur_function->{var_decl};
-	my $var_type=$cur_function->{var_type};
-
-	push @$var_list, $name;
-
-	$call infer_type
-	$if $debug
-	    print "func_add_var: $name - $type - $array\n"
-	$if defined $array
-	    $type=pointer_type($type)
-	    $var_type->{$name}="$type *"
-	$else
-	    $var_type->{$name}=$type
-
-	$if !$tail
-	    $call var_init
-	$call var_init_line
-	$var_decl->{$name}=$init_line;
-	#print "Add var $name, type: $var_type->{$name}, init: $var_decl->{$name}\n";
-	# ----
-	$if $type=~/struct (\w+)$/
-	    my $s_init=$structs{$1}->{hash}->{"-init"}
-	    $if @$s_init
-		$if $array
-		    func_add_var("i", "int");
-		    push @{$cur_function->{init}}, "for(i=0;i<$array;i++){$1_constructor(&$name\[i]);}";
-		$else
-		    push @{$cur_function->{init}}, "$1_constructor(&$name);"
 
 #-------------------------------------------------------------
 subcode:: c_support_subs
