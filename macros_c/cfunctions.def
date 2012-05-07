@@ -158,7 +158,9 @@ subcode:: c_support_subs
 	my @a2;
 	foreach my $v(@vlist){
 	    push @a2, $v;
-	    my $type=get_c_type($v);
+	    my $type=get_var_type($v)
+	    $if !$type
+		$type=get_c_type($v);
 	    if($type=~/^(float|double)/){
 		push @a1,"$v=\%g";
 	    }

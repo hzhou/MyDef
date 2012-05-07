@@ -64,6 +64,108 @@ subcode:: c_support_subs
 # -----------------------------------------------------------------
 subcode:: c_support_subs
     $sub global_add_var
+	$call add_var, global
+    $sub func_add_var
+	$call add_var, func
+
+subcode: add_var(scope)
+    my ($name, $type, $value)=@_;
+    $call split_name
+    $(if:scope=global)
+	$if $global_type->{$name}
+	    return;
+    $(else)
+	$if !$cur_function
+	    return;
+	$if get_var_type($name)
+	    return;
+
+    $call infer_type
+    $if $debug
+	print "$(scope)_add_var: $name - $type - $array\n"
+    my ($vtype, $vinit)
+    $if defined $array
+	$type=pointer_type($type)
+	$vtype="$type *"
+    $else
+	$vtype=$type
+
+    $call var_init_line
+
+    $(if:scope=global)
+	$global_type->{$name}=$vtype
+	push @global_list, $vinit
+    $(else)
+	my $var_list=$cur_function->{var_list};
+	my $var_decl=$cur_function->{var_decl};
+	my $var_type=$cur_function->{var_type};
+
+	push @$var_list, $name;
+	$var_type->{$name}=$vtype
+	# ----
+	$if !$tail and !$value
+	    $call c_var_init
+	$var_decl->{$name}=$vinit;
+	# ----
+	$if $type=~/struct (\w+)$/
+	    $call c_struct_init
+
+subcode: c_var_init
+    my $init_value=func_var_init($name, $type);
+    $if $init_value
+	$if $array
+	    func_add_var("i", "int");
+	    push @{$cur_function->{init}}, "for(i=0;i<$array;i++){$name\[i] = $init_value;}";
+	$else
+	    $tail=" = $init_value";
+
+subcode: c_struct_init
+    my $s_init=$structs{$1}->{hash}->{"-init"}
+    $if @$s_init
+	$if $array
+	    func_add_var("i", "int");
+	    push @{$cur_function->{init}}, "for(i=0;i<$array;i++){$1_constructor(&$name\[i]);}";
+	$else
+	    push @{$cur_function->{init}}, "$1_constructor(&$name);"
+
+# ----
+subcode: split_name
+    my ($tail, $array);
+    $if $name=~/(\S+)(=.*)/
+	$name=$1;
+	$tail=$2;
+    $if $name=~/(\w+)\[(.*)\]/
+	$name=$1;
+	$array=$2;
+
+subcode: infer_type
+    $if !$type
+	$type=get_c_type($name)
+	$if $fntype{$name}
+	    $type="function"
+	$if $value
+	    my $val_type=infer_c_type($value)
+	    $if $debug eq "type" and $type ne $val_type
+		print "infer_type: $type -- $val_type\n"
+	    $if !$type or $type eq "void"
+		$if $val_type and $val_type ne "void"
+		    $type = $val_type
+
+subcode: var_init_line
+    my $vinit
+    $if $type eq "function"
+	$vinit=$fntype{$name};
+    $elif defined $array
+	$vinit="$type $name\[$array]$tail";
+    $else
+	$vinit="$type $name$tail";
+
+    $if defined $value
+	$vinit.="=$value"
+
+# ----
+subcode: add_var_old
+    $sub global_add_var
 	my ($name, $type, $value)=@_;
 
 	$call split_name
@@ -120,47 +222,6 @@ subcode:: c_support_subs
 		    push @{$cur_function->{init}}, "for(i=0;i<$array;i++){$1_constructor(&$name\[i]);}";
 		$else
 		    push @{$cur_function->{init}}, "$1_constructor(&$name);"
-
-# ----
-subcode: split_name
-    my ($tail, $array);
-    $if $name=~/(\S+)(=.*)/
-	$name=$1;
-	$tail=$2;
-    $if $name=~/(\w+)\[(.*)\]/
-	$name=$1;
-	$array=$2;
-
-subcode: infer_type
-    $if !$type
-	$type=get_c_type($name)
-	$if $fntype{$name}
-	    $type="function"
-	$if $value
-	    my $val_type=infer_c_type($value)
-	    $if $debug eq "type" and $type ne $val_type
-		print "infer_type: $type -- $val_type\n"
-	    $if !$type or $type eq "void"
-		$if $val_type and $val_type ne "void"
-		    $type = $val_type
-
-subcode: var_init
-    my $init_value=func_var_init($name, $type);
-    $if $init_value
-	$if $array
-	    func_add_var("i", "int");
-	    push @{$cur_function->{init}}, "for(i=0;i<$array;i++){$name\[i] = $init_value;}";
-	$else
-	    $tail=" = $init_value";
-
-subcode: var_init_line
-    my $init_line
-    $if $type eq "function"
-	$init_line=$fntype{$name};
-    $elif defined $array
-	$init_line="$type $name\[$array]$tail";
-    $else
-	$init_line="$type $name$tail";
 
 #-------------------------------------------------------------
 subcode:: c_support_subs

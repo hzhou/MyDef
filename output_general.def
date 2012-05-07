@@ -64,7 +64,7 @@ page: output_perl, output_main
 			$else
 			    $stepclause="my $var=$i0;$var<$i1;$var++";
 		    return single_block("for($stepclause)", $out);
-		$elif $param=~/(\$\w+) in (.*)/
+		$elif $param=~/(\$\w+)\s+in\s+(.*)/
 		    my ($var, $list)=($1, $2);
 		    return single_block("foreach my $var ($list)", $out)
 	    $else

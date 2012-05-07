@@ -94,8 +94,13 @@ subcode: compile_main
 	$call call_sub
 
     $sub set_macro($m, $p)
-	$if $p=~/(\w+)=(.*)/
-	    $m->{$1}=$2
+	$if $p=~/(\S+)=(.*)/
+	    my ($t1, $t2)=($1, $2)
+	    $if $t1=~/\$\(.*\)/
+		expand_macro_recurse(\$t1)
+	    $if $t2=~/\$\(.*\)/
+		expand_macro_recurse(\$t2)
+	    $m->{$t1}=$t2
 	$elif my $t=get_def($p)
 	    $m->{$p}=$t
 	$else
@@ -176,28 +181,43 @@ subcode: parse_preproc
     $if $preproc=~/^for:\s*(\S+)\s+in\s+(.*)/
 	my $vname=$1;
 	my $vparam=$2;
-	my @tlist=split /,\s*/, $vparam;
+	my @tlist;
+	$if $vparam=~/(\d+)\.\.(\d+)/
+	    for(my $i=$1;$i<=$2; $i++){
+		push @tlist, $i
+	    }
+	$else
+	    @tlist=split /,\s*/, $vparam;
+
 	my $subblock=grabblock($block, \$lindex);
-	foreach my $t(@tlist){
+	$foreach my $t in @tlist
 	    my $macro={$vname=>$t};
 	    push @$deflist, $macro;
 	    parseblock($subblock);
 	    pop @$deflist;
-	}
-    $elsif $preproc=~/^reset:\s*(\w+)([+])=(\d+)/
+    $elsif $preproc=~/^reset:\s*(\w+)([+])?=(.*)/
+	my ($v, $op, $d)=($1, $2, $3)
+	expand_macro_recurse(\$d)
 	my $i=@$deflist;
-	$while $i>0 and !defined $deflist->[$i]->{$1}
+	$while $i>0 and !defined $deflist->[$i]->{$v}
 	    $i--;
-	$if $2 eq '+'
-	    $deflist->[$i]->{$1}+=$2;
-    $elsif $preproc=~/^mset:\s*(.*)/
-	my @plist=split /,\s*/, $1
-	$foreach $p in @plist
-	    set_macro($deflist->[-1], $p)
+	$if $op
+	    $if $op eq '+'
+		$deflist->[$i]->{$v}+=$d;
+	$else
+	    $deflist->[$i]->{$v}=$d;
     $elsif $preproc=~/^set:\s*(.*)/
 	set_macro($deflist->[-1], $1)
     $elsif $preproc=~/^export:\s*(.*)/
 	set_macro($deflist->[-2], $1)
+    $elsif $preproc=~/^mset:\s*(.*)/
+	my @plist=split /,\s*/, $1
+	$foreach $p in @plist
+	    set_macro($deflist->[-1], $p)
+    $elsif $preproc=~/^mexport:\s*(.*)/
+	my @plist=split /,\s*/, $1
+	$foreach $p in @plist
+	    set_macro($deflist->[-2], $p)
     $elsif $preproc=~/^preset:([^:]+):(.*)/
 	my $preset=$1;
 	my $t=$2;
@@ -404,7 +424,7 @@ subcode: output_outdir
 	my @tdir_list=split /\//, $outdir;
 	my $tdir;
 	my $slash=0;
-	$foreach my $t  @tdir_list
+	$foreach my $t in @tdir_list
 	    $if !$slash
 		$tdir=$t;
 		$slash=1;
@@ -530,9 +550,10 @@ subcode: call_sub
 	}
 	for(my $j=0; $j<@$params-$np; $j++){
 	    my $p=$params->[$np+$j];
-	    #if($plist[$j]=~/^"(.*)"$/){ $macro->{$p}=$1; } else{ $macro->{$p}=$plist[$j]; }
-	    #print "  :|$p: $plist[$j]\n";
-	    $macro->{$p}=$plist[$j];
+	    $if $plist[$j]=~/q"(.*)"/
+		$macro->{$p}=$1;
+	    $else
+		$macro->{$p}=$plist[$j];
 	}
 	push @$deflist, $macro;
 	parseblock($source);
@@ -587,6 +608,11 @@ subcode: expand_macro_seg
 	$if $t
 	    $segs[$j]=substr($t, $2, $3-$2+1);
 	    $updated++;
+    $elsif $s=~/^\$\((\w+):len\)/
+	my $t=$macros->{$1};
+	$if $t
+	    $segs[$j]=length($t)
+	    $updated++;
     $elsif $s=~/^\$\((.+)\)/
 	$if exists($macros->{$1})
 	    my $t=$macros->{$1};
@@ -602,8 +628,8 @@ subcode:: support_subs
 	#    print "expand_macro [$$lref] $macros\n"
 	my $hasmacro=0
 	my $updated=0
-	$if  $$lref=~/\$\(\w[^)]*\)/
-	    my @segs=split /(\$\(\w[^)]*\))/, $$lref;
+	$if  $$lref=~/\$\(\w[^()]*\)/
+	    my @segs=split /(\$\(\w[^()]*\))/, $$lref;
 	    my $j=0;
 	    $foreach my $s in  @segs
 		$call expand_macro_seg
@@ -640,7 +666,7 @@ subcode:: support_subs
 		$if $updated or !$hasmacro
 		    last;
 	$if $hasmacro
-	    $while $$lref=~/(\$\([^)]+\))/g
+	    $while $$lref=~/(\$\([^()]+\))/g
 		$if substr($`, -1) ne "\\"
 		    warn "Macro $1 not defined in $$lref\n"
 
