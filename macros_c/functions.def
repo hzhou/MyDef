@@ -94,12 +94,7 @@ subcode: add_var(scope)
     $if $debug
 	print "$(scope)_add_var: $name - $type - $array\n"
     my ($vtype, $vinit)
-    $if defined $array
-	$type=pointer_type($type)
-	$vtype="$type *"
-    $else
-	$vtype=$type
-
+    $call var_array_type
     $call var_init_line
 
     $(if:scope=global)
@@ -119,18 +114,18 @@ subcode: add_var(scope)
 subcode: c_var_init
     my $init_value=func_var_init($name, $type);
     $if $init_value
-	$if $array
+	$if $array=~/^\[([^\[\]]+)\]/
 	    func_add_var("i", "int");
-	    push @{$cur_function->{init}}, "for(i=0;i<$array;i++){$name\[i] = $init_value;}";
+	    push @{$cur_function->{init}}, "for(i=0;i<$1;i++){$name\[i] = $init_value;}";
 	$else
 	    $tail=" = $init_value";
 
 subcode: c_struct_init
     my $s_init=$structs{$1}->{hash}->{"-init"}
     $if @$s_init
-	$if $array
+	$if $array=~/^\[([^\[\]]+)\]/
 	    func_add_var("i", "int");
-	    push @{$cur_function->{init}}, "for(i=0;i<$array;i++){$1_constructor(&$name\[i]);}";
+	    push @{$cur_function->{init}}, "for(i=0;i<$1;i++){$1_constructor(&$name\[i]);}";
 	$else
 	    push @{$cur_function->{init}}, "$1_constructor(&$name);"
 
@@ -146,7 +141,7 @@ subcode: split_name
 	$tail=$2;
 	$if !$value
 	    $value=$3
-    $if $name=~/(\w+)\[(.*)\]/
+    $if $name=~/(\w+)(\[.*\])/
 	$name=$1;
 	$array=$2;
 
@@ -163,12 +158,22 @@ subcode: infer_type
 		$if $val_type and $val_type ne "void"
 		    $type = $val_type
 
+subcode: var_array_type
+    $if defined $array
+	my $layer=0
+	$while $array=~/\[.*?\]/g
+	    $type=pointer_type($type)
+	    $layer++
+	$vtype=$type." "."*"x$layer
+    $else
+	$vtype=$type
+
 subcode: var_init_line
     my $vinit
     $if $type eq "function"
 	$vinit=$fntype{$name};
     $elif defined $array
-	$vinit="$type $name\[$array]$tail";
+	$vinit="$type $name$array$tail";
     $else
 	$vinit="$type $name$tail";
 
