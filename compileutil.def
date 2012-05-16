@@ -94,7 +94,7 @@ subcode: compile_main
 	$call call_sub
 
     $sub set_macro($m, $p)
-	$if $p=~/(\S+)=(.*)/
+	$if $p=~/(\S+?)=(.*)/
 	    my ($t1, $t2)=($1, $2)
 	    $if $t1=~/\$\(.*\)/
 		expand_macro_recurse(\$t1)
