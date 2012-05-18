@@ -133,7 +133,7 @@ subcode: c_struct_init
 subcode: split_name
     my ($tail, $array);
     # NOTE: space sensitive!
-    $if !$type and $name=~/(\S[^=]*)\s+(\S+)/
+    $if !$type and $name=~/^\s*(\S[^=]*)\s+(\S+)/
 	$type=$1
 	$name=$2
     $if $name=~/(\S+)(=(.*))/
