@@ -46,21 +46,6 @@ fncode: mu_clean_up
 
 ## Regular Expression
 
-## FILE IO
-subcode: mmap(filename, strname, strsize)
-    $include sys/mman
-    $include sys/stat
-    $include fcntl
-    $include unistd
-    tn_fd=open($(filename), O_RDONLY)
-    struct stat st
-    fstat(tn_fd, &st)
-    $(strsize)=st.st_size
-    $(strname)=mmap(0, $(strsize), PROT_READ, MAP_SHARED, tn_fd, 0)
-    BLOCK
-    munmap($(strname), $(strsize))
-    close(tn_fd)
-
 ## hash
 subcode: text_hash(name, nbuckets)
     unsigned int hash = 0
@@ -188,4 +173,44 @@ subcode: dlist_each_inverse_safe(plist, p, p2)
 	$(p)=$(p2)->prev
         BLOCK
         $(p2)=$(p2)->prev
+
+## FILE IO
+subcode: mmap(filename, strname, strsize)
+    $include sys/mman
+    $include sys/stat
+    $include fcntl
+    $include unistd
+    tn_fd=open($(filename), O_RDONLY)
+    struct stat st
+    fstat(tn_fd, &st)
+    $(strsize)=st.st_size
+    $(strname)=mmap(0, $(strsize), PROT_READ, MAP_SHARED, tn_fd, 0)
+    BLOCK
+    munmap($(strname), $(strsize))
+    close(tn_fd)
+
+# --------------------------------
+subcode: open_w(file)
+    file_out=fopen($(file), "w")
+    $if file_out==NULL
+        fprintf(stderr, "Can't write %s\n", $(file))
+    $else
+        BLOCK
+        fclose(file_out)
+subcode: open_r(file)
+    file_in=fopen($(file), "r")
+    $if file_in==NULL
+        fprintf(stderr, "Can't open %s\n", $(file))
+    $else
+        BLOCK
+        fclose(file_in)
+
+# --------------------------------
+subcode: write_sig(name)
+    t_n=fwrite("$(name)", 1, $(name:len), file_out)
+subcode: write_var(name)
+    t_n=fwrite(&$(name), sizeof($(name)), 1, file_out)
+
+subcode: read_var(name)
+    t_n=fread(&$(name), sizeof($(name)), 1, file_in)
 
