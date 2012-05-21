@@ -116,18 +116,16 @@ page: output_php
 		$t.=" class=\"$tt\"";
     subcode: parse_function
 	# -------- HTML tags --------
-	elsif($func=~/^(img|input)$/)
+	$elsif $func=~/^(img|input)$/
 	    $call parse_tag_attributes
 	    push @$out, "PRINTLN <$func$t />"
-	}
-	elsif($func =~ /^(tag|div|span|center|ol|ul|li|table|tr|td|th|b|script|style|p|h[1-5]|center|pre|html|head|body|a|form|label)$/){
+	$elsif $func =~ /^(tag|div|span|center|ol|ul|li|table|tr|td|th|b|script|style|p|h[1-5]|center|pre|html|head|body|a|form|label)$/
 	    $call parse_tag_attributes
 	    $if $is_empty_tag
 		push @$out, "PRINTLN <$func$t></$func>"
 	    $else
 		simple_block("PRINTLN <$func$t>", "PRINTLN </$func>", $out);
-	}
-	elsif($func =~ /^cell([az]*)/){
+	$elsif $func =~ /^cell([az]*)/
 	    my $t=$1;
 	    my $attr="";
 	    my ($tr_begin, $tr_end);
@@ -145,18 +143,14 @@ page: output_php
 		$tr_end="</tr>";
 	    }
 	    simple_block("PRINTLN $tr_begin<td$attr>", "PRINTLN </td>$tr_end", $out);
-	}
-	elsif($func eq 'fieldset'){
+	$elsif $func eq 'fieldset'
 	    simple_block("PRINTLN <fieldset><legend>$param</legend>", "PRINTLN </fieldset>", $out);
-	}
-	elsif($func eq 'jssrc'){
+	$elsif $func eq 'jssrc'
 	    push @$out, "PRINT <script type=\"text/javascript\" src='$param'></script>";
-	}
-	elsif($func eq 'divbox'){
+	$elsif $func eq 'divbox'
 	    push @$out, "PRINT <div id='$param' ></div>";
-	}
 	# ----------- End HTML handy notions 
-	elsif($func eq 'include'){
+	$elsif $func eq 'include'
 	    if(open my $in, $param){
 		MyDef::compileutil::modepush("html");
 		my $omit=0;
@@ -195,14 +189,11 @@ page: output_php
 	    else{
 		print STDERR " Can't open [$param]\n";
 	    }
-	}
-	elsif($func eq 'error'){
+	$elsif $func eq 'error'
 	    push @$out, "\$errors[]=$param;";
-	}
-	elsif($func eq 'formhead'){
+	$elsif $func eq 'formhead'
 	    formhead($out, $param);
-	}
-	elsif($func eq 'formtail'){
+	$elsif $func eq 'formtail'
 	    my @p=split /,\s*/, $param;
 	    foreach my $n(@p){
 		push @$out, "if(isset(\$$n)){";
@@ -213,118 +204,92 @@ page: output_php
 		push @$out, "}";
 	    }
 	    push @$out, 'print "</form>";';
-	}
-	elsif($func eq 'loadoptlist'){
+	$elsif $func eq 'loadoptlist'
 	    my @flist=split /,\s*/, $param;
 	    foreach my $f(@flist){
 		loadoptlist($out, $f);
 	    }
-	}
-	elsif($func eq 'forminit'){
+	$elsif $func eq 'forminit'
 	    forminit($out, $param);
-	}
-	elsif($func eq 'formshow'){
+	$elsif $func eq 'formshow'
 	    formshow($out, $param);
-	}
-	elsif($func eq 'hidden'){
+	$elsif $func eq 'hidden'
 	    my @p=split /,\s*/, $param;
 	    foreach my $n(@p){
 		push @$out, "print \"<input type=\\\"hidden\\\" name=\\\"$n\\\" value=\\\"\$$n\\\" />\";";
 	    }
-	}
-	elsif($func eq 'postloadonly'){
+	$elsif $func eq 'postloadonly'
 	    foreach my $f (splitlist($param)){
 		if($f=~/(\w+)\((\w+)\)/){$f=$1;}
 		post_load_only($out, $f);
 	    }
-	}
-	elsif($func eq 'postload'){
+	$elsif $func eq 'postload'
 	    foreach my $f (splitlist($param)){
 		if($f=~/(\w+)\((\w+)\)/){$f=$1;}
 		post_load($out, $f);
 	    }
-	}
-	elsif($func eq 'redirect'){
+	$elsif $func eq 'redirect'
 	    push @$out, "header('Location: $param.php');";
 	    push @$out, "exit();";
-	}
-	elsif($func eq 'setvar'){
+	$elsif $func eq 'setvar'
 	    if($param=~/(.*), (.*)/){
 		push @$out, "\$$1 = '$2';";
 	    }
-	}
-	elsif($func eq 'sqlruncache'){
+	$elsif $func eq 'sqlruncache'
 	    sqlrun($out, $param, 1);
-	}
-	elsif($func eq 'sqlrunusedb'){
+	$elsif $func eq 'sqlrunusedb'
 	    $MyDef::var->{usedb}=$param;
-	}
-	elsif($func eq 'sqlrun'){
+	$elsif $func eq 'sqlrun'
 	    sqlrun($out, $param);
-	}
-	elsif($func =~ /tablelistfull(.*)/){
+	$elsif $func =~ /tablelistfull(.*)/
 	    tablelist($out, $param, 'full', $1);
-	}
-	elsif($func =~ /tablelist(.*)/){
+	$elsif $func =~ /tablelist(.*)/
 	    tablelist($out, $param, "", $1);
-	}
-	elsif($func =~ /csvlistfull(.*)/){
+	$elsif $func =~ /csvlistfull(.*)/
 	    csvlist($out, $param, 'full', $1);
-	}
-	elsif($func =~ /csvlist(.*)/){
+	$elsif $func =~ /csvlist(.*)/
 	    csvlist($out, $param, "", $1);
-	}
-	elsif($func=~/^(post|get|cookie)var$/){
+	$elsif $func=~/^(post|get|cookie)var$/
 	    my $group='$_'.uc($1);
 	    my @tlist=split /,\s*/, $param;
 	    foreach my $p (@tlist){
 		push @$out, "\$$p=$group\['$p'\];";
 	    }
-	}
 	# ---- block statements
-	elsif($func eq "if"){
+	$elsif $func eq "if"
 	    simple_block("if($param){", "}", $out);
-	}
-	elsif($func eq "ifz"){
+	$elsif $func eq "ifz"
 	    if($param=~/(\$\w+)\[(^[\]]*)\]/){
 		simple_block("if(!(array_key_exists($2, $1) and $param)){", "}", $out);
 	    }
 	    else{
 		simple_block("if(empty($param)){", "}", $out);
 	    }
-	}
-	elsif($func eq "ifnz"){
+	$elsif $func eq "ifnz"
 	    if($param=~/(\$\w+)\[(^[\]]*)\]/){
 		simple_block("if((array_key_exists($2, $1) and $param)){", "}", $out);
 	    }
 	    else{
 		simple_block("if(!empty($param)){", "}", $out);
 	    }
-	}
-	elsif($func =~ /^(el|els|else)if$/){
+	$elsif $func =~ /^(el|els|else)if$/
 	    if($mode eq 'html' or $mode eq 'js'){ # JavaScript
 		simple_block("else if($param){", "}", $out);
 	    }
 	    else{
 		simple_block("elseif($param){", "}", $out);
 	    }
-	}
-	elsif($func eq "else"){
+	$elsif $func eq "else"
 	    simple_block("else{", "}", $out);
-	}
-	elsif($func eq "foreach" or $func eq "for" or $func eq "while"){
+	$elsif $func eq "foreach" or $func eq "for" or $func eq "while"
 	    simple_block("$func ($param){", "}", $out);
-	}
-	elsif($func eq "function"){
+	$elsif $func eq "function"
 	    simple_block("function $param {", "}", $out);
-	}
-	elsif($func eq 'input'){
+	$elsif $func eq 'input'
 	    input($out, $param);
-	}
-	elsif($func eq 'button'){
+	$elsif $func eq 'button'
 	    formbutton($out, $param);
-	}
-	elsif($func eq 'makeiconmenu'){
+	$elsif $func eq 'makeiconmenu'
 	    my @items=split /,\s*/, $param;
 	    push @$out, "PRINT <table class=\"menutable\">";
 	    my $j=0;
@@ -353,8 +318,7 @@ page: output_php
 		}
 	    }
 	    push @$out, "PRINT </table>";
-	}
-	elsif($func eq 'makelistmenu'){
+	$elsif $func eq 'makelistmenu'
 	    my @items=split /,\s*/, $param;
 	    push @$out, "PRINT <ul class=\"menulist\">";
 	    foreach my $i(@items){
@@ -375,7 +339,6 @@ page: output_php
 		push @$out, "PRINT </li>";
 	    }
 	    push @$out, "PRINT </ul>";
-	}
     subcode: custom_dump
 	$sub custom_dump
 	    my ($f, $rl)=@_;
