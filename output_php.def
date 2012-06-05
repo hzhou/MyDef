@@ -327,7 +327,7 @@ page: output_php
 		return 1
 	    # deprecated --------------------------------
 	    elsif($$rl=~/^\s*HTML_START\s*(.*)/){
-		push @$f, '<!DOCTYPE HTML PUBLIC "-//W3C/DTD HTML 4.0//EN" "http://www.w3.org/TR/html4/strict.dtd">'."\n";
+		push @$f, "<!DOCTYPE html>\n";
 		push @$f, "<html><head>\n";
 		dumpmeta($f);
 		push @$f, "</head>\n";
@@ -335,7 +335,7 @@ page: output_php
 		return 1;
 	    }
 	    elsif($$rl=~/^\s*HTML_HEAD_START/){
-		push @$f, '<!DOCTYPE HTML PUBLIC "-//W3C/DTD HTML 4.0//EN" "http://www.w3.org/TR/html4/strict.dtd">'."\n";
+		push @$f, "<!DOCTYPE html>\n";
 		push @$f, "<html><head>\n";
 		return 1;
 	    }
