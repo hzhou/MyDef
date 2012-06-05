@@ -71,6 +71,7 @@ subcode: compile_main
 		my $preproc=$1
 		$call parse_preproc
 	    $else
+		NormalParse:
 		undef $context;
 		expand_macro_recurse(\$l);
 		$while 1
@@ -99,7 +100,7 @@ subcode: compile_main
 	    $if $t1=~/\$\(.*\)/
 		expand_macro_recurse(\$t1)
 	    $if $t2=~/\$\(.*\)/
-		expand_macro_recurse(\$t2)
+	        expand_macro_recurse(\$t2, 1)
 	    $m->{$t1}=$t2
 	$elif my $t=get_def($p)
 	    $m->{$p}=$t
@@ -136,8 +137,9 @@ subcode: parse_handle_blockstack
 	# 
 	$if $l eq "SOURCE_INDENT"
 	    # -- start a block
-	    $out=$output_stack[-1];
-	    $f_modeswitch->($modelist->[-1], $modelist->[-1], $out)
+	    $out=$output_stack[-1]->{out};
+	    $mode=$output_stack[-1]->{mode};
+	    modepush($mode)
 	    $indent++;
 	    next;
 	$else
@@ -150,26 +152,23 @@ subcode: parse_handle_blockstack
 	    pop @indent_stack;
 	    pop @output_stack;
 	    $if @output_stack
-		$out=$output_stack[-1];
+		$out=$output_stack[-1]->{out};
 	    $else
 		$out=$block_stack[-1]->{out};
-	    $f_modeswitch->($modelist->[-1], $modelist->[-1], $out)
+	    modepop()
 	    $indent--;
 	    next;
 
 ######## Parsing routines  ######################################
 subcode: parse_filter_meta
     # -- maintain indent level
-    if($l eq "SOURCE_INDENT"){ 
+    $if $l eq "SOURCE_INDENT" 
 	$indent++; 
-    }
-    elsif($l eq "SOURCE_DEDENT"){ 
+    $elsif $l eq "SOURCE_DEDENT" 
 	$indent-- if $indent>0; 
-    }
-    elsif($l eq "BLOCK"){
+    $elsif $l eq "BLOCK"
 	my $n=new_output(1);
 	$l="BLOCK_$n";
-    }
 
 subcode: parse_catch_meta
     $if $l =~ /^DEBUG (\w+)/
@@ -206,6 +205,10 @@ subcode: parse_preproc
 		$deflist->[$i]->{$v}+=$d;
 	$else
 	    $deflist->[$i]->{$v}=$d;
+    $elsif $preproc=~/^eval:\s*(\w+)=(.*)/
+	my ($t1,$t2)=($1,$2)
+	expand_macro_recurse(\$t2)
+	$deflist->[-1]->{$t1}=eval($t2)
     $elsif $preproc=~/^set:\s*(.*)/
 	set_macro($deflist->[-1], $1)
     $elsif $preproc=~/^export:\s*(.*)/
@@ -255,6 +258,8 @@ subcode: parse_preproc
     $elsif $preproc=~/^block:(\w+)/
 	my $name=$1;
 	$call parse_named_block
+    $else
+	goto NormalParse
 
 subcode:: package_global	
     our %named_blocks;   # $(block: name)
@@ -320,6 +325,7 @@ subcode: parse_line
 	    $l=$1
 	    next
 	# ---------------------------------
+	# single_block and $method
 	$if $output
 	    $for $i=$idx:$#$output+1
 		$if $output->[$i]=~/^BLOCK$/
@@ -353,30 +359,29 @@ subcode: manage_output
     our $out;
     our @output_list;
     $sub init_output
-	@output_list=([]);
-	$out=$output_list[0];
-	return $output_list[0];
+	@output_list=({out=>[], mode=>$modelist->[-1]});
+	$out=$output_list[0]->{out};
 
     $sub new_output
 	my $flag_nest=shift;
 	my $new_out=[];
-	push @output_list, $new_out;
+	push @output_list, {out=>$new_out, mode=>$modelist->[-1]};
+	my $nidx=$#output_list;
 	$if $flag_nest and @callback_stack
 	    # -- flag_nest==1 when "BLOCK" inside &call sub
 	    my $outlist=$callback_stack[-1];
-	    push @$outlist, $new_out;
-	my $nidx=$#output_list;
+	    push @$outlist, $output_list[$nidx];
 	return $nidx;
 
     $sub fetch_output
 	my $n=shift;
-	return $output_list[$n];
+	return $output_list[$n]->{out};
 
 subcode: compile
-    init_output();
     my ($ext, $mode)=$f_init->($page);
     $modelist=[$mode];
     $f_modeswitch->($modelist->[-1], $modelist->[-1], $out)
+    init_output();
     print STDERR "PAGE: $pagename\n";
 
     #---- save var
@@ -602,17 +607,22 @@ subcode: expand_macro_seg
 		$if $2 eq "title"
 		    $segs[$j]=$t;
 		    $updated++;
-    $elsif $s=~/^\$\((\w+):(\d+)-(\d+)\)/
+    $elif $s=~/^\$\((\w+):(.*)\)/
 	my $t=$macros->{$1};
-	#print "expand_macro: $s, $1: $t\n";
+	my $p=$2;
 	$if $t
-	    $segs[$j]=substr($t, $2, $3-$2+1);
 	    $updated++;
-    $elsif $s=~/^\$\((\w+):len\)/
-	my $t=$macros->{$1};
-	$if $t
-	    $segs[$j]=length($t)
-	    $updated++;
+	    $if $p=~/(\d+)-(\d+)/
+		$segs[$j]=substr($t, $2, $3-$2+1);
+	    $elif $p eq "len"
+		$segs[$j]=length($t)
+	    $else
+		my @plist=split /,/, $p;
+		my $i=1;
+		$foreach $pp in @plist
+		    $t=~s/\$\($i\)/$pp/g
+		    $i++
+		$segs[$j]=$t
     $elsif $s=~/^\$\((.+)\)/
 	$if exists($macros->{$1})
 	    my $t=$macros->{$1};
@@ -656,8 +666,7 @@ subcode:: support_subs
 	pop @$deflist;
 	return $l
 
-    $sub expand_macro_recurse
-	my $lref=shift;
+    $sub expand_macro_recurse($lref, $nowarn)
 	my ($hasmacro, $updated)
 	$updated=1
 	$while $updated
@@ -665,7 +674,7 @@ subcode:: support_subs
 		($hasmacro, $updated)=expand_macro($lref, $deflist->[$j]);
 		$if $updated or !$hasmacro
 		    last;
-	$if $hasmacro
+	$if $hasmacro and !$nowarn
 	    $while $$lref=~/(\$\([^()]+\))/g
 		$if substr($`, -1) ne "\\"
 		    warn "Macro $1 not defined in $$lref\n"
@@ -718,53 +727,38 @@ subcode:: support_subs
 
 subcode:: support_subs
     # MODES
-    sub modepush {
-	my ($mode)=@_;
+    $sub modepush($mode)
 	my $pmode=$modelist->[-1];
 	push @$modelist, $mode;
-	if($pmode ne $mode){
-	    $f_modeswitch->($pmode, $mode, $out);
-	}
-    }
+	$f_modeswitch->($pmode, $mode, $out);
 
-    sub modepop {
+    $sub modepop
 	my $pmode=pop @$modelist;
 	my $mode=$modelist->[-1];
-	if($pmode ne $mode){
-	    $f_modeswitch->($pmode, $mode, $out);
-	}
-    }
+	$f_modeswitch->($pmode, $mode, $out);
 
-    sub grabblock {
-	my ($block, $index_ref)=@_;
+    $sub grabblock($block, $index_ref)
 	my @sub;
 	my $indent;
 	my $lindex=$$index_ref;
-	if($block->[$lindex] ne "SOURCE_INDENT"){
+	$if $block->[$lindex] ne "SOURCE_INDENT"
 	    return \@sub;
-	}
-	else{
+	$else
 	    $indent=1;
 	    $lindex++;
-	}
-	while($lindex<@$block){
-	    if($block->[$lindex]=~/SOURCE_DEDENT/){
+	$while $lindex<@$block
+	    $if $block->[$lindex]=~/SOURCE_DEDENT/
 		$indent-- if $indent>0;
-		if($indent==0){
+		$if $indent==0
 		    $lindex++;
 		    last;
-		}
-	    }
-	    if($block->[$lindex]=~/SOURCE_INDENT/){ 
+	    $if $block->[$lindex]=~/SOURCE_INDENT/ 
 		$indent++; 
-	    }
 	    push @sub, $block->[$lindex];
 	    $lindex++;
-	}
 	$$index_ref=$lindex;
 	#foreach my $l(@sub){print "grabblock: [$l]\n";}
 	return \@sub;
-    }
 
 
 
