@@ -513,50 +513,40 @@ subcode:: support_subs
 
 ################################################
 subcode:: support_subs
-    sub sql_exec {
+    $sub sql_exec
 	my $out=shift;
 	push @$out, "\$r=mysql_query(\$sql, \$$MyDef::var->{usedb});";
 	push @$out, "if(!\$r){\$errors[]='Database Error'; \$tpage=addslashes(\$_SERVER['PHP_SELF']);\$tsql=addslashes(\$sql);mysql_query(\"INSERT INTO log_errsql (errsql,page) VALUES ('\$tsql', '\$tpage)'\", \$$MyDef::var->{usedb});}";
 	push @$out, "if(!\$r){\$infos[]=\"ErrSQL: \$sql\";}";
 	if($MyDef::page->{'show_sql'}){ push @$out, "\$infos[]='sql: '.\$sql;"; }
-    }
 
-    sub sql_parse_var {
+    $sub sql_parse_var
 	my $t=shift;
 	my ($varname, $colname);
-	if($t=~/^([^(]*)\((.*)\)$/){
+	$if $t=~/^([^(]*)\((.*)\)$/
 	    $varname=$1;
 	    $colname=$2;
-	    #print "var: $1; col: $2\n";
-	}
-	else{
+	$else
 	    $varname=$t;
 	    $colname=$t;
-	}
 	return ($varname, $colname);
 
-    }
-
-    sub sql_update {
+    $sub sql_update
 	my ($out, $use_cache, $head, $param, $tail)=@_;
 	my @flist=split /,\s*/, $param;
 	my $fields=$MyDef::def->{fields};
-	#push @$out, "\$infos[]=\"sql_update $head, $param, $tail\";";
 	my @sqlsegs;
-	foreach my $f (@flist){
-	    if($f=~/(.*)=(.*)/){
+	$foreach $f in @flist
+	    $if $f=~/(.*)=(.*)/
 		push @sqlsegs, $f;
-	    }
-	    else{
+	    $else
 		my ($varname, $colname);
-		if($f=~/^(.*)\((.*)\)$/){
+		$if $f=~/^(.*)\((.*)\)$/
 		    $varname=$1;
 		    $colname=$2;
-		}
-		else{
+		$else
 		    $varname=$f;
 		    $colname=$f;
-		}
 		my $ff=$fields->{$varname};
 		my $type=getfieldtype($ff, $colname);
 		if($type =~/^(int|uint|boolean)$/){
@@ -596,11 +586,8 @@ subcode:: support_subs
 			push @sqlsegs, "$colname='\$t_$varname'";
 		    }
 		}
-	    }
-	}
 	push @$out, "\$sql = \"$head ".join(', ', @sqlsegs)." $tail\";";
 	sql_exec($out);
-    }
 
     sub sql_insert {
 	my ($out, $head, $param)=@_;
@@ -660,7 +647,7 @@ subcode:: support_subs
 	sql_exec($out);
     }
 
-    sub sql_select {
+    $sub sql_select 
 	my ($out, $flist, $tail)=@_;
 	my @sqlnames;
 	foreach my $f (@$flist){
@@ -669,7 +656,6 @@ subcode:: support_subs
 	}
 	push @$out, '$sql = "SELECT '.join(', ', @sqlnames). " $tail\";";
 	sql_exec($out);
-    }
 
     sub sql_select_one {
 	my ($out, $param, $tail)=@_;
