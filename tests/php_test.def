@@ -36,9 +36,8 @@ page: test
 	$else
 	    PRINT Hello NoName.
 	# ----
-	$formhead 
-	PRINT test form, input name: 
-	$input name
-	PRINT &nbsp;
-	$button submit
-	$formtail
+	$form
+	    PRINT test form, input name, submit 
+	    $input name
+	    PRINT &nbsp;
+	    $button submit

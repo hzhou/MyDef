@@ -138,6 +138,7 @@ subcode: parse_handle_blockstack
 	$if $l eq "SOURCE_INDENT"
 	    # -- start a block
 	    $out=$output_stack[-1]->{out};
+	    $f_setout->($out)
 	    $mode=$output_stack[-1]->{mode};
 	    modepush($mode)
 	    $indent++;
@@ -146,7 +147,7 @@ subcode: parse_handle_blockstack
 	    # -- must be an empty block
 	    pop @indent_stack;
 	    pop @output_stack;
-    $elsif @indent_stack and $indent-1==$indent_stack[-1]
+    $if @indent_stack and $indent-1==$indent_stack[-1]
 	# Once we are inside the block, we need check exit
 	$if $l eq "SOURCE_DEDENT"
 	    pop @indent_stack;
@@ -155,6 +156,7 @@ subcode: parse_handle_blockstack
 		$out=$output_stack[-1]->{out};
 	    $else
 		$out=$block_stack[-1]->{out};
+	    $f_setout->($out)
 	    modepop()
 	    $indent--;
 	    next;
@@ -279,12 +281,12 @@ subcode: parse_named_block
 
     my $temp=$out;
     $out=$output_list[-1];
-    $f_modeswitch->($modelist->[-1], $modelist->[-1], $out)
+    $f_setout->($out)
     $f_parse->("SCOPE: $name");
     parseblock($subblock);
     $f_parse->("SCOPE: NONE");
     $out=$temp;
-    $f_modeswitch->($modelist->[-1], $modelist->[-1], $out)
+    $f_setout->($out)
 
 subcode: parse_call_sub
     $param=~s/\s*$//;
@@ -337,13 +339,14 @@ subcode: parse_line
 
 #################################################
 subcode:: package_global
-    our $f_init;
-    our $f_parse;
-    our $f_modeswitch;
-    our $f_dumpout;
+    our $f_init
+    our $f_parse
+    our $f_setout
+    our $f_modeswitch
+    our $f_dumpout
 
     $sub set_interface
-	($f_init, $f_parse, $f_modeswitch, $f_dumpout)=@_;
+	($f_init, $f_parse, $f_setout, $f_modeswitch, $f_dumpout)=@_;
 
     # ---------------------------------------------------
     our $deflist;
@@ -361,6 +364,7 @@ subcode: manage_output
     $sub init_output
 	@output_list=({out=>[], mode=>$modelist->[-1]});
 	$out=$output_list[0]->{out};
+	$f_setout->($out)
 
     $sub new_output
 	my $flag_nest=shift;
@@ -380,7 +384,8 @@ subcode: manage_output
 subcode: compile
     my ($ext, $mode)=$f_init->($page);
     $modelist=[$mode];
-    $f_modeswitch->($modelist->[-1], $modelist->[-1], $out)
+    $f_setout->($out)
+    $f_modeswitch->($mode)
     init_output();
     print STDERR "PAGE: $pagename\n";
 
@@ -474,13 +479,10 @@ subcode: list_sub
 	my $line=$funcname."-".join(",", @$params);
 	modepush($codelib->{type});
 	$f_parse->("FUNC $line")
-	#push @$modelist, "$codelib->{type}";
-	#$f_modeswitch->($codelib->{type}, $line, $out);
 	parseblock(["SOURCE_INDENT"]);
 	parseblock($source);
 	parseblock(["SOURCE_DEDENT"]);
 	modepop()
-	#pop @$modelist;
 
 subcode: call_sub
     my $codename;
@@ -728,14 +730,13 @@ subcode:: support_subs
 subcode:: support_subs
     # MODES
     $sub modepush($mode)
-	my $pmode=$modelist->[-1];
 	push @$modelist, $mode;
-	$f_modeswitch->($pmode, $mode, $out);
+	$f_modeswitch->($mode);
 
     $sub modepop
-	my $pmode=pop @$modelist;
+	pop @$modelist
 	my $mode=$modelist->[-1];
-	$f_modeswitch->($pmode, $mode, $out);
+	$f_modeswitch->($mode);
 
     $sub grabblock($block, $index_ref)
 	my @sub;

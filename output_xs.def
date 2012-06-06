@@ -17,8 +17,7 @@ page: output_xs, output_main
 	register_type_prefix("sv", "SV*");
 	$call c_init
     subcode: modeswitch
-	$if $mode eq "xs" and $pmode ne "xs"
-	    #push @$out, "XS_START";
+	$if $mode eq "xs"
 	    push @$out, "INCLUDE_BLOCK xs_start"
 	    set_function_flag("xs_mode", 1)
 	    set_function_flag("skip_declare", 1)

@@ -10,7 +10,7 @@ subcode: output_main
     $call @package_subs
 
     $sub get_interface
-	return (\&init_page, \&parsecode, \&modeswitch, \&dumpout);
+	return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
 
     $sub init_page
 	my ($page)=@_;
@@ -22,10 +22,12 @@ subcode: output_main
 	$call @init_page
 	return ($ext, "$(init_mode)");
 
+    $sub set_output
+	$out = shift
+
     # ---- php has php,  html and js mode ----------
     $sub modeswitch
-	my $pmode
-	($pmode, $mode, $out)=@_;
+	($mode)=@_;
 	$call @modeswitch
 
     # ---- All specialized parsing goes here.
