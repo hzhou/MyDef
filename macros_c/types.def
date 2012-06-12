@@ -43,7 +43,10 @@ subcode:: c_support_subs
 	$if $debug eq "type"
 	    print "get_c_type_word: [$name] -> $type_prefix{$name}\n";
 	$if $type_prefix{$name}
-	    return $type_prefix{$name}
+	    my $type=$type_prefix{$name}
+	    $if $type_include{$type}
+		add_include($type_include{$type});
+	    return $type
 	$elsif substr($name, 0, 1) eq "t"
 	    return get_c_type_word(substr($name,1));
 	$elsif substr($name, 0, 1) eq "p"
@@ -51,9 +54,11 @@ subcode:: c_support_subs
 	$elsif $name=~/^st(\w+)/
 	    return "struct $1";
 	$elif $name=~/^([a-z]+)/
-	    $prefix=$1;
-	    $if $type_prefix{$prefix}
-		return $type_prefix{$prefix};
+	    $if $type_prefix{$1}
+		my $type=$type_prefix{$1}
+		$if $type_include{$type}
+		    add_include($type_include{$type});
+		return $type
 
     $sub get_c_type
 	my $name=shift;
@@ -86,8 +91,6 @@ subcode:: c_support_subs
 	$while $name=~/\[.*?\]/g
 	    $type=pointer_type($type);
 	# --
-	$if $type_include{$type}
-	    add_include($type_include{$type});
 	$if $debug eq "type"
 	    print "get_c_type:   $name: $type\n";
 	return $type;
