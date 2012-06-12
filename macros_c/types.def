@@ -44,8 +44,6 @@ subcode:: c_support_subs
 	    print "get_c_type_word: [$name] -> $type_prefix{$name}\n";
 	$if $type_prefix{$name}
 	    my $type=$type_prefix{$name}
-	    $if $type_include{$type}
-		add_include($type_include{$type});
 	    return $type
 	$elsif substr($name, 0, 1) eq "t"
 	    return get_c_type_word(substr($name,1));
@@ -87,6 +85,9 @@ subcode:: c_support_subs
 	    $type="void";
 	$elsif $type =~/^\*/
 	    $type="void";
+	# --
+	$if $type_include{$type}
+	    add_include($type_include{$type});
 	# --
 	$while $name=~/\[.*?\]/g
 	    $type=pointer_type($type);
