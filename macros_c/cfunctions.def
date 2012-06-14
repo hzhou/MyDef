@@ -47,20 +47,9 @@ subcode: check_text_includes
 		$includes{"<$1>"}=1
 
 subcode:: c_support_subs
-    sub declare_var {
-	my ($var, $type)=@_;
-	$cur_function->{var_type}->{$var}=$type;
-    }
+    $sub declare_var($var, $type)
+	$cur_function->{var_type}->{$var}=$type
 
-    sub single_block {
-	my ($t, $out)=@_;
-	push @$out, "$t\{";
-	push @$out, "INDENT";
-	push @$out, "BLOCK";
-	push @$out, "DEDENT";
-	push @$out, "}";
-	return "NEWBLOCK";
-    }
     $sub parse_condition
 	my ($param, $out)=@_;
 	$if $param=~/^(\S+)\s*(!~|=~)\s*\/(.*)\//

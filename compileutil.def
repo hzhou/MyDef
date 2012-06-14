@@ -52,18 +52,22 @@ subcode: compile_main
 	my $context;
 	my $lindex=0;
 
-	$call parse_stack_var
+	my $callback_output;
+	my @callback_stack; # &call
+	my $pending_mode_pop;
 	$call parse_stack_push
 
 	$while $lindex<@$block
 	    my $l=$block->[$lindex];
 	    $if $debug eq "compile"
 		$call dump_line, compile
+	    $if @callback_stack
+		$call parse_handle_blockstack
+		next
 	    $lindex++;
 
 	    # -- such as DEBUG
 	    $call parse_catch_meta
-	    $call parse_handle_blockstack
 	    # -- such as indentation and BLOCK_n
 	    $call parse_filter_meta
 	    # -- handle preproc and out-of-switch
@@ -83,15 +87,16 @@ subcode: compile_main
 		    $else
 			$call parse_line
 		    last
+	$if @callback_stack
+	    $call parse_handle_blockstack
 	$call parse_stack_pop
-	$call parse_stack_catch
 
     $sub list_sub
 	my ($param)=@_;
 	$call list_sub
 
     $sub call_sub
-	my ($param, $domap)=@_;
+	my ($param, $calltype)=@_;
 	$call call_sub
 
     $sub set_macro($m, $p)
@@ -110,9 +115,6 @@ subcode: compile_main
     1;
 
 ######## Parse Output Stacks ######################################
-subcode: parse_stack_var
-    my @indent_stack;
-    my @output_stack;
 subcode: parse_stack_push
     # ---- protect $out context
     push @block_stack, {out=>$out};
@@ -121,45 +123,34 @@ subcode: parse_stack_pop
     $if $blk->{debug}
 	$f_parse->("DEBUG OFF");
 	$debug=0
-subcode: parse_stack_catch
-    # We should always have balanced SOURCE_INDENT/SOURCE_DEDENT
-    # But if not, we'll catch it here
-    $if @indent_stack
-	die "Indent_stack mismatch [$block->[0]...$block->[-1]\n";
-	$while pop @indent_stack
-	    pop @output_stack;
+
+subcode: debug_block(name, idx)
+    $if $debug eq "block"
+	print "$(name): \n";
+	$foreach $i in $(idx),$(idx)+1,$(idx)+2,$(idx)+3
+	    print "  $i: $$(name)->[$i]\n"
+	print "      ...\n"
+	my $i= $#$$(name)
+	print "  $i: $$(name)->[$i]\n"
 
 subcode: parse_handle_blockstack
-    # -- handle block code
-    $if @indent_stack and $indent==$indent_stack[-1]
-	# $block 
-	#     blockcodes
-	# 
-	$if $l eq "SOURCE_INDENT"
-	    # -- start a block
-	    $out=$output_stack[-1]->{out};
-	    $f_setout->($out)
-	    $mode=$output_stack[-1]->{mode};
-	    modepush($mode)
-	    $indent++;
-	    next;
-	$else
-	    # -- must be an empty block
-	    pop @indent_stack;
-	    pop @output_stack;
-    $if @indent_stack and $indent-1==$indent_stack[-1]
-	# Once we are inside the block, we need check exit
-	$if $l eq "SOURCE_DEDENT"
-	    pop @indent_stack;
-	    pop @output_stack;
-	    $if @output_stack
-		$out=$output_stack[-1]->{out};
-	    $else
-		$out=$block_stack[-1]->{out};
-	    $f_setout->($out)
-	    modepop()
-	    $indent--;
-	    next;
+    $while @callback_stack
+	$call debug_block, block, $lindex
+	my $subblock=grabblock($block, \$lindex)
+	$call debug_block, subblock, 0
+	my $n=new_output();
+	my $temp=$out;
+	set_output($output_list[$n])
+	$f_parse->("SCOPE: CALLBACK");
+	parseblock($subblock);
+	$f_parse->("SCOPE: NONE");
+	set_output($temp)
+
+	my $i=shift @callback_stack
+	$callback_output->[$i]="BLOCK_$n"
+    $if $pending_mode_pop
+	modepop()
+	$pending_mode_pop=0
 
 ######## Parsing routines  ######################################
 subcode: parse_filter_meta
@@ -168,14 +159,14 @@ subcode: parse_filter_meta
 	$indent++; 
     $elsif $l eq "SOURCE_DEDENT" 
 	$indent-- if $indent>0; 
-    $elsif $l eq "BLOCK"
-	my $n=new_output(1);
-	$l="BLOCK_$n";
 
 subcode: parse_catch_meta
     $if $l =~ /^DEBUG (\w+)/
 	$block_stack[-1]->{debug}=1;
-	$debug=$1
+	$if $1 eq "OFF"
+	    $debug=0
+	$else
+	    $debug=$1
 	$f_parse->("DEBUG $1");
 	next;
 subcode: parse_preproc
@@ -241,22 +232,18 @@ subcode: parse_preproc
 	    $context="switch_on";
     $elsif $preproc=~/^els?e?if:\s*(.*)/
 	my $subblock=grabblock($block, \$lindex);
-	if($context eq "switch_on"){
-	    if(testcondition($1)){
+	$if $context eq "switch_on"
+	    $if testcondition($1)
 		#foreach my $t(@$subblock){ print "\t[$t]\n"; }
 		parseblock($subblock);
 		$context="switch_off";
-	    }
-	    else{
+	    $else
 		$context="switch_on";
-	    }
-	}
     $elsif $preproc=~/^else/
 	my $subblock=grabblock($block, \$lindex);
-	if($context eq "switch_on"){
+	$if $context eq "switch_on"
 	    parseblock($subblock);
 	    undef $context;
-	}
     $elsif $preproc=~/^block:(\w+)/
 	my $name=$1;
 	$call parse_named_block
@@ -274,51 +261,48 @@ subcode:: package_global
 
 subcode: parse_named_block
     my $subblock=grabblock($block, \$lindex);
-    my $n=new_output();
     $if !$named_blocks{$name}
 	$named_blocks{$name}=[];
-    push @{$named_blocks{$name}}, "BLOCK_$n";
+    my $output=$named_blocks{$name}
 
     my $temp=$out;
-    $out=$output_list[-1];
-    $f_setout->($out)
+    set_output($output)
     $f_parse->("SCOPE: $name");
     parseblock($subblock);
     $f_parse->("SCOPE: NONE");
-    $out=$temp;
-    $f_setout->($out)
+    set_output($temp)
 
 subcode: parse_call_sub
     $param=~s/\s*$//;
     $if $func eq "\$map"
-	call_sub($param, 1);
+	call_sub($param, $func);
     $elif $func eq "\$call"
-	call_sub($param, 0);
+	call_sub($param, $func);
     $elif $func eq "\$list"
 	list_sub($param);
     $elif $func eq "\&call"
-	my @newoutput_list;
-	push @callback_stack, \@newoutput_list;
-	call_sub($param, 0);
-	pop @callback_stack;
-	$while my $o=shift @newoutput_list
-	    push @indent_stack, $indent;
-	    push @output_stack, $o;
+	my $idx=$#$out+1;
+	$callback_output=$out;
+	call_sub($param, $func);
+	$call check_callback
+	$pending_mode_pop=1
 
 subcode: parse_line
+    undef $callback_output
     my $idx=$#$out+1;
-    my $output;
     my $msg=$f_parse->($l);
     $if $msg
 	$if ref($msg) eq "ARRAY"
 	    # output is held until post processing
 	    #     eg. output_apple.pm $method
-	    $output=$msg;
+	    $callback_output=$msg;
 	    $idx=0;
 	$elsif $msg=~/^NEWBLOCK/
 	    # check the new output for blocks
 	    #     eg. cfunctions.pm single_block
-	    $output=$out;
+	    $if $debug
+		print "NEWBLOCK\n";
+	    $callback_output=$out;
 	$elsif $msg=~/^SET:(\w+)=(.*)/
 	    # set/reset definitions
 	    #     eg. cfunctions.pm get_pointer_type
@@ -328,15 +312,13 @@ subcode: parse_line
 	    next
 	# ---------------------------------
 	# single_block and $method
-	$if $output
-	    $for $i=$idx:$#$output+1
-		$if $output->[$i]=~/^BLOCK$/
-		    # -- need comment on multi-blocks
-		    my $n=new_output();
-		    $output->[$i]="BLOCK_$n";
-		    push @indent_stack, $indent;
-		    push @output_stack, $output_list[-1];
+	$if $callback_output
+	    $call check_callback
 
+subcode: check_callback
+    $for $i=$idx:$#$callback_output+1
+	$if $callback_output->[$i]=~/^BLOCK$/
+	    push @callback_stack, $i
 #################################################
 subcode:: package_global
     our $f_init
@@ -348,12 +330,15 @@ subcode:: package_global
     $sub set_interface
 	($f_init, $f_parse, $f_setout, $f_modeswitch, $f_dumpout)=@_;
 
+    $sub set_output($output)
+	$out=$output
+	$f_setout->($out)
+
     # ---------------------------------------------------
     our $deflist;
     our $modelist;
 
     our @block_stack;    # maintain state for each parseblock
-    our @callback_stack; # &call
     my @callsub_stack;
 
     my $debug;
@@ -362,29 +347,22 @@ subcode: manage_output
     our $out;
     our @output_list;
     $sub init_output
-	@output_list=({out=>[], mode=>$modelist->[-1]});
-	$out=$output_list[0]->{out};
-	$f_setout->($out)
+	@output_list=([]);
+	set_output($output_list[0])
 
     $sub new_output
-	my $flag_nest=shift;
 	my $new_out=[];
-	push @output_list, {out=>$new_out, mode=>$modelist->[-1]};
+	push @output_list, $new_out;
 	my $nidx=$#output_list;
-	$if $flag_nest and @callback_stack
-	    # -- flag_nest==1 when "BLOCK" inside &call sub
-	    my $outlist=$callback_stack[-1];
-	    push @$outlist, $output_list[$nidx];
 	return $nidx;
 
     $sub fetch_output
 	my $n=shift;
-	return $output_list[$n]->{out};
+	return $output_list[$n];
 
 subcode: compile
     my ($ext, $mode)=$f_init->($page);
     $modelist=[$mode];
-    $f_setout->($out)
     $f_modeswitch->($mode)
     init_output();
     print STDERR "PAGE: $pagename\n";
@@ -484,7 +462,7 @@ subcode: list_sub
 	parseblock(["SOURCE_DEDENT"]);
 	modepop()
 
-subcode: call_sub
+subcode: call_sub_param
     my $codename;
     my $attr;
     my (@pre_plist, $pline, @plist);
@@ -513,6 +491,7 @@ subcode: call_sub
 	print STDERR "    call_sub [$param] parse failure\n";
 	return;
 
+subcode: call_sub_grab
     # ---- Grab Code Block ------------------
     my $codelib=get_def_attr("codes", $codename);
     $if !$codelib and $attr ne '@'
@@ -523,49 +502,60 @@ subcode: call_sub
 	    die "Recursive subcode: $codename\n"
     push @callsub_stack, $codename
 
-    # ---- Call Block -----------------------
+subcode: call_sub_single
+    my $macro={$1=>$pline};
+    push @$deflist, $macro;
+    parseblock($source);
+    pop @deflist;
+
+subcode: call_sub_map
+    $if 1+@pre_plist!=@$params
+	warn " Code $codename parameter mismatch.\n";
+    $foreach my $item in @plist
+	my $macro={$params->[$np]=>$item};
+	$if $np
+	    $for $i=0:$np
+		$macro->{$params->[$i]}=$pre_plist[$i];
+	push @$deflist, $macro;
+	parseblock($source);
+	pop @$deflist;
+
+subcode: call_sub_normal
+    $if $np+@plist!=@$params
+	my $n2=@plist;
+	my $n3=@$params;
+	my $pline=join(', ', @plist);
+	warn "    code $codename parameter mismatch ($np + $n2) != $n3. [pline:$pline] calltype=[$calltype]\n";
+    my $macro={};
+    $for $i=0:$np
+	$macro->{$params->[$i]}=$pre_plist[$i];
+    $for $j=0:@$params-$np
+	my $p=$params->[$np+$j];
+	$if $plist[$j]=~/q"(.*)"/
+	    $macro->{$p}=$1;
+	$else
+	    $macro->{$p}=$plist[$j];
+    push @$deflist, $macro;
+    parseblock($source);
+    pop @$deflist;
+
+subcode: call_sub
+    $call call_sub_param
+    $call call_sub_grab
     modepush($codelib->{type});
+
     my $params=$codelib->{params};
     my $source=$codelib->{source};
     my $np=@pre_plist;
     $if 1==@$params and $params->[0]=~/^@(\w+)/
-	my $macro={$1=>$pline};
-	push @$deflist, $macro;
-	parseblock($source);
-	pop @deflist;
-    $elsif $domap
-	$if 1+@pre_plist!=@$params
-	    warn " Code $codename parameter mismatch.\n";
-	$foreach my $item in @plist
-	    my $macro={$params->[$np]=>$item};
-	    $if $np
-		for(my $i=0; $i<$np; $i++){
-		    $macro->{$params->[$i]}=$pre_plist[$i];
-		}
-	    push @$deflist, $macro;
-	    parseblock($source);
-	    pop @$deflist;
+	$call call_sub_single
+    $elif $calltype eq "\$map"
+	$call call_sub_map
     $else
-	$if $np+@plist!=@$params
-	    my $n2=@plist;
-	    my $n3=@$params;
-	    my $pline=join(', ', @plist);
-	    warn "    code $codename parameter mismatch ($np + $n2) != $n3. [pline:$pline]\n";
-	my $macro={};
-	for(my $i=0; $i<$np; $i++){
-	    $macro->{$params->[$i]}=$pre_plist[$i];
-	}
-	for(my $j=0; $j<@$params-$np; $j++){
-	    my $p=$params->[$np+$j];
-	    $if $plist[$j]=~/q"(.*)"/
-		$macro->{$p}=$1;
-	    $else
-		$macro->{$p}=$plist[$j];
-	}
-	push @$deflist, $macro;
-	parseblock($source);
-	pop @$deflist;
-    modepop();
+	$call call_sub_normal
+
+    $if $calltype ne "\&call"
+	modepop();
     pop @callsub_stack
 
 ###########################################################
@@ -731,12 +721,12 @@ subcode:: support_subs
     # MODES
     $sub modepush($mode)
 	push @$modelist, $mode;
-	$f_modeswitch->($mode);
+	$f_modeswitch->($mode, 1);
 
     $sub modepop
 	pop @$modelist
 	my $mode=$modelist->[-1];
-	$f_modeswitch->($mode);
+	$f_modeswitch->($mode, 0);
 
     $sub grabblock($block, $index_ref)
 	my @sub;
@@ -748,12 +738,12 @@ subcode:: support_subs
 	    $indent=1;
 	    $lindex++;
 	$while $lindex<@$block
-	    $if $block->[$lindex]=~/SOURCE_DEDENT/
+	    $if $block->[$lindex] eq "SOURCE_DEDENT"
 		$indent-- if $indent>0;
 		$if $indent==0
 		    $lindex++;
 		    last;
-	    $if $block->[$lindex]=~/SOURCE_INDENT/ 
+	    $if $block->[$lindex] eq "SOURCE_INDENT" 
 		$indent++; 
 	    push @sub, $block->[$lindex];
 	    $lindex++;

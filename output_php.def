@@ -17,7 +17,8 @@ page: output_php
 	my $style_sheets
 	my $java_scripts
 	# ------ custom dump states
-	my $cur_mode;
+	my $cur_mode
+	my $in_js=0
 	# ------ main
 	$call output_main
 	$call custom_dump
@@ -28,13 +29,36 @@ page: output_php
 	@style_key_list=()
 	$style_sheets=[]
 	$java_scripts=[]
+
     subcode: modeswitch
+	$if $mode eq "sub"
+	    $mode="php"
+	#print "    [$out->[-3]], [$out->[-2]], [$out->[-1]]\n";
+	#print "modeswitch: $mode $in\n"
 	$if $mode ne $cur_mode
+	    # -- exit --
+	    $if $cur_mode eq "php"
+		$if $out->[-1]=~/^<\?php/
+		    pop @$out
+		$else
+		    push @$out, "?>\n";
+	    $if $in_js and !($mode eq "php" and $in) and ($mode ne "js")
+		push @$out, "</script>\n"
+		$in_js=0
+
+	    # -- enter --
+	    $if $mode eq "php"
+		$if $out->[-1]=~/^\?>/
+		    pop @$out
+		$else
+		    push @$out, "<?php\n";
+	    $if !$in_js and $mode eq "js"
+		push @$out, "<script type=\"text/javascript\">\n";
+		$in_js=1
+
+	    # --
 	    $cur_mode=$mode
-	    $if $out->[-1]=~/^SET MODE=/
-		$out->[-1]="SET MODE=$mode"
-	    $else
-		push @$out, "SET MODE=$mode"
+
     subcode: dumpout
 	my $cur_mode;
 	my $metablock=MyDef::compileutil::get_named_block("meta")
@@ -120,26 +144,17 @@ page: output_php
 	$elsif $func=~/^(img)$/
 	    $call parse_tag_attributes
 	    push @$out, "PRINTLN <$func$t />"
-	$elsif $func =~ /^(tag|div|span|center|ol|ul|li|table|tr|td|th|b|script|style|p|h[1-5]|center|pre|html|head|body|a|form|label|fieldset|button)$/
+	$elsif $func =~ /^(tag|div|span|center|ol|ul|li|table|tr|td|th|b|script|style|p|h[1-5]|center|pre|html|head|body|a|form|label|fieldset|button|textarea)$/
 	    $call parse_tag_attributes
 	    $if $is_empty_tag
 		push @$out, "PRINTLN <$func$t></$func>"
 	    $else
-		simple_block("PRINTLN <$func$t>", "PRINTLN </$func>", $out);
-	$elsif $func =~ /^cell([az]*)/
-	    my $t=$1;
-	    my $attr="";
-	    my ($tr_begin, $tr_end);
-
-	    $if $param=~/(\d+)/
-		$attr=" colspan=$&";
-	    $elsif $param
-		$attr=" class=\"$param\"";
-	    $if $t=~/a/
-		$tr_begin="<tr valign=\"top\">";
-	    $if $t=~/z/
-		$tr_end="</tr>";
-	    simple_block("PRINTLN $tr_begin<td$attr>", "PRINTLN </td>$tr_end", $out);
+		return single_block("PRINTLN <$func$t>", "PRINTLN </$func>")
+	$elsif $func eq 'hidden'
+	    my @p=split /,\s*/, $param;
+	    foreach my $n(@p){
+		push @$out, "print \"<input type=\\\"hidden\\\" name=\\\"$n\\\" value=\\\"\$$n\\\" />\";";
+	    }
 	$elsif $func eq 'use_js'
 	    push @$java_scripts, $param
 	$elsif $func eq 'use_css'
@@ -189,16 +204,6 @@ page: output_php
 	    foreach my $f(@flist){
 		loadoptlist($out, $f);
 	    }
-	$elsif $func eq 'postloadonly'
-	    foreach my $f (splitlist($param)){
-		if($f=~/(\w+)\((\w+)\)/){$f=$1;}
-		post_load_only($out, $f);
-	    }
-	$elsif $func eq 'postload'
-	    foreach my $f (splitlist($param)){
-		if($f=~/(\w+)\((\w+)\)/){$f=$1;}
-		post_load($out, $f);
-	    }
 	$elsif $func eq 'redirect'
 	    push @$out, "header('Location: $param.php');";
 	    push @$out, "exit();";
@@ -223,37 +228,32 @@ page: output_php
 	$elsif $func=~/^(post|get|cookie)var$/
 	    my $group='$_'.uc($1);
 	    my @tlist=split /,\s*/, $param;
-	    foreach my $p (@tlist){
+	    $foreach $p in @tlist
 		push @$out, "\$$p=$group\['$p'\];";
-	    }
 	# ---- block statements
 	$elsif $func eq "if"
-	    simple_block("if($param){", "}", $out);
+	    return single_block("if($param){", "}")
 	$elsif $func eq "ifz"
-	    if($param=~/(\$\w+)\[(^[\]]*)\]/){
-		simple_block("if(!(array_key_exists($2, $1) and $param)){", "}", $out);
-	    }
-	    else{
-		simple_block("if(empty($param)){", "}", $out);
-	    }
+	    $if $param=~/(\$\w+)\[(^[\]]*)\]/
+		return single_block("if(!(array_key_exists($2, $1) and $param)){", "}")
+	    $else
+		return single_block("if(empty($param)){", "}")
 	$elsif $func eq "ifnz"
-	    if($param=~/(\$\w+)\[(^[\]]*)\]/){
-		simple_block("if((array_key_exists($2, $1) and $param)){", "}", $out);
-	    }
-	    else{
-		simple_block("if(!empty($param)){", "}", $out);
-	    }
+	    $if $param=~/(\$\w+)\[(^[\]]*)\]/
+		return single_block("if((array_key_exists($2, $1) and $param)){", "}")
+	    $else
+		return single_block("if(!empty($param)){", "}")
 	$elsif $func =~ /^(el|els|else)if$/
 	    $if $cur_mode eq 'html' or $cur_mode eq 'js' # JavaScript
-		simple_block("else if($param){", "}", $out);
+		return single_block("else if($param){", "}")
 	    $else
-		simple_block("elseif($param){", "}", $out);
+		return single_block("elseif($param){", "}")
 	$elsif $func eq "else"
-	    simple_block("else{", "}", $out);
+	    return single_block("else{", "}")
 	$elsif $func eq "foreach" or $func eq "for" or $func eq "while"
-	    simple_block("$func ($param){", "}", $out);
+	    return single_block("$func ($param){", "}")
 	$elsif $func eq "function"
-	    simple_block("function $param {", "}", $out);
+	    return single_block("function $param {", "}")
 	$elsif $func eq 'input'
 	    field_input($param);
 	$elsif $func eq 'field_label'
@@ -313,18 +313,12 @@ page: output_php
     subcode: custom_dump
 	$sub custom_dump
 	    my ($f, $rl)=@_;
-	    $if $$rl=~/^SET MODE=(\w+)/
-		$if $1 ne $cur_mode
-		    $if $cur_mode eq "js"
-			push @$f, "</script>\n";
-		    $elif $cur_mode ne "html"
-			push @$f, "?>\n";
-		    $cur_mode=$1
-		    $if $cur_mode eq "js"
-			push @$f, "<script type=\"text/javascript\">\n";
-		    $elif $cur_mode ne "html"
-			push @$f, "<?php\n";
-		return 1
+	    $if $$rl=~/^<\?php/
+		$cur_mode="php"
+		push @$f, "<?php\n"
+	    $elif $$rl=~/^\?>/
+		$cur_mode="html"
+		push @$f, "?>\n"
 	    # deprecated --------------------------------
 	    elsif($$rl=~/^\s*HTML_START\s*(.*)/){
 		push @$f, "<!DOCTYPE html>\n";
@@ -364,7 +358,7 @@ page: output_php
 		$if $$rl=~/PRINT(LN)? (.*)/
 		    my $ln=$1;
 		    my $t=$2;
-		    $if $cur_mode ne "js" and $cur_mode ne "html"
+		    $if $cur_mode eq "php"
 			$t=~s/\\/\\\\/g;
 			$t=~s/"/\\"/g;
 			$if $ln
@@ -378,14 +372,6 @@ page: output_php
 	    
 
 subcode:: support_subs
-    $sub simple_block($pre, $post, $out)
-	push @$out, "$pre";
-	push @$out, "INDENT";
-	push @$out, "BLOCK";
-	push @$out, "DEDENT";
-	push @$out, "$post";
-	return "NEWBLOCK";
-
     $sub dumpstyle($f, $style)
 	$if @style_key_list
 	    #$call dump_hash, $style
@@ -425,91 +411,6 @@ subcode:: support_subs
 		$js_hash{$s}=1;
 		push @$f, "<script type=\"text/javascript\" src=\"$s\"></script>\n";
 
-
-    ################################################
-    # Messy, need move to def library
-    ################################################
-    sub post_load_only {
-	my ($out, $f)=@_;
-	my $ff=$MyDef::def->{fields}->{$f};
-	my $type=get_f_type($f);
-	my $name=get_f_name($f);
-	# Get the POST
-	my $isout=0;
-	if($type eq "imagefile"){ # Processed seperately
-	    $isout=1;
-	}
-	elsif($type eq 'date' and !$ff->{optional}){
-	    push @$out, "\$$name=\$_POST['year_$name'].'-'.\$_POST['month_$name'].'-'.\$_POST['date_$name'];";
-	    $isout=1;
-	}
-	if(!$isout){
-	    push @$out, "if(array_key_exists('$name', \$_POST)){";
-	    push @$out, "    \$$name= stripslashes (\$_POST['$name']);";
-	    push @$out, "}";
-	    if($ff->{other}){
-		if(0){
-		}
-		else{
-		    push @$out, "if(\$$name=='other'){\$$name=stripslashes(\$_POST['other_$name']);}";
-		}
-	    }
-	}
-    }
-    sub post_load {
-	my ($out, $f)=@_;
-	post_load_only($out, $f);
-	my $ff=$MyDef::def->{fields}->{$f};
-	my $type=get_f_type($f);
-	my $name=get_f_name($f);
-	my $title=get_f_label($f);
-	# Check required
-	if(!$ff->{optional}){
-	    if($type eq 'boolean'){
-		push @$out, "if(\$$name != '0' and \$$name != '1'){";
-		push @$out, "    \$errors[]=\"Please select $title.\";";
-		push @$out, "    \$error_fields['$name']=1;";
-		push @$out, "}";
-	    }
-	    elsif($type eq 'image'){
-		push @$out, "if(!is_uploaded_file(\$_FILES['$name']['tmp_name'])){";
-		push @$out, "    \$error_fields['$name']=1;";
-		push @$out, "}";
-	    }
-	    else{
-		push @$out, "if(!\$$name){";
-		push @$out, "    \$errors[]=\"Please enter $title.\";";
-		push @$out, "    \$error_fields['$name']=1;";
-		push @$out, "}";
-	    }
-	}
-	# Validate the input
-	if($type eq 'date'){
-	    push @$out, "if(\$$name){";
-		push @$out, "if(!preg_match('/\\d\\d\\/\\d\\d\\/\\d\\d\\d\\d/', \$$name)){";
-		push @$out, "    \$error_fields['$name']=1;";
-		push @$out, "    \$errors[]='Please enter \"$title\" in mm/dd/yyyy format.';";
-		push @$out, "}";
-	    push @$out, "}";
-	}
-	if($type eq 'email'){
-	    push @$out, "if(\$$name){";
-		push @$out, "if(!preg_match('/\\S+\@\\S+/', \$$name)){";
-		push @$out, "    \$error_fields['$name']=1;";
-		push @$out, "    \$errors[]='Please enter a valid E-Mail address.';";
-		push @$out, "}";
-	    push @$out, "}";
-	}
-	if($type eq 'phone'){
-	    push @$out, "\$$name=ereg_replace('[^0-9]', '', \$$name);";
-	    if(!$ff->{optional}){
-		push @$out, "if(!\$$name){";
-		    push @$out, "    \$error_fields['$name']=1;";
-		    push @$out, "    \$errors[]='Please enter a valid number.';";
-		push @$out, "}";
-	    }
-	}
-    }
 
 ################################################
 subcode:: support_subs
@@ -989,58 +890,47 @@ subcode:: support_subs
     sub display_list_field {
 	my ($out, $f, $fields, $suffix, $csv)=@_;
 	my $colname;
-	if($f=~/(.*)\((.*)\)/){
+	$if $f=~/(.*)\((.*)\)/
 	    $colname=$2;
 	    $f=$1;
-	}
-	else{
+	$else
 	    $colname=$f;
-	}
 	my $ff=$fields->{$f};
 	my $display;
-	if($csv and $ff->{text_display}){
-	    $display=$ff->{text_display};
-	}
-	elsif($ff->{display}){
-	    $display=$ff->{display};
-	}
-	if($display){
-	    if($display=~/function (\w+)\((.*)\)/){
+	$if $csv and $ff->{text_display}
+	    $display=$ff->{text_display}
+	$elsif $ff->{display}
+	    $display=$ff->{display}
+
+	$if $display
+	    $if $display=~/function (\w+)\((.*)\)/
 		my $t0=$1;
 		my $t1=$2;
 		$t1=~s/\$\(colname\)/$colname/g;
 		push @$out, "    $t0($t1);";
-	    }
-	    elsif($display=~/function (\w+)/){
+	    $elsif $display=~/function (\w+)/
 		push @$out, "    $1(\$i$suffix);";
-	    }
-	    elsif($display=~/call\s+(.*)/){
+	    $elsif $display=~/call\s+(.*)/
 		MyDef::compileutil::call_sub($1);
-	    }
-	    elsif($display=~/do\s+(.*)/){
+	    $elsif $display=~/do\s+(.*)/
 		push @$out, "    $1;";
-	    }
-	    else{
+	    $else
 		my @tt;
 		$display=~s/"/\\"/g;
-		while($display=~/\$\[(.*?)\]/){
+		$while $display=~/\$\[(.*?)\]/
 		    push @tt, "\"$`\"";
 		    push @tt, "\$i$suffix\['$1'\]";
 		    $display=$';
-		}
 		push @tt, "\"$display\"";
 		push @$out, "        print ".join('.',@tt).";";
-	    }
-	}
-	elsif($ff->{type} eq "boolean" and $ff->{list}){
+	$elsif $ff->{type} eq "boolean" and $ff->{list}
 	    @l=split /,\s*/, $ff->{list};
 	    push @$out, "if(\$i$suffix\['$f']){";
 	    push @$out, "    print \"$l[0]\";";
 	    push @$out, "}else{";
 	    push @$out, "    print \"$l[1]\";";
 	    push @$out, "}"
-	}
-	else{
+	$else
 	    $listname=getfieldlistname($ff, $f);
 	    if($listname){
 		push @$out, "if(!empty(\$$listname) and array_key_exists(\$i$suffix\['$f'], \$$listname)){";
@@ -1057,10 +947,8 @@ subcode:: support_subs
 		    push @$out, "        print \$i$suffix\['$f'];";
 		}
 	    }
-	}
-	if($csv){
-	    push @$out, "PRINT , ";
-	}
+	$if $csv
+	    push @$out, "PRINT , "
     }
     # list $itemlist in a csv 
     #      accepts a fieldlist of column definitions.
@@ -1600,159 +1488,3 @@ subcode: field_input_selection
     push @$out, "}";
     $isout=1;
 
-subcode: support_subs
-    sub splitlist {
-	my $param=shift;
-	if($param=~/^\s*(.*\S)\s*$/){
-	    return split(/\s*,\s*/, $1);
-	}
-	else{
-	    return;
-	}
-    }
-
-subcode: deprecate
-    sub formhead {
-	my ($out, $param)=@_;
-	my @p=split /,\s*/, $param;
-	my $formname=shift @p;
-	my $method="post";
-	my $action="{\$_SERVER['PHP_SELF']}";
-	my $uploadlimit=0;
-	my $onsubmit;
-	foreach my $n(@p){
-	    if($n eq 'get' or $n eq 'post'){
-		$method=$n;
-	    }
-	    elsif($n=~/\//){
-		$action=$n;
-	    }
-	    elsif($n=~/\.php/){
-		$action=$n;
-	    }
-	    elsif($n=~/\d+/){
-		$uploadlimit=$n;
-	    }
-	    elsif($n=~/\(.*\)/){
-		# so we have a way to supply onsubmit javascript handler
-		$onsubmit=$n;
-	    }
-	}
-	if($onsubmit){
-	    $onsubmit="onsubmit=\"return $onsubmit\"";
-	}
-	if($uploadlimit){
-	    push @$out, "PRINT <form method=\"$method\" action=\"$action\" name=\"$formname\" enctype=\"multipart/form-data\" $onsubmit>";
-	    push @$out, "PRINT <input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"$uploadlimit\" />";
-	}
-	else{
-	    push @$out, "PRINT <form method=\"$method\" action=\"$action\" name=\"$formname\" $onsubmit>";
-	}
-    }
-
-    sub formshow {
-	my ($out, $formname)=@_;
-	my $fields=$MyDef::def->{fields};
-	my $form=$MyDef::def->{fieldsets}->{$formname};
-	my $flist=$form->{fields};
-	push @$out, "PRINT <div class=\"form\">";
-	if($form->{title}){
-	    push @$out, "print '<h1 class=\"formtitle\">".$form->{title}."</h1>';";
-	}
-	push @$out, 'print "<table class=\"formtable\">";';
-	my $labelalign="right";
-	if($form->{align}){$labelalign=$form->{align};}
-	foreach my $f (@$flist){
-	    my $ff=$fields->{$f};
-	    my $title=$f;
-	    if($ff->{title}){$title=$ff->{title};}
-	    my $prefix;
-	    if($ff->{optional}){
-		push @$out, "if(\$$f){";
-	    }
-	    push @$out, "print \"<tr><td class=\\\"labelcolumn\\\" valign=\\\"top\\\" align=\\\"$labelalign\\\">\";";
-	    push @$out, 'print "<label>'.$title.':</label>";';
-	    push @$out, 'print "</td><td class=\"formspacer\"></td>";';
-	    push @$out, 'print "<td valign=\"top\" align=\"left\">";';
-	    
-	    my $listname;
-	    if($ff->{listname}){
-		$listname=$ff->{listname};
-	    }
-	    elsif($ff->{list}){
-		$listname=$f.'_optlist';
-	    }
-	    if($ff->{type} eq "boolean"){
-		my $y="Yes";
-		my $n="No";
-		if($ff->{list}){
-		    my @l=split(/,\s*/, $ff->{list});
-		    $y=$l[0];
-		    $n=$l[1];
-		}
-		push @$out, "if(\$$f==1){print \"$y\";}";
-		push @$out, "else{print \"$n\";}";
-	    }
-	    elsif($ff->{type} eq "file"){
-	    }
-	    elsif($ff->{type} eq "imagefile"){
-	    }
-	    elsif($ff->{type} eq "password"){
-		print STDERR "    Password should not be displayed.\n";
-	    }
-	    else{
-		if($listname){
-		    push @$out, "if(\$$listname){";
-		    push @$out, "    print \$$listname\[\$$f\];";
-		    push @$out, "}";
-		    push @$out, "else{";
-		    push @$out, "    print \$$f;";
-		    push @$out, "}";  
-		}
-		else{
-		    push @$out, "print \$$f;";
-		}
-	    }
-	    push @$out, "print \"</td></tr>\";";
-	    if($ff->{optional}){
-		push @$out, "}";
-	    }
-	}
-	push @$out, 'print "</td></tr>";';
-	push @$out, 'print "</table>";';
-	push @$out, "PRINT </div>";
-    }
-
-    sub forminit {
-	my ($out, $name)=@_;
-	my $form=$MyDef::def->{fieldsets}->{$name};
-	my $fields=$form->{fields};
-	foreach my $f (@$fields){
-	    push @$out, "\$$f='';";
-	}
-    }
-
-
-subcode: deprecate_parse
-	$elsif $func eq 'formhead'
-	    formhead($out, $param);
-	$elsif $func eq 'formtail'
-	    my @p=split /,\s*/, $param;
-	    foreach my $n(@p){
-		push @$out, "if(isset(\$$n)){";
-		push @$out, "    print \"<input type=\\\"hidden\\\" name=\\\"$n\\\", value=\\\"\$$n\\\" />\";";
-		push @$out, "}";
-		push @$out, "else{";
-		push @$out, "    print \"<input type=\\\"hidden\\\" name=\\\"$n\\\", value=\\\"\\\" />\";";
-		push @$out, "}";
-	    }
-	    push @$out, 'print "</form>";';
-	$elsif $func eq 'forminit'
-	    forminit($out, $param);
-	$elsif $func eq 'formshow'
-	    formshow($out, $param);
-	$elsif $func eq 'hidden'
-	    my @p=split /,\s*/, $param;
-	    foreach my $n(@p){
-		push @$out, "print \"<input type=\\\"hidden\\\" name=\\\"$n\\\" value=\\\"\$$n\\\" />\";";
-	    }

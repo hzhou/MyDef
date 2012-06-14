@@ -44,12 +44,20 @@ subcode: sqlexec
 	mysql_query("INSERT INTO log_errsql (errsql, page) VALUES ('$tsql', '$tpage'");
 	$errors[]="Database Error.";
     }
-
+## ---------------------------------------------------------------------
 subcode: getparam(var)
     $if array_key_exists('$(var)', $_POST)
 	$$(var)=$_POST['$(var)'];
     $elif array_key_exists('$(var)', $_GET)
 	$$(var)=$_GET['$(var)'];
+
+subcode: loadget(var)
+    $if array_key_exists('$(var)', $_GET)
+	$$(var)=$_GET['$(var)'];
+
+subcode: loadpost(var)
+    $if array_key_exists('$(var)', $_POST)
+	$$(var)=$_POST['$(var)'];
 
 subcode: reqparam(var)
     $if array_key_exists('$(var)', $_POST)
@@ -59,7 +67,7 @@ subcode: reqparam(var)
     $else
 	$errors[]="Missing $(var)"
 	exit()
-
+## ---------------------------------------------------------------------
 subcode: redirect(url)
     if($siteroot){
 	header("Location: $siteroot/$(url)");

@@ -75,27 +75,22 @@ subcode: parsecode_func
     }
     ## All the functions
     $if $func eq "block"
-	return single_block($param, $out);
+	return single_block("$param\{", "}")
     $elsif $func eq "allocate"
 	allocate($out, 1, $param);
     $elsif $func =~/^except/
-	return single_block($except, $out);
+	return single_block("$except\{", "}")
     $elsif $func =~ /^(if|while|switch|(el|els|else)if)$/
 	my $name=$1;
 	$if $2
 	    $name="else if";
 	my $p=parse_condition($param, $out);
-	return single_block("$name($p)", $out);
+	return single_block("$name($p){", "}")
     $elsif $func =~/^dowhile/
 	my $p=parse_condition($param, $out);
-	push @$out, "do{";
-	push @$out, "INDENT";
-	push @$out, "BLOCK";
-	push @$out, "DEDENT";
-	push @$out, "}while($p);";
-	return "NEWBLOCK";
+	return single_block("do{", "}while($p);")
     $elsif $func eq "else"
-	return single_block("else", $out);
+	return single_block("else{", "}");
     $elsif $func eq "for"
 	$call c_parse_for
     $elsif $func eq "return_type"
@@ -241,7 +236,7 @@ subcode: c_parse_for
 		$stepclause="$var=$i0;$var>$i1;$var--";
 	    $else
 		$stepclause="$var=$i0;$var<$i1;$var++";
-	return single_block("for($stepclause)", $out);
+	return single_block("for($stepclause){", "}");
     $else
 	print "\$for mismatch [$param]\n";
 

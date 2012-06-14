@@ -45,7 +45,7 @@ if($f=~/([a-z0-9]+)_.*\.def$/){
 	}
 	system "cp test.c test_win32/";
     }
-    elsif($1 =~ /(general|apple|js)/){
+    elsif($1 =~ /(general|apple|js|perl)/){
     }
     elsif($1 eq "php"){
 	print "$yellow*** Dumpt test.php ***$normal\n";
