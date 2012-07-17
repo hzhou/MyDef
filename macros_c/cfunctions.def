@@ -12,7 +12,6 @@ subcode: c_main
     use MyDef::dumpout;
 
     my $cur_indent;
-    our $cur_function;
 
     $call package_globals
 
@@ -140,41 +139,30 @@ subcode: allocate_init_value
 	push @$out, "}";
 # -------------------------------------
 subcode:: c_support_subs
-    sub debug_dump {
-	my ($param, $prefix, $out)=@_;
+    $sub debug_dump($param, $prefix, $out)
 	my @vlist=split /,\s+/, $param;
 	my @a1;
 	my @a2;
-	foreach my $v(@vlist){
+	$foreach my $v in @vlist
 	    push @a2, $v;
 	    my $type=get_var_type($v)
 	    $if !$type
 		$type=get_c_type($v);
-	    if($type=~/^(float|double)/){
+	    $if $type=~/^(float|double)/
 		push @a1,"$v=\%g";
-	    }
-	    elsif($type=~/^int/){
+	    $elsif $type=~/^int/
 		push @a1,"$v=\%d";
-	    }
-	    elsif($type=~/^char \*/){
+	    $elsif $type=~/^char \*/
 		push @a1, "$v=\%s";
-	    }
-	    elsif($type=~/^char/){
+	    $elsif $type=~/^char/
 		push @a1,"$v=\%d";
-	    }
-	    elsif($type=~/^unsigned char/){
+	    $elsif $type=~/^unsigned char/
 		push @a1,"$v=\%d";
-	    }
-	    else{
+	    $else
 		print "debug_dump: unhandled $v - $type\n";
-	    }
-	}
-	if($prefix){
-	    push @$out, "fprintf(stderr, \"    :[$prefix] ".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
-	}
-	else{
-	    push @$out, "fprintf(stderr, \"    :".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
-	}
+	$if $prefix
+	    push @$out, "fprintf(stdout, \"    :[$prefix] ".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
+	$else
+	    push @$out, "fprintf(stdout, \"    :".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
 	$includes{"<stdio.h>"}=1;
-    }
 

@@ -10,6 +10,8 @@ subcode: c_parsecode
 	push @$out, "OPEN_FUNC_$fidx";
 	$cur_indent=0;
 	return
+    $elif $l=~/^FUNC END/
+	$cur_function=pop @function_stack
     $elif $l=~/^\s*PRINT\s+(.*)$/
 	$call fmt_print
     $elif $l=~/^\s*\$(\w+)\((.*)\)\s+(.*)$/
@@ -93,6 +95,14 @@ subcode: parsecode_func
 	return single_block("else{", "}");
     $elsif $func eq "for"
 	$call c_parse_for
+    $elsif $func eq "function"
+	$if $param=~/(\w+)\s*\((.*)\)/
+	    my $fidx=open_function($1, $2);
+	    push @$out, "OPEN_FUNC_$fidx";
+	    push @$out, "SOURCE_INDENT";
+	    push @$out, "BLOCK";
+	    push @$out, "SOURCE_DEDENT";
+	    return "NEWBLOCK-FUNC END";
     $elsif $func eq "return_type"
 	$cur_function->{ret_type}=$param;
     $elsif $func eq "parameter"

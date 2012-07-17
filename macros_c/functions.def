@@ -33,6 +33,7 @@ subcode:: c_support_subs
 	    push @function_declare_list, $name;
 	    $functions{$name}=$func;
 	# --
+	push @function_stack, $cur_function
 	$cur_function=$func;
 	my $fidx=MyDef::dumpout::add_function($func);
 	return $fidx;

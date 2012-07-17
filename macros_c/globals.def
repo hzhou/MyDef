@@ -6,9 +6,11 @@ subcode: package_globals
     $call enums
     $call structs
     $call global
-    our %functions;
-    our @function_declare_list;
+    our %functions
+    our @function_declare_list
     our @declare_list
+    our @function_stack
+    our $cur_function
 
     our @initcodes;
 
@@ -119,7 +121,7 @@ subcode: type_hashes
 	"malloc"=>"stdlib.h",
 	"str(len|dup|cpy)|memcpy"=>"string.h",
 	"\\bopen\\("=>"fcntl.h",
-	"sin|cos|sqrt"=>"math.h",
+	"sin|cos|sqrt|pow"=>"math.h",
 	"fstat"=>"sys/stat.h",
     );
 

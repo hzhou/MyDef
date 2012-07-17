@@ -60,6 +60,7 @@ subcode: pre_parse
     $if $l=~/^\s*\$MakeView\s+(\w+)/
 	my $view={"_name"=>$1}
 	create_view($out, $view, {hwnd=>"NULL", child=>"hwnd"})
+	return 1
     $elif $l=~/^\$g_(\w+)(.*)/
 	my ($cat, $param)=($1, $2)
 	$param=~s/^\s*//

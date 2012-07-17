@@ -61,9 +61,6 @@ subcode: compile_main
 	    my $l=$block->[$lindex];
 	    $if $debug eq "compile"
 		$call dump_line, compile
-	    $if @callback_stack
-		$call parse_handle_blockstack
-		next
 	    $lindex++;
 
 	    # -- such as DEBUG
@@ -87,17 +84,7 @@ subcode: compile_main
 		    $else
 			$call parse_line
 		    last
-	$if @callback_stack
-	    $call parse_handle_blockstack
 	$call parse_stack_pop
-
-    $sub list_sub
-	my ($param)=@_;
-	$call list_sub
-
-    $sub call_sub
-	my ($param, $calltype)=@_;
-	$call call_sub
 
     $sub set_macro($m, $p)
 	$if $p=~/(\S+?)=(.*)/
@@ -132,25 +119,6 @@ subcode: debug_block(name, idx)
 	print "      ...\n"
 	my $i= $#$$(name)
 	print "  $i: $$(name)->[$i]\n"
-
-subcode: parse_handle_blockstack
-    $while @callback_stack
-	$call debug_block, block, $lindex
-	my $subblock=grabblock($block, \$lindex)
-	$call debug_block, subblock, 0
-	my $n=new_output();
-	my $temp=$out;
-	set_output($output_list[$n])
-	$f_parse->("SCOPE: CALLBACK");
-	parseblock($subblock);
-	$f_parse->("SCOPE: NONE");
-	set_output($temp)
-
-	my $i=shift @callback_stack
-	$callback_output->[$i]="BLOCK_$n"
-    $if $pending_mode_pop
-	modepop()
-	$pending_mode_pop=0
 
 ######## Parsing routines  ######################################
 subcode: parse_filter_meta
@@ -277,20 +245,20 @@ subcode: parse_call_sub
     $if $func eq "\$map"
 	call_sub($param, $func);
     $elif $func eq "\$call"
-	call_sub($param, $func);
+	call_sub($param);
     $elif $func eq "\$list"
 	list_sub($param);
     $elif $func eq "\&call"
-	my $idx=$#$out+1;
-	$callback_output=$out;
-	call_sub($param, $func);
-	$call check_callback
-	$pending_mode_pop=1
+	my @callback_list=callback_sub($param, $func);
+	$foreach $n in @callback_list
+	    $call parse_handle_block, $n
+	modepop()
 
 subcode: parse_line
     undef $callback_output
     my $idx=$#$out+1;
     my $msg=$f_parse->($l);
+    my @tails
     $if $msg
 	$if ref($msg) eq "ARRAY"
 	    # output is held until post processing
@@ -300,9 +268,9 @@ subcode: parse_line
 	$elsif $msg=~/^NEWBLOCK/
 	    # check the new output for blocks
 	    #     eg. cfunctions.pm single_block
-	    $if $debug
-		print "NEWBLOCK\n";
 	    $callback_output=$out;
+	    $if $'=~/-(.*)/
+		push @tails, $1
 	$elsif $msg=~/^SET:(\w+)=(.*)/
 	    # set/reset definitions
 	    #     eg. cfunctions.pm get_pointer_type
@@ -314,11 +282,27 @@ subcode: parse_line
 	# single_block and $method
 	$if $callback_output
 	    $call check_callback
+	$if @tails
+	    $foreach $t in @tails
+		$f_parse->($t)
 
 subcode: check_callback
     $for $i=$idx:$#$callback_output+1
 	$if $callback_output->[$i]=~/^BLOCK$/
-	    push @callback_stack, $i
+	    my $n=new_output();
+	    $callback_output->[$i]="BLOCK_$n"
+	    $call parse_handle_block, $n
+
+subcode: parse_handle_block(n)
+    my $subblock=grabblock($block, \$lindex)
+    $call debug_block, subblock, 0
+    my $temp=$out;
+    set_output($output_list[$(n)])
+    $f_parse->("SCOPE: CALLBACK");
+    parseblock($subblock);
+    $f_parse->("SCOPE: NONE");
+    set_output($temp)
+
 #################################################
 subcode:: package_global
     our $f_init
@@ -444,24 +428,6 @@ subcode: output_subfile
 	    $subfile=1;
 
 # ------------------------------------------------------
-subcode: list_sub
-    my @plist=split(/,\s*/, $param);
-    $foreach my $codename in @plist
-	my $funcname = $codename
-	$if $codename=~/(\w+)\((\w+)\)/
-	    $codename=$1
-	    $funcname=$2
-	my $codelib=get_def_attr("codes", $codename);
-	my $params=$codelib->{params};
-	my $source=$codelib->{source};
-	my $line=$funcname."-".join(",", @$params);
-	modepush($codelib->{type});
-	$f_parse->("FUNC $line")
-	parseblock(["SOURCE_INDENT"]);
-	parseblock($source);
-	parseblock(["SOURCE_DEDENT"]);
-	modepop()
-
 subcode: call_sub_param
     my $codename;
     my $attr;
@@ -500,7 +466,6 @@ subcode: call_sub_grab
     $foreach my $name in @callsub_stack
 	$if $name eq $codename
 	    die "Recursive subcode: $codename\n"
-    push @callsub_stack, $codename
 
 subcode: call_sub_single
     my $macro={$1=>$pline};
@@ -539,24 +504,71 @@ subcode: call_sub_normal
     parseblock($source);
     pop @$deflist;
 
-subcode: call_sub
-    $call call_sub_param
-    $call call_sub_grab
-    modepush($codelib->{type});
+subcode:: support_subs
+    $sub list_sub
+	my ($param)=@_;
+	my @plist=split(/,\s*/, $param);
+	$foreach my $codename in @plist
+	    my $funcname = $codename
+	    $if $codename=~/(\w+)\((\w+)\)/
+		$codename=$1
+		$funcname=$2
+	    my $codelib=get_def_attr("codes", $codename);
+	    my $params=$codelib->{params};
+	    my $source=$codelib->{source};
+	    my $line=$funcname."-".join(",", @$params);
+	    modepush($codelib->{type});
+	    $f_parse->("FUNC $line")
+	    parseblock(["SOURCE_INDENT"]);
+	    parseblock($source);
+	    parseblock(["SOURCE_DEDENT"]);
+	    $f_parse->("FUNC END")
+	    modepop()
 
-    my $params=$codelib->{params};
-    my $source=$codelib->{source};
-    my $np=@pre_plist;
-    $if 1==@$params and $params->[0]=~/^@(\w+)/
-	$call call_sub_single
-    $elif $calltype eq "\$map"
-	$call call_sub_map
-    $else
-	$call call_sub_normal
 
-    $if $calltype ne "\&call"
+    $sub call_sub
+	my ($param, $calltype)=@_;
+	$call call_sub_param
+	$call call_sub_grab
+	push @callsub_stack, $codename
+	modepush($codelib->{type});
+
+	my $params=$codelib->{params};
+	my $source=$codelib->{source};
+	my $np=@pre_plist;
+	$if $calltype eq "\$map"
+	    $call call_sub_map
+	$elif 1==@$params and $params->[0]=~/^@(\w+)/
+	    $call call_sub_single
+	$else
+	    $call call_sub_normal
+
 	modepop();
-    pop @callsub_stack
+	pop @callsub_stack
+
+    $sub callback_sub
+	my ($param)=@_;
+	$call call_sub_param
+	$call call_sub_grab
+	push @callsub_stack, $codename
+	modepush($codelib->{type});
+
+	my $params=$codelib->{params};
+	my $source=$codelib->{source};
+	my $np=@pre_plist;
+	my @callback_list
+	my @blockline_list
+	$for $i=0:$#$source+1
+	    $if $source->[$i]=~/^BLOCK$/
+		my $n=new_output()
+		$source->[$i]="BLOCK_$n"
+		push @callback_list, $n
+		push @blockline_list, $i
+	$call call_sub_normal
+	$foreach $i in @blockline_list
+	    $source->[$i]="BLOCK"
+	pop @callsub_stack
+	return @callback_list
 
 ###########################################################
 subcode:: support_subs

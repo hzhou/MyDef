@@ -1,4 +1,4 @@
-# GUI needs Model View Controller Model
+# GUI needs Model View Controller
 # think about the editor: 
 #    View is the window
 #    Model is the text buffer
@@ -66,7 +66,6 @@ subcode: add_error_f(msg)
 	n_errormsg_end+=n+1
 
 subcode: draw_hello
-    $call newfont
     $if n_errormsg_end>0
 	int x=10
 	int y=50
@@ -77,9 +76,7 @@ subcode: draw_hello
 	    s+=*s+1
 	    y+=20
     $else
-	$local rect_main
-	GetClientRect(hwnd_main, &rect_main)
-	DrawText(hdc,"Hello World",-1, &rect_main, DT_SINGLELINE|DT_CENTER|DT_VCENTER)
+	TextOut(hdc, 10, 20, "Hello World", 11)
 
 # -----------------------------------------------------------------------
 subcode: hgdiobj_collector
