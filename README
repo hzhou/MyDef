@@ -25,9 +25,11 @@ INSTALL
 
 3. Now we try compile MyDef, which is the real source that is up-to-date
     mydef_make.pl 
-    touch *.def
+    touch perlmake.def # So next "make" will overwrite MyDef/Makefile.PL
     make
+
     cd MyDef # It is the output folder, cmp was copied from there
+
     ln -s ../deflib .
     pmake 
     make

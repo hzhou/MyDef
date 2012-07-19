@@ -1,5 +1,10 @@
 #include: ref_counting.def
 
+## frame
+subcode: basic_frame
+    $call @global
+    $list n_main
+
 ##  Memory utilities
 subcode: memory_utility
     $global float mu_total_mem=0.0
