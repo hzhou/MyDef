@@ -3,7 +3,7 @@
 ## frame
 subcode: basic_frame
     $call @global
-    $list n_main
+    $list main2
 
 ##  Memory utilities
 subcode: memory_utility

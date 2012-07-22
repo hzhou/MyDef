@@ -4,7 +4,7 @@ subcode: c_parsecode
     $if $l=~/^FUNC (\w+)-(.*)/
 	my $fname=$1;
 	my $t=$2;
-	$if $fname eq "n_main"
+	$if $fname eq "n_main" or $fname eq "main2"
 	    $fname="main";
 	my $fidx=open_function($fname, $t);
 	push @$out, "OPEN_FUNC_$fidx";

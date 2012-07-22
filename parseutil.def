@@ -190,7 +190,10 @@ subcode: start_subcode
 	    $codes->{$name}=$t_code;
 	    $stage='code';
 	$elif $stage eq 'page'
-	    $page->{codes}->{$name}=$t_code;
+	    $if $page->{codes}->{$name} and ($name eq "main")
+		$page->{codes}->{'main2'}=$t_code;
+	    $else
+		$page->{codes}->{$name}=$t_code;
 
 subcode: start_page
     my ($pagename, $maincode)
