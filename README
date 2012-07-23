@@ -6,6 +6,8 @@ MyDef is a macro system that allows us to write source code of almost any langua
 INSTALL
 =======
 
+For courageous people, one could try "./bootstrap.sh" and then skip the first 3 steps. If that fails, try the following steps manually.
+
 1. MyDef currently is in perl. First setup a custome installation environment:
     PATH=$PATH:/home/hzhou/bin
     PERL5LIB=/home/hzhou/lib/perl5
@@ -25,7 +27,8 @@ INSTALL
 
 3. Now we try compile MyDef, which is the real source that is up-to-date
     mydef_make.pl 
-    touch perlmake.def # So next "make" will overwrite MyDef/Makefile.PL
+    # a couple file in the newly created MyDef directory need be overwritten
+    touch perlmake.def mydef.def
     make
 
     cd MyDef # It is the output folder, cmp was copied from there
