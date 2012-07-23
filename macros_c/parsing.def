@@ -248,7 +248,7 @@ subcode: c_parse_for
 		$stepclause="$var=$i0;$var<$i1;$var++";
 	return single_block("for($stepclause){", "}");
     $else
-	print "\$for mismatch [$param]\n";
+	return single_block("for($param){", "}")
 
 subcode: c_parse_getopt
     $includes{"<stdlib.h>"}=1;
