@@ -2,6 +2,8 @@
 
 ## frame
 subcode: basic_frame
+    $include stdio
+    $include stdlib
     $call @global
     $list main2
 
