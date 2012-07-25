@@ -601,26 +601,34 @@ subcode: expand_macro_seg
 	    $if $tt
 		$if $tt->{$2}
 		    $segs[$j]=$tt->{$2};
-		    $updated++;
 		$elsif $2 eq "title"
 		    $segs[$j]=$t;
-		    $updated++;
 		$else
 		    $segs[$j]="";
+		$updated++;
 	    $else
 		$if $2 eq "title"
 		    $segs[$j]=$t;
 		    $updated++;
+    $elif $s=~/^\$\(rep\[(.*?)\](\d+):(.*)\)/
+	$if $2>1
+	    $segs[$j]="$3$1" x ($2-1) . $3
+	    $updated++;
+	$else
+	    die "Illegal rep macro in \"$$lref\"!\n"
     $elif $s=~/^\$\((\w+):(.*)\)/
 	my $t=$macros->{$1};
 	my $p=$2;
 	$if $t
 	    $updated++;
 	    $if $p=~/(\d+)-(\d+)/
+		# $(macro:0-3)
 		$segs[$j]=substr($t, $2, $3-$2+1);
 	    $elif $p eq "len"
+		# $(macro:len)
 		$segs[$j]=length($t)
 	    $else
+		# $(macro:p1,p2,p3)
 		my @plist=split /,/, $p;
 		my $i=1;
 		$foreach $pp in @plist
@@ -634,12 +642,12 @@ subcode: expand_macro_seg
 		die "Looping macro $1 in \"$$lref\"!\n";
 	    $segs[$j]=$t;
 	    $updated++;
+	$else
+	    # warn "Undefined macro $s\n"
 
 subcode:: support_subs
     $sub expand_macro
 	my ($lref, $macros)=@_;
-	#$if $debug
-	#    print "expand_macro [$$lref] $macros\n"
 	my $hasmacro=0
 	my $updated=0
 	$if  $$lref=~/\$\(\w[^()]*\)/
@@ -652,24 +660,9 @@ subcode:: support_subs
 		$$lref=join '', @segs;
 	    $else
 		$hasmacro=1;
-	#$if $debug
-	#    print "    ->  return hasmacro=$hasmacro, updated=$updated\n";
 	return ($hasmacro, $updated)
 
 subcode:: support_subs
-    $sub inline_macro
-	my ($name, $param)=@_
-	my @plist=split /,\s*/, $param
-	my $macro={};
-	$for $i=0:@plist
-	    my $idx=$i+1
-	    $macro->{$idx}=$plist[$i]
-	my $l="\$($name)"
-	push @$deflist, $macro;
-	expand_macro_recurse(\$l)
-	pop @$deflist;
-	return $l
-
     $sub expand_macro_recurse($lref, $nowarn)
 	my ($hasmacro, $updated)
 	$updated=1
