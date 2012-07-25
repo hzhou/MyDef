@@ -31,7 +31,7 @@ page: output_c, output_main
 		$elif $i=~/math.h/
 		    $libstr.=" -lm";
 	    my $pagename=$page->{pagename}
-	    my $ext=$page->{ext}
+	    my $ext=$page->{pageext}
 	    push @$f, "START_Makefile";
 	    $call set_make_macro, CC, gcc
 	    $call set_make_macro, CFLAGS, -
@@ -39,7 +39,7 @@ page: output_c, output_main
 	    $call set_make_macro, LIB, -
 	    push @$f, "\n"
 	    push @$f, "$pagename: $pagename.$ext\n";
-	    push @$f, "\t\$\(CC) \$\(CFLAGS) \$\(INC) \$\(LIB) \$@ \$<\n"
+	    push @$f, "\t\$\(CC) \$\(CFLAGS) \$\(INC) \$\(LIB) -o \$@ \$<\n"
 	    push @$f, "END_SUBFILE";
 
 	# ---- Header stuff --------------------------
