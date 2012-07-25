@@ -7,11 +7,9 @@ page: output_xs, output_main
     ext: xs
     init_mode: sub
     subcode: package_subs
-	my $cur_page_name;
 	my @xs_globals;
 	$call c_main
     subcode: init_page
-	$cur_page_name=$page->{pagename};
 	register_type_prefix("hv", "HV*");
 	register_type_prefix("av", "AV*");
 	register_type_prefix("sv", "SV*");
@@ -161,7 +159,8 @@ subcode: init_xs(block)
     $foreach my $l in @xs_globals
 	push @$(block), $l;
     push @$(block), "\n";
-    push @$(block), "MODULE = $cur_page_name\t\tPACKAGE = $cur_page_name\n";
+    my $pagename=$page->{pagename}
+    push @$(block), "MODULE = $pagename\t\tPACKAGE = $pagename\n";
     push @$(block), "\n";
 
 subcode: pre_parse

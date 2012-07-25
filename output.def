@@ -7,19 +7,20 @@ subcode: output_main
     my $debug;
     my $mode;
     my $out;
+    my $page;
     $call @package_subs
 
     $sub get_interface
 	return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
 
     $sub init_page
-	my ($page)=@_;
-
+	($page)=@_;
 	# ---- Set output file extension
-	my $ext="$(ext)";
+	my $ext="$(ext)"
 	$if $page->{type}
 	    $ext=$page->{type};
 	$call @init_page
+	$page->{ext}=$ext
 	return ($ext, "$(init_mode)");
 
     $sub set_output

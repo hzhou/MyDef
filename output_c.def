@@ -25,17 +25,31 @@ page: output_c, output_main
         # ---- Makefile -------------------------------
 	$if $functions{"main"}
 	    my $libstr;
-	    foreach my $i (keys %includes){
+	    $foreach $i in keys %includes
 		$if $i=~/^lib(.*)/
 		    $libstr.=" -l$1";
 		$elif $i=~/math.h/
 		    $libstr.=" -lm";
-	    }
+	    my $pagename=$page->{pagename}
+	    my $ext=$page->{ext}
 	    push @$f, "START_Makefile";
-	    push @$f, "\tgcc -o \$@ \$< $libstr\n";
+	    $call set_make_macro, CC, gcc
+	    $call set_make_macro, CFLAGS, -
+	    $call set_make_macro, INC, -
+	    $call set_make_macro, LIB, -
+	    push @$f, "\n"
+	    push @$f, "$pagename: $pagename.$ext\n";
+	    push @$f, "\t$\(CC) $\(CFLAGS) $\(INC) $\(LIB) \$@ \$<\n"
 	    push @$f, "END_SUBFILE";
 
 	# ---- Header stuff --------------------------
 	unshift @$out, "\n/**** END GLOBAL INIT ****/\n";
 	unshift @$out, "DUMP_STUB global_init";
 	$call c_dump_init
+
+subcode: set_make_macro(name, default)
+    $if $page->{$(name)}
+	push @$f, "$(name)=$page->{$(name)}\n"
+    $(if:default!=-)
+	$else
+	    push @$f, "$(name)=$(default)\n"
