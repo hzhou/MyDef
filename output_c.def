@@ -39,7 +39,7 @@ page: output_c, output_main
 	    $call set_make_macro, LIB, -
 	    push @$f, "\n"
 	    push @$f, "$pagename: $pagename.$ext\n";
-	    push @$f, "\t$\(CC) $\(CFLAGS) $\(INC) $\(LIB) \$@ \$<\n"
+	    push @$f, "\t\$\(CC) \$\(CFLAGS) \$\(INC) \$\(LIB) \$@ \$<\n"
 	    push @$f, "END_SUBFILE";
 
 	# ---- Header stuff --------------------------
