@@ -29,10 +29,6 @@ page: mydef_make
 	    $call create_config
 	$call read_config
 
-	my $default_type=$module_type{$module};
-	$if !$default_type
-	    #die "No default module type for $module\n";
-	    $default_type=$module
 	print STDERR "    output_path: $config_outputdir\n";
 
 	# -- recursive make folders, copylist
@@ -239,11 +235,6 @@ subcode: check_file_inpage
 	$page->{type}=$1;
     $elif /^\s*module:\s*(\w+)/
 	$page->{module}=$1;
-	$if !$page->{type}
-	    $if $module_type{$1}
-		$page->{type}=$module_type{$1}
-	    $else
-		$page->{type}=$1
     $elif /^\S/
 	$inpage=0;
 
@@ -269,7 +260,6 @@ subcode: check_file_notinpage
 	push @page_list, $page;
 	$page->{page}=$1;
 	$page->{def}=$f;
-	$page->{type}=$default_type;
 	$page->{include}={};
 	my $key="$f-$1";
 	while($h_page{$key}){
@@ -296,6 +286,13 @@ subcode: outputdir_inpage
 
 subcode: check_eachpage
     $while my ($p, $h) = each %h_page
+	$if !$h->{type}
+	    my $t_module=$module
+	    $if $h->{module}
+		$t_module=$h->{module}
+	    $h->{type}=$module_type{$t_module}
+	    $if !$h->{type}
+		$h->{type}=$t_module
 	$if !$h->{in_var}
 	    $h->{in_var}="toproot";
 	    $if $folder{toproot}
