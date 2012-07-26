@@ -57,7 +57,7 @@ subcode: set_make_macro(name, default)
 page: output_glsl, output_main
     type: pm
     output_dir: lib/MyDef
-    ext: slgl
+    ext: glsl
     init_mode: sub
     subcode: package_subs
 	$call c_main
