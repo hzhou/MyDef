@@ -100,7 +100,7 @@ page: output_glsl, output_main
 	    $func->{ret_type}="void";
 	    $func->{param_list}=["void"];
 	    $func->{init}=["DUMP_STUB main_init"];
-	    $func->{finish}=["DUMP_STUB main_exit", "return 0;"];
+	    $func->{finish}=["DUMP_STUB main_exit"];
 
 	# ---- process_function ------------------------
 	my $funclist=MyDef::dumpout::get_func_list()
