@@ -19,7 +19,7 @@ page: mydef_make
 	# ---- in current directory ------------------------
 	my @master_config;
 	my $module="php";
-	my %module_type=(perl=>"pl", php=>"php", xs=>"xs", win32=>"c", c=>"c", apple=>"m", js=>"js", general=>"txt");
+	my %module_type=(perl=>"pl", php=>"php", xs=>"xs", win32=>"c", c=>"c", apple=>"m", js=>"js", general=>"txt", glsl=>"glsl");
 	my %macros;
 	my @include_folders;
 	my $config_outputdir;
@@ -31,7 +31,8 @@ page: mydef_make
 
 	my $default_type=$module_type{$module};
 	$if !$default_type
-	    die "No default module type for $module\n";
+	    #die "No default module type for $module\n";
+	    $default_type=$module
 	print STDERR "    output_path: $config_outputdir\n";
 
 	# -- recursive make folders, copylist
@@ -239,7 +240,10 @@ subcode: check_file_inpage
     $elif /^\s*module:\s*(\w+)/
 	$page->{module}=$1;
 	$if !$page->{type}
-	    $page->{type}=$module_type{$1}
+	    $if $module_type{$1}
+		$page->{type}=$module_type{$1}
+	    $else
+		$page->{type}=$1
     $elif /^\S/
 	$inpage=0;
 

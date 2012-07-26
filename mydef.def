@@ -25,7 +25,7 @@ subcode: mydef_main
 	my $module=$var->{module};
 	$if !$module
 	    die "Module type not defined in config!\n"
-	$map require_module, php, c, xs, apple, win32, perl, js, general
+	$map require_module, php, c, xs, apple, win32, perl, js, general, glsl
 	$else
 	    die "Undefined module type $module\n";
     # ----
