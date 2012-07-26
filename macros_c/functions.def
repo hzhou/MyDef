@@ -170,7 +170,6 @@ subcode: var_array_type
 	$vtype=$type
 
 subcode: var_init_line
-    my $vinit
     $if $type eq "function"
 	$vinit=$fntype{$name};
     $elif defined $array
