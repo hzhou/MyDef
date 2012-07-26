@@ -511,6 +511,16 @@ subcode: call_sub_normal
     parseblock($source);
     pop @$deflist;
 
+subcode: call_sub_block
+    $call call_sub_grab
+    push @callsub_stack, $codename
+    modepush($codelib->{type});
+    my $params=$codelib->{params};
+    my $source=$codelib->{source};
+    BLOCK
+    modepop()
+    pop @callsub_stack
+
 subcode:: support_subs
     $sub list_sub
 	my ($param)=@_;
@@ -520,36 +530,24 @@ subcode:: support_subs
 	    $if $codename=~/(\w+)\((\w+)\)/
 		$codename=$1
 		$funcname=$2
-	    my $codelib=get_def_attr("codes", $codename);
-	    my $params=$codelib->{params};
-	    my $source=$codelib->{source};
-	    my $line=$funcname."-".join(",", @$params);
-	    modepush($codelib->{type});
-	    $f_parse->("FUNC $line")
-	    parseblock(["SOURCE_INDENT"]);
-	    parseblock($source);
-	    parseblock(["SOURCE_DEDENT"]);
-	    $f_parse->("FUNC END")
-	    modepop()
 
+	    &call call_sub_block
+		my $line=$funcname."-".join(",", @$params);
+		$f_parse->("FUNC $line")
+		parseblock(["SOURCE_INDENT"]);
+		parseblock($source);
+		parseblock(["SOURCE_DEDENT"]);
+		$f_parse->("FUNC END")
 
     $sub call_sub
 	my ($param, $calltype)=@_;
 	$call call_sub_param
-	$call call_sub_grab
-	push @callsub_stack, $codename
-	modepush($codelib->{type});
-
-	my $params=$codelib->{params};
-	my $source=$codelib->{source};
-	my $np=@pre_plist;
-	$if $calltype eq "\$map"
-	    $call call_sub_map
-	$else
-	    $call call_sub_normal
-
-	modepop();
-	pop @callsub_stack
+	&call call_sub_block
+	    my $np=@pre_plist;
+	    $if $calltype eq "\$map"
+		$call call_sub_map
+	    $else
+		$call call_sub_normal
 
     $sub callback_sub
 	my ($param)=@_;
