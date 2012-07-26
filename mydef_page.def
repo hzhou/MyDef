@@ -3,9 +3,7 @@ page: mydef_page
     subcode: main
 	#Usage: perl createpages.pl def_file
 	use MyDef;
-	my $def_file=$ARGV[0]
-	$if !-f $def_file
-	    die "Please supply data definition file.";
+	my $def_file
 	my $module_type;
 	my %config;
 	$foreach my $a in @ARGV
@@ -13,6 +11,16 @@ page: mydef_page
 		$config{module} = $1
 	    $elif $a =~/-o(\S+)/
 		$config{output_dir} = $1
+	    $elif $a=~/\.def$/
+		$if $def_file
+		    die "Multiple def source files not supported\n"
+		$if -f $a
+		    $def_file=$a
+		$else
+		    die "$a is not a regular file\n"
+
+	$if !$def_file
+	    die "Please supply data definition file.";
 
 	MyDef::init(%config);
 	MyDef::import_data($ARGV[0]);
