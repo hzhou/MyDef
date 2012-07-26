@@ -24,12 +24,6 @@ page: output_c, output_main
 
         # ---- Makefile -------------------------------
 	$if $functions{"main"}
-	    my $libstr;
-	    $foreach $i in keys %includes
-		$if $i=~/^lib(.*)/
-		    $libstr.=" -l$1";
-		$elif $i=~/math.h/
-		    $libstr.=" -lm";
 	    my $pagename=$page->{pagename}
 	    my $ext=$page->{pageext}
 	    push @$f, "START_Makefile";
