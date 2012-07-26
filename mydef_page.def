@@ -32,9 +32,11 @@ page: mydef_page
 	$while my ($t, $p)=each (%$pages)
 	    $if $p->{subpage}
 		next
+
 	    my $t_module=$default_module
 	    $if $p->{module} 
 		$t_module=$p->{module}
 	    $if $t_module ne $module
 		next
+
 	    MyDef::createpage($t);
