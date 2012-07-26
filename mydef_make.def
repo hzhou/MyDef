@@ -236,6 +236,10 @@ subcode: check_file_inpage
 	$page->{include}->{$1}=1;
     $elif /^\s*type: (\w+)/
 	$page->{type}=$1;
+    $elif /^\s*module:\s*(\w+)/
+	$page->{module}=$1;
+	$if !$page->{type}
+	    $page->{type}=$module_type{$1}
     $elif /^\S/
 	$inpage=0;
 
@@ -377,7 +381,10 @@ subcode: write_rule_pages
 		}
 	    }
 	    print Out $h->{path}, ".", $h->{type}, ": ", $h->{def}, " ", join(" ", @t), " $inc_dep\n";
-	    print Out "\t\${MakePage} \$< \$\@\n";
+	    $if $h->{module} and ($h->{module}ne $module)
+		print Out "\t\${MakePage} -m$h->{module} \$< \$\@\n";
+	    $else
+		print Out "\t\${MakePage} \$< \$\@\n";
 	    print Out "\n";
 	}
     }
