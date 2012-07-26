@@ -133,6 +133,8 @@ subcode: parse_catch_meta
 	$block_stack[-1]->{debug}=1;
 	$if $1 eq "OFF"
 	    $debug=0
+	$elif $1 eq "MACRO"
+	    $call dump_deflist
 	$else
 	    $debug=$1
 	$f_parse->("DEBUG $1");
@@ -191,12 +193,9 @@ subcode: parse_preproc
     $elsif $preproc=~/^if:\s*(.*)/
 	my $subblock=grabblock($block, \$lindex);
 	$if testcondition($1)
-	    #print "testcondition [$1] = 1\n";
-	    #foreach my $t(@$subblock){ print "\t[$t]\n"; }
 	    parseblock($subblock);
 	    $context="switch_off";
 	$else
-	    #print "testcondition [$1] = 0\n";
 	    $context="switch_on";
     $elsif $preproc=~/^els?e?if:\s*(.*)/
 	my $subblock=grabblock($block, \$lindex);
@@ -326,6 +325,13 @@ subcode:: package_global
     my @callsub_stack;
 
     my $debug;
+
+subcode: dump_deflist
+    $for my $i=0;$i<=$#$deflist;$i++
+	print "DUMP DEFLIST $i:\n"
+	my $h=$deflist->[$i]
+	$foreach $k in keys(%$h)
+	    print "    $k: $h->{$k}\n"
 
 subcode: manage_output
     our $out;
@@ -467,12 +473,6 @@ subcode: call_sub_grab
 	$if $name eq $codename
 	    die "Recursive subcode: $codename\n"
 
-subcode: call_sub_single
-    my $macro={$1=>$pline};
-    push @$deflist, $macro;
-    parseblock($source);
-    pop @deflist;
-
 subcode: call_sub_map
     $if 1+@pre_plist!=@$params
 	warn " Code $codename parameter mismatch.\n";
@@ -489,13 +489,20 @@ subcode: call_sub_normal
     $if $np+@plist!=@$params
 	my $n2=@plist;
 	my $n3=@$params;
-	my $pline=join(', ', @plist);
-	warn "    code $codename parameter mismatch ($np + $n2) != $n3. [pline:$pline] calltype=[$calltype]\n";
+	$if $params->[$n3-1]=~/^\@(\w+)/ and $n2>$n3-$np
+	    my $n0=$n3-$np-1;
+	    $for my $i=0;$i<$n0;$i++
+		$pline=~s/^[^,]*,//
+	    $plist[$n0]=$pline
+	$else
+	    warn "    code $codename parameter mismatch ($np + $n2) != $n3. [pline:$pline] calltype=[$calltype]\n";
     my $macro={};
     $for $i=0:$np
 	$macro->{$params->[$i]}=$pre_plist[$i];
     $for $j=0:@$params-$np
 	my $p=$params->[$np+$j];
+	$if $p=~/^\@(\w+)/
+	    $p=$1
 	$if $plist[$j]=~/q"(.*)"/
 	    $macro->{$p}=$1;
 	$else
@@ -538,8 +545,6 @@ subcode:: support_subs
 	my $np=@pre_plist;
 	$if $calltype eq "\$map"
 	    $call call_sub_map
-	$elif 1==@$params and $params->[0]=~/^@(\w+)/
-	    $call call_sub_single
 	$else
 	    $call call_sub_normal
 

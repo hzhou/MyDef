@@ -9,6 +9,7 @@ page: test
 	$local strecord[10]
 	$local pstrecord
 	test()
+	$call msg, comment, "Testing subcode with variable tailing parameters. Pi=%.4f\n", 3.1415926
     fncode: test
 	#DEBUG
 	pn_test=do_something()
@@ -26,4 +27,8 @@ page: test
 	$else
 	    # trailing empty case
 	return pn_test
+
+    subcode: msg(dummy, @msg)
+	/* $(dummy) */
+	fprintf(stderr, $(msg))
 

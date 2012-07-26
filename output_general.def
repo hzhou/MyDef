@@ -67,6 +67,8 @@ page: output_perl, output_main
 		$elif $param=~/(\$\w+)\s+in\s+(.*)/
 		    my ($var, $list)=($1, $2);
 		    return single_block("foreach my $var ($list){", "}")
+		$else
+		    return single_block("$func($param){", "}")
 	    $else
 		check_termination(\$l);
 		push @$out, $l;
