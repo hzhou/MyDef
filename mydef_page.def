@@ -20,5 +20,9 @@ page: mydef_page
 	$pages=$MyDef::def->{pages};
 
 	$while my ($t, $p)=each (%$pages)
-	    $if !$p->{subpage}
-		MyDef::createpage($t);
+	    $if $p->{subpage}
+		next
+	    $if $p->{module} 
+		$if $p->{module} ne $MyDef::var->{module}
+		next
+	    MyDef::createpage($t);
