@@ -28,15 +28,6 @@ subcode: c_init
 	$type_prefix{f}="double";
     MyDef::dumpout::init_funclist();
 
-subcode: c_main_function
-    my $func=$functions{"main"};
-    $if $func
-	$func->{skip_declare}=1;
-	$func->{ret_type}="int";
-	$func->{param_list}=["int argc", "char** argv"];
-	$func->{init}=["DUMP_STUB main_init"];
-	$func->{finish}=["DUMP_STUB main_exit", "return 0;"];
-
 ############################################
 
 subcode: check_text_includes

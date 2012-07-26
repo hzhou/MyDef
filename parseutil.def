@@ -137,6 +137,7 @@ subcode: get_indentation
 	$else
 	    # Trim the tail
 	    $line=~s/\s+$//
+	    # Tail # need spaces before and after!
 	    $line=~s/\s+#\s.*$//
 	$curindent=$indent
 

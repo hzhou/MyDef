@@ -7,11 +7,13 @@
 :syntax match xCode /^\s*\(php\|html\|sub\|fn\)code:/
 :syntax match xInclude /^include.*/
 :syntax match xStage /^\(subpage\|page\|form\|table\|fields\|macros\|resource\):/
-:syntax match xComment /^\s*#.*/
-:syntax match xComment /\s#[^"']*$/
+" Comments with #. Caution with cases CSS color, Perl $#
+:syntax match xComment /^\s*#.*/ " Leading # 
+:syntax match xComment /\s#\s.*$/ " Trailing [ ]#
 :syntax region dString start=/"/ skip=/\\"/ end=/"/  oneline
+:syntax region dString start=/'/ skip=/\\'/ end=/'/  oneline
 
-:syntax match perlKey /^\s*\(push\|shift\|unshift\|pop\|print\|return\)/
+:syntax match perlKey /^\s*\(push\|shift\|unshift\|pop\|print\|return\|last\|next\)/
 
 :syntax match perlVar /\(\$\|@\|%\)\i\+/
 :syntax match perlKey /^\s*\(our\|my\|package\|use\|require\|sub\)\s/

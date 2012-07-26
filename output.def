@@ -20,7 +20,8 @@ subcode: output_main
 	$if $page->{type}
 	    $ext=$page->{type};
 	$call @init_page
-	$page->{pageext}=$ext
+	# !!! $page->{ext}=$ext will overwrite $(ext)
+	$page->{pageext}=$ext 
 	return ($ext, "$(init_mode)");
 
     $sub set_output

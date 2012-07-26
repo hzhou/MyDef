@@ -15,7 +15,13 @@ page: output_c, output_main
 	$call c_parsecode
     subcode: dumpout
 	# ----  Main Function -------------------
-	$call c_main_function
+	my $func=$functions{"main"};
+	$if $func
+	    $func->{skip_declare}=1;
+	    $func->{ret_type}="int";
+	    $func->{param_list}=["int argc", "char** argv"];
+	    $func->{init}=["DUMP_STUB main_init"];
+	    $func->{finish}=["DUMP_STUB main_exit", "return 0;"];
 
 	# ---- process_function ------------------------
 	my $funclist=MyDef::dumpout::get_func_list()
@@ -47,3 +53,30 @@ subcode: set_make_macro(name, default)
     $(if:default!=-)
 	$else
 	    push @$f, "$(name)=$(default)\n"
+
+page: output_glsl, output_main
+    type: pm
+    output_dir: lib/MyDef
+    ext: slgl
+    init_mode: sub
+    subcode: package_subs
+	$call c_main
+    subcode: init_page
+	$call c_init
+    subcode: parsecode
+	$call c_parsecode
+    subcode: dumpout
+	# ----  Main Function -------------------
+	my $func=$functions{"main"};
+	$if $func
+	    $func->{skip_declare}=1;
+	    $func->{ret_type}="void";
+	    $func->{param_list}=["void"];
+	    $func->{init}=["DUMP_STUB main_init"];
+	    $func->{finish}=["DUMP_STUB main_exit", "return 0;"];
+
+	# ---- process_function ------------------------
+	my $funclist=MyDef::dumpout::get_func_list()
+	$foreach my $func in @$funclist
+	    $call process_function_std
+
