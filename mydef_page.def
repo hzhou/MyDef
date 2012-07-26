@@ -25,11 +25,13 @@ page: mydef_page
 
 	MyDef::init(%config);
 	my $module=$MyDef::var->{module}
-	MyDef::import_data($def_file);
+	MyDef::import_data($def_file)
 
-	$pages=$MyDef::def->{pages};
+	my $pages=$MyDef::def->{pages}
+	my $pagelist=$MyDef::def->{pagelist}
 
-	$while my ($t, $p)=each (%$pages)
+	$foreach $t in @$pagelist
+	    my $p=$pages->{$t}
 	    $if $p->{subpage}
 		next
 	    my $t_module=$default_module
