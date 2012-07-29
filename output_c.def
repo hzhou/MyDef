@@ -83,12 +83,12 @@ page: output_glsl, output_main
 	$type_prefix{sc}="samplerCube"
 	$type_prefix{s1w}="sampler1Dshadow"
 	$type_prefix{s2w}="sampler2Dshadow"
-	$global_type{gl_FrontColor}="vec4"
-	$global_type{gl_BackColor}="vec4"
-	$global_type{gl_TexCoord}="vec4 *"
-	$global_type{gl_Position}="vec4"
-	$global_type{gl_FragColor}="vec4"
-	$global_type{gl_FragDepth}="float"
+	$global_type->{gl_FrontColor}="vec4"
+	$global_type->{gl_BackColor}="vec4"
+	$global_type->{gl_TexCoord}="vec4 *"
+	$global_type->{gl_Position}="vec4"
+	$global_type->{gl_FragColor}="vec4"
+	$global_type->{gl_FragDepth}="float"
     subcode: parsecode
 	$call pre_parse
 	$call c_parsecode

@@ -91,6 +91,7 @@ subcode: add_var(scope)
 	$elif get_var_type($name)
 	    return
 
+    $call value_from_file
     $call infer_type
     $if $debug
 	print "$(scope)_add_var: $name - $type - $array\n"
@@ -140,6 +141,7 @@ subcode: split_name
     $if $name=~/(\S+)(=(.*))/
 	$name=$1;
 	$tail=$2;
+	$call value_from_file
 	$if !$value
 	    $value=$3
     $if $name=~/(\w+)(\[.*\])/
@@ -176,6 +178,18 @@ subcode: var_init_line
 	$vinit="$type $name$array$tail";
     $else
 	$vinit="$type $name$tail";
+
+subcode: value_from_file
+    $if $tail=~/^=\[string_from_file:(\S+)\]/
+	my @t;
+	open In, $1 or die "string_from_file: can't open $1\n"
+	$while <In>
+	    chomp
+	    s/\\/\\\\/g
+	    s/"/\\"/g
+	    push @t, $_
+	close In
+	$tail="=\"".join("\\n\\\n", @t)."\""
 
 #-------------------------------------------------------------
 subcode:: c_support_subs
