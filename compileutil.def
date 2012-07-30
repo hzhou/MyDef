@@ -17,25 +17,23 @@ subcode: compile_main
     $sub compile
 	my ($pagename)=@_;
 	my $page=$MyDef::def->{pages}->{$pagename};
+	$call output_outdir
+	$page->{outdir}=$outdir
 	$call compile
 
     $sub output
 	my ($pagename, $plines, $ext)=@_;
 	my $page=$MyDef::def->{pages}->{$pagename};
-	$call output_outdir
+	my $outdir=$page->{outdir}
 
 	my $outname=$outdir."/".$pagename;
 	$if $ext
 	    $outname.=".$ext";
 	print "  --> [$outname]\n";
 
-	my $subfile=0;
 	open Out, ">$outname" or die "Can't write $outname\n";
 	$foreach my $l in @$plines
-	    $if !$subfile and $l!~/^START_/
-		print Out $l;
-	    $else
-		$call output_subfile
+	    print Out $l;
 	close Out;
 
     $sub parse_code
@@ -411,27 +409,6 @@ subcode: output_outdir
 	    if(!$tdir){next;}
 	    $if ! -d $tdir
 		mkdir $tdir or die "Can't create output directory: $tdir\n";
-
-subcode: output_subfile
-    $if $subfile
-	$if $l=~/^END_SUBFILE/
-	    $subfile=0;
-	    close Subfile;
-	$else
-	    print Subfile $l;
-    $else
-	$if $l=~/^START_Makefile/
-	    $if !-f "$outdir/Makefile"
-		print "Write $outdir/Makefile\n";
-		open Subfile, ">$outdir/Makefile" or die "Can't write $outdir/Makefile";
-		$subfile=1;
-		print Subfile "$pagename: $pagename.$ext\n";
-	    $else
-		open Subfile, ">/dev/null";
-		$subfile=1;
-	$elsif $l=~/^START_h/
-	    open Subfile, ">$outdir/$pagename.h" or die "Can't write $outdir/$pagename.h";
-	    $subfile=1;
 
 # ------------------------------------------------------
 subcode: call_sub_param

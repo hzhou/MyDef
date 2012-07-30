@@ -13,16 +13,29 @@ subcode: c_dump_init
     $call dump_globals
     $call dump_code_list
 
+# ---- Includes ----
+subcode:: package_globals
+    our %includes
+    our %objects
+    $sub add_include 
+	my $l=shift;
+	my @tlist=split /,/, $l;
+	$foreach my $t in @tlist
+	    $if $t=~/(\S+)/
+		$includes{"<$1>"}=1;
 
-# -----------------------------------------
 subcode: dump_includes
     my $cnt=0
     $while my ($k, $t)=each %includes
-	$if $k!~/^lib/
-	    push @dump_init, "#include $k\n";
-	    $cnt++
+	push @dump_init, "#include $k\n";
+	$cnt++
     $if $cnt>0
 	push @dump_init, "\n";
+
+# ---- Defines ----
+subcode:: package_globals
+    our $define_id_base=1000;
+    our %defines;
 
 subcode: dump_defines
     my $cnt=0
@@ -31,6 +44,11 @@ subcode: dump_defines
 	$cnt++
     $if $cnt>0
 	push @dump_init, "\n";
+
+# ---- Enums ----
+subcode:: package_globals
+    our %enums;
+    our @enum_list;
 
 subcode: dump_enums
     my $cnt=0
@@ -41,7 +59,12 @@ subcode: dump_enums
     $if $cnt>0
 	push @dump_init, "\n";
 
-# ---- dump global variables -----------
+# ---- Global Variables ----
+subcode:: package_globals
+    our $global_type={};
+    our $global_flag={};
+    our @global_list;
+
 subcode: dump_globals
     my $cnt=0
     $foreach my $v in @global_list
@@ -55,7 +78,10 @@ subcode: dump_global
 subcode: dump_global_std
     push @dump_init, "$v;\n";
     $cnt++
-# ---- -----------
+
+# ---- Function Delcares ----
+subcode:: package_globals
+    our @function_declare_list
 
 subcode: dump_function_declares
     my $cnt=0
@@ -72,11 +98,20 @@ subcode: dump_function_declares
     $if $cnt>0
 	push @dump_init, "\n";
 
+# ---- Declares ----
+subcode:: package_globals
+    our @declare_list
+
 subcode: dump_declares
     $foreach my $l in @declare_list
 	push @dump_init, "$l\n";
     $if @declare_list
 	push @dump_init, "\n";
+
+# ---- Structures ----
+subcode:: package_globals
+    our %structs;
+    our @struct_list;
 
 subcode: dump_structs
     $foreach my $name in @struct_list
@@ -115,6 +150,10 @@ subcode: dump_structs_functions
 	# ------------------------
     $if $cnt>0
 	push @dump_init, "\n";
+
+# ---- Init codes ----
+subcode:: package_globals
+    our @initcodes
 
 subcode: dump_code_list
     $foreach my $l in @initcodes

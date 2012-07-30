@@ -1,3 +1,17 @@
+subcode:: package_globals
+    our %functions
+    our @function_stack
+    our $cur_function
+
+    # ----
+    my %function_flags;
+    sub set_function_flag {
+	my ($k, $v)=@_;
+	$function_flags{$k}=$v;
+    }
+    # ----
+    our @func_var_hooks;
+
 # -----------------------------------------------------------------
 subcode:: c_support_subs
     $sub open_function
@@ -91,7 +105,6 @@ subcode: add_var(scope)
 	$elif get_var_type($name)
 	    return
 
-    $call value_from_file
     $call infer_type
     $if $debug
 	print "$(scope)_add_var: $name - $type - $array\n"
@@ -133,11 +146,14 @@ subcode: c_struct_init
 
 # ----
 subcode: split_name
-    my ($tail, $array);
+    my ($attr, $tail, $array);
     # NOTE: space sensitive!
     $if !$type and $name=~/^\s*(\S[^=]*)\s+(\S+)/
 	$type=$1
 	$name=$2
+    $while $type=~/^(\s*extern)(.*)/
+	$attr.=$1
+	$type=$2
     $if $name=~/(\S+)(=(.*))/
 	$name=$1;
 	$tail=$2;
@@ -178,6 +194,16 @@ subcode: var_init_line
 	$vinit="$type $name$array$tail";
     $else
 	$vinit="$type $name$tail";
+    $if $attr
+	$vinit="$attr $vinit"
+
+subcode:: package_globals
+    use File::stat
+    our @extern_binary;
+
+    $sub get_mtime($fname)
+	my $st=stat($fname)
+	return $st->[9]
 
 subcode: value_from_file
     $if $tail=~/^=\[string_from_file:(\S+)\]/
@@ -190,6 +216,40 @@ subcode: value_from_file
 	    push @t, $_
 	close In
 	$tail="=\"".join("\\n\\\n", @t)."\""
+    $elif $tail=~/^=\[binary_from_file:(\S+)\]/
+	push @global_list, "extern char _$name"
+	$tail="=&_$name"
+	push @extern_binary, "$name:$1"
+
+subcode: process_extern_binary
+    my $ofile=$page->{outdir}."/extern.o"
+    my $otime=get_mtime($ofile)
+    my $need_update=0
+    my @externS;
+    push @externS, "    .section .rodata"
+    $foreach $t in @extern_binary
+	$if $t=~/(.*):(.*)/
+	    my ($name, $fname)=($1,$2)
+	    push @externS, "    .global _$name"
+	    #push @externS, "    .type   $name, \"object\""
+	    push @externS, "    .align  4"
+	    push @externS, "_$name:"
+	    push @externS, "    .incbin \"$fname\""
+	    $if get_mtime($fname)>$otime
+		$need_update=1
+    $if $need_update
+	print "  ---> $ofile\n"
+        open Out, ">$page->{outdir}/extern.s"
+	print Out join("\n", @externS), "\n";
+	close Out
+
+	my $cmd= "as -o $ofile"
+	open PIPE, "|$cmd" or die "Can't run $cmd\n"
+	print PIPE join("\n", @externS), "\n"
+	close PIPE
+    $if -f $ofile
+	$objects{"extern.o"}=1
+
 
 #-------------------------------------------------------------
 subcode:: c_support_subs

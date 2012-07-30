@@ -1,4 +1,3 @@
-include: macros_c/globals.def
 include: macros_c/parsing.def
 include: macros_c/last_checks.def
 include: macros_c/structure.def
@@ -13,6 +12,7 @@ subcode: c_main
 
     my $cur_indent;
 
+    my $debug;
     $call package_globals
 
     ## -------------------------------------------------

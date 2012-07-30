@@ -28,31 +28,47 @@ page: output_c, output_main
 	$foreach my $func in @$funclist
 	    $call process_function_std
 
-        # ---- Makefile -------------------------------
-	$if $functions{"main"}
-	    my $pagename=$page->{pagename}
-	    my $ext=$page->{pageext}
-	    push @$f, "START_Makefile";
-	    $call set_make_macro, CC, gcc
-	    $call set_make_macro, CFLAGS, -
-	    $call set_make_macro, INC, -
-	    $call set_make_macro, LIB, -
-	    push @$f, "\n"
-	    push @$f, "$pagename: $pagename.$ext\n";
-	    push @$f, "\t\$\(CC) \$\(CFLAGS) \$\(INC) \$\(LIB) -o \$@ \$<\n"
-	    push @$f, "END_SUBFILE";
+	$call process_extern_binary
+	$call dump_Makefile
 
 	# ---- Header stuff --------------------------
 	unshift @$out, "\n/**** END GLOBAL INIT ****/\n";
 	unshift @$out, "DUMP_STUB global_init";
 	$call c_dump_init
 
+    subcode: dump_Makefile
+	$if $functions{"main"}
+	    my $ofile=$page->{outdir}."/Makefile"
+	    $if !-f $ofile
+		print "  ---> $ofile\n"
+		my @objlist
+		my @liblist
+		$foreach $i in keys %objects
+		    $if $i=~/^lib(.*)/
+			push @liblist, "-l$1"
+		    $elif $i=~/(.*\.o)/
+			push @objlist, "$i"
+		my $pagename=$page->{pagename}
+		my $ext=$page->{pageext}
+		open Subfile, ">$ofile" or die "Can't write $ofile\n"
+		$call set_make_macro, CC, gcc
+		$call set_make_macro, CFLAGS, -
+		$call set_make_macro, INC, -
+		$call set_make_macro, LIB, -
+		print Subfile "\n"
+		print Subfile "$pagename: $pagename.o ".join(" ", @objlist)."\n";
+		print Subfile "\t\$\(CC) \$\(LIB) ".join(" ",@liblist)." -o $pagename \$^\n"
+		print Subfile "\n"
+		print Subfile "%.o: %.c\n"
+		print Subfile "\t\$\(CC) -c \$\(CFLAGS) \$\(INC) -o \$@ \$<\n"
+		close Subfile
+
 subcode: set_make_macro(name, default)
     $if $page->{$(name)}
-	push @$f, "$(name)=$page->{$(name)}\n"
+	print Subfile "$(name)=$page->{$(name)}\n"
     $(if:default!=-)
 	$else
-	    push @$f, "$(name)=$(default)\n"
+	    print Subfile "$(name)=$(default)\n"
 
 page: output_glsl, output_main
     type: pm
