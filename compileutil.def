@@ -425,12 +425,7 @@ subcode: call_sub_param
 	    $t=$';
 	$t=~s/^\s*,?\s*//;
 	$pline=$t;
-	$if $codename=~/_f$/
-	    # ---- Single parameter slurp
-	    #      (_f for format such as in printf)
-	    $t=~s/^\s*,\s*//;
-	    push @plist, $t;
-	$elsif $t=~/\|/
+	$if $t=~/\|/
 	    # ---- '|' seperated param list
 	    # '|' seprated param list
 	    @plist=split /\s*\|\s*/, $t;
@@ -467,6 +462,7 @@ subcode: call_sub_normal
 	my $n2=@plist;
 	my $n3=@$params;
 	$if $params->[$n3-1]=~/^\@(\w+)/ and $n2>$n3-$np
+	    # Last single param slurp ----------
 	    my $n0=$n3-$np-1;
 	    $for my $i=0;$i<$n0;$i++
 		$pline=~s/^[^,]*,//

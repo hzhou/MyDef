@@ -21,8 +21,7 @@ subcode: c_main
 
     $call c_support_subs
 
-subcode: c_init
-    %includes=();
+subcode:: c_init
     $if $MyDef::def->{"macros"}->{"use_double"}
 	$type_name{f}="double";
 	$type_prefix{f}="double";
@@ -35,30 +34,6 @@ subcode: check_text_includes
 	$if $l=~/$k/
 	    $if $v=~/(\S+)/
 		$includes{"<$1>"}=1
-
-subcode:: c_support_subs
-    $sub declare_var($var, $type)
-	$cur_function->{var_type}->{$var}=$type
-
-    $sub parse_condition
-	my ($param, $out)=@_;
-	$if $param=~/^(\S+)\s*(!~|=~)\s*\/(.*)\//
-	    my ($var, $eq, $pattern)=($1, $2, $3)
-	    my ($pos, $end)
-	    $if $var=~/(.*)\[(.*)\]/
-		($var, $pos)=($1, $2)
-	    $else
-		($pos, $end)=(0, 0)
-	    my $t= parse_regex_match($pattern, $out, $var, $pos, $end);
-	    $if $eq =~/!~/
-		return "!($t)"
-	    $else
-		return $t;
-
-	$elsif $param=~/(\w+)->\{(.*)\}/
-	    return hash_check($out, $1, $2);
-	$else
-	    return $param;
 
 # ---- allocate ----
 subcode: allocate_dimension

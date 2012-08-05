@@ -123,10 +123,12 @@ subcode:: c_support_subs
 	    return get_c_type_word(substr($name,1)).'*';
 	$elsif $name=~/^st(\w+)/
 	    return "struct $1";
-	$elif $name=~/^([a-z]+)/
+	$elif $name=~/^([a-z0-9]+)/
 	    $prefix=$1;
 	    $if $type_prefix{$prefix}
 		return $type_prefix{$prefix};
+	    $elif $prefix=~/^(.*?)\d+$/ and $type_prefix{$1}
+		return $type_prefix{$1};
 
     $sub get_c_type
 	my $name=shift;

@@ -1,6 +1,6 @@
 subcode:: c_support_subs
     sub hash_check {
-	my ($out, $h, $name)=@_;
+	my ($h, $name)=@_;
 	func_add_var("p_$h", "struct $h\_node *");
 	push @$out, "p_$h=hash_lookup_$h($name);";
 	return "p_$h\->s_text";
