@@ -38,7 +38,7 @@ page: mydef_page
 	    my $t_module=$default_module
 	    $if $p->{module} 
 		$t_module=$p->{module}
-	    $if $t_module ne $module
+	    $if $t_module and ($t_module ne $module)
 		next
 
 	    MyDef::createpage($t);
