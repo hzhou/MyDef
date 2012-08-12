@@ -25,66 +25,54 @@ subcode: mydef_main
 	my $module=$var->{module};
 	$if !$module
 	    die "Module type not defined in config!\n"
-	$map require_module, php, c, xs, apple, win32, perl, js, general
+	$map require_module, php, c, xs, apple, win32, perl, js, general, glsl
 	$else
 	    die "Undefined module type $module\n";
     # ----
     $call mydef_subs
 
 subcode: mydef_subs
-    sub addpath {
+    $sub addpath
 	my ($path)=@_;
 	$var->{path}=$path;
-    }
 
-    sub createpage_lines {
+    $sub createpage_lines
 	my ($pagename)=@_;
 	$page=$def->{pages}->{$pagename};
 	my ($plines, $ext)=MyDef::compileutil::compile($pagename);
 	return $plines;
-    }
 
-    sub createpage {
+    $sub createpage
 	my ($pagename)=@_;
 	$page=$def->{pages}->{$pagename};
 	my ($plines, $ext)=MyDef::compileutil::compile($pagename);
 	MyDef::compileutil::output($pagename, $plines, $ext);
-    }
 
-    sub import_data_lines {
+    $sub import_data_lines
 	my $plines=shift;
-	$def= MyDef::parseutil::import_data($plines, $var);
-    }
-    sub import_data {
-	my $file=shift;
-	my $plines=MyDef::parseutil::get_lines($file, $var);
-	$def= MyDef::parseutil::import_data($plines, $var);
-    }
+	$def= MyDef::parseutil::import_data_lines($plines, $var);
 
-    sub is_sub {
+    $sub import_data
+	my $file=shift;
+	$def= MyDef::parseutil::import_data($file, $var);
+
+    $sub is_sub
 	my $subname=shift;
-	if($page->{codes}->{$subname}){
+	$if $page->{codes}->{$subname}
 	    return 1;
-	}
-	elsif($def->{codes}->{$subname}){
+	$elsif $def->{codes}->{$subname}
 	    return 1;
-	}
-	else{
+	$else
 	    return 0;
-	}
-    }
     # --------------------------
-    sub import_config {
+    $sub import_config
 	my ($file)=@_;
 	# print STDERR "Reading Config File:  $file\n";
 	open In, $file or return;
-	while(<In>){
-	    if(/^(\w+):\s*(.*\S)/){
+	$while <In>
+	    $if /^(\w+):\s*(.*\S)/
 		$var->{$1}=$2;
-	    }
-	}
 	close In;
-    }
 
     1;
 

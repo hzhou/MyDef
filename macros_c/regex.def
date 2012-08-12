@@ -1,6 +1,6 @@
 subcode:: c_support_subs
     $sub parse_regex_match
-	my ($re, $out, $var, $pos, $end)=@_;
+	my ($re, $var, $pos, $end)=@_;
 	my @str_pool
 	$call parse_regex_str_pool
 	#  ---- parse into a postfix list ----

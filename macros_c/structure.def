@@ -24,6 +24,16 @@ subcode:: c_support_subs
 	    $elif $p=~/(-\w+)=>(.*)/
 		$s_hash->{$1}=$2
 		next;
+	    $elif $p=~/class (\w+)/
+		my $o=$structs{$1}
+		$if $o
+		    my $h=$o->{hash}
+		    my $l=$o->{list}
+		    $foreach $m in @$l
+			$if !$s_hash->{$m}
+			    $s_hash->{$m}=$h->{$m}
+			    push @$s_list, $m
+		next
 	    $elif $p=~/^@/
 		$needfree=1
 		$p=$';

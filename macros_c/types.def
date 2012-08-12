@@ -1,3 +1,76 @@
+subcode:: package_globals
+    our %fntype;
+    our %type_name=(
+	c=>"unsigned char",
+	i=>"int",
+	j=>"int",
+	k=>"int",
+	m=>"int",
+	n=>"int",
+	f=>"float",
+	d=>"double",
+	count=>"int",
+    );
+    our %type_prefix=(
+	n=>"int",
+	n1=>"int8_t",
+	n2=>"int16_t",
+	n4=>"int32_t",
+	n8=>"int64_t",
+	ui=>"unsigned int",
+	u=>"unsigned int",
+	u1=>"uint8_t",
+	u2=>"uint16_t",
+	u4=>"uint32_t",
+	u8=>"uint64_t",
+	c=>"unsigned char",
+	uc=>"unsigned char",
+	b=>"int",
+	s=>"char *",
+	v=>"unsigned char *",
+	f=>"float",
+	d=>"double",
+	"time"=>"time_t",
+	"file"=>"FILE *",
+	"strlen"=>"STRLEN",
+	"has"=>"int",
+	"is"=>"int",
+    );
+
+    our %stock_functions=(
+	"printf"=>1,
+    );
+
+    my %lib_include=(
+	glib=>"glib.h",
+    );
+
+    my %type_include=(
+	time_t=>"time.h",
+	int8_t=>"stdlib.h",
+	int16_t=>"stdlib.h",
+	int32_t=>"stdlib.h",
+	int64_t=>"stdlib.h",
+	uint8_t=>"stdlib.h",
+	uint16_t=>"stdlib.h",
+	uint32_t=>"stdlib.h",
+	uint64_t=>"stdlib.h",
+    );
+
+    my %text_include=(
+	"printf|perror"=>"stdio.h",
+	"malloc"=>"stdlib.h",
+	"str(len|dup|cpy)|memcpy"=>"string.h",
+	"\\bopen\\("=>"fcntl.h",
+	"sin|cos|sqrt|pow"=>"math.h",
+	"fstat"=>"sys/stat.h",
+    );
+
+    sub register_type_prefix {
+	my ($k, $v)=@_;
+	$type_prefix{$k}=$v;
+    }
+
 subcode:: c_support_subs
     $sub infer_c_type
 	my $val=shift;
@@ -51,12 +124,12 @@ subcode:: c_support_subs
 	    return get_c_type_word(substr($name,1)).'*';
 	$elsif $name=~/^st(\w+)/
 	    return "struct $1";
-	$elif $name=~/^([a-z]+)/
-	    $if $type_prefix{$1}
-		my $type=$type_prefix{$1}
-		$if $type_include{$type}
-		    add_include($type_include{$type});
-		return $type
+	$elif $name=~/^([a-z0-9]+)/
+	    $prefix=$1;
+	    $if $type_prefix{$prefix}
+		return $type_prefix{$prefix};
+	    $elif $prefix=~/^(.*?)\d+$/ and $type_prefix{$1}
+		return $type_prefix{$1};
 
     $sub get_c_type
 	my $name=shift;

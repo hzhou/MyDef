@@ -4,12 +4,14 @@ subcode: c_parsecode
     $if $l=~/^FUNC (\w+)-(.*)/
 	my $fname=$1;
 	my $t=$2;
-	$if $fname eq "n_main"
+	$if $fname eq "n_main" or $fname eq "main2"
 	    $fname="main";
 	my $fidx=open_function($fname, $t);
 	push @$out, "OPEN_FUNC_$fidx";
 	$cur_indent=0;
 	return
+    $elif $l=~/^FUNC END/
+	$cur_function=pop @function_stack
     $elif $l=~/^\s*PRINT\s+(.*)$/
 	$call fmt_print
     $elif $l=~/^\s*\$(\w+)\((.*)\)\s+(.*)$/
@@ -29,7 +31,9 @@ subcode: c_parsecode
 
 subcode: parsecode_func_param
     $if $func eq "allocate"
-	allocate($out, $param1, $param2);
+	allocate($param1, $param2);
+    $elif $func eq "local_allocate"
+	local_allocate($param1, $param2);
     $elsif $func eq "dump"
 	debug_dump($param2, $param1, $out);
     $elsif $func eq "register_prefix"
@@ -59,9 +63,14 @@ subcode: parsecode_func_param
 	    $enums{$param1}=$param2;
     $elsif $func eq "enumbit"
 	my $base=0;
+	$if $param1=~/(\w*),\s*(\d+)/
+	    $param1=$1
+	    $base=$2
+	$if $param1
+	    $param1.="_"
 	my @plist=split /,\s+/, $param2;
 	$foreach my $t in @plist
-	    $defines{"$param1\_$t"}=0x1<<$base;
+	    $defines{"$param1$t"}=0x1<<$base;
 	    $base++;
     $else
 	$should_return=0
@@ -75,29 +84,34 @@ subcode: parsecode_func
     }
     ## All the functions
     $if $func eq "block"
-	return single_block($param, $out);
+	return single_block("$param\{", "}")
     $elsif $func eq "allocate"
 	allocate($out, 1, $param);
     $elsif $func =~/^except/
-	return single_block($except, $out);
+	return single_block("$except\{", "}")
+    $elsif $func =~ /^(switch)$/
+	return single_block("$1($param){", "}")
     $elsif $func =~ /^(if|while|switch|(el|els|else)if)$/
 	my $name=$1;
 	$if $2
 	    $name="else if";
 	my $p=parse_condition($param, $out);
-	return single_block("$name($p)", $out);
+	return single_block("$name($p){", "}")
     $elsif $func =~/^dowhile/
 	my $p=parse_condition($param, $out);
-	push @$out, "do{";
-	push @$out, "INDENT";
-	push @$out, "BLOCK";
-	push @$out, "DEDENT";
-	push @$out, "}while($p);";
-	return "NEWBLOCK";
+	return single_block("do{", "}while($p);")
     $elsif $func eq "else"
-	return single_block("else", $out);
+	return single_block("else{", "}");
     $elsif $func eq "for"
 	$call c_parse_for
+    $elsif $func eq "function"
+	$if $param=~/(\w+)\s*\((.*)\)/
+	    my $fidx=open_function($1, $2);
+	    push @$out, "OPEN_FUNC_$fidx";
+	    push @$out, "SOURCE_INDENT";
+	    push @$out, "BLOCK";
+	    push @$out, "SOURCE_DEDENT";
+	    return "NEWBLOCK-FUNC END";
     $elsif $func eq "return_type"
 	$cur_function->{ret_type}=$param;
     $elsif $func eq "parameter"
@@ -148,6 +162,10 @@ subcode: parsecode_func
     $elsif $func eq "globalinit"
 	# just to allow , in initline
 	global_add_var($param);
+    $elsif $func eq "global_symbol"
+	my @vlist=split /,\s+/, $param;
+	$foreach my $v in @vlist
+	    $global_type->{$v}="void"
     $elsif $func eq "local"
 	my @vlist=split /,\s+/, $param;
 	$foreach my $v in @vlist
@@ -241,9 +259,9 @@ subcode: c_parse_for
 		$stepclause="$var=$i0;$var>$i1;$var--";
 	    $else
 		$stepclause="$var=$i0;$var<$i1;$var++";
-	return single_block("for($stepclause)", $out);
+	return single_block("for($stepclause){", "}");
     $else
-	print "\$for mismatch [$param]\n";
+	return single_block("for($param){", "}")
 
 subcode: c_parse_getopt
     $includes{"<stdlib.h>"}=1;
@@ -317,3 +335,28 @@ subcode: c_parse_getbits
 	$bits_off=0
 	$byte_off++
     push @$out, "$var = ".join("|", @tlist).";"
+
+subcode:: c_support_subs
+    $sub parse_condition
+	my ($param)=@_;
+	$if $param=~/^(\S+)\s*(!~|=~)\s*\/(.*)\//
+	    my ($var, $eq, $pattern)=($1, $2, $3)
+	    my ($pos, $end)
+	    $if $var=~/(.*)\[(.*)\]/
+		($var, $pos)=($1, $2)
+	    $else
+		($pos, $end)=(0, 0)
+	    my $t= parse_regex_match($pattern, $var, $pos, $end);
+	    $if $eq =~/!~/
+		return "!($t)"
+	    $else
+		return $t;
+
+	$elsif $param=~/(\w+)->\{(.*)\}/
+	    return hash_check($1, $2);
+	$elsif $param=~/[^!><=]=[^=]/
+	    print "Assignment in [$param], possible bug?\n"
+	    return $param
+	$else
+	    return $param;
+

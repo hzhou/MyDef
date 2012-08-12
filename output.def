@@ -7,25 +7,29 @@ subcode: output_main
     my $debug;
     my $mode;
     my $out;
+    my $page;
     $call @package_subs
 
     $sub get_interface
-	return (\&init_page, \&parsecode, \&modeswitch, \&dumpout);
+	return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
 
     $sub init_page
-	my ($page)=@_;
-
+	($page)=@_;
 	# ---- Set output file extension
-	my $ext="$(ext)";
+	my $ext="$(ext)"
 	$if $page->{type}
 	    $ext=$page->{type};
 	$call @init_page
+	# !!! $page->{ext}=$ext will overwrite $(ext)
+	$page->{pageext}=$ext 
 	return ($ext, "$(init_mode)");
+
+    $sub set_output
+	$out = shift
 
     # ---- php has php,  html and js mode ----------
     $sub modeswitch
-	my $pmode
-	($pmode, $mode, $out)=@_;
+	($mode, $in)=@_;
 	$call @modeswitch
 
     # ---- All specialized parsing goes here.
@@ -50,9 +54,29 @@ subcode: output_main
 	$call @dumpout
 	MyDef::dumpout::dumpout($dump);
 
+    # ---- supporting subroutines ----
+    $sub single_block($t1, $t2)
+	push @$out, "$t1";
+	push @$out, "INDENT";
+	push @$out, "BLOCK";
+	push @$out, "DEDENT";
+	push @$out, "$t2";
+	return "NEWBLOCK";
+
+    $sub single_block_pre_post($pre, $post)
+	$if $pre
+	    $foreach my $l in @$pre
+		push @$out, $l
+	push @$out, "BLOCK";
+	$if $post
+	    $foreach my $l in @$post
+		push @$out, $l
+	return "NEWBLOCK";
+
     $call @support_subs
 
     1;
 
 subcode: parsecode
     push @$out, $l
+

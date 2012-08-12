@@ -66,7 +66,12 @@ sub parsecode {
             return single_block("else", $out);
         }
         elsif($func eq "sub"){
-            return single_block("sub $param ", $out);
+            if($param=~/^(\w+)\((.*)\)/){
+                return single_block_pre_post("sub $1 ", $out, ["my ($2)=\@_;"]);
+            }
+            else{
+                return single_block("sub $param ", $out);
+            }
         }
         elsif($func eq "for" or $func eq "foreach"){
             if($param=~/(\$\w+)=(.*?):(.*?)(:.*)?$/){
@@ -85,11 +90,16 @@ sub parsecode {
                     }
                 }
                 else{
-                    $stepclause="my $var=$i0;$var<$i1;$var++";
+                    if($i1=~/^-?\d+/ and $i0=~/^-?\d+/ and $i1<$i0){
+                        $stepclause="my $var=$i0;$var>$i1;$var--";
+                    }
+                    else{
+                        $stepclause="my $var=$i0;$var<$i1;$var++";
+                    }
                 }
                 return single_block("for($stepclause)", $out);
             }
-            elsif($param=~/(\$\w+) in (.*)/){
+            elsif($param=~/(\$\w+)\s+in\s+(.*)/){
                 my ($var, $list)=($1, $2);
                 return single_block("foreach my $var ($list)", $out);
             }
@@ -119,6 +129,25 @@ sub single_block {
     push @$out, "$t\{";
     push @$out, "INDENT";
     push @$out, "BLOCK";
+    push @$out, "DEDENT";
+    push @$out, "}";
+    return "NEWBLOCK";
+}
+sub single_block_pre_post {
+    my ($t, $out, $pre, $post)=@_;
+    push @$out, "$t\{";
+    push @$out, "INDENT";
+    if($pre){
+        foreach my $l (@$pre){
+            push @$out, $l;
+        }
+    }
+    push @$out, "BLOCK";
+    if($post){
+        foreach my $l (@$post){
+            push @$out, $l;
+        }
+    }
     push @$out, "DEDENT";
     push @$out, "}";
     return "NEWBLOCK";

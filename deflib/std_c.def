@@ -1,5 +1,12 @@
 #include: ref_counting.def
 
+## frame
+subcode: basic_frame
+    $include stdio
+    $include stdlib
+    $call @global
+    $list main2
+
 ##  Memory utilities
 subcode: memory_utility
     $global float mu_total_mem=0.0
@@ -173,6 +180,13 @@ subcode: dlist_each_inverse_safe(plist, p, p2)
 	$(p)=$(p2)->prev
         BLOCK
         $(p2)=$(p2)->prev
+
+###############################################################
+## Utility
+subcode: assert(check)
+    $if !($(check))
+	printf("Error: !($(check)) at line %d \n", __LINE__)
+	exit(1)
 
 ## FILE IO
 subcode: mmap(filename, strname, strsize)

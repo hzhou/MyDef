@@ -19,7 +19,7 @@ page: mydef_make
 	# ---- in current directory ------------------------
 	my @master_config;
 	my $module="php";
-	my %module_type=(perl=>"pl", php=>"php", xs=>"xs", win32=>"c", c=>"c", apple=>"m", js=>"js", general=>"txt");
+	my %module_type=(perl=>"pl", php=>"php", xs=>"xs", win32=>"c", c=>"c", apple=>"m", js=>"js", general=>"txt", glsl=>"glsl");
 	my %macros;
 	my @include_folders;
 	my $config_outputdir;
@@ -29,9 +29,6 @@ page: mydef_make
 	    $call create_config
 	$call read_config
 
-	my $default_type=$module_type{$module};
-	$if !$default_type
-	    die "No default module type for $module\n";
 	print STDERR "    output_path: $config_outputdir\n";
 
 	# -- recursive make folders, copylist
@@ -212,6 +209,7 @@ subcode: check_eachfile
 	my @page_list;
 	my $page;
 	my $output_path;
+	my $perlcode=0
 	$if !$h_def{$f} or $h_def{$f} == 1
 	    my $deplist=[];
 	    $h_def{$f}=$deplist;
@@ -228,6 +226,19 @@ subcode: check_eachfile
 		$for my $page in @page_list
 		    $if !$page->{output_dir}
 			$page->{output_dir}=$output_path
+	    $if $perlcode
+		my $defname="default"
+		$if $f=~/([^\/]+)\.def/
+		    $defname=$1
+		$h_page{"$f-perlcode"}={page=>"perl-$defname", module=>"perl", type=>"pl", def=>$f}
+		$if $output_path
+		    $if $output_path!~/^\//
+			$output_path="$config_outputdir/$output_path"
+		$else
+		    $output_path=$config_outputdir
+		$for my $page in @page_list
+		    $page->{depend}.=" $output_path/perl-$defname.pl"
+
 
 subcode: check_file_inpage
     $if /^\s*output_dir: (\S+)/
@@ -236,6 +247,10 @@ subcode: check_file_inpage
 	$page->{include}->{$1}=1;
     $elif /^\s*type: (\w+)/
 	$page->{type}=$1;
+    $elif /^\s*module:\s*(\w+)/
+	$page->{module}=$1;
+    $elif /^\s*depend:\s+(.*)/
+	$page->{depend}=$1
     $elif /^\S/
 	$inpage=0;
 
@@ -261,33 +276,40 @@ subcode: check_file_notinpage
 	push @page_list, $page;
 	$page->{page}=$1;
 	$page->{def}=$f;
-	$page->{type}=$default_type;
 	$page->{include}={};
 	my $key="$f-$1";
-	while($h_page{$key}){
+	$while $h_page{$key}
 	    $key.='1';
-	}
 	$h_page{$key}=$page;
+    $elif /^output_dir: (\S+)/
+	$output_path=$t;
+    $elif /^perlcode:/
+	$perlcode=1
 
 subcode: outputdir_inpage
-    my $t=expand_macros($1);
-    $if $page
-	$if $t !~/^\// and $output_path
-	    $t=$output_path."/".$t
-	$page->{output_dir}=$t;
-	my $tlist=$folder{$t};
-	$if $tlist
-	    push @$tlist, "$f-$page->{page}";
-	$else
-	    $folder{$t}=["$f-$page->{page}"];
-	# Assign to Makefile Variable $t (which is grouped by output folder)
-	$page->{in_var}=$t;
-    $else{
-	# Global output_dir in this def file
-	$output_path=$t;
+    my $dir=expand_macros($1);
+
+    $if $dir !~/^\// and $output_path
+	$dir=$output_path."/".$dir
+    $page->{output_dir}=$dir;
+    my $tlist=$folder{$dir};
+    $if $tlist
+	push @$tlist, "$f-$page->{page}";
+    $else
+	$folder{$dir}=["$f-$page->{page}"];
+    # Assign to Makefile Variable $dir 
+    #     (which is grouped by output folder)
+    $page->{in_var}=$dir;
 
 subcode: check_eachpage
     $while my ($p, $h) = each %h_page
+	$if !$h->{type}
+	    my $t_module=$module
+	    $if $h->{module}
+		$t_module=$h->{module}
+	    $h->{type}=$module_type{$t_module}
+	    $if !$h->{type}
+		$h->{type}=$t_module
 	$if !$h->{in_var}
 	    $h->{in_var}="toproot";
 	    $if $folder{toproot}
@@ -364,23 +386,23 @@ subcode: write_var_folder
 	print Out "\n";
 
 subcode: write_rule_pages
-    while (my ($p, $h)=each %h_page){
-	my $t=$h->{def};
-	my $l=$h_def{$t};
+    $while my ($p, $h)=each %h_page
+	my $def=$h->{def};
 	my $inc=$h->{include};
 	my $inc_dep=join(" ", keys %$inc);
-	if($h->{path}){
+	my $extra_dep=$h->{depend}
+	$if $h->{path}
 	    my @t;
-	    foreach my $tt(@$l){
-		if(-f $tt){
+	    my $l=$h_def{$def};
+	    $foreach $tt in @$l
+		$if -f $tt
 		    push @t, $tt;
-		}
-	    }
-	    print Out $h->{path}, ".", $h->{type}, ": ", $h->{def}, " ", join(" ", @t), " $inc_dep\n";
-	    print Out "\t\${MakePage} \$< \$\@\n";
+	    print Out $h->{path}, ".", $h->{type}, ": ", $def, " ", join(" ", @t), " $inc_dep $extra_dep\n";
+	    $if $h->{module} and ($h->{module}ne $module)
+		print Out "\t\${MakePage} -m$h->{module} \$< \$\@\n";
+	    $else
+		print Out "\t\${MakePage} \$< \$\@\n";
 	    print Out "\n";
-	}
-    }
 
 subcode: write_rule_submake
     # ---- recursive make rule
