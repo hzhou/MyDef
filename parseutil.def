@@ -457,13 +457,13 @@ subcode: compile_perlcode
 	my $maincode=[];
 	my $page={pagename=>"perl-$defname", module=>"perl", type=>"pl", codes=>{main=>{type=>'sub', source=>$maincode, params=>[]}}};
 
-	push $maincode, "\$call \@perl_global"
-	push $maincode, "my (\$subname, \@alist)=\@ARGV"
+	push @$maincode, "\$call \@perl_global"
+	push @$maincode, "my (\$subname, \@alist)=\@ARGV"
 	$foreach $name in @perlcode_list
-	    push $maincode, "\$if \$subname eq \"$name\""
-	    push $maincode, "SOURCE_INDENT"
-	    push $maincode, "\$call $name"
-	    push $maincode, "SOURCE_DEDENT"
+	    push @$maincode, "\$if \$subname eq \"$name\""
+	    push @$maincode, "SOURCE_INDENT"
+	    push @$maincode, "\$call $name"
+	    push @$maincode, "SOURCE_DEDENT"
 
 	push @$pagelist, "perl-$defname"
 	$pages->{"perl-$defname"}=$page
