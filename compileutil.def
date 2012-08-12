@@ -332,8 +332,6 @@ subcode:: package_global
     our $deflist;
     our $modelist;
 
-    my @callsub_stack;
-
     my $debug;
 
 
@@ -424,6 +422,9 @@ subcode: output_outdir
 		mkdir $tdir or die "Can't create output directory: $tdir\n";
 
 # ------------------------------------------------------
+subcode:: package_global
+    my @callsub_stack;
+
 subcode: call_sub_param
     my $codename;
     my $attr;
@@ -447,16 +448,6 @@ subcode: call_sub_param
     $else
 	print STDERR "    call_sub [$param] parse failure\n";
 	return;
-
-subcode: call_sub_grab
-    # ---- Grab Code Block ------------------
-    my $codelib=get_def_attr("codes", $codename);
-    $if !$codelib and $attr ne '@'
-	print STDERR "    Code $codename not found!\n";
-	return;
-    $foreach my $name in @callsub_stack
-	$if $name eq $codename
-	    die "Recursive subcode: $codename\n"
 
 subcode: call_sub_map
     $if 1+@pre_plist!=@$params
@@ -498,14 +489,15 @@ subcode: call_sub_normal
     pop @$deflist;
 
 subcode: call_sub_block
-    $call call_sub_grab
-    push @callsub_stack, $codename
-    modepush($codelib->{type});
-    my $params=$codelib->{params};
-    my $source=$codelib->{source};
-    BLOCK
-    modepop()
-    pop @callsub_stack
+    my $codelib=get_subcode($codename)
+    $if $codelib
+	push @callsub_stack, $codename
+	modepush($codelib->{type});
+	my $params=$codelib->{params};
+	my $source=$codelib->{source};
+	BLOCK
+	modepop()
+	pop @callsub_stack
 
 subcode:: support_subs
     $sub list_sub
@@ -538,26 +530,46 @@ subcode:: support_subs
     $sub callback_sub
 	my ($param)=@_;
 	$call call_sub_param
-	$call call_sub_grab
-	push @callsub_stack, $codename
-	modepush($codelib->{type});
+	my $codelib=get_subcode($codename)
+	$if $codelib
+	    push @callsub_stack, $codename
+	    modepush($codelib->{type});
 
-	my $params=$codelib->{params};
-	my $source=$codelib->{source};
-	my $np=@pre_plist;
-	my @callback_list
-	my @blockline_list
+	    my $params=$codelib->{params};
+	    my $source=$codelib->{source};
+	    my $np=@pre_plist;
+	    my @callback_list
+	    extract_callback_block($source, \@callback_list)
+	    $call call_sub_normal
+	    pop @callsub_stack
+
+	    my @tlist;
+	    $foreach $b in @callback_list
+		$b->{source}->[$b->{line}]="BLOCK"
+		push @tlist, $b->{block}
+	    return @tlist
+
+    $sub get_subcode($codename)
+	# ---- Grab Code Block ------------------
+	my $codelib=get_def_attr("codes", $codename);
+	$if !$codelib and $attr ne '@'
+	    print STDERR "    Code $codename not found!\n";
+	    return;
+	$foreach my $name in @callsub_stack
+	    $if $name eq $codename
+		die "Recursive subcode: $codename\n"
+	return $codelib
+
+    $sub extract_callback_block($source, $callback_list)
 	$for $i=0:$#$source+1
 	    $if $source->[$i]=~/^BLOCK$/
 		my $n=new_output()
 		$source->[$i]="BLOCK_$n"
-		push @callback_list, $n
-		push @blockline_list, $i
-	$call call_sub_normal
-	$foreach $i in @blockline_list
-	    $source->[$i]="BLOCK"
-	pop @callsub_stack
-	return @callback_list
+		push @$callback_list, {block=>$n, source=>$source, line=>$i}
+	    $elif $source->[$i]=~/^\$call\s+(\w+)/
+		my $codelib=get_subcode($codename)
+		$if $codelib
+		    extract_callback_block($codelib->{source}, $callback_list)
 
 ###########################################################
 subcode:: support_subs

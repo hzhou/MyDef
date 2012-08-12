@@ -9,7 +9,9 @@ my $yellow="\033[33;1m";
 my $normal="\033[0m";
 my $f=$ARGV[0];
 if($f=~/([a-z0-9]+)_.*\.def$/){
-    system "perl ../MyDef/script/mydef_page.pl $f -m$1 -oout";
+    my $cmd= "perl ../MyDef/script/mydef_page.pl $f -m$1 -oout";
+    print "$cmd \n";
+    system $cmd;
     chdir "out";
     if($1 eq "c"){
 	print "$yellow*** Compiling test.c ***$normal\n";
