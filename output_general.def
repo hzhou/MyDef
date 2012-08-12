@@ -43,7 +43,7 @@ page: output_perl, output_main
 		return single_block("else{", "}")
 	    $elif $func eq "sub"
 		$if $param=~/^(\w+)\((.*)\)/
-		    return single_block_pre_post("sub $1 {", "}", ["my ($2)=\@_;"])
+		    return single_block_pre_post(["sub $1 {", "INDENT", "my ($2)=\@_;"], ["DEDENT", "}"])
 		$else
 		    return single_block("sub $param {", "}")
 	    $elif $func eq "for" or $func eq "foreach"

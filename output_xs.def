@@ -174,10 +174,14 @@ subcode: pre_parse
 	func_add_var($v_i)
 	func_add_var("t_psv")
 	my @pre;
+	push @pre, "for($v_idx=0; $v_idx<=av_len($v_av); $v_idx++){"
+	push @pre, "INDENT"
 	push @pre, "t_psv=av_fetch($v_av, $v_idx, 0);"
 	translate_scalar(\@pre, $v_i, get_var_type($v_i), "*t_psv")
-	my $t1="for($v_idx=0; $v_idx<=av_len($v_av); $v_idx++){"
-	return single_block_pre_post("$t1\{", "}", \@pre)
+	my @post
+	push @post, "DEDENT"
+	push @post, "}"
+	return single_block_pre_post(\@pre, \@post)
     $elsif $l=~/^\$foreach\s+\((\w+),\s*(\w+)\)\s+in\s+(hv_\w+)/
 	my ($v_name, $v_val, $v_hv)=($1, $2, $3);
 	func_add_var("t_n");
@@ -185,10 +189,14 @@ subcode: pre_parse
 	func_add_var($v_val);
 	func_add_var("t_sv");
 	my @pre;
+	push @pre, "while((t_sv=hv_iternextsv($v_hv, &$v_name, &t_n))){";
+	push @pre, "INDENT"
 	push @pre, "t_n=hv_iterinit($v_hv);"
 	translate_scalar(\@pre,$v_val,get_var_type($v_val),"t_sv")
-	my $t1="while((t_sv=hv_iternextsv($v_hv, &$v_name, &t_n))){";
-	return single_block_pre_post("$t1\{", "}", \@pre)
+	my @post
+	push @post, "DEDENT"
+	push @post, "}"
+	return single_block_pre_post(\@pre, \@post)
     $elsif $l=~/^\$getparam\s+(.*)/
 	my @vlist=split /,\s+/, $1;
 	my $j=0;

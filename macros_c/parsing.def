@@ -31,7 +31,9 @@ subcode: c_parsecode
 
 subcode: parsecode_func_param
     $if $func eq "allocate"
-	allocate($out, $param1, $param2);
+	allocate($param1, $param2);
+    $elif $func eq "local_allocate"
+	local_allocate($param1, $param2);
     $elsif $func eq "dump"
 	debug_dump($param2, $param1, $out);
     $elsif $func eq "register_prefix"
@@ -160,6 +162,10 @@ subcode: parsecode_func
     $elsif $func eq "globalinit"
 	# just to allow , in initline
 	global_add_var($param);
+    $elsif $func eq "global_symbol"
+	my @vlist=split /,\s+/, $param;
+	$foreach my $v in @vlist
+	    $global_type->{$v}="void"
     $elsif $func eq "local"
 	my @vlist=split /,\s+/, $param;
 	$foreach my $v in @vlist

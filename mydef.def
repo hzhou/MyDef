@@ -50,12 +50,11 @@ subcode: mydef_subs
 
     $sub import_data_lines
 	my $plines=shift;
-	$def= MyDef::parseutil::import_data($plines, $var);
+	$def= MyDef::parseutil::import_data_lines($plines, $var);
 
     $sub import_data
 	my $file=shift;
-	my $plines=MyDef::parseutil::get_lines($file, $var);
-	$def= MyDef::parseutil::import_data($plines, $var);
+	$def= MyDef::parseutil::import_data($file, $var);
 
     $sub is_sub
 	my $subname=shift;

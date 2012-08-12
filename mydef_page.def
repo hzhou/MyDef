@@ -8,7 +8,7 @@ page: mydef_page
 	my %config;
 	my $default_module=$MyDef::var->{module}
 	$foreach my $a in @ARGV
-	    $if $a =~ /-m(\w+)/
+	    $if $a =~ /^-m(\w+)/
 		$config{module} = $1
 	    $elif $a =~/-o(\S+)/
 		$config{output_dir} = $1

@@ -63,9 +63,7 @@ subcode: output_main
 	push @$out, "$t2";
 	return "NEWBLOCK";
 
-    $sub single_block_pre_post($t1, $t2, $pre, $post)
-	push @$out, "$t1";
-	push @$out, "INDENT";
+    $sub single_block_pre_post($pre, $post)
 	$if $pre
 	    $foreach my $l in @$pre
 		push @$out, $l
@@ -73,8 +71,6 @@ subcode: output_main
 	$if $post
 	    $foreach my $l in @$post
 		push @$out, $l
-	push @$out, "DEDENT";
-	push @$out, "$t2";
 	return "NEWBLOCK";
 
     $call @support_subs

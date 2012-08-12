@@ -69,6 +69,9 @@ subcode: compile_main
 	    $if $l=~/^\$\((else|\w+:.*)\)/
 		my $preproc=$1
 		$call parse_preproc
+	    $elif $l=~/^\$:\s+(.*)/
+		# Literal by-pass
+		push @$out, $1
 	    $else
 		NormalParse:
 		undef $context;
@@ -100,11 +103,20 @@ subcode: compile_main
     1;
 
 ######## Parse Output Stacks ######################################
+subcode:: package_global
+    my $block_index=0;
+    our @block_stack;    # maintain state for each parseblock
+
 subcode: parse_stack_push
     # ---- protect $out context
-    push @block_stack, {out=>$out};
+    $block_index++
+    push @block_stack, {out=>$out, index=>$block_index};
+
 subcode: parse_stack_pop
     my $blk=pop @block_stack;
+    my $idx=$blk->{index}
+    $if $named_blocks{"block$idx\_post"}
+	push @$out, "DUMP_STUB block$idx\_post"
     $if $blk->{debug}
 	$f_parse->("DEBUG OFF");
 	$debug=0
@@ -220,15 +232,16 @@ subcode:: package_global
 
     $sub get_named_block
 	my $name=shift
+	$if $name eq "_post"
+	    my $cur_idx=$block_stack[-1]->{index}
+	    $name="block$cur_idx\_post"
 	$if !$named_blocks{$name}
 	    $named_blocks{$name}=[]
 	return $named_blocks{$name}
 
 subcode: parse_named_block
     my $subblock=grabblock($block, \$lindex);
-    $if !$named_blocks{$name}
-	$named_blocks{$name}=[];
-    my $output=$named_blocks{$name}
+    my $output=get_named_block($name)
 
     my $temp=$out;
     set_output($output)
@@ -319,10 +332,10 @@ subcode:: package_global
     our $deflist;
     our $modelist;
 
-    our @block_stack;    # maintain state for each parseblock
     my @callsub_stack;
 
     my $debug;
+
 
 subcode: dump_deflist
     $for my $i=0;$i<=$#$deflist;$i++
@@ -592,6 +605,20 @@ subcode: expand_macro_seg
 	    $updated++;
 	$else
 	    die "Illegal rep macro in \"$$lref\"!\n"
+    $elif $s=~/^\$\(perl:(.*)\)/
+	my $outdir=".";
+	$if $MyDef::var->{output_dir}
+	    $outdir=$MyDef::var->{output_dir};
+	my $defname=$MyDef::def->{defname}
+	my $t=$1
+	$t=~s/,/ /g
+	$if open In, "perl $outdir/perl-$defname.pl $t|"
+	    my $t=<In>
+	    $segs[$j]=$t
+	    close In
+	$else
+	    die "Failed perl $outdir/perl-$defname.pl\n"
+	$updated++;
     $elif $s=~/^\$\((\w+):(.*)\)/
 	my $t=$macros->{$1};
 	my $p=$2;

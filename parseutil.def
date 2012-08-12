@@ -13,13 +13,22 @@ page: parseutil
 	1;
 
 subcode: parse_main
+    our $defname="default"
     $sub import_data
+	my ($file, $var)=@_
+	$if $file=~/([^\/]+)\.def/
+	    $defname=$1
+	my $plines=get_lines($file, $var)
+	import_data_lines($plines, $var)
+
+    $sub import_data_lines
 	my ($plines, $var)=@_;
 	my $def={"resource"=>{}, 
 		"pages"=>{}, 
 		"pagelist"=>[],
 		"codes"=>{}, 
 		"macros"=>{},
+		"defname"=>$defname,
 		};
 
 	# -------- global macros from config ---------
@@ -45,6 +54,7 @@ subcode: parse_main
 	# ---- End of Parsing ---------------------------
 	post_foreachfile($def);
 	post_matchblock($def);
+	$call compile_perlcode
 	#$call dump_hash, $def
 	return $def;
 
@@ -430,4 +440,32 @@ subcode: support_eachfile
 	    $rep=$pat_list[$i-1];
 	    $l=~s/\$$i/$rep/g;
 	return $l;
+
+# ---------------------------------------------------
+subcode: compile_perlcode
+    my $pages=$def->{pages}
+    my $pagelist=$def->{pagelist}
+    my $codes=$def->{codes}
+
+    my @perlcode_list;
+    $while my ($name, $code)= each %$codes
+	$if $code->{type} eq "perl"
+	    $if $name ne "perl_global"
+		push @perlcode_list, $name
+
+    $if @perlcode_list
+	my $maincode=[];
+	my $page={pagename=>"perl-$defname", module=>"perl", type=>"pl", codes=>{main=>{type=>'sub', source=>$maincode, params=>[]}}};
+
+	push $maincode, "\$call \@perl_global"
+	push $maincode, "my (\$subname, \@alist)=\@ARGV"
+	$foreach $name in @perlcode_list
+	    push $maincode, "\$if \$subname eq \"$name\""
+	    push $maincode, "SOURCE_INDENT"
+	    push $maincode, "\$call $name"
+	    push $maincode, "SOURCE_DEDENT"
+
+	push @$pagelist, "perl-$defname"
+	$pages->{"perl-$defname"}=$page
+
 
