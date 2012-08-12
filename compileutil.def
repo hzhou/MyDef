@@ -10,6 +10,7 @@ page: compileutil
 
 subcode: compile_main
     package MyDef::compileutil;
+    my ($cur_file, $cur_line);
     $call package_global
     $call manage_output
     $call support_subs
@@ -40,12 +41,15 @@ subcode: compile_main
 	my ($code)=@_;
 	my $srclist=$code->{source};
 	modepush($code->{type});
-	parseblock($srclist);
+	parseblock($srclist, $code->{file}, $code->{line});
 	modepop();
 
     # --------------------------------------------------------
     $sub parseblock
-	my ($block)=@_;
+	my ($block, $file, $line)=@_;
+
+	$call parse_stack_push
+
 	my $indent=0;
 	my $context;
 	my $lindex=0;
@@ -53,13 +57,13 @@ subcode: compile_main
 	my $callback_output;
 	my @callback_stack; # &call
 	my $pending_mode_pop;
-	$call parse_stack_push
 
 	$while $lindex<@$block
 	    my $l=$block->[$lindex];
 	    $if $debug eq "compile"
 		$call dump_line, compile
 	    $lindex++;
+	    $cur_line++
 
 	    # -- such as DEBUG
 	    $call parse_catch_meta
@@ -110,10 +114,14 @@ subcode:: package_global
 subcode: parse_stack_push
     # ---- protect $out context
     $block_index++
-    push @block_stack, {out=>$out, index=>$block_index};
+    push @block_stack, {out=>$out, index=>$block_index, file=>$cur_file, line=>$cur_line};
+    $cur_file=$file
+    $cur_line=$line
 
 subcode: parse_stack_pop
     my $blk=pop @block_stack;
+    $cur_file=$blk->{file}
+    $cur_line=$blk->{line}
     my $idx=$blk->{index}
     $if $named_blocks{"block$idx\_post"}
 	push @$out, "DUMP_STUB block$idx\_post"
@@ -165,7 +173,7 @@ subcode: parse_preproc
 	$foreach my $t in @tlist
 	    my $macro={$vname=>$t};
 	    push @$deflist, $macro;
-	    parseblock($subblock);
+	    parseblock($subblock, $cur_file, $cur_line+$lindex);
 	    pop @$deflist;
     $elsif $preproc=~/^reset:\s*(\w+)([+])?=(.*)/
 	my ($v, $op, $d)=($1, $2, $3)
@@ -203,7 +211,7 @@ subcode: parse_preproc
     $elsif $preproc=~/^if:\s*(.*)/
 	my $subblock=grabblock($block, \$lindex);
 	$if testcondition($1)
-	    parseblock($subblock);
+	    parseblock($subblock, $cur_file, $cur_line+$lindex);
 	    $context="switch_off";
 	$else
 	    $context="switch_on";
@@ -212,14 +220,14 @@ subcode: parse_preproc
 	$if $context eq "switch_on"
 	    $if testcondition($1)
 		#foreach my $t(@$subblock){ print "\t[$t]\n"; }
-		parseblock($subblock);
+		parseblock($subblock, $cur_file, $cur_line+$lindex);
 		$context="switch_off";
 	    $else
 		$context="switch_on";
     $elsif $preproc=~/^else/
 	my $subblock=grabblock($block, \$lindex);
 	$if $context eq "switch_on"
-	    parseblock($subblock);
+	    parseblock($subblock, $cur_file, $cur_line+$lindex);
 	    undef $context;
     $elsif $preproc=~/^block:(\w+)/
 	my $name=$1;
@@ -246,7 +254,7 @@ subcode: parse_named_block
     my $temp=$out;
     set_output($output)
     $f_parse->("SCOPE: $name");
-    parseblock($subblock);
+    parseblock($subblock, $cur_file, $cur_line+$lindex);
     $f_parse->("SCOPE: NONE");
     set_output($temp)
 
@@ -309,7 +317,7 @@ subcode: parse_handle_block(n)
     my $temp=$out;
     set_output($output_list[$(n)])
     $f_parse->("SCOPE: CALLBACK");
-    parseblock($subblock);
+    parseblock($subblock, $cur_file, $cur_line+$lindex);
     $f_parse->("SCOPE: NONE");
     set_output($temp)
 
@@ -458,7 +466,7 @@ subcode: call_sub_map
 	    $for $i=0:$np
 		$macro->{$params->[$i]}=$pre_plist[$i];
 	push @$deflist, $macro;
-	parseblock($source);
+	parseblock($source, $codelib->{file}, $codelib->{line});
 	pop @$deflist;
 
 subcode: call_sub_normal
@@ -485,7 +493,7 @@ subcode: call_sub_normal
 	$else
 	    $macro->{$p}=$plist[$j];
     push @$deflist, $macro;
-    parseblock($source);
+    parseblock($source, $codelib->{file}, $codelib->{line});
     pop @$deflist;
 
 subcode: call_sub_block
@@ -513,7 +521,7 @@ subcode:: support_subs
 		my $line=$funcname."-".join(",", @$params);
 		$f_parse->("FUNC $line")
 		parseblock(["SOURCE_INDENT"]);
-		parseblock($source);
+		parseblock($source, $codelib->{file}, $codelib->{line});
 		parseblock(["SOURCE_DEDENT"]);
 		$f_parse->("FUNC END")
 
@@ -553,7 +561,7 @@ subcode:: support_subs
 	# ---- Grab Code Block ------------------
 	my $codelib=get_def_attr("codes", $codename);
 	$if !$codelib and $attr ne '@'
-	    print STDERR "    Code $codename not found!\n";
+	    print STDERR "    [$cur_file:$cur_line] Code $codename not found!\n";
 	    return;
 	$foreach my $name in @callsub_stack
 	    $if $name eq $codename
@@ -567,7 +575,7 @@ subcode:: support_subs
 		$source->[$i]="BLOCK_$n"
 		push @$callback_list, {block=>$n, source=>$source, line=>$i}
 	    $elif $source->[$i]=~/^\$call\s+(\w+)/
-		my $codelib=get_subcode($codename)
+		my $codelib=get_subcode($1)
 		$if $codelib
 		    extract_callback_block($codelib->{source}, $callback_list)
 

@@ -189,9 +189,9 @@ subcode: pre_parse
 	func_add_var($v_val);
 	func_add_var("t_sv");
 	my @pre;
+	push @pre, "t_n=hv_iterinit($v_hv);"
 	push @pre, "while((t_sv=hv_iternextsv($v_hv, &$v_name, &t_n))){";
 	push @pre, "INDENT"
-	push @pre, "t_n=hv_iterinit($v_hv);"
 	translate_scalar(\@pre,$v_val,get_var_type($v_val),"t_sv")
 	my @post
 	push @post, "DEDENT"
