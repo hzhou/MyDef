@@ -489,7 +489,7 @@ subcode: call_sub_normal
     pop @$deflist;
 
 subcode: call_sub_block
-    my $codelib=get_subcode($codename)
+    my $codelib=get_subcode($codename, $attr)
     $if $codelib
 	push @callsub_stack, $codename
 	modepush($codelib->{type});
@@ -549,7 +549,7 @@ subcode:: support_subs
 		push @tlist, $b->{block}
 	    return @tlist
 
-    $sub get_subcode($codename)
+    $sub get_subcode($codename, $attr)
 	# ---- Grab Code Block ------------------
 	my $codelib=get_def_attr("codes", $codename);
 	$if !$codelib and $attr ne '@'
