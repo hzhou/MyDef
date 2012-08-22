@@ -21,8 +21,7 @@ subcode: c_main
 
     $call c_support_subs
 
-subcode: c_init
-    %includes=();
+subcode:: c_init
     $if $MyDef::def->{"macros"}->{"use_double"}
 	$type_name{f}="double";
 	$type_prefix{f}="double";
@@ -36,30 +35,6 @@ subcode: check_text_includes
 	    $if $v=~/(\S+)/
 		$includes{"<$1>"}=1
 
-subcode:: c_support_subs
-    $sub declare_var($var, $type)
-	$cur_function->{var_type}->{$var}=$type
-
-    $sub parse_condition
-	my ($param, $out)=@_;
-	$if $param=~/^(\S+)\s*(!~|=~)\s*\/(.*)\//
-	    my ($var, $eq, $pattern)=($1, $2, $3)
-	    my ($pos, $end)
-	    $if $var=~/(.*)\[(.*)\]/
-		($var, $pos)=($1, $2)
-	    $else
-		($pos, $end)=(0, 0)
-	    my $t= parse_regex_match($pattern, $out, $var, $pos, $end);
-	    $if $eq =~/!~/
-		return "!($t)"
-	    $else
-		return $t;
-
-	$elsif $param=~/(\w+)->\{(.*)\}/
-	    return hash_check($out, $1, $2);
-	$else
-	    return $param;
-
 # ---- allocate ----
 subcode: allocate_dimension
     my $init_value;
@@ -69,24 +44,34 @@ subcode: allocate_dimension
     $if $dim=~/[+-]/
 	$dim="($dim)";
 
-subcode: allocate_one
-    push @$out, "$p=($type*)malloc(sizeof($type));";
+subcode: allocate_one(out)
+    push @$(out), "$p=($type*)malloc(sizeof($type));";
     $if $init
-	push @$out, "$1_constructor($p);";
-subcode: allocate_array
-    push @$out, "$p=($type*)malloc($dim*sizeof($type));";
+	push @$(out), "$1_constructor($p);";
+subcode: allocate_array(out)
+    push @$(out), "$p=($type*)malloc($dim*sizeof($type));";
     $if $init
 	func_add_var("i", "int");
-	push @$out, "for(i=0;i<$dim;i++)$1_constructor($p\[i]);";
-subcode: check_destructor
+	push @$(out), "for(i=0;i<$dim;i++)$1_constructor($p\[i]);";
+subcode: deallocate_one(out)
+    $if $init
+	push @$(out), "$1_destructor($p);";
+    push @$(out), "free($p);";
+subcode: deallocate_array(out)
+    $if $init
+	func_add_var("i", "int");
+	push @$(out), "for(i=0;i<$dim;i++)$1_destructor($p\[i]);";
+    push @$(out), "free($p);";
+
+subcode: check_destructor(out)
     $if $misc_vars{mu_enable}
 	my $destructor="NULL";
 	$if $exit
 	    $destructor="&$1_destructor";
-	push @$out, "mu_add((void*)$p, sizeof($type), $dim, $destructor);";
-subcode: allocate_debug
+	push @$(out), "mu_add((void*)$p, sizeof($type), $dim, $destructor);";
+subcode: allocate_debug(out)
     $if $misc_vars{"debug_mem"}==1
-	push @$out, "printf(\"Mem \%d - $p \%d $type [%x]\\n\", mu_lastmem, $dim, $p);";
+	push @$(out), "printf(\"Mem \%d - $p \%d $type [%x]\\n\", mu_lastmem, $dim, $p);";
 
 subcode: check_struct_init_exit
     my ($init, $exit)
@@ -94,9 +79,9 @@ subcode: check_struct_init_exit
 	$init=@{$structs{$1}->{hash}->{"-init"}}
 	$exit=@{$structs{$1}->{hash}->{"-exit"}}
 
+# ----
 subcode:: c_support_subs
-    $sub allocate
-	my ($out, $dim, $param2)=@_;
+    $sub allocate($dim, $param2)
 	$includes{"<stdlib.h>"}=1;
 	$call allocate_dimension
 	my @plist=split /,\s+/, $param2;
@@ -107,25 +92,43 @@ subcode:: c_support_subs
 		my $type=pointer_type(get_var_type($p));
 		$call check_struct_init_exit
 		$if $dim == 1
-		    $call allocate_one
+		    $call allocate_one, $out
 		$else 
-		    $call allocate_array
+		    $call allocate_array, $out
 		$if $global_type->{mu_total_mem}
 		    push @$out, "mu_total_mem+=(float)$dim*sizeof($type)/1e6;"
 		$if $global_type->{p_memlist}
 		    push @$out, "mu_add_pointer((void*)$p, \"$p\", $dim*sizeof($type));"
-		$call check_destructor
-		#$call allocate_debug
-	$call allocate_init_value
+		$call check_destructor, $out
+		$call allocate_debug, $out
+	$call allocate_init_value, $out
 
-subcode: allocate_init_value
-    $if defined $init_value and $init_value ne ""
-	func_add_var("i", "int");
-	push @$out, "for(i=0;i<$dim;i++){";
+    $sub local_allocate($dim, $param2)
+	my $post=MyDef::compileutil::get_named_block("_post")
+	$includes{"<stdlib.h>"}=1;
+	$call allocate_dimension
+	my @plist=split /,\s+/, $param2;
 	$foreach my $p in @plist
 	    $if $p
-		push @$out, "    $p\[i]=$init_value;";
-	push @$out, "}";
+		func_add_var($p);
+		my $type=pointer_type(get_var_type($p));
+		$call check_struct_init_exit
+		$if $dim == 1
+		    $call allocate_one, $out
+		    $call deallocate_one, $post
+		$else 
+		    $call allocate_array, $out
+		    $call deallocate_array, $post
+	$call allocate_init_value, $out
+
+subcode: allocate_init_value(out)
+    $if defined $init_value and $init_value ne ""
+	func_add_var("i", "int");
+	push @$(out), "for(i=0;i<$dim;i++){";
+	$foreach my $p in @plist
+	    $if $p
+		push @$(out), "    $p\[i]=$init_value;";
+	push @$(out), "}";
 # -------------------------------------
 subcode:: c_support_subs
     $sub debug_dump($param, $prefix, $out)

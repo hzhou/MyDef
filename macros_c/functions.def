@@ -12,6 +12,14 @@ subcode:: package_globals
     # ----
     our @func_var_hooks;
 
+subcode:: c_init
+    %functions=()
+    @function_stack=()
+    undef $cur_function
+
+    %function_flags=()
+    @func_var_hooks=()
+
 # -----------------------------------------------------------------
 subcode:: c_support_subs
     $sub open_function
@@ -204,6 +212,9 @@ subcode:: package_globals
     $sub get_mtime($fname)
 	my $st=stat($fname)
 	return $st->[9]
+
+subcode:: c_init
+    @extern_binary=()
 
 subcode: value_from_file
     $if $tail=~/^=\[string_from_file:(\S+)\]/

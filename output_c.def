@@ -39,7 +39,7 @@ page: output_c, output_main
     subcode: dump_Makefile
 	$if $functions{"main"}
 	    my $ofile=$page->{outdir}."/Makefile"
-	    $if !-f $ofile
+	    $if !-f $ofile or $page->{makefile}
 		print "  ---> $ofile\n"
 		my @objlist
 		my @liblist
@@ -55,6 +55,8 @@ page: output_c, output_main
 		$call set_make_macro, CFLAGS, -
 		$call set_make_macro, INC, -
 		$call set_make_macro, LIB, -
+		$if $page->{makefile} eq "debug"
+		    print Subfile "CFLAGS+= -g"
 		print Subfile "\n"
 		print Subfile "$pagename: $pagename.o ".join(" ", @objlist)."\n";
 		print Subfile "\t\$\(CC) \$\(LIB) ".join(" ",@liblist)." -o $pagename \$^\n"

@@ -24,6 +24,10 @@ subcode:: package_globals
 	    $if $t=~/(\S+)/
 		$includes{"<$1>"}=1;
 
+subcode:: c_init
+    %includes=()
+    %objects=()
+
 subcode: dump_includes
     my $cnt=0
     $while my ($k, $t)=each %includes
@@ -37,6 +41,10 @@ subcode:: package_globals
     our $define_id_base=1000;
     our %defines;
 
+subcode:: c_init
+    $define_id_base=1000
+    %defines=()
+
 subcode: dump_defines
     my $cnt=0
     $while my ($k, $t)=each %defines
@@ -49,6 +57,10 @@ subcode: dump_defines
 subcode:: package_globals
     our %enums;
     our @enum_list;
+
+subcode:: c_init
+    %enums=()
+    @enum_list=()
 
 subcode: dump_enums
     my $cnt=0
@@ -64,6 +76,11 @@ subcode:: package_globals
     our $global_type={};
     our $global_flag={};
     our @global_list;
+
+subcode:: c_init
+    $global_type={}
+    $global_flag={}
+    @global_list=()
 
 subcode: dump_globals
     my $cnt=0
@@ -82,6 +99,9 @@ subcode: dump_global_std
 # ---- Function Delcares ----
 subcode:: package_globals
     our @function_declare_list
+
+subcode:: c_init
+    @function_declare_list=()
 
 subcode: dump_function_declares
     my $cnt=0
@@ -102,6 +122,9 @@ subcode: dump_function_declares
 subcode:: package_globals
     our @declare_list
 
+subcode:: c_init
+    @declare_list=()
+
 subcode: dump_declares
     $foreach my $l in @declare_list
 	push @dump_init, "$l\n";
@@ -112,6 +135,10 @@ subcode: dump_declares
 subcode:: package_globals
     our %structs;
     our @struct_list;
+
+subcode:: c_init
+    %structs=()
+    @struct_list=()
 
 subcode: dump_structs
     $foreach my $name in @struct_list
@@ -154,6 +181,9 @@ subcode: dump_structs_functions
 # ---- Init codes ----
 subcode:: package_globals
     our @initcodes
+
+subcode:: c_init
+    @initcodes=()
 
 subcode: dump_code_list
     $foreach my $l in @initcodes

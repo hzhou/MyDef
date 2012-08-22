@@ -31,7 +31,9 @@ subcode: c_parsecode
 
 subcode: parsecode_func_param
     $if $func eq "allocate"
-	allocate($out, $param1, $param2);
+	allocate($param1, $param2);
+    $elif $func eq "local_allocate"
+	local_allocate($param1, $param2);
     $elsif $func eq "dump"
 	debug_dump($param2, $param1, $out);
     $elsif $func eq "register_prefix"
@@ -61,9 +63,14 @@ subcode: parsecode_func_param
 	    $enums{$param1}=$param2;
     $elsif $func eq "enumbit"
 	my $base=0;
+	$if $param1=~/(\w*),\s*(\d+)/
+	    $param1=$1
+	    $base=$2
+	$if $param1
+	    $param1.="_"
 	my @plist=split /,\s+/, $param2;
 	$foreach my $t in @plist
-	    $defines{"$param1\_$t"}=0x1<<$base;
+	    $defines{"$param1$t"}=0x1<<$base;
 	    $base++;
     $else
 	$should_return=0
@@ -82,6 +89,8 @@ subcode: parsecode_func
 	allocate($out, 1, $param);
     $elsif $func =~/^except/
 	return single_block("$except\{", "}")
+    $elsif $func =~ /^(switch)$/
+	return single_block("$1($param){", "}")
     $elsif $func =~ /^(if|while|switch|(el|els|else)if)$/
 	my $name=$1;
 	$if $2
@@ -153,6 +162,10 @@ subcode: parsecode_func
     $elsif $func eq "globalinit"
 	# just to allow , in initline
 	global_add_var($param);
+    $elsif $func eq "global_symbol"
+	my @vlist=split /,\s+/, $param;
+	$foreach my $v in @vlist
+	    $global_type->{$v}="void"
     $elsif $func eq "local"
 	my @vlist=split /,\s+/, $param;
 	$foreach my $v in @vlist
@@ -322,3 +335,28 @@ subcode: c_parse_getbits
 	$bits_off=0
 	$byte_off++
     push @$out, "$var = ".join("|", @tlist).";"
+
+subcode:: c_support_subs
+    $sub parse_condition
+	my ($param)=@_;
+	$if $param=~/^(\S+)\s*(!~|=~)\s*\/(.*)\//
+	    my ($var, $eq, $pattern)=($1, $2, $3)
+	    my ($pos, $end)
+	    $if $var=~/(.*)\[(.*)\]/
+		($var, $pos)=($1, $2)
+	    $else
+		($pos, $end)=(0, 0)
+	    my $t= parse_regex_match($pattern, $var, $pos, $end);
+	    $if $eq =~/!~/
+		return "!($t)"
+	    $else
+		return $t;
+
+	$elsif $param=~/(\w+)->\{(.*)\}/
+	    return hash_check($1, $2);
+	$elsif $param=~/[^!><=]=[^=]/
+	    print "Assignment in [$param], possible bug?\n"
+	    return $param
+	$else
+	    return $param;
+

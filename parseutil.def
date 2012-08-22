@@ -13,13 +13,22 @@ page: parseutil
 	1;
 
 subcode: parse_main
+    my $defname="default";
+
     $sub import_data
-	my ($plines, $var)=@_;
+	my ($file, $var)=@_
+	$if $file=~/([^\/]+)\.def/
+	    $defname=$1
+	import_data_lines($file, undef, $var)
+
+    $sub import_data_lines
+	my ($file, $plines, $var)=@_;
 	my $def={"resource"=>{}, 
 		"pages"=>{}, 
 		"pagelist"=>[],
 		"codes"=>{}, 
 		"macros"=>{},
+		"defname"=>$defname,
 		};
 
 	# -------- global macros from config ---------
@@ -32,34 +41,39 @@ subcode: parse_main
 	$call load_standard_includes
 
 	# -----------------------------------------------
-	import_file($plines, $var, $def, \@includes,\%includes)
+	import_file($file, $plines, $var, $def, \@includes,\%includes)
 	$while 1
 	    $if my $file=shift(@includes)
-		$plines=get_lines($file, $var);
-		import_file($plines, $var, $def, \@includes,\%includes)
+		import_file($file, undef, $var, $def, \@includes,\%includes)
 	    $elif my $file=shift(@standard_includes)
-		$plines=get_lines($file, $var);
-		import_file($plines, $var, $def, \@includes,\%includes)
+		import_file($file, undef, $var, $def, \@includes,\%includes)
 	    $else
 		last
+
 	# ---- End of Parsing ---------------------------
 	post_foreachfile($def);
 	post_matchblock($def);
+	$call compile_perlcode
 	#$call dump_hash, $def
 	return $def;
 
     $sub import_file
-	my ($plines, $var, $def, $include_list, $include_hash)=@_
+	my ($f, $plines, $var, $def, $include_list, $include_hash)=@_
 	my $pages=$def->{pages}
 	my $pagelist=$def->{pagelist}
 	my $codes=$def->{codes}
 	my $macros=$def->{macros}
 	# ---------------------
 	$call perfile_variables
+	$if !$plines
+	    $plines=get_lines($f, $var);
 	# Insert an END to flush all the indentations
 	# Empty "END" stage gets ignored by default
 	push @$plines, "END"
+	my $cur_file=$f
+	my $cur_line=0
 	$foreach my $line in @$plines
+	    $cur_line++
 	    $call get_indentation
 	    $call grab_block
 
@@ -123,19 +137,13 @@ subcode: perfile_variables
 
 subcode: get_indentation
     $if $line=~/^\s*$/
-	# Skip empty lines
-	next;
+	$line="NOOP"
     $elif $line=~/^(\s*)(.*)/
 	# get current indentation and stripping starting spaces
 	my $indent=getindent($1)
 	$line=$2
 	$if $line=~/^#/
-	    $if $codeindent>0 and $indent>$lastindent
-		# preserve the block structure
-		$line="NOOP"
-	    $else
-		# Skip comment lines
-		next
+	    $line="NOOP"
 	$else
 	    # Trim the tail
 	    $line=~s/\s+$//
@@ -188,7 +196,7 @@ subcode: start_subcode
 	$if $t=~/\((.*)\)/
 	    $t=$1;
 	    @params=split /,\s*/, $t;
-	my $t_code={'type'=>$type, 'source'=>$source, 'params'=>\@params};
+	my $t_code={'type'=>$type, 'source'=>$source, 'params'=>\@params, 'file'=>$cur_file, 'line'=>$cur_line};
 	$if $curindent == 0
 	    $codes->{$name}=$t_code;
 	    $stage='code';
@@ -430,4 +438,32 @@ subcode: support_eachfile
 	    $rep=$pat_list[$i-1];
 	    $l=~s/\$$i/$rep/g;
 	return $l;
+
+# ---------------------------------------------------
+subcode: compile_perlcode
+    my $pages=$def->{pages}
+    my $pagelist=$def->{pagelist}
+    my $codes=$def->{codes}
+
+    my @perlcode_list;
+    $while my ($name, $code)= each %$codes
+	$if $code->{type} eq "perl"
+	    $if $name ne "perl_global"
+		push @perlcode_list, $name
+
+    $if @perlcode_list
+	my $maincode=[];
+	my $page={pagename=>"perl-$defname", module=>"perl", type=>"pl", codes=>{main=>{type=>'sub', source=>$maincode, params=>[]}}};
+
+	push @$maincode, "\$call \@perl_global"
+	push @$maincode, "my (\$subname, \@alist)=\@ARGV"
+	$foreach $name in @perlcode_list
+	    push @$maincode, "\$if \$subname eq \"$name\""
+	    push @$maincode, "SOURCE_INDENT"
+	    push @$maincode, "\$call $name"
+	    push @$maincode, "SOURCE_DEDENT"
+
+	push @$pagelist, "perl-$defname"
+	$pages->{"perl-$defname"}=$page
+
 

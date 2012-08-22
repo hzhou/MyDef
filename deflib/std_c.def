@@ -181,6 +181,13 @@ subcode: dlist_each_inverse_safe(plist, p, p2)
         BLOCK
         $(p2)=$(p2)->prev
 
+###############################################################
+## Utility
+subcode: assert(check)
+    $if !($(check))
+	printf("Error: !($(check)) at line %d \n", __LINE__)
+	exit(1)
+
 ## FILE IO
 subcode: mmap(filename, strname, strsize)
     $include sys/mman
