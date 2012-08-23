@@ -55,7 +55,3 @@ For courageous people, one could try "./bootstrap.sh" and then skip the first 3 
 
     In each def file, MyDef looks for page: directives and outputs files that corresponding to the page name. All the macros are defined with subcode directives. subcode main is the entry point for that page.
 
-6. Interested for more? 
-    Hui Zhou
-    hzhou @ hzsolutions . net
-

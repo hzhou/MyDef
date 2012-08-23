@@ -440,10 +440,16 @@ subcode: module_specific
 	    $if $config_outputdir=~/^\w[0-9a-zA-Z_\-]*$/
 		my $name=$config_outputdir;
 		$name=~s/-/::/g;
-		print "Running h2xs ... ...\n";
 		$if $module eq "perl"
-		    system "h2xs -X $config_outputdir";
+		    my $pm_count=0
+		    $while my ($p, $h) = each %h_page
+			$if $h->{type} eq "pm"
+			    $pm_count++
+		    $if $pm_count>0
+			print "Running h2xs ... ...\n";
+			system "h2xs -X $config_outputdir";
 		$else
+		    print "Running h2xs ... ...\n";
 		    system "h2xs -n $config_outputdir";
 
 subcode: create_outputdir
