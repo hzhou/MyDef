@@ -12,6 +12,11 @@ subcode: c_parsecode
 	return
     $elif $l=~/^FUNC END/
 	$cur_function=pop @function_stack
+    $elif $l=~/^SUBBLOCK BEGIN (\d+)/
+	push @$out, "DUMP_STUB SUBBLOCK_$1"
+	open_scope("SUBBLOCK_$1")
+    $elif $l=~/^SUBBLOCK END (\d+)/
+	close_scope("SUBBLOCK_$1")
     $elif $l=~/^\s*PRINT\s+(.*)$/
 	$call fmt_print
     $elif $l=~/^\s*\$(\w+)\((.*)\)\s+(.*)$/
@@ -57,10 +62,14 @@ subcode: parsecode_func_param
     $elsif $func eq "get_pointer_type"
 	my $type=pointer_type(get_var_type($param2));
 	return "SET:$param1=$type";
+    $elsif $func eq "define"
+	add_define($param1, $param2)
     $elsif $func eq "enum"
 	$if !$enums{$param1}
 	    push @enum_list, $param1;
 	    $enums{$param1}=$param2;
+	    $if $param1=~/^,\s*(\w+)/
+		global_add_symbol("int $1")
     $elsif $func eq "enumbit"
 	my $base=0;
 	$if $param1=~/(\w*),\s*(\d+)/
@@ -70,7 +79,7 @@ subcode: parsecode_func_param
 	    $param1.="_"
 	my @plist=split /,\s+/, $param2;
 	$foreach my $t in @plist
-	    $defines{"$param1$t"}=0x1<<$base;
+	    add_define("$param1$t",0x1<<$base)
 	    $base++;
     $else
 	$should_return=0
@@ -100,6 +109,9 @@ subcode: parsecode_func
     $elsif $func =~/^dowhile/
 	my $p=parse_condition($param, $out);
 	return single_block("do{", "}while($p);")
+    $elsif $func =~/^whiletrue/
+	push @$out, "while($param);"
+	return
     $elsif $func eq "else"
 	return single_block("else{", "}");
     $elsif $func eq "for"
@@ -138,6 +150,8 @@ subcode: parsecode_func
 	push @declare_list, $param
     $elsif $func eq "define"
 	push @$out, "#define $param";
+    $elsif $func eq "typedef"
+	push @typedef_list, $param
     $elsif $func eq "uselib"
 	my @flist=split /,\s+/, $param;
 	$foreach my $f in @flist
@@ -155,23 +169,26 @@ subcode: parsecode_func
 	my @vlist=split /,\s+/, $param;
 	$foreach my $v in @vlist
 	    global_namespace($v);
-    $elsif $func eq "global"
+    $elsif $func eq "global" or $func eq "local" or $func eq "my" or $func eq "symbol"
 	my @vlist=split /,\s+/, $param;
 	$foreach my $v in @vlist
-	    global_add_var($v)
+	    $if $func eq "global"
+		global_add_var($v)
+	    $elif $func eq "symbol"
+		global_add_symbol($v)
+	    $elif $func eq "my" and !$page->{disable_scope}
+		scope_add_var($v)
+	    $else
+		func_add_var($v, "local");
     $elsif $func eq "globalinit"
-	# just to allow , in initline
 	global_add_var($param);
-    $elsif $func eq "global_symbol"
-	my @vlist=split /,\s+/, $param;
-	$foreach my $v in @vlist
-	    $global_type->{$v}="void"
-    $elsif $func eq "local"
-	my @vlist=split /,\s+/, $param;
-	$foreach my $v in @vlist
-	    func_add_var($v, "local");
     $elsif $func eq "localinit"
 	func_add_var($param, "local");
+    $elsif $func eq "myinit"
+	$if $page->{disable_scope}
+	    func_add_var($param, "local");
+	$else
+	    scope_add_var($param)
     $elsif $func eq "new"
 	my @plist=split /,\s+/, $param;
 	$foreach my $p in @plist
@@ -208,6 +225,11 @@ subcode: parsecode_func
     $elif $func eq "foreach"
 	$if $param=~/(\w+)\s+in\s+(\w+)/
 	    return list_foreach($out, $iv, $v)
+    $elif $func eq "tempstr"
+	$if $param=~/^\s*"(.*)"/
+	    temp_string($1)
+	$else
+	    temp_string($param)
     $else
 	$should_return=0
 
@@ -354,7 +376,7 @@ subcode:: c_support_subs
 
 	$elsif $param=~/(\w+)->\{(.*)\}/
 	    return hash_check($1, $2);
-	$elsif $param=~/[^!><=]=[^=]/
+	$elsif $param!~/^\(.*\)$/ and $param=~/[^!><=]=[^=]/
 	    print "Assignment in [$param], possible bug?\n"
 	    return $param
 	$else

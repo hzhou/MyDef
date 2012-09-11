@@ -114,12 +114,16 @@ subcode:: package_global
 subcode: parse_stack_push
     # ---- protect $out context
     $block_index++
-    push @block_stack, {out=>$out, index=>$block_index, file=>$cur_file, line=>$cur_line};
+    push @block_stack, {out=>$out, index=>$block_index, eindex=>$block_index, file=>$cur_file, line=>$cur_line};
+    # SUBBLOCK messages to enable block scopes ------
+    $f_parse->("SUBBLOCK BEGIN $block_index")
     $cur_file=$file
     $cur_line=$line
 
 subcode: parse_stack_pop
     my $blk=pop @block_stack;
+    # SUBBLOCK messages to enable block scopes ------
+    $f_parse->("SUBBLOCK END $blk->{index}")
     $cur_file=$blk->{file}
     $cur_line=$blk->{line}
     my $idx=$blk->{index}
@@ -157,6 +161,10 @@ subcode: parse_catch_meta
 	    $debug=$1
 	$f_parse->("DEBUG $1");
 	next;
+    $elif $l =~ /^BLOCK RELEASE/
+	$block_stack[-1]->{eindex}=$block_stack[-2]->{eindex}
+	next;
+
 subcode: parse_preproc
     $if $preproc=~/^for:\s*(\S+)\s+in\s+(.*)/
 	my $vname=$1;
@@ -229,6 +237,24 @@ subcode: parse_preproc
 	$if $context eq "switch_on"
 	    parseblock($subblock, $cur_file, $cur_line+$lindex);
 	    undef $context;
+    $elsif $preproc=~/^ifeach:\s*(.*)/
+	my $cond=$1
+	my $subblock=grabblock($block, \$lindex);
+	my $plist=$deflist->[-1]->{plist}
+	undef $context
+	$if $plist
+	    my @plist=split /,\s*/, $plist
+	    $foreach $p in @plist
+		my $macro={"p"=>$p};
+		push @$deflist, $macro;
+		$if testcondition($cond)
+		    parseblock($subblock, $cur_file, $cur_line+$lindex);
+		    $context="switch_off";
+		pop @$deflist;
+		$if $context
+		    last
+	$if !$context
+	    $context="switch_on";
     $elsif $preproc=~/^block:(\w+)/
 	my $name=$1;
 	$call parse_named_block
@@ -241,7 +267,7 @@ subcode:: package_global
     $sub get_named_block
 	my $name=shift
 	$if $name eq "_post"
-	    my $cur_idx=$block_stack[-1]->{index}
+	    my $cur_idx=$block_stack[-1]->{eindex}
 	    $name="block$cur_idx\_post"
 	$if !$named_blocks{$name}
 	    $named_blocks{$name}=[]
@@ -253,9 +279,9 @@ subcode: parse_named_block
 
     my $temp=$out;
     set_output($output)
-    $f_parse->("SCOPE: $name");
+    #$f_parse->("SCOPE: $name");
     parseblock($subblock, $cur_file, $cur_line+$lindex);
-    $f_parse->("SCOPE: NONE");
+    #$f_parse->("SCOPE: NONE");
     set_output($temp)
 
 subcode: parse_call_sub
@@ -313,12 +339,12 @@ subcode: check_callback
 
 subcode: parse_handle_block(n)
     my $subblock=grabblock($block, \$lindex)
-    $call debug_block, subblock, 0
+    #$call debug_block, subblock, 0
     my $temp=$out;
     set_output($output_list[$(n)])
-    $f_parse->("SCOPE: CALLBACK");
+    #$f_parse->("SCOPE: CALLBACK");
     parseblock($subblock, $cur_file, $cur_line+$lindex);
-    $f_parse->("SCOPE: NONE");
+    #$f_parse->("SCOPE: NONE");
     set_output($temp)
 
 #################################################
@@ -460,6 +486,13 @@ subcode: call_sub_param
 subcode: call_sub_map
     $if 1+@pre_plist!=@$params
 	warn " Code $codename parameter mismatch.\n";
+    $if $plist[0]=~/^subcode:(.*)/
+	my $prefix=$1
+	@plist=()
+	my $codes=$MyDef::def->{codes}
+	$foreach $k in sort(keys(%$codes))
+	    $if $k=~/^$prefix(\w+)/
+		push @plist, $1
     $foreach my $item in @plist
 	my $macro={$params->[$np]=>$item};
 	$if $np
@@ -520,9 +553,9 @@ subcode:: support_subs
 	    &call call_sub_block
 		my $line=$funcname."-".join(",", @$params);
 		$f_parse->("FUNC $line")
-		parseblock(["SOURCE_INDENT"]);
+		$f_parse->("SOURCE_INDENT")
 		parseblock($source, $codelib->{file}, $codelib->{line});
-		parseblock(["SOURCE_DEDENT"]);
+		$f_parse->("SOURCE_DEDENT")
 		$f_parse->("FUNC END")
 
     $sub call_sub
@@ -651,7 +684,7 @@ subcode: expand_macro_seg
 		# $(macro:len)
 		$segs[$j]=length($t)
 	    $else
-		# $(macro:p1,p2,p3)
+		# INLINE macro -- $(macro:p1,p2,p3)
 		my @plist=split /,/, $p;
 		my $i=1;
 		$foreach $pp in @plist
@@ -662,7 +695,7 @@ subcode: expand_macro_seg
 	$if exists($macros->{$1})
 	    my $t=$macros->{$1};
 	    $if $t eq $s
-		die "Looping macro $1 in \"$$lref\"!\n";
+		die "Looping macro $1 in \"$$lref\" [$t]=[$s]!\n";
 	    $segs[$j]=$t;
 	    $updated++;
 	$else
@@ -739,7 +772,7 @@ subcode:: support_subs
 	    $elsif $test eq "<"
 		if($t < $value){ return 1;}
 	    $elsif $test eq "~"
-		if($t=~/$value/){ return 1;}
+		if($t=~/^$value/){ return 1;}
 	$else
 	    $if get_def($name)
 		return 1;

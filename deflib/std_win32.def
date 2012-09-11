@@ -151,7 +151,7 @@ resource: default_wnd
     hIcon: NULL
     hIconSm: NULL
     hCursor: LoadCursor(NULL, IDC_ARROW)
-    hbrBackground: (HBRUSH)GetStockObject(WHITE_BRUSH)
+    hbrBackground: NULL
     lpszMenuName: NULL
 
 resource: default_view
@@ -188,3 +188,86 @@ resource: ctl_button
     wndclass: button
     style: WS_CHILD|WS_VISIBLE|BS_PUSHBUTTON
 
+#### Default Calls ################################################
+# ----
+subcode: register_wndclass(@plist)
+    $local WNDCLASSEX wc
+    
+    wc.cbSize = sizeof(WNDCLASSEX);
+    wc.style = 0;
+    $(ifeach:p:8=WndProc_)
+	wc.lpfnWndProc = $(p);
+    $(else)
+	wc.lpfnWndProc = WndProc;
+    wc.cbClsExtra = 0;
+    wc.cbWndExtra = 0;
+    wc.hInstance = cur_instance;
+    $(ifeach:p=CUSTOM_ICON)
+	#skip
+    $(else)
+	$call register_wndclass_icon, $(plist)
+    $(ifeach:p:4=IDC_)
+	wc.hCursor = LoadCursor(NULL, $(p))
+    $(else)
+	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wc.hbrBackground = NULL;
+    wc.lpszMenuName = NULL;
+    $(ifeach:p:2=s_)
+	wc.lpszClassName = $(p)
+    $(else)
+	wc.lpszClassName = "Default"
+
+    RegisterClassEx(&wc);
+
+subcode: register_wndclass_icon(@plist)
+    $(ifeach:p:4=IDI_)
+	wc.hIcon = LoadImage(cur_instance, MAKEINTRESOURCE($(p)), IMAGE_ICON, GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), LR_DEFAULTCOLOR|LR_SHARED);
+	wc.hIconSm = LoadImage(cur_instance, MAKEINTRESOURCE($(p)), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR|LR_SHARED);
+    $(else)
+	wc.hIcon = NULL
+	wc.hIconSm = NULL
+
+# ---------------------------------------------------------------
+subcode: create_window(hwnd, name)
+    $(hwnd)=CreateWindowEx(0, $(name), $(name), WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, tn_w, tn_h, NULL, NULL, cur_instance, NULL)
+    
+# ---------------------------------------------------------------
+subcode: SetClassLong(val)
+    $(if:val:4=IDC_)
+	SetClassLongPtr(hwnd, GCL_HCURSOR, (LONG_PTR)LoadCursor(NULL, MAKEINTRESOURCE($(val))))
+
+# ---------------------------------------------------------------
+subcode: create_font(hfont, name, size)
+    $(hfont) = CreateFont ($(size), 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_DONTCARE, $(name))
+
+# ---------------------------------------------------------------
+subcode: quick_gdi(name)
+    BLOCK RELEASE
+    $my HGDIOBJ t_old_$(name)
+    t_old_pen=SelectObject(hdc, t_new_$(name))
+    $(block:_post)
+	SelectObject(hdc, t_old_$(name))
+	DeleteObject(t_new_$(name))
+
+subcode: quick_pen(@plist)
+    BLOCK RELEASE
+    $my HPEN t_new_pen
+    $(set:ps=PS_SOLID,pw=0,color=0)
+    $(ifeach:p:3=PS_)
+	$(export:ps=$(p))
+    $(ifeach:p~[0-9]+)
+	$(export:pw=$(p))
+    $(ifeach:p:6=color_)
+	$(export:color=$(p))
+    t_new_pen=CreatePen($(ps), $(pw), $(color))
+    $call quick_gdi, pen
+
+subcode: local_brush(var, @plist)
+    BLOCK RELEASE
+    my HBRUSH $(var)
+    $(set:ps=color=0)
+    $(ifeach:p:6=color_)
+	$(export:color=$(p))
+    $(var)=CreateSolidBrush($(color))
+    $(block:_post)
+	DeleteObject($(var))

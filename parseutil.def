@@ -74,8 +74,13 @@ subcode: parse_main
 	my $cur_line=0
 	$foreach my $line in @$plines
 	    $cur_line++
-	    $call get_indentation
+	    $call get_multiline_comment
+	    $call get_indentation  # and skip comments, trim leading and tailing spaces
 	    $call grab_block
+
+	    $if $curindent==0
+		$if $stage eq "code"
+		    $call end_subcode
 
 	    $if $curindent < $codeindent
 		# ---- End Code Block
@@ -87,7 +92,7 @@ subcode: parse_main
 		$call get_source_indent, curindent
 		$call get_source_dedent, curindent
 		push @$source, $line;
-	    $elif $line=~/^(\w+)code:(:?)\s+(\w+)(.*)/
+	    $elif $line=~/^(\w+)code:([:-]?)\s+(\w+)(.*)/
 		my ($type, $dblcolon, $name, $t)=($1, $2, $3, $4)
 		$call start_subcode
 	    $elif $curindent==0
@@ -117,12 +122,11 @@ subcode: parse_main
 		$elsif $stage =~/^(page)$/
 		    $call process_page_macros
 
-subcode: perfile_variables
+subcode:: perfile_variables
     my $stage="";
     # -- 
     my $item
     my $page
-    my $source
 
     my $curindent;
     my $codeindent = 0
@@ -134,6 +138,24 @@ subcode: perfile_variables
     my $grab_key
     my $grab_indent
     my @grab
+
+    DUMP_STUB import_file_init
+
+# -----------------------------
+subcode:: perfile_variables
+    my $multi_line_comment_on
+
+subcode: get_multiline_comment
+    # multiline_comments, Note: we are more strict than the C comments. 
+    $if $multi_line_comment_on
+	$if $line=~/\*\/\s*$/
+	    $multi_line_comment_on=0
+	next
+    $elif $line=~/^\s*\/\*/
+	$multi_line_comment_on=1
+	$if $line=~/\*\/\s*$/
+	    $multi_line_comment_on=0
+	next
 
 subcode: get_indentation
     $if $line=~/^\s*$/
@@ -180,15 +202,34 @@ subcode: get_source_dedent(curindent)
 	$lastindent--;
 	push @$source, "SOURCE_DEDENT";
 
+# --------------------------------------------------------
+subcode:: perfile_variables
+    my $source
+    my $cur_codename
+    my $code_prepend
+
 subcode: start_subcode
     ### htmlcode, jscode, subcode, phpcode, fncode
     $source=[];
     $codeindent=$curindent+1;
     $lastindent=$codeindent;
     # -------------------
+    $if $curindent == 0
+	$stage='code'
+	$cur_codename=$name
+	undef $code_prepend
+
     $if $curindent==0 and $codes->{$name}
-	$if $dblcolon
-	    $source=$codes->{$name}->{source}
+	# dblcolon is typically optional codes, and is often included after non-optional
+	#   therefore a prepend option is more needed than "append" (which is default)
+	$if $dblcolon or $codes->{$name}->{merge}
+	    $if !$dblcolon
+		$codes->{$name}->{merge}=0
+		$source=$codes->{$name}->{source}
+	    $elif $dblcolon eq ":"
+		$source=$codes->{$name}->{source}
+	    $elif $dblcolon eq "-"
+		$code_prepend=1
 	$elif $debug>1
 	    print STDERR "overwiritten $type code: $name\n"
     $else
@@ -197,15 +238,23 @@ subcode: start_subcode
 	    $t=$1;
 	    @params=split /,\s*/, $t;
 	my $t_code={'type'=>$type, 'source'=>$source, 'params'=>\@params, 'file'=>$cur_file, 'line'=>$cur_line};
+	$if $dblcolon
+	    $t_code->{merge}=1
 	$if $curindent == 0
 	    $codes->{$name}=$t_code;
-	    $stage='code';
 	$elif $stage eq 'page'
 	    $if $page->{codes}->{$name} and ($name eq "main")
 		$page->{codes}->{'main2'}=$t_code;
 	    $else
 		$page->{codes}->{$name}=$t_code;
 
+subcode: end_subcode
+    $if $code_prepend
+	my $orig_source=$codes->{$cur_codename}->{source}
+	push @$source, @$orig_source
+	$codes->{$cur_codename}->{source}=$source
+
+# --------------------------------------------------------
 subcode: start_page
     my ($pagename, $maincode)
     # ---- name

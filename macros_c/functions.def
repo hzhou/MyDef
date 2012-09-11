@@ -2,8 +2,11 @@ subcode:: package_globals
     our %functions
     our @function_stack
     our $cur_function
+    # ----
+    my @scope_stack
 
     # ----
+    #   used in output_xs.def for parsing xs_mode and skip_declare
     my %function_flags;
     sub set_function_flag {
 	my ($k, $v)=@_;
@@ -20,7 +23,14 @@ subcode:: c_init
     %function_flags=()
     @func_var_hooks=()
 
+    @scope_stack=()
+
 # -----------------------------------------------------------------
+subcode: check_pointer_type_name
+    $if $name=~/^(\*+)(.+)/
+	$type.=" $1"
+	$name=$2
+
 subcode:: c_support_subs
     $sub open_function
 	my ($fname, $t)=@_;
@@ -39,8 +49,10 @@ subcode:: c_support_subs
 	# -- parsing param list
 	$foreach my $p in @plist
 	    $if $p=~/(\S.*)\s+(\S+)\s*$/
-		push @$pbuf, "$1 $2";
-		$var_type->{$2}=$1;
+		my ($type, $name)=($1, $2)
+		$call check_pointer_type_name
+		push @$pbuf, "$type $name"
+		$var_type->{$name}=$type
 	    $else
 		$if $fntype{$p}
 		    push @$pbuf, $fntype{$p};
@@ -60,20 +72,34 @@ subcode:: c_support_subs
 	my $fidx=MyDef::dumpout::add_function($func);
 	return $fidx;
 
-    $sub open_closure
-	my ($open, $close)=@_;
-	my $func= {var_list=>[], var_type=>{}, var_flag=>{}, var_decl=>{}};
-	$func->{openblock}=[$open];
-	$func->{closeblock}=[$close];
-	# --
-	$cur_function=$func;
-	my $fidx=MyDef::dumpout::add_function($func);
-	return $fidx;
+# -----------------------------------------------------------------
+subcode:: c_support_subs
+    my $cur_scope
+    $sub open_scope
+	push @scope_stack, $cur_scope
+	$cur_scope={var_list=>[], var_type=>{}, var_decl=>{}}
 
+    $sub close_scope($scopename)
+	my $var_decl=$cur_scope->{var_decl};
+	my $var_list=$cur_scope->{var_list};
+	$if @$var_list
+	    my $block=MyDef::compileutil::get_named_block($scopename)
+	    #unshift @$block, "{"
+	    $foreach my $v in @$var_list
+		push @$block, "$var_decl->{$v};";
+	    #push @$out, "}"
+
+	$cur_scope=pop @scope_stack
 # -----------------------------------------------------------------
 subcode:: c_support_subs
     $sub get_var_type
 	my $name=shift;
+	$if $cur_scope->{var_type}->{$name}
+	    return $cur_scope->{var_type}->{$name}
+	$for $i=$#scope_stack;$i>=0;$i--
+	    $if $scope_stack[$i]->{var_type}->{$name}
+		return $scope_stack[$i]->{var_type}->{$name}
+
 	$if $cur_function and $cur_function->{var_type}->{$name}
 	    return $cur_function->{var_type}->{$name};
 	$else
@@ -86,8 +112,6 @@ subcode:: c_support_subs
 	    return $global_flag->{$name};
 # -----------------------------------------------------------------
 subcode:: c_support_subs
-    $sub global_add_var($name, $type, $value)
-	$call add_var, global
     $sub func_add_var($name, $type, $value)
 	my $scope
 	$if $type eq "local"
@@ -95,10 +119,29 @@ subcode:: c_support_subs
 	    $scope="local"
 	$call add_var, func
 
+    $sub global_add_var($name, $type, $value)
+	$call add_var, global
+
+    $sub scope_add_var($name, $type, $value)
+	$call add_var, scope
+
+    $sub global_add_symbol($name, $type, $value)
+	$call add_var, symbol
+
 subcode: add_var(scope)
     $call split_name
     $(if:scope=global)
 	$if $global_type->{$name}
+	    return
+    $(elif:scope=symbol)
+	$if $global_type->{$name}
+	    return
+    $(elif:scope=scope)
+	my $var_list=$cur_scope->{var_list};
+	my $var_decl=$cur_scope->{var_decl};
+	my $var_type=$cur_scope->{var_type};
+
+	$if $var_type->{$name}
 	    return
     $(else)
 	my $var_list=$cur_function->{var_list};
@@ -113,9 +156,10 @@ subcode: add_var(scope)
 	$elif get_var_type($name)
 	    return
 
+    $if $debug eq "type"
+	print "\033[33m", "$(scope) - ($attr) $type - $name ($array) - $tail ($value)\n", "\033[m"
+
     $call infer_type
-    $if $debug
-	print "$(scope)_add_var: $name - $type - $array\n"
     my ($vtype, $vinit)
     $call var_array_type
     $call var_init_line
@@ -123,6 +167,8 @@ subcode: add_var(scope)
     $(if:scope=global)
 	$global_type->{$name}=$vtype
 	push @global_list, $vinit
+    $(elif:scope=symbol)
+	$global_type->{$name}=$vtype
     $(else)
 	push @$var_list, $name;
 	$var_type->{$name}=$vtype
@@ -154,17 +200,21 @@ subcode: c_struct_init
 
 # ----
 subcode: split_name
-    my ($attr, $tail, $array);
+    my ($tail, $array);
+    my @attrs
     # NOTE: space sensitive!
-    $if !$type and $name=~/^\s*(\S[^=]*)\s+(\S+)/
+    $if !$type and $name=~/^\s*(\S[^=]*)\s+([^=]\S.*)/
 	$type=$1
 	$name=$2
-    $while $type=~/^(\s*extern)(.*)/
-	$attr.=$1
+	$call check_pointer_type_name
+    $while $type=~/^\s*(extern|static)(.*)/
+	push @attrs, $1
 	$type=$2
-    $if $name=~/(\S+)(=(.*))/
+    $if $name=~/(\S+?)\s*(=\s*(.*))/
 	$name=$1;
 	$tail=$2;
+	$if $debug eq "type"
+	    print "match: name: $1, tail: $2\n"
 	$call value_from_file
 	$if !$value
 	    $value=$3
@@ -177,7 +227,7 @@ subcode: infer_type
 	$type=get_c_type($name)
 	$if $fntype{$name}
 	    $type="function"
-	$if $value
+	$if defined $value
 	    my $val_type=infer_c_type($value)
 	    $if $debug eq "type" and $type ne $val_type
 		print "infer_type: $type -- $val_type\n"
@@ -202,8 +252,8 @@ subcode: var_init_line
 	$vinit="$type $name$array$tail";
     $else
 	$vinit="$type $name$tail";
-    $if $attr
-	$vinit="$attr $vinit"
+    $if @attrs
+	$vinit=join(' ', @attrs)." $vinit"
 
 subcode:: package_globals
     use File::stat

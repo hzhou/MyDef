@@ -6,15 +6,13 @@ subcode:: package_global
     my %window_hash
     my @window_list
     my %hgdi_hash
-    my $resource_id=1000
+    my $resource_id=0x100
 
 subcode:: support_subs
     $sub create_view
 	my ($out, $view, $parent)=@_
 	# ---- get view attr ----
 	my $name=$view->{_name}
-	$if !$view->{processed}
-	    $call collect_view_attr, $view
 	$if !$parent->{hwnd}
 	    $parent->{hwnd}="hwnd"
 	    $parent->{child}="hwnd_child"
@@ -72,13 +70,13 @@ subcode:: support_subs
 		push @$out, "SendMessage($hwnd, WM_SETFONT, (WPARAM)hfont, 0);"
 
 # ---- LoadView ----
-subcode: load_view
+subcode: load_view_layout
     $if $view->{menu}
 	my ($var, $name)=("hmenu", $view->{menu})
-	$call fetch_named_resource, menu
 	func_add_var($var, "HMENU")
 	push @$out, "$var = CreateMenu();"
-	ogdl_menu($out, $var, $menu, 0, $view->{commands});
+	$call load_menu
+	ogdl_menu($out, $var, $menu, 0);
 	push @$out, "SetMenu(hwnd, hmenu);"
 	push @$out, "DestroyMenu(hmenu);"
     # --
@@ -89,7 +87,7 @@ subcode: load_view
 	$if $v->{action}
 	    $resource_id++
 	    my $id="ID_$v->{_name}_$resource_id"
-	    $defines{$id}=$resource_id
+	    add_define($id,$resource_id)
 	    $v->{id}=$id
 	    $command_hash->{$id}=$v->{action}
 	create_view($out, $v, $parent_hash)
@@ -126,28 +124,60 @@ subcode:: support_subs
 	$call window_register
 
 # ---- window proc  ----------------
+subcode: window_proc_on_msg
+    $msg_hash{$msg}=1
+    $if $msg eq "WM_ALLKEY"
+	push @$out, "case WM_KEYDOWN:"
+	push @$out, "case WM_KEYUP:"
+	push @$out, "case WM_SYSKEYDOWN:"
+	push @$out, "case WM_SYSKEYUP:"
+    $elif $msg eq "WM_ALLCOMMAND"
+	push @$out, "case WM_COMMAND:"
+	push @$out, "case WM_SYSCOMMAND:"
+    $else
+	push @$out, "case $msg:"
+    &call push_indent_block
+	MyDef::compileutil::call_sub("\@$name\_on_$msg", 0)
+	push @$out, "break;"
+
 subcode: window_proc
-    my $fidx=open_function("wndproc_$name", "HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam")
+    my $fidx=open_function("WndProc_$name", "HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam")
     $cur_function->{ret_type}="LRESULT CALLBACK";
     &call push_open_function
-	$call wndproc_get_view_pointer
+	$if $view->{data}
+	    $call wndproc_get_view_pointer
 	# ---- process window msg ---------------
 	push @$out, "switch(msg){";
 	&call push_indent_block
-	    MyDef::compileutil::call_sub("\@$name\_on_msg", 0)
-	    $call msg_create
-	    $call msg_command
-	    $call msg_paint
-	    $call msg_destroy
-	    $call msg_default
+	    my %msg_hash;
+	    $if $view->{messages}
+		my @msg_list=split /,\s*/, $view->{messages}
+		$foreach $msg in @msg_list
+		    $call window_proc_on_msg
+	    $else
+		my $codes=$MyDef::def->{codes}
+		$foreach $k in sort(keys(%$codes))
+		    $if $k=~/$name\_on\_(WM_\w+)/
+			my $msg=$1
+			$call window_proc_on_msg
+
+	    $if !$msg_hash{"WM_CREATE"}
+		$call msg_create
+	    $if !$msg_hash{"WM_COMMAND"}
+		$call msg_command
+	    $if !$msg_hash{"WM_PAINT"}
+		$call msg_paint
+	    $if !$msg_hash{"WM_DESTROY"}
+		$call msg_destroy
 	push @$out, "}";
-	push @$out, "return 0;"
+	MyDef::compileutil::call_sub("\@$name\_on_default")
+	push @$out, "return DefWindowProc(hwnd, msg, wparam, lparam);"
 
 # -- messages --
 subcode: msg_create
     push @$out, "case WM_CREATE:"
     &call push_indent_block
-	$call load_view
+	$call load_view_layout
 	MyDef::compileutil::call_sub("\@$name\_on_create")
 	push @$out, "break;"
 subcode: msg_destroy
@@ -156,11 +186,7 @@ subcode: msg_destroy
 	MyDef::compileutil::call_sub("\@$name\_on_close")
 	$if $name eq "main"
 	    push @$out, "PostQuitMessage(0);"
-	    push @$out, "break;"
-subcode: msg_default
-    push @$out, "default:";
-    &call push_indent_block
-	push @$out, "return DefWindowProc(hwnd, msg, wparam, lparam);"
+	    push @$out, "return 0;"
 
 subcode: msg_command
     push @$out, "case WM_COMMAND:"
@@ -171,7 +197,6 @@ subcode: msg_command
 	push @$out, "n_id=LOWORD(wparam);"
 	push @$out, "n_cmd=HIWORD(wparam);"
 	push @$out, "hwnd_child=(HWND)lparam;"
-	$call fetch_named_resource, view
 	my $command_hash=$view->{commands}
 	my @id_list=sort keys(%$command_hash)
 	$foreach my $id in @id_list
@@ -220,7 +245,7 @@ subcode: window_register
     push @$out, "memset(&wc, 0, sizeof(wc));"
     push @$out, "wc.hInstance = cur_instance;"
     push @$out, "wc.lpszClassName = \"$name\";"
-    push @$out, "wc.lpfnWndProc = wndproc_$name;"
+    push @$out, "wc.lpfnWndProc = WndProc_$name;"
     $call res_init_attr, wnd
     $call res_update, "wnd_$name"
     $call res_fill, wc
@@ -230,10 +255,11 @@ subcode: window_register
 # -------- Menu ---------------------------------------
 subcode:: support_subs
     $sub ogdl_menu
-	my ($out, $menuvar, $menu, $level, $command_hash)=@_;
+	my ($out, $menuvar, $menu, $level)=@_;
 	my $pos=0;
+	my $processed=$menu->{processed}
+	my $command_hash=$menu->{commands}
 	my $menu_item_list=$menu->{_list}
-	#print "menu: $menu, list: $menu_item_list\n";
 	$foreach $t in @$menu_item_list
 	    $if ref($t) eq "HASH"
 		my $sublist=$t->{_list}
@@ -242,32 +268,61 @@ subcode:: support_subs
 		    my $var=sprintf("hmenu_sub%d", $level+1);
 		    func_add_var($var, "HMENU");
 		    push @$out, "$var = CreatePopupMenu();";
-		    ogdl_menu($out, $var, $t, $level+1, $command_hash);
-		    push @$out, "InsertMenu($menuvar, $pos, MF_POPUP|MF_BYPOSITION, (UINT_PTR)$var, \"$t->{_name}\");";
+		    $t->{processed}=$processed
+		    $t->{commands}=$command_hash
+		    ogdl_menu($out, $var, $t, $level+1);
+		    $title=temp_string($t->{_name})
+		    push @$out, "AppendMenu($menuvar, MF_POPUP, (UINT_PTR)$var, $title);";
 		    push @$out, "DestroyMenu($var);";
 		$else
 		    #---- MenuItem with Attributes ----
 		    my $name=$t->{_name}
 		    my $title=$t->{text}
-		    $if !defined $title
-			$title=$name
-		    $resource_id++
-		    my $id_name="ID_MENU_$name\_$resource_id";
-		    $defines{$id_name}=$resource_id
-		    $command_hash->{$id_name}=$t->{action}
-		    push @$out, "AppendMenu($menuvar, MF_STRING, $id_name, \"$title\");";
-
+		    $if $name eq "MENU"
+			$if !$t->{disable}
+			    my $var=$t->{var}
+			    $if !$var or !$title
+				push @$out, "AppendMenu($menuvar, MF_GRAYED, 100, \"MENU $title\");";
+			    $else
+				$title=temp_string($title)
+				push @$out, "AppendMenu($menuvar, MF_POPUP, (UINT_PTR)$var, $title);";
+			$if !$processed && $t->{reserve}=~/(\w+)\s+-\s*(\d+)/
+			    my $var=$1
+			    my $n=$2
+			    add_define("$var\_STEP","0x10")
+			    add_define("$var\_COUNT",$n)
+			    $resource_id++
+			    add_define("$var\_MIN",sprintf("0x%3x0", $resource_id))
+			    $resource_id+=$n
+			    add_define("$var\_MAX",sprintf("0x%3x0", $resource_id))
+		    $else
+			my $id_name=$name;
+			$if !$title
+			    $title=$name
+			$if $id_name !~/^ID/
+			    $id_name="ID_MENU_$name";
+			    $id_name=~s/[ &]//g;
+			$if !$processed
+			    $resource_id++
+			    add_define($id_name,sprintf("0x%3x0", $resource_id))
+			    $command_hash->{$id_name}=$t->{action}
+			$if !$t->{disable}
+			    $title=temp_string($title)
+			    push @$out, "AppendMenu($menuvar, MF_STRING, $id_name, $title);";
 	    $else
 		#---- Text MenuItem ----
 		$if $t eq "----"
 		    push @$out, "AppendMenu($menuvar, MF_SEPARATOR, 0, NULL);";
 		$else
-		    $resource_id++
-		    my $id_name="ID_MENU_$t\_$resource_id";
+		    my $id_name="ID_MENU_$t";
 		    $id_name=~s/[ &]//g;
-		    $defines{$id_name}=$resource_id
-		    push @$out, "AppendMenu($menuvar, MF_STRING, $id_name, \"$t\");";
+		    $if !$processed
+			$resource_id++
+			add_define($id_name,sprintf("0x%3x0", $resource_id))
+		    $title=temp_string($t)
+		    push @$out, "AppendMenu($menuvar, MF_STRING, $id_name, $title);";
 	    $pos++;
+	$menu->{processed}=$processed+1
 
 # -------- Font ---------------------------------------
 subcode: make_font

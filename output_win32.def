@@ -28,7 +28,7 @@ page: output_win32, output_main
 	$if $func
 	    $func->{skip_declare}=1;
 	    $func->{ret_type}="int APIENTRY";
-	    $func->{param_list}=["HINSTANCE hInst", "HINSTANCE hPrev", "LPSTR lpstr_cmdline", "int n_cmdshow"];
+	    $func->{param_list}=["HINSTANCE hInst", "HINSTANCE hPrev", "LPSTR s_cmdline", "int n_cmdshow"];
 
 	    my $initblock=$func->{init}
 	    $cur_function=$func
@@ -56,23 +56,55 @@ page: output_win32, output_main
 	$call c_dump_init
 
 # ---------------------------
+subcode:: package_global
+    my %view_hash
+    my %menu_hash
+
+subcode: load_menu
+    my $menu
+    $if !$menu_hash{$name}
+	$call fetch_named_resource, menu
+	$menu_hash{$name}=$menu
+    $else
+	$menu=$menu_hash{$name}
+    $if !$menu->{processed}
+	$menu->{commands}={}
+
+subcode: load_view
+    my $view
+    $if !$view_hash{$name}
+	$view={"_name"=>$name}
+	$call collect_view_attr, $view
+	$view_hash{$name}=$view
+    $else
+	$view=$view_hash{$name}
+
 subcode: pre_parse
     $if $l=~/^\s*\$MakeView\s+(\w+)/
 	my $view={"_name"=>$1}
 	create_view($out, $view, {hwnd=>"NULL", child=>"hwnd"})
 	return 1
+    $elif $l=~/^\s*\$WndProc\s+(\w+)/
+	my $name=$1
+	$call load_view
+	my $block=MyDef::compileutil::get_named_block("global_init")
+	my $old_function=$cur_function;
+	&call replace_output, $block
+	    $call window_proc
+	$cur_function=$old_function
     $elif $l=~/^\$g_(\w+)(.*)/
 	my ($cat, $param)=($1, $2)
 	$param=~s/^\s*//
 	$call graphics, $cat, $param
 	return 1
-    $elif $l=~/^(\w+)\s*=\s*\$MakeMenu\s+(\w+)/
-	my ($var, $name)=($1, $2)
-	$call fetch_named_resource, menu
-	func_add_var($var, "HMENU")
-	push @$out, "$var = CreateMenu();"
-	my $commands={}
-	ogdl_menu($out, $var, $menu, 0, $commands);
+    $elif $l=~/^\s*\$(Make|Append)Menu\s+(\w+),\s*(\w+)/
+	my ($make, $var, $name)=($1, $2, $3)
+	# ----
+	$if $make eq "Make"
+	    func_add_var($var, "HMENU")
+	    push @$out, "$var = CreateMenu();"
+	$call load_menu
+	ogdl_menu($out, $var, $menu, 0);
 	return 1;
     $elif $l=~/^(\S+)\s*=\s*\$MakeFont\s+(.*)/
 	my ($var, $name)=($1, $2);

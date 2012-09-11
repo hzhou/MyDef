@@ -10,10 +10,11 @@
 " Comments with #. Caution with cases CSS color, Perl $#
 :syntax match xComment /^\s*#.*/ " Leading # 
 :syntax match xComment /\s#\s.*$/ " Trailing [ ]#
+:syntax region xComment start=/\/\*/ end=/\*\//
 :syntax region dString start=/"/ skip=/\\"/ end=/"/  oneline
-:syntax region dString start=/'/ skip=/\\'/ end=/'/  oneline
+:syntax region sString start=/'/ skip=/\\'/ end=/'/  oneline
 
-:syntax match perlKey /^\s*\(push\|shift\|unshift\|pop\|print\|return\|last\|next\)/
+:syntax match perlKey /^\s*\(push\|shift\|unshift\|pop\|print\|return\|goto\|last\|next\)/
 
 :syntax match perlVar /\(\$\|@\|%\)\i\+/
 :syntax match perlKey /^\s*\(our\|my\|package\|use\|require\|sub\)\s/

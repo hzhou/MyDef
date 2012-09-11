@@ -7,6 +7,7 @@ subcode: c_dump_init
     $call dump_defines
     $call dump_enums
     $call dump_structs
+    $call dump_typedefs
     $call dump_function_declares
     $call dump_declares
     $call dump_structs_functions
@@ -39,18 +40,38 @@ subcode: dump_includes
 # ---- Defines ----
 subcode:: package_globals
     our $define_id_base=1000;
+    our @define_list;
     our %defines;
 
 subcode:: c_init
     $define_id_base=1000
+    @define_list=()
     %defines=()
+
+subcode:: support_subs
+    $sub add_define($name, $var)
+	$if !defined $defines{$name}
+	    push @define_list, $name
+	$defines{$name}=$var
 
 subcode: dump_defines
     my $cnt=0
-    $while my ($k, $t)=each %defines
-	push @dump_init, "#define $k $t\n";
+    $foreach $k in @define_list
+	push @dump_init, "#define $k $defines{$k}\n";
 	$cnt++
     $if $cnt>0
+	push @dump_init, "\n";
+
+# ---- TypeDefs ----
+subcode:: package_globals
+    our @typedef_list
+subcode:: c_init
+    @typedef_list=()
+
+subcode: dump_typedefs
+    $if @typedef_list
+	$foreach $k in @typedef_list
+	    push @dump_init, "typedef $k;"
 	push @dump_init, "\n";
 
 # ---- Enums ----
@@ -64,9 +85,12 @@ subcode:: c_init
 
 subcode: dump_enums
     my $cnt=0
-    $foreach my $name in @enum_list
+    $foreach $name in @enum_list
 	my $t=$enums{$name};
-	push @dump_init, "enum $name {$t};\n";
+	$if $name=~/^,\s*(\w+)/ 
+	    push @dump_init, "enum {$t} $1;\n";
+	$else
+	    push @dump_init, "enum $name {$t};\n";
 	$cnt++
     $if $cnt>0
 	push @dump_init, "\n";

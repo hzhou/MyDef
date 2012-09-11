@@ -1,6 +1,9 @@
 # 
 subcode: fetch_named_resource(type)
-    my $$(type) = $MyDef::def->{resource}->{"$(type)_$name"}
+    my $resource_name="$(type)_$name"
+    $if $name=~/^$(type)_/
+	$resource_name=$name
+    $$(type) = $MyDef::def->{resource}->{$resource_name}
     $if !$$(type)
 	print "Resource $(type): $name does not exist\n"
 	return

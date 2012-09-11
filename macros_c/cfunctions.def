@@ -131,27 +131,46 @@ subcode: allocate_init_value(out)
 	push @$(out), "}";
 # -------------------------------------
 subcode:: c_support_subs
+    $sub get_var_fmt($v)
+	my $type=get_var_type($v)
+	$if !$type
+	    $type=get_c_type($v);
+	$if $type=~/^(float|double)/
+	    return "\%g"
+	$elsif $type=~/^int/
+	    return "\%d";
+	$elsif $type=~/^char \*/
+	    return "\%s";
+	$elsif $type=~/^char/
+	    return "\%d";
+	$elsif $type=~/^unsigned char/
+	    return "\%d";
+	$else
+	    print "get_var_fmt: unhandled $v - $type\n";
+	    return $v
+
+    $sub temp_string($str)
+	$if $str=~/\$/
+	    func_add_var("ts_temp_buf[100]", "local")
+	    my @segs=split /(\$\w+)/, $str
+	    my @vlist;
+	    $for $j=0:@segs
+		$if $segs[$j]=~/^\$(\w+)/
+		    push @vlist, $1
+		    $segs[$j]=get_var_fmt($1)
+	    push @$out, "snprintf(ts_temp_buf, 100, \"".join('', @segs)."\", ".join(', ', @vlist).");"
+	    return "ts_temp_buf"
+	$else
+	    return "\"$str\""
+
+
     $sub debug_dump($param, $prefix, $out)
 	my @vlist=split /,\s+/, $param;
 	my @a1;
 	my @a2;
 	$foreach my $v in @vlist
 	    push @a2, $v;
-	    my $type=get_var_type($v)
-	    $if !$type
-		$type=get_c_type($v);
-	    $if $type=~/^(float|double)/
-		push @a1,"$v=\%g";
-	    $elsif $type=~/^int/
-		push @a1,"$v=\%d";
-	    $elsif $type=~/^char \*/
-		push @a1, "$v=\%s";
-	    $elsif $type=~/^char/
-		push @a1,"$v=\%d";
-	    $elsif $type=~/^unsigned char/
-		push @a1,"$v=\%d";
-	    $else
-		print "debug_dump: unhandled $v - $type\n";
+	    push @a1, "$v=".get_var_fmt($v)
 	$if $prefix
 	    push @$out, "fprintf(stdout, \"    :[$prefix] ".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
 	$else

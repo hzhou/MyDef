@@ -17,10 +17,10 @@ subcode: support_ogdl
 		    push @ogdl_stack, $cur_item;
 		    $cur_item={"_list"=>[]}
 		    $if $last_item_type eq "array"
-			$cur_item->{_name}=$last_item->[-1]
+			$cur_item->{"_name"}=$last_item->[-1]
 			$last_item->[-1]=$cur_item
 		    $elif $last_item_type eq "hash"
-			$cur_item->{_name}=$last_item->{$last_item_key}
+			$cur_item->{"_name"}=$last_item->{$last_item_key}
 			$last_item->{$last_item_key}=$cur_item
 		    # ----
 		    $cur_i=$i;

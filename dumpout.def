@@ -139,7 +139,8 @@ subcode: dumpout
 	    push @preblock, $func->{preblock};
 	    push @postblock, $func->{postblock};
 	    $blockstack=1;
-	$elif $l=~/^SCOPE:/
+	#$elif $l=~/^SCOPE:/
+	$elif $l=~/^SUBBLOCK (BEGIN|END)/
 	    # messages from compilutil.pm
 	$else
 	    $call print_line
