@@ -203,7 +203,7 @@ subcode: split_name
     my ($tail, $array);
     my @attrs
     # NOTE: space sensitive!
-    $if !$type and $name=~/^\s*(\S[^=]*)\s+([^=]\S.*)/
+    $if !$type and $name=~/^\s*(\S[^=]*)\s+([^= \t].*)/
 	$type=$1
 	$name=$2
 	$call check_pointer_type_name
