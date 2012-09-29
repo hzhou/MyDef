@@ -89,6 +89,7 @@ subcode: make_hash(name, nbuckets, node)
 	    return p->next
 	}
 
+###############################################################
 ## doubly linked list
 #    $struct(name_node) prop1, prop2, ..., prev, next 
 #    $struct(name) prop1, prop2, ..., head
@@ -180,6 +181,61 @@ subcode: dlist_each_inverse_safe(plist, p, p2)
 	$(p)=$(p2)->prev
         BLOCK
         $(p2)=$(p2)->prev
+
+###############################################################
+## singly linked list 
+subcode: slist_declare(name, list, node)
+    $struct($(name)_node) $(node), struct $(name)_node * next
+    $struct($(name)_list) $(list), n, struct $(name)_node* head, struct $(name)_node* tail
+
+subcode: slist_init(var, @plist)
+    $get_struct_var_prefix(sl) $(var)
+    $(sl)head=NULL
+    $(sl)tail=NULL
+    $(sl)n=0
+    $(ifeach:p)
+	# list_member = init value;
+	$(sl)$(p)
+
+subcode: slist_clear(var)
+    $get_struct_var_prefix(sl) $(var)
+    $get_pointer_type(nodetype) $(sl)head
+    $(set:nodename=$(nodetype:6:word))
+    $while $(sl)head
+	$local $(nodetype) * $(nodename)_temp
+	$(nodename)_temp=$(sl)head
+	$(sl)head=$(nodename)_temp->next
+	free($(nodename)_temp)
+    $(sl)tail=NULL
+    $(sl)n=0
+	
+subcode: slist_push(var, @plist)
+    $get_struct_var_prefix(sl) $(var)
+    $get_pointer_type(nodetype) $(sl)head
+    $(set:nodename=$(nodetype:6:word))
+    $local $(nodetype) * $(nodename)_temp
+    $(nodename)_temp=($(nodetype) *)malloc(sizeof($(nodetype)))
+    $(nodename)_temp->next=NULL
+    $if !$(sl)head
+	$(sl)head=$(nodename)_temp
+    $else
+	$(sl)tail->next=$(nodename)_temp
+    $(sl)tail=$(nodename)_temp
+    $(sl)n++
+    $(ifeach:p)
+	$(nodename)_temp->$(p)
+
+subcode: slist_shift(var)
+    $get_struct_var_prefix(sl) $(var)
+    $get_pointer_type(nodetype) $(sl)head
+    $(set:nodename=$(nodetype:6:word))
+    $local $(nodetype) * $(nodename)_temp
+    $(nodename)_temp=$(sl)head
+    $(sl)head=$(sl)head->next
+    $if !$(sl)head
+	$(sl)tail=NULL
+    $(sl)n--
+    $(export:p=$(nodename)_temp)
 
 ###############################################################
 ## Utility

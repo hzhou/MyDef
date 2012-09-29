@@ -47,12 +47,16 @@ subcode:: c_support_subs
 	my $pbuf=$func->{param_list};
 	my $var_type=$func->{var_type};
 	# -- parsing param list
+	my $i=0
 	$foreach my $p in @plist
+	    $i++
 	    $if $p=~/(\S.*)\s+(\S+)\s*$/
 		my ($type, $name)=($1, $2)
 		$call check_pointer_type_name
 		push @$pbuf, "$type $name"
 		$var_type->{$name}=$type
+	    $elif $p eq "fmt" and $i==@plist
+		push @$pbuf, "char * fmt, ..."
 	    $else
 		$if $fntype{$p}
 		    push @$pbuf, $fntype{$p};
@@ -92,6 +96,31 @@ subcode:: c_support_subs
 	$cur_scope=pop @scope_stack
 # -----------------------------------------------------------------
 subcode:: c_support_subs
+    $sub get_var_type_complex
+	my $name=shift
+	my ($type, $tail)
+	$if $debug
+	    print "get_var_type_complex [$name]\n"
+	$if $name=~/^(\w+)(.*)/
+	    $tail=$2
+	    $type=get_var_type($1)
+	$if $debug
+	    print " ->type:$type, tail:[$tail]\n"
+	$while 1
+	    $if $tail=~/^\[.*?](.*)/
+		$tail=$1
+		$type=pointer_type($type)
+	    $elif $tail=~/^\.(\w+)(.*)/
+		$tail=$2
+		$type=get_struct_element_type($type, $1)
+	    $elif $tail=~/^->(\w+)(.*)/
+		$tail=$2
+		$type=pointer_type($type)
+		$type=get_struct_element_type($type, $1)
+	    $else
+		last
+	return $type
+
     $sub get_var_type
 	my $name=shift;
 	$if $cur_scope->{var_type}->{$name}
@@ -110,6 +139,23 @@ subcode:: c_support_subs
 	    return $cur_function->{var_flag}->{$name};
 	$else
 	    return $global_flag->{$name};
+    $sub get_compound_type
+	my $name=shift
+	$if $name=~/^(\w+)\s*$/
+	    return get_var_type($1)
+	$if $name=~/^(\w+)(\.|->)(\w+)(.*)/
+	    die "structure type dereference not supported yet\n"
+	$if $name=~/^(\w+)(\[.*)/
+	    $name=$2;
+	    $type=get_var_type($1)
+	    $while $name=~/^\[[^\]]*\](.*)/
+		$name=$1
+		$if $type=~/(.*)\s*\*\s*$/
+		    $type=$1
+		$else
+		    die "error in derefencing pointer type $type\n"
+	return $type
+
 # -----------------------------------------------------------------
 subcode:: c_support_subs
     $sub func_add_var($name, $type, $value)
@@ -202,6 +248,8 @@ subcode: c_struct_init
 subcode: split_name
     my ($tail, $array);
     my @attrs
+    # omit ;
+    $name=~s/;\s*$//
     # NOTE: space sensitive!
     $if !$type and $name=~/^\s*(\S[^=]*)\s+([^= \t].*)/
 	$type=$1

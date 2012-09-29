@@ -14,7 +14,6 @@ page: output_win32, output_main
 	$call c_main
     subcode: init_page
 	$call c_init
-	global_add_var("cur_instance", "HINSTANCE")
 	declare_struct("VIEW", "HWND hwnd")
     subcode: parsecode
 	$call pre_parse
@@ -33,6 +32,7 @@ page: output_win32, output_main
 	    my $initblock=$func->{init}
 	    $cur_function=$func
 	    &call replace_output, $initblock
+		global_add_var("cur_instance", "HINSTANCE")
 		push @$out, "cur_instance = hInst;"
 		$while my $wnd = shift @window_list
 		    register_window($wnd)
@@ -92,6 +92,7 @@ subcode: pre_parse
 	&call replace_output, $block
 	    $call window_proc
 	$cur_function=$old_function
+	return 1
     $elif $l=~/^\$g_(\w+)(.*)/
 	my ($cat, $param)=($1, $2)
 	$param=~s/^\s*//

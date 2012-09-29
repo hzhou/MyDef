@@ -87,9 +87,13 @@ subcode:: c_support_subs
 	my @plist=split /,\s+/, $param2;
 	$foreach my $p in @plist
 	    $if $p
-		func_add_var($p);
-		$cur_function->{var_flag}->{$p}="retained";
-		my $type=pointer_type(get_var_type($p));
+		my $type;
+		$if $p=~/^(\w+)$/
+		    func_add_var($p)
+		    $cur_function->{var_flag}->{$p}="retained"
+		    $type=pointer_type(get_var_type($p))
+		$else
+		    $type=pointer_type(get_compound_type($p))
 		$call check_struct_init_exit
 		$if $dim == 1
 		    $call allocate_one, $out

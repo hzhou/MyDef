@@ -147,6 +147,7 @@ subcode: window_proc
 	$if $view->{data}
 	    $call wndproc_get_view_pointer
 	# ---- process window msg ---------------
+	MyDef::compileutil::call_sub("\@pre_WndProc_$name")
 	push @$out, "switch(msg){";
 	&call push_indent_block
 	    my %msg_hash;
@@ -163,17 +164,20 @@ subcode: window_proc
 
 	    $if !$msg_hash{"WM_CREATE"}
 		$call msg_create
-	    $if !$msg_hash{"WM_COMMAND"}
-		$call msg_command
 	    $if !$msg_hash{"WM_PAINT"}
 		$call msg_paint
 	    $if !$msg_hash{"WM_DESTROY"}
 		$call msg_destroy
+	    $call msg_default
 	push @$out, "}";
-	MyDef::compileutil::call_sub("\@$name\_on_default")
 	push @$out, "return DefWindowProc(hwnd, msg, wparam, lparam);"
 
 # -- messages --
+subcode: msg_default
+    push @$out, "default:"
+    &call push_indent_block
+	MyDef::compileutil::call_sub("\@$name\_on_default")
+	push @$out, "break;"
 subcode: msg_create
     push @$out, "case WM_CREATE:"
     &call push_indent_block
@@ -187,34 +191,6 @@ subcode: msg_destroy
 	$if $name eq "main"
 	    push @$out, "PostQuitMessage(0);"
 	    push @$out, "return 0;"
-
-subcode: msg_command
-    push @$out, "case WM_COMMAND:"
-    &call push_indent_block
-	func_add_var(n_id)
-	func_add_var(n_cmd)
-	func_add_var(hwnd_child)
-	push @$out, "n_id=LOWORD(wparam);"
-	push @$out, "n_cmd=HIWORD(wparam);"
-	push @$out, "hwnd_child=(HWND)lparam;"
-	my $command_hash=$view->{commands}
-	my @id_list=sort keys(%$command_hash)
-	$foreach my $id in @id_list
-	    $if $command_hash->{$id}
-		my @alist=split /,/, $command_hash->{$id}
-		$foreach $a in @alist
-		    $if $a=~/(\w+):\s*(\w+)/
-			push @$out, "if(n_id==$id && n_cmd==$1){"
-			push @$out, "INDENT"
-			MyDef::compileutil::call_sub("\@$name\_$2")
-		    $else
-			push @$out, "if(n_id==$id){"
-			push @$out, "INDENT"
-			MyDef::compileutil::call_sub("\@$name\_$a")
-		    push @$out, "break;"
-		    push @$out, "DEDENT"
-		    push @$out, "}"
-	push @$out, "break;"
 
 # --
 subcode: msg_conditional(MSG, OnName)

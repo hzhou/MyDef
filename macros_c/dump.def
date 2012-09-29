@@ -87,7 +87,9 @@ subcode: dump_enums
     my $cnt=0
     $foreach $name in @enum_list
 	my $t=$enums{$name};
-	$if $name=~/^,\s*(\w+)/ 
+	$if $name=~/^ANONYMOUS/
+	    push @dump_init, "enum {$t};\n";
+	$elif $name=~/^,\s*(\w+)/ 
 	    push @dump_init, "enum {$t} $1;\n";
 	$else
 	    push @dump_init, "enum $name {$t};\n";

@@ -65,11 +65,9 @@ subcode:: c_support_subs
 	    func_add_var($left, $type, $right);
 	    $type=get_var_type($left);
 	    func_var_assign($type, $left, $right, $out);
-	$elsif $left=~/(\w+)(\.|->)(\w+)/
-	    my $v1=$1;
-	    my $v2=$3;
-	    my $stype=get_struct_element_type($v1, $v2);
-	    func_var_assign($stype, $left, $right, $out);
+	$elsif $left=~/^(\w+\S+)$/
+	    $type=get_var_type_complex($1)
+	    func_var_assign($type, $left, $right, $out);
 	$else
 	    push @$out, "$left=$right;";
 

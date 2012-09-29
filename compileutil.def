@@ -103,6 +103,10 @@ subcode: compile_main
 	    $m->{$p}=$t
 	$else
 	    warn "compileutil::set_macro parse error: [$p]\n"
+
+    $sub set_current_macro($name, $val)
+	$deflist->[-1]->{$name}=$val
+
     # --------------------------------------------------------
     1;
 
@@ -251,8 +255,6 @@ subcode: parse_preproc
 		    parseblock($subblock, $cur_file, $cur_line+$lindex);
 		    $context="switch_off";
 		pop @$deflist;
-		$if $context
-		    last
 	$if !$context
 	    $context="switch_on";
     $elsif $preproc=~/^block:(\w+)/
@@ -473,10 +475,9 @@ subcode: call_sub_param
 	    $t=$';
 	$t=~s/^\s*,?\s*//;
 	$pline=$t;
-	$if $t=~/\|/
-	    # ---- '|' seperated param list
-	    # '|' seprated param list
-	    @plist=split /\s*\|\s*/, $t;
+	$if $t=~/ \| /
+	    # ---- ' | ' seperated param list
+	    @plist=split /\s+\|\s+/, $t;
 	$else
 	    @plist=split /,\s*/, $t;
     $else
@@ -679,7 +680,18 @@ subcode: expand_macro_seg
 	    $updated++;
 	    $if $p=~/(\d+)-(\d+)/
 		# $(macro:0-3)
-		$segs[$j]=substr($t, $2, $3-$2+1);
+		$segs[$j]=substr($t, $1, $2-$1+1);
+	    $elif $p=~/(\d+):(\d+|word|number)/
+		my $s=substr($t, $1)
+		$if $2 eq "word"
+		    $if $s=~/^\s*(\w+)/
+			$s=$1
+		$elif $2 eq "number"
+		    $if $s=~/^\s*([+-]?\d+)/
+			$s=$1
+		$else
+		    $s=substr($s, 0, $2)
+		$segs[$j]=$s
 	    $elif $p eq "len"
 		# $(macro:len)
 		$segs[$j]=length($t)
@@ -721,6 +733,7 @@ subcode:: support_subs
 subcode:: support_subs
     $sub expand_macro_recurse($lref, $nowarn)
 	my ($hasmacro, $updated)
+	$$lref=~s/\$\.(?=\w)/\$(this)/g
 	$updated=1
 	$while $updated
 	    $for $j=$#$deflist:-1:-1

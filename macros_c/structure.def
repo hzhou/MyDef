@@ -70,8 +70,7 @@ subcode:: c_support_subs
 		$s_hash->{"$name-needfree"}=1
 
     $sub get_struct_element_type 
-	my ($svar, $evar)=@_;
-	my $stype=get_var_type($svar);
+	my ($stype, $evar)=@_;
 	$if $stype=~/struct\s+(\w+)/
 	    my $struc=$structs{$1};
 	    $if $struc->{hash}->{$evar}
