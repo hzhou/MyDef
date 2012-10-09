@@ -246,10 +246,13 @@ subcode: parse_preproc
 	my $subblock=grabblock($block, \$lindex);
 	my $plist=$deflist->[-1]->{plist}
 	undef $context
+	my $cond_var="p"
+	$if $cond=~/^(\w+)/
+	    $cond_var=$1
 	$if $plist
 	    my @plist=split /,\s*/, $plist
 	    $foreach $p in @plist
-		my $macro={"p"=>$p};
+		my $macro={$cond_var=>$p};
 		push @$deflist, $macro;
 		$if testcondition($cond)
 		    parseblock($subblock, $cur_file, $cur_line+$lindex);

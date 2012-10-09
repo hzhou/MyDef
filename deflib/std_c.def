@@ -197,45 +197,120 @@ subcode: slist_init(var, @plist)
 	# list_member = init value;
 	$(sl)$(p)
 
-subcode: slist_clear(var)
+# --
+subcode: slist_set_macro
     $get_struct_var_prefix(sl) $(var)
     $get_pointer_type(nodetype) $(sl)head
     $(set:nodename=$(nodetype:6:word))
+    $(export:sl, nodetype)
+    $(export:p=$(nodename)_temp)
+    $(export:p2=$(nodename)_temp2)
+# --
+subcode: slist_head_pop(var)
+    $call slist_set_macro
     $while $(sl)head
-	$local $(nodetype) * $(nodename)_temp
-	$(nodename)_temp=$(sl)head
-	$(sl)head=$(nodename)_temp->next
-	free($(nodename)_temp)
-    $(sl)tail=NULL
-    $(sl)n=0
+	$local $(nodetype) * $(p)
+	$(p)=$(sl)head
+	BLOCK
+	$(sl)head=$(p)->next
+	$(sl)n--
+	free($p)
+    $if !$(sl)head
+	$(sl)tail=NULL
+    $(export:p)
+
+subcode: slist_clear(var)
+    &call slist_head_pop, $(var)
+	# NOOP
 	
 subcode: slist_push(var, @plist)
-    $get_struct_var_prefix(sl) $(var)
-    $get_pointer_type(nodetype) $(sl)head
-    $(set:nodename=$(nodetype:6:word))
-    $local $(nodetype) * $(nodename)_temp
-    $(nodename)_temp=($(nodetype) *)malloc(sizeof($(nodetype)))
-    $(nodename)_temp->next=NULL
+    $call slist_set_macro
+    $local $(nodetype) * $(p)
+    $(p)=($(nodetype) *)malloc(sizeof($(nodetype)))
+    $(p)->next=NULL
     $if !$(sl)head
-	$(sl)head=$(nodename)_temp
+	$(sl)head=$(p)
     $else
-	$(sl)tail->next=$(nodename)_temp
-    $(sl)tail=$(nodename)_temp
+	$(sl)tail->next=$(p)
+    $(sl)tail=$(p)
     $(sl)n++
-    $(ifeach:p)
-	$(nodename)_temp->$(p)
+    $(ifeach:t)
+	$(p)->$(t)
+    $(export:p)
 
 subcode: slist_shift(var)
-    $get_struct_var_prefix(sl) $(var)
-    $get_pointer_type(nodetype) $(sl)head
-    $(set:nodename=$(nodetype:6:word))
-    $local $(nodetype) * $(nodename)_temp
-    $(nodename)_temp=$(sl)head
+    $call slist_set_macro
+    $local $(nodetype) * $(p)
+    $(p)=$(sl)head
     $(sl)head=$(sl)head->next
     $if !$(sl)head
 	$(sl)tail=NULL
     $(sl)n--
-    $(export:p=$(nodename)_temp)
+    $(export:p)
+
+subcode: slist_unshift(var, @plist)
+    $call slist_set_macro
+    $local $(nodetype) * $(p)
+    $(p)=($(nodetype) *)malloc(sizeof($(nodetype)))
+    $(p)->next=$(sl)head
+    $(sl)head=$(p)
+    $if !$(sl)tail
+	$(sl)tail=$(p)
+    $(sl)n++
+    $(ifeach:t)
+	$(p)->$(t)
+    $(export:p)
+
+subcode: slist_each(var)
+    $call slist_set_macro
+    $local $(nodetype) * $(p)
+    $(p)=$(sl)head
+    $while $(p)
+	BLOCK
+	$(p)=$(p)->next
+    $(export:p, sl)
+
+subcode: slist_each_2(var)
+    $call slist_set_macro
+    $local $(nodetype) * $(p)
+    $local $(nodetype) * $(p2)
+    $(p)=$(sl)head
+    $(p2)=$(sl)head
+    $while $(p)
+	tb_deleted=0
+	BLOCK
+	$if !tb_deleted
+	    $(p2)=$(p)
+	    $(p)=$(p)->next
+    $(export:p, p2, sl)
+
+subcode: slist_insert(@plist)
+    $if $(p)==$(sl)head
+	$(p)=($(nodetype) *)malloc(sizeof($(nodetype)))
+	$(p)->next=$(sl)head
+	$(sl)head=$(p)
+    $else
+	$(p)=($(nodetype) *)malloc(sizeof($(nodetype)))
+	$(p)->next=$(p2)->next
+	$(p2)->next=$(p)
+    $(sl)n++
+    $(ifeach:t)
+	$(p)->$(t)
+
+subcode: slist_delete
+    $if $(sl)head==$(p)
+	$(sl)head=$(p)->next
+	free($(p))
+	$(p)=$(sl)head
+	$(p2)=$(sl)head
+    $else
+	$(p2)->next=$(p)->next
+	free($(p))
+	$(p)=$(p2)->next
+    $(sl)n--
+    tb_deleted=1
+    $if $(p)==NULL
+	$(sl)tail=$(p2)
 
 ###############################################################
 ## Utility
