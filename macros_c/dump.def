@@ -3,16 +3,86 @@ subcode: c_dump_init
     $dump->{block_init}=\@dump_init
     unshift @$out, "INCLUDE_BLOCK block_init"
 
+    $call dump_h_files
+
+    my $dump_out=\@dump_init
     $call dump_includes
     $call dump_defines
     $call dump_enums
-    $call dump_structs
     $call dump_typedefs
+    $call dump_structs
     $call dump_function_declares
     $call dump_declares
     $call dump_structs_functions
     $call dump_globals
     $call dump_code_list
+
+# ---- h name list -----------------
+subcode:: package_globals
+    # name hashes for header files
+    # $h_names{name} is list of macro, structure, function declarations
+    my %h_names
+    my %h_files
+
+subcode: write_h(file, names)
+    my $tlist=$h_files{$(file)}
+    $if !$tlist
+	$tlist=[]
+	$h_files{$(file)}=$tlist
+    my @namelist=split /,\s*/, $(names)
+    $foreach $name in @namelist
+	push @$tlist, $name
+
+subcode: dump_h_files
+    my $outdir=$page->{outdir}
+    $foreach $f in keys %h_files
+	my %allkey_list=("define"=>[],"struct"=>[],"function"=>[])
+	my %allkey_hash
+	my $tlist=$h_files{$f}
+	$foreach $t in @$tlist
+	    my $klist=$h_names{$t}
+	    $foreach $k in @$klist
+		print "dump_h_files [$k] in $klist\n"
+		$if !$allkey_hash{$k}
+		    $allkey_hash{$k}=1
+		    $if $k=~/^(\w+)-(.*)/
+			push @{$allkey_list{$1}}, $2
+	my @buf
+	my $dump_out=\@buf
+	$foreach $k in @{$allkey_list{"define"}}
+	    $call dump_define, $k
+	$foreach $k in @{$allkey_list{"struct"}}
+	    $call dump_struct, $k
+	$foreach $k in @{$allkey_list{"function"}}
+	    $call dump_function_declare, $k
+	open Out, ">$outdir/$f" or die "can't write $outdir/$f\n"
+	$foreach $l in @buf
+	    print Out $l
+	close Out
+
+subcode: check_h_names_init
+    my @h_name_list
+
+subcode: check_h_names(v, name)
+    $call check_h_names_init
+    $while $(v)=~/^\$(\w+),?\s*(.*)/
+	$(v)=$2
+	$call check_h_names_name, $1
+    $call check_h_names_key, $(name)
+
+subcode: check_h_names_name(name)
+    print "check_h_names_name ",  $(name), "\n"
+    $if !$h_names{$(name)}
+	my $t=[]
+	$h_names{$(name)}=$t
+	push @h_name_list, $t
+    $else
+	push @h_name_list, $h_names{$(name)}
+
+subcode: check_h_names_key(key)
+    $foreach $h in @h_name_list
+	print "check_h_names_key [$h] ",  $(key), "\n"
+	push @$h, $(key)
 
 # ---- Includes ----
 subcode:: package_globals
@@ -32,10 +102,10 @@ subcode:: c_init
 subcode: dump_includes
     my $cnt=0
     $while my ($k, $t)=each %includes
-	push @dump_init, "#include $k\n";
+	push @$dump_out, "#include $k\n";
 	$cnt++
     $if $cnt>0
-	push @dump_init, "\n";
+	push @$dump_out, "\n";
 
 # ---- Defines ----
 subcode:: package_globals
@@ -50,6 +120,7 @@ subcode:: c_init
 
 subcode:: support_subs
     $sub add_define($name, $var)
+	$call check_h_names, $var, "define-$name"
 	$if !defined $defines{$name}
 	    push @define_list, $name
 	$defines{$name}=$var
@@ -57,22 +128,32 @@ subcode:: support_subs
 subcode: dump_defines
     my $cnt=0
     $foreach $k in @define_list
-	push @dump_init, "#define $k $defines{$k}\n";
+	$call dump_define, $k
 	$cnt++
     $if $cnt>0
-	push @dump_init, "\n";
+	push @$dump_out, "\n";
+
+subcode: dump_define(k)
+    push @$dump_out, "#define $(k) $defines{$(k)}\n";
 
 # ---- TypeDefs ----
 subcode:: package_globals
     our @typedef_list
 subcode:: c_init
     @typedef_list=()
+    my %typedef_hash
+
+subcode:: do_typedef(param)
+    $if $(param)=~/(.*)\s+(\w+)\s*$/
+	$typedef_hash{$2}=$1
+	push @typedef_list, $2
+	$call check_h_names, $(param), "typedef-$2"
 
 subcode: dump_typedefs
     $if @typedef_list
 	$foreach $k in @typedef_list
-	    push @dump_init, "typedef $k;"
-	push @dump_init, "\n";
+	    push @$dump_out, "typedef $typedef_hash{$k} $k;"
+	push @$dump_out, "\n";
 
 # ---- Enums ----
 subcode:: package_globals
@@ -88,14 +169,14 @@ subcode: dump_enums
     $foreach $name in @enum_list
 	my $t=$enums{$name};
 	$if $name=~/^ANONYMOUS/
-	    push @dump_init, "enum {$t};\n";
+	    push @$dump_out, "enum {$t};\n";
 	$elif $name=~/^,\s*(\w+)/ 
-	    push @dump_init, "enum {$t} $1;\n";
+	    push @$dump_out, "enum {$t} $1;\n";
 	$else
-	    push @dump_init, "enum $name {$t};\n";
+	    push @$dump_out, "enum $name {$t};\n";
 	$cnt++
     $if $cnt>0
-	push @dump_init, "\n";
+	push @$dump_out, "\n";
 
 # ---- Global Variables ----
 subcode:: package_globals
@@ -113,13 +194,13 @@ subcode: dump_globals
     $foreach my $v in @global_list
 	$call dump_global
     $if $cnt>0
-	push @dump_init, "\n";
+	push @$dump_out, "\n";
 
 subcode: dump_global
     $call dump_global_std
 
 subcode: dump_global_std
-    push @dump_init, "$v;\n";
+    push @$dump_out, "$v;\n";
     $cnt++
 
 # ---- Function Delcares ----
@@ -131,18 +212,23 @@ subcode:: c_init
 
 subcode: dump_function_declares
     my $cnt=0
-    $foreach my $t in @function_declare_list
-	my $func=$functions{$t};
+    $foreach $t in @function_declare_list
+	my $func=$functions{$t}
 	$if !$func->{skip_declare}
-	    my $name=$func->{name};
-	    my $ret_type=$func->{'ret_type'};
-	    if(!$ret_type){$ret_type="void";}
-	    my $paramlist=$func->{'param_list'};
-	    my $param=join(', ', @$paramlist);
-	    push @dump_init, "$ret_type $name($param);\n";
+	    $call dump_function_declare, $func
 	    $cnt++
     $if $cnt>0
-	push @dump_init, "\n";
+	push @$dump_out, "\n";
+
+subcode: dump_function_declare(k)
+    $(if:k!=$func)
+	my $func=$functions{$(k)}
+    my $name=$func->{name}
+    my $ret_type=$func->{'ret_type'};
+    if(!$ret_type){$ret_type="void";}
+    my $paramlist=$func->{'param_list'};
+    my $param=join(', ', @$paramlist);
+    push @$dump_out, "$ret_type $name($param);\n";
 
 # ---- Declares ----
 subcode:: package_globals
@@ -151,11 +237,16 @@ subcode:: package_globals
 subcode:: c_init
     @declare_list=()
 
+subcode:: do_declare(param)
+    push @declare_list, $(param)
+
 subcode: dump_declares
     $foreach my $l in @declare_list
-	push @dump_init, "$l\n";
+	$if $l!~/;\s*$/
+	    $l.=";"
+	push @$dump_out, "$l\n";
     $if @declare_list
-	push @dump_init, "\n";
+	push @$dump_out, "\n";
 
 # ---- Structures ----
 subcode:: package_globals
@@ -168,17 +259,20 @@ subcode:: c_init
 
 subcode: dump_structs
     $foreach my $name in @struct_list
-	push @dump_init, "struct $name {\n";
-	my $s_list=$structs{$name}->{list}
-	my $s_hash=$structs{$name}->{hash}
-	my $i=0;
-	$foreach my $p in @$s_list
-	    $i++;
-	    $if $s_hash->{$p} eq "function"
-		push @dump_init, "\t".$fntype{$p}.";\n";
-	    $else
-		push @dump_init, "\t$s_hash->{$p} $p;\n";
-	push @dump_init, "};\n\n";
+	$call dump_struct, $name
+
+subcode: dump_struct(k)
+    push @$dump_out, "struct $(k) {\n";
+    my $s_list=$structs{$(k)}->{list}
+    my $s_hash=$structs{$(k)}->{hash}
+    my $i=0;
+    $foreach my $p in @$s_list
+	$i++;
+	$if $s_hash->{$p} eq "function"
+	    push @$dump_out, "\t".$fntype{$p}.";\n";
+	$else
+	    push @$dump_out, "\t$s_hash->{$p} $p;\n";
+    push @$dump_out, "};\n\n";
 
 subcode: dump_structs_functions
     my $cnt=0
@@ -186,23 +280,23 @@ subcode: dump_structs_functions
 	my $s_hash=$structs{$name}->{hash}
 	my $s_init=$s_hash->{"-init"}
 	$if @$s_init
-	    push @dump_init, "void $name\_constructor(struct $name* p){\n";
+	    push @$dump_out, "void $name\_constructor(struct $name* p){\n";
 	    foreach my $l(@$s_init){
-		push @dump_init, "    $l\n";
+		push @$dump_out, "    $l\n";
 	    }
-	    push @dump_init, "}\n";
+	    push @$dump_out, "}\n";
 	    $cnt++
 	my $s_exit=$s_hash->{"-exit"}
 	$if @$s_exit
-	    push @dump_init, "void $name\_destructor(struct $name* p){\n";
+	    push @$dump_out, "void $name\_destructor(struct $name* p){\n";
 	    foreach my $l(@$s_exit){
-		push @dump_init, "    $l\n";
+		push @$dump_out, "    $l\n";
 	    }
-	    push @dump_init, "}\n";
+	    push @$dump_out, "}\n";
 	    $cnt++
 	# ------------------------
     $if $cnt>0
-	push @dump_init, "\n";
+	push @$dump_out, "\n";
 
 # ---- Init codes ----
 subcode:: package_globals
@@ -213,7 +307,7 @@ subcode:: c_init
 
 subcode: dump_code_list
     $foreach my $l in @initcodes
-	push @dump_init, "$l\n";
+	push @$dump_out, "$l\n";
     $if @initcodes
-	push @dump_init, "\n";
+	push @$dump_out, "\n";
 

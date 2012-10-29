@@ -99,12 +99,12 @@ subcode:: c_support_subs
     $sub get_var_type_complex
 	my $name=shift
 	my ($type, $tail)
-	$if $debug
+	$if $debug eq "type"
 	    print "get_var_type_complex [$name]\n"
 	$if $name=~/^(\w+)(.*)/
 	    $tail=$2
 	    $type=get_var_type($1)
-	$if $debug
+	$if $debug eq "type"
 	    print " ->type:$type, tail:[$tail]\n"
 	$while 1
 	    $if $tail=~/^\[.*?](.*)/
@@ -141,20 +141,27 @@ subcode:: c_support_subs
 	    return $global_flag->{$name};
     $sub get_compound_type
 	my $name=shift
-	$if $name=~/^(\w+)\s*$/
-	    return get_var_type($1)
-	$if $name=~/^(\w+)(\.|->)(\w+)(.*)/
-	    die "structure type dereference not supported yet\n"
-	$if $name=~/^(\w+)(\[.*)/
-	    $name=$2;
-	    $type=get_var_type($1)
-	    $while $name=~/^\[[^\]]*\](.*)/
-		$name=$1
-		$if $type=~/(.*)\s*\*\s*$/
-		    $type=$1
-		$else
-		    die "error in derefencing pointer type $type\n"
-	return $type
+	$if $name=~/^(\w+)(.*)/
+	    return get_sub_type(get_var_type($1), $2)
+	return "void";
+
+    $sub get_sub_type
+	my ($type0, $tail)=@_
+	$if $debug eq "type"
+	    print "get_sub_type: $type0 - $tail\n"
+
+	$if $tail=~/^(\.|->)(\w+)(.*)/
+	    $tail=$3;
+	    my $type=get_struct_element_type($type0, $2)
+	    return get_sub_type($type, $tail)
+	$elif $tail=~/^\[.*?\](.*)/
+	    $tail=$1;
+	    $if $type0=~/(.*)\s*\*\s*$/
+		return get_sub_type($1, $tail)
+	    $else
+		die "error in derefencing pointer type $type\n"
+	$else
+	    return $type0
 
 # -----------------------------------------------------------------
 subcode:: c_support_subs
@@ -247,15 +254,17 @@ subcode: c_struct_init
 # ----
 subcode: split_name
     my ($tail, $array);
+    my $explicit_type;
     my @attrs
     # omit ;
     $name=~s/;\s*$//
     # NOTE: space sensitive!
     $if !$type and $name=~/^\s*(\S[^=]*)\s+([^= \t].*)/
 	$type=$1
+	$explicit_type=1
 	$name=$2
 	$call check_pointer_type_name
-    $while $type=~/^\s*(extern|static)(.*)/
+    $while $type=~/^\s*(extern|static|const)\s*(.*)/
 	push @attrs, $1
 	$type=$2
     $if $name=~/(\S+?)\s*(=\s*(.*))/
@@ -287,7 +296,8 @@ subcode: var_array_type
     $if defined $array
 	my $layer=0
 	$while $array=~/\[.*?\]/g
-	    $type=pointer_type($type)
+	    $if !$explicit_type
+		$type=pointer_type($type)
 	    $layer++
 	$vtype=$type." "."*"x$layer
     $else
@@ -408,7 +418,8 @@ subcode:: c_support_subs
 
     $sub func_var_assign
 	my ($type, $name, $val, $out)=@_;
-	if($debug){print "func_var_assign: $type $name = $val\n"}
+	$if $debug eq "type"
+	    print "func_var_assign: $type $name = $val\n"
 	my $done_out;
 	$if @func_var_hooks
 	    $foreach my $fh in @func_var_hooks

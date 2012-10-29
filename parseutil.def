@@ -210,7 +210,8 @@ subcode:: perfile_variables
 
 subcode: start_subcode
     ### htmlcode, jscode, subcode, phpcode, fncode
-    $source=[];
+    my $src_location="SOURCE: $cur_file - $cur_line";
+    $source=[$src_location];
     $codeindent=$curindent+1;
     $lastindent=$codeindent;
     # -------------------
@@ -226,6 +227,7 @@ subcode: start_subcode
 	$elif $dblcolon eq ":"
 	    # -- append
 	    $source=$codes->{$name}->{source}
+	    push @$source, $src_location
 	$elif $dblcolon eq "-"
 	    # -- prepend
 	    $code_prepend=1
@@ -233,6 +235,7 @@ subcode: start_subcode
 	    # -- append and finalize
 	    $codes->{$name}->{attr}=undef
 	    $source=$codes->{$name}->{source}
+	    push @$source, $src_location
 	$elif $debug>1
 	    # -- skip
 	    print STDERR "overwiritten $type code: $name\n"
@@ -242,7 +245,7 @@ subcode: start_subcode
 	$if $t=~/\((.*)\)/
 	    $t=$1;
 	    @params=split /,\s*/, $t;
-	my $t_code={'type'=>$type, 'source'=>$source, 'params'=>\@params, 'file'=>$cur_file, 'line'=>$cur_line};
+	my $t_code={'type'=>$type, 'source'=>$source, 'params'=>\@params, 'name'=>$name};
 	$if $dblcolon eq "@"
 	    $t_code->{attr}="default"
 	$elif $dblcolon eq ":" or $dblcolon eq "-"

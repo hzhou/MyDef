@@ -18,21 +18,7 @@ page: output_perl, output_main
     ext: pl
     init_mode: sub
     subcode: parsecode
-	$if $l=~/^FUNC (\w+)-(.*)/
-	    my $fname=$1;
-	    my $t=$2;
-	    my $openblock=[];
-	    my $closeblock=[];
-	    my $preblock=[];
-	    my $postblock=[];
-	    my $func={openblock=>$openblock, closeblock=>$closeblock, preblock=>$preblock, postblock=>$postblock};
-	    push @$openblock, "sub $fname {";
-	    $if $t
-		push @$preblock, "my ($t)=\@_;";
-	    push @$closeblock, "}";
-	    my $fidx=MyDef::dumpout::add_function($func);
-	    push @$out, "OPEN_FUNC_$fidx";
-	$elif $l=~/^\s*\$(\w+)\s*(.*)$/
+	$if $l=~/^\s*\$(\w+)\s*(.*)$/
 	    my $func=$1;
 	    my $param=$2;
 	    $if $func =~ /^(if|while)$/

@@ -16,6 +16,7 @@ subcode:: c_support_subs
 	    $structs{$name}={list=>$s_list, hash=>$s_hash}
 	    push @struct_list, $name
 
+	$call check_h_names, $param, "struct-$name"
 	my @plist=split /,\s+/, $param;
 	$foreach my $p in @plist
 	    my ($m_name, $type, $needfree);
@@ -71,10 +72,20 @@ subcode:: c_support_subs
 
     $sub get_struct_element_type 
 	my ($stype, $evar)=@_;
+	$if $stype=~/(\w+)(.*)/
+	    $if $typedef_hash{$1}
+		$stype=$typedef_hash{$1}.$2
 	$if $stype=~/struct\s+(\w+)/
 	    my $struc=$structs{$1};
 	    $if $struc->{hash}->{$evar}
 		return $struc->{hash}->{$evar}
+	    $else
+		my $h=$struc->{hash}
+		$while my ($k, $v)=each %$h
+		    $if $k=~/$evar\[.*/
+			return "$v *"
+	    $if $debug eq "type"
+		print "$evar not defined in struct $1\n";
 	return "void";
 
     $sub struct_free
