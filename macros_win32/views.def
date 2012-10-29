@@ -70,6 +70,7 @@ subcode:: support_subs
 
 # ---- LoadView ----
 subcode: load_view_layout
+    /*
     $if $view->{menu}
 	my ($var, $name)=("hmenu", $view->{menu})
 	func_add_var($var, "HMENU")
@@ -78,6 +79,7 @@ subcode: load_view_layout
 	ogdl_menu($out, $var, $menu, 0);
 	push @$out, "SetMenu(hwnd, hmenu);"
 	push @$out, "DestroyMenu(hmenu);"
+    */
     # --
     my $list=$view->{_list}
     my $command_hash=$view->{commands}
