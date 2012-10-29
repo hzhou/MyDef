@@ -73,7 +73,7 @@ subcode: compile_main
 	    $if $l=~/^\$\((else|\w+:.*)\)/
 		my $preproc=$1
 		$call parse_preproc
-	    $elif $l=~/^\$:\s+(.*)/
+	    $elif $l=~/^\$:\s(.*)/
 		# Literal by-pass
 		push @$out, $1
 	    $else
