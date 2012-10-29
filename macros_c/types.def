@@ -89,7 +89,7 @@ subcode:: c_support_subs
 	    return $1
 	$elif $val=~/(\w+)(.*)/
 	    my $tail=$2;
-	    my $type=get_var_type($1)
+	    my $type=get_var_type_complex($val)
 	    $if !$type
 		$type=get_c_type($1)
 	    # --
@@ -185,9 +185,30 @@ subcode:: c_support_subs
     $sub get_c_fmt 
 	my $name=shift;
 	my $type=get_var_type($name);
-	$if $type eq "int"
+	$if $type =~/(int|long)$/
 	    return "%d";
 	$elsif $type eq "char"
 	    return "%c";
 	$elsif $type eq "char *"
 	    return "%s";
+
+    $sub get_var_fmt($v)
+	my $type=get_compound_type($v)
+	$if !$type
+	    $type=get_c_type($v);
+	$if $type=~/^char \*/
+	    return "\%s";
+	$elsif $type=~/\*\s*$/
+	    return "\%p";
+	$elsif $type=~/^(float|double)/
+	    return "\%g"
+	$elsif $type=~/(int|long)\s*$/
+	    return "\%d";
+	$elsif $type=~/^unsigned char/
+	    return "\%d";
+	$elsif $type=~/char/
+	    return "\%c";
+	$else
+	    print "get_var_fmt: unhandled $v - $type\n";
+	    return $v
+

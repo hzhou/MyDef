@@ -135,24 +135,6 @@ subcode: allocate_init_value(out)
 	push @$(out), "}";
 # -------------------------------------
 subcode:: c_support_subs
-    $sub get_var_fmt($v)
-	my $type=get_var_type($v)
-	$if !$type
-	    $type=get_c_type($v);
-	$if $type=~/^(float|double)/
-	    return "\%g"
-	$elsif $type=~/^int/
-	    return "\%d";
-	$elsif $type=~/^char \*/
-	    return "\%s";
-	$elsif $type=~/^char/
-	    return "\%d";
-	$elsif $type=~/^unsigned char/
-	    return "\%d";
-	$else
-	    print "get_var_fmt: unhandled $v - $type\n";
-	    return $v
-
     $sub temp_string($str)
 	$if $str=~/\$/
 	    func_add_var("ts_temp_buf[100]", "local")

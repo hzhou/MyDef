@@ -40,14 +40,13 @@ subcode:: c_support_subs
 	    my $tl=$$l;
 	    $tl=~s/;+\s*$//;
 	    $if $tl=~/^\s*\((.*?\w)\)\s*=\s*\((.*)\)/
+		# -- multi-assignment --
 		undef $$l;
 		my ($left, $right)=($1, $2);
-		# multi-assignment
 		my @left=split /,\s*/, $left;
 		my @right=comma_split($right);
-		for(my $i=0; $i<=$#left; $i++){
+		$for $i=0:$#left+1
 		    do_assignment($left[$i], $right[$i], $out);
-		}
 	    $elif $tl=~/^\s*(.*?\w)\s*=\s*([^=].*)/
 		undef $$l;
 		my ($left, $right)=($1, $2);
@@ -66,6 +65,7 @@ subcode:: c_support_subs
 	    $type=get_var_type($left);
 	    func_var_assign($type, $left, $right, $out);
 	$elsif $left=~/^(\w+\S+)$/
+	    # -- complex case --
 	    $type=get_var_type_complex($1)
 	    func_var_assign($type, $left, $right, $out);
 	$else

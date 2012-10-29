@@ -3,6 +3,7 @@ include: macros_c/cfunctions.def
 include: macros_util/tool_output.def
 include: macros_win32/views.def
 include: macros_win32/graphics.def
+include: macros_win32/resource.def
 
 page: output_win32, output_main
     type: pm
@@ -14,12 +15,13 @@ page: output_win32, output_main
 	$call c_main
     subcode: init_page
 	$call c_init
-	declare_struct("VIEW", "HWND hwnd")
+	# declare_struct("VIEW", "HWND hwnd")
     subcode: parsecode
 	$call pre_parse
 	$call check_text_includes
 	$call c_parsecode
     subcode: dumpout
+	$call @on_dumpout
 	push @$f, "#include <winsock2.h>\n";
 	push @$f, "#include <windows.h>\n";
 	# ----  Main Function -------------------
@@ -58,17 +60,6 @@ page: output_win32, output_main
 # ---------------------------
 subcode:: package_global
     my %view_hash
-    my %menu_hash
-
-subcode: load_menu
-    my $menu
-    $if !$menu_hash{$name}
-	$call fetch_named_resource, menu
-	$menu_hash{$name}=$menu
-    $else
-	$menu=$menu_hash{$name}
-    $if !$menu->{processed}
-	$menu->{commands}={}
 
 subcode: load_view
     my $view
@@ -98,17 +89,8 @@ subcode: pre_parse
 	$param=~s/^\s*//
 	$call graphics, $cat, $param
 	return 1
-    $elif $l=~/^\s*\$(Make|Append)Menu\s+(\w+),\s*(\w+)/
-	my ($make, $var, $name)=($1, $2, $3)
-	# ----
-	$if $make eq "Make"
-	    func_add_var($var, "HMENU")
-	    push @$out, "$var = CreateMenu();"
-	$call load_menu
-	ogdl_menu($out, $var, $menu, 0);
-	return 1;
     $elif $l=~/^(\S+)\s*=\s*\$MakeFont\s+(.*)/
 	my ($var, $name)=($1, $2);
 	$call make_font
 	return 1;
-
+    $call @preparse_elif
