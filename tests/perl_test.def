@@ -1,0 +1,13 @@
+page: test
+    type: pl
+    subcode: main
+	&call loop
+	    printf("%4d ", $i)
+	print "\n"
+	&call loop
+	    printf("%4d ", $i*$i)
+	print "\n"
+
+    subcode: loop
+	$for $i=0:10
+	    BLOCK
