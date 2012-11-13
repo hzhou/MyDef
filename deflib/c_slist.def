@@ -1,0 +1,151 @@
+## singly linked list 
+subcode: slist_declare(name, list, node)
+    $struct($(name)_node) $(node), struct $(name)_node * next
+    $struct($(name)_list) $(list), n, struct $(name)_node* head, struct $(name)_node* tail
+
+subcode: slist_init(var, @plist)
+    $get_struct_var_prefix(sl) $(var)
+    $(sl)head=NULL
+    $(sl)tail=NULL
+    $(sl)n=0
+    $(ifeach:p)
+	# list_member = init value;
+	$(sl)$(p)
+
+# ----------------------------------------------------
+subcode: slist_set_macro
+    $get_struct_var_prefix(sl) $(var)
+    $get_pointer_type(nodetype) $(sl)head
+    $(set:nodename=$(nodetype:6:word))
+    $(export:sl, nodetype)
+    $(export:p=p_$(nodename)_temp)
+    $(export:p2=p_$(nodename)_temp2)
+    $(export:pp=pp_$(nodename)_temp)
+# --
+subcode: slist_head_pop(var)
+    $call slist_set_macro
+    $while $(sl)head
+	$local $(nodetype) * $(p)
+	$(p)=$(sl)head
+	BLOCK
+	$(sl)head=$(p)->next
+	$(sl)n--
+	free($(p))
+    $if !$(sl)head
+	$(sl)tail=NULL
+    $(export:p)
+
+subcode: slist_clear(var)
+    &call slist_head_pop, $(var)
+	# NOOP
+	
+subcode: slist_push(var, @plist)
+    $call slist_set_macro
+    $local $(nodetype) * $(p)
+    $(p)=($(nodetype) *)malloc(sizeof($(nodetype)))
+    $(p)->next=NULL
+    $if !$(sl)head
+	$(sl)head=$(p)
+    $else
+	$(sl)tail->next=$(p)
+    $(sl)tail=$(p)
+    $(sl)n++
+    $(ifeach:t)
+	$(p)->$(t)
+    $(export:p)
+
+subcode: slist_shift(var)
+    $call slist_set_macro
+    $local $(nodetype) * $(p)
+    $(p)=$(sl)head
+    $(sl)head=$(sl)head->next
+    $if !$(sl)head
+	$(sl)tail=NULL
+    $(sl)n--
+    $(export:p)
+
+subcode: slist_unshift(var, @plist)
+    $call slist_set_macro
+    $local $(nodetype) * $(p)
+    $(p)=($(nodetype) *)malloc(sizeof($(nodetype)))
+    $(p)->next=$(sl)head
+    $(sl)head=$(p)
+    $if !$(sl)tail
+	$(sl)tail=$(p)
+    $(sl)n++
+    $(ifeach:t)
+	$(p)->$(t)
+    $(export:p)
+
+subcode: slist_each(var)
+    $call slist_set_macro
+    $local $(nodetype) * $(p)
+    $(p)=$(sl)head
+    $while $(p)
+	BLOCK
+	$(p)=$(p)->next
+    $(export:p, sl)
+
+# ---- Iteration that allows delete and insert
+#      $(p) points to the current node (even after slist_delete)
+#      $(p) points to the new node after insert
+subcode: slist_each_2(var)
+    $call slist_set_macro
+    $local $(nodetype) * $(p)
+    $local $(nodetype) * $(p2)
+    $local $(nodetype) ** $(pp)
+    $(p2)=$(sl)head
+    $(pp)=&$(sl)head
+    $(p)=$(sl)head
+    $while $(p)
+	tn_flag=1
+	BLOCK
+	$if tn_flag==0
+	    # node deleted, p2 and pp does not change
+	    free($(p))
+	    $(p)=*$(pp)
+	$if tn_flag==1
+	    # advance 1
+	    $(p2)=$(p)
+	    $(pp)=&($(p)->next)
+	    $(p)=$(p)->next
+	$elif tn_flag==2
+	    # after insert_before, advance 2
+	    $(p2)=$(p)->next
+	    $(pp)=&($(p2)->next)
+	    $(p)=$(p2)->next
+    $(export:p, p2, pp, sl, nodetype)
+
+subcode: slist_insert(@plist)
+    $(p2)=($(nodetype) *)malloc(sizeof($(nodetype)))
+    $(p2)->next=$(p)->next
+    $(p)->next=$(p2)
+    $(sl)n++
+    $if $(p2)->next==NULL
+	$(sl)tail=$(p2)
+
+    $(p)=$(p2)
+
+    $(ifeach:t)
+	$(p)->$(t)
+
+subcode: slist_insert_before(@plist)
+    $(p2)=($(nodetype) *)malloc(sizeof($(nodetype)))
+    $(p2)->next=$(p)
+    *$(pp)=$(p2)
+    $(sl)n++
+
+    $(p)=$(p2)
+    tn_flag=2
+
+    $(ifeach:t)
+	$(p)->$(t)
+
+subcode: slist_delete
+    *$(pp)=$(p)->next
+    $(sl)n--
+    $if *$(pp)==NULL
+	$(sl)tail=$(p2)
+
+    tn_flag=0
+

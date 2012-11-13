@@ -1,0 +1,86 @@
+
+subcode:: preproc_elifs
+    $elif $preproc=~/^ogdl_/
+	$call ogdl_parse
+
+subcode:: testcondition_elifs
+    $elif $cond=~/^ogdl_/
+	$call ogdl_condition
+
+# ---------------------------
+subcode:: support_subs
+    $sub get_ogdl($name)
+	$cur_ogdl=$MyDef::def->{resource}->{$name}
+	$if !$cur_ogdl
+	    die "Resource $name does not exist!\n"
+	$else
+	    $call ogdl_inherit
+	    return $cur_ogdl
+
+subcode: ogdl_inherit
+    $if $cur_ogdl->{_parents}
+	my @parent_list=@{$cur_ogdl->{_parents}}
+	$while my $pname=pop @parent_list
+	    my $ogdl=$MyDef::def->{resource}->{$pname}
+	    $if $ogdl
+		$while my ($k, $v)=each %$ogdl
+		    $if !$cur_ogdl->{$k}
+			$cur_ogdl->{$k}=$v
+		    $elif $k eq "_list"
+			$if @$v
+			    unshift @{$cur_ogdl->{_list}}, @$v
+# ---------------------------
+subcode:: package_global
+    my $cur_ogdl
+    my @ogdl_stack
+
+subcode: ogdl_parse
+    expand_macro_recurse(\$preproc)
+    $if $preproc=~/^ogdl_load:\s*(\w+)/
+	get_ogdl($1)
+    $elif $preproc=~/^ogdl_each/
+	my $subblock=grabblock($block, \$lindex);
+	my $itemlist=$cur_ogdl->{_list}
+	push @ogdl_stack, $cur_ogdl
+	$foreach $item in @$itemlist
+	    $cur_ogdl=$item
+	    parseblock({source=>$subblock, name=>"\${ogdl_each}"})
+	$cur_ogdl=pop @ogdl_stack
+    $elif $preproc=~/^ogdl_get:(\w+)=(.*)/
+	my $key=$1
+	my $val;
+	my @klist=split /,\s*/, $2
+	$foreach $k in @klist
+	    $if defined $cur_ogdl->{$k}
+		$val=$cur_ogdl->{$k}
+	    $else
+		# Use it as default
+		$val=$k
+	$deflist->[-1]->{$key}=$val
+    $elif $preproc=~/^ogdl_get:(\w+)/
+	$deflist->[-1]->{$1}=$cur_ogdl->{$1}
+
+subcode: ogdl_condition
+    $if $cond=~/^ogdl_text/
+	return !ref($cur_ogdl)
+    $elif $cond=~/^ogdl_list/
+	$if ref($cur_ogdl) eq "HASH"
+	    my $tlist=$cur_ogdl->{_list}
+	    $if @$tlist
+		return 1
+	return 0
+    $elif $cond=~/^ogdl_text:(.*)/
+	$if ref($cur_ogdl) eq "SCALAR"
+	    return $cur_ogdl eq $1
+	$else
+	    return ($cur_ogdl->{_name} eq $1)
+    $elif $cond=~/^ogdl_attr:(\w+)(.*)/
+	$if ref($cur_ogdl) ne "HASH"
+	    $if $1 eq "_text"
+		return test_op($cur_ogdl, $2)
+	    $else
+		return 0
+	$else
+	    my $t=$cur_ogdl->{$1}
+	    return test_op($t, $2)
+

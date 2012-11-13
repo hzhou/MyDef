@@ -1,0 +1,30 @@
+## dynamic array
+subcode: local_darray(type, var)
+    $local $(type) * $(var)=NULL
+    $local n_da_len_$(var)=0
+    $local n_da_size_$(var)=0
+
+subcode: global_darray(type, var)
+    $global $(type) * $(var)=NULL
+    $global n_da_len_$(var)=0
+    $global n_da_size_$(var)=0
+
+# ----------------------------------------------------
+subcode: darray_check(var)
+    $if n_da_len_$(var)+1>n_da_size_$(var)
+	tn_temp=(int)(n_da_size_$(var)*2/3)
+	$if tn_temp<64
+	    tn_temp=64
+	$call darray_expand_n, $(var), tn_temp
+
+subcode: darray_check_n(var, n)
+    $if n_da_len_$(var)+$(n)>n_da_size_$(var)
+	$call darray_expand_n, $(var), n_da_len_$(var)+$(n)-n_da_size_$(var)
+    
+subcode: darray_expand_n(var, n)
+    $get_pointer_type(type) var
+    n_da_size_$(var)+=$(n)
+    $(var)=($(type) *)realloc(n_da_size_$(var)*sizeof($(type)))
+    assert($(var))
+
+# ----------------------------------------------------
