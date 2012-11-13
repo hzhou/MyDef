@@ -104,11 +104,17 @@ subcode: parse_main
 		$elif $line=~/^(sub)?page: (.*)/
 		    my ($subpage, $t)=($1, $2)
 		    $call start_page
-		$elif $line=~/^resource:\s+(\w+)/
-		    $grab="ogdl"
+		$elif $line=~/^resource:\s+(\w+)(.*)/
 		    $grab_indent=$curindent
-		    $grab_key=$1
-		    $grab_hash=$def->{resource}
+		    $if $def->{resource}->{$1}
+			$grab=$def->{resource}->{$1}
+		    $else
+			$grab={"_list"=>[], "_name"=>$1}
+			$def->{resource}->{$1}=$grab
+		    my $t=$2
+		    $if $t=~/^\s*,\s*(.*)/
+			my @tlist=split /,\s*/, $1
+			$grab->{"_parents"}=\@tlist
 		$elif $line=~/^(\w+)/
 		    # fields, macros,
 		    $stage=$1;
@@ -134,8 +140,6 @@ subcode:: perfile_variables
 
     # --- grab ogdl
     my $grab=undef
-    my $grab_hash
-    my $grab_key
     my $grab_indent
     my @grab
 
@@ -180,18 +184,10 @@ subcode: grab_block
 	    push @grab, "$i:$line";
 	    next;
 	$else
-	    $if $grab eq "ogdl"
-		my $ogdl=grab_ogdl($grab_key, \@grab)
-		$if !$grab_hash->{$grab_key}
-		    $grab_hash->{$grab_key}=$ogdl;
-		$else
-		    my $t=$grab_hash->{$grab_key}
-		    $while my ($k, $v)=each %$ogdl
-			$if !defined $t->{$k}
-			    $t->{$k}=$v
-		#print_ogdl($ogdl, 0)
-	    undef $grab;
-	    @grab=();
+	    grab_ogdl($grab, \@grab)
+	    #print_ogdl($grab, 0)
+	    $grab=undef
+	    @grab=()
 
 subcode: get_source_indent(curindent)
     $while $$(curindent)>$lastindent

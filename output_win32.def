@@ -24,29 +24,6 @@ page: output_win32, output_main
 	$call @on_dumpout
 	push @$f, "#include <winsock2.h>\n";
 	push @$f, "#include <windows.h>\n";
-	# ----  Main Function -------------------
-	my $func=$functions{"WinMain"};
-	$if $func
-	    $func->{skip_declare}=1;
-	    $func->{ret_type}="int APIENTRY";
-	    $func->{param_list}=["HINSTANCE hInst", "HINSTANCE hPrev", "LPSTR s_cmdline", "int n_cmdshow"];
-
-	    my $initblock=$func->{init}
-	    $cur_function=$func
-	    &call replace_output, $initblock
-		global_add_var("cur_instance", "HINSTANCE")
-		push @$out, "cur_instance = hInst;"
-		$while my $wnd = shift @window_list
-		    register_window($wnd)
-		$foreach $var in sort(keys(%hgdi_hash))
-		    $if $var=~/^font_\w+/
-			$call make_font
-		push @$out, "NEWLINE"
-
-	    push @{$func->{init}}, "DUMP_STUB main_init";
-	    push @{$func->{finish}}, "DUMP_STUB main_exit";
-	    push @{$func->{finish}}, "return 0;";
-
 
 	# ---- process_function ------------------------
 	my $funclist=MyDef::dumpout::get_func_list()
@@ -56,6 +33,30 @@ page: output_win32, output_main
 	# --- c global stuff -----------------
 	unshift @$out, "DUMP_STUB global_init";
 	$call c_dump_init
+
+subcode:: on_dumpout
+    # ----  Main Function -------------------
+    my $func=$functions{"WinMain"};
+    $if $func
+	$func->{skip_declare}=1;
+	$func->{ret_type}="int APIENTRY";
+	$func->{param_list}=["HINSTANCE hInst", "HINSTANCE hPrev", "LPSTR s_cmdline", "int n_cmdshow"];
+
+	my $initblock=$func->{init}
+	$cur_function=$func
+	&call replace_output, $initblock
+	    global_add_var("cur_instance", "HINSTANCE")
+	    push @$out, "cur_instance = hInst;"
+	    $while my $wnd = shift @window_list
+		register_window($wnd)
+	    $foreach $var in sort(keys(%hgdi_hash))
+		$if $var=~/^font_\w+/
+		    $call make_font
+	    push @$out, "NEWLINE"
+
+	push @{$func->{init}}, "DUMP_STUB main_init";
+	push @{$func->{finish}}, "DUMP_STUB main_exit";
+	push @{$func->{finish}}, "return 0;";
 
 # ---------------------------
 subcode:: package_global
@@ -78,11 +79,7 @@ subcode: pre_parse
     $elif $l=~/^\s*\$WndProc\s+(\w+)/
 	my $name=$1
 	$call load_view
-	my $block=MyDef::compileutil::get_named_block("global_init")
-	my $old_function=$cur_function;
-	&call replace_output, $block
-	    $call window_proc
-	$cur_function=$old_function
+	$call window_proc
 	return 1
     $elif $l=~/^\$g_(\w+)(.*)/
 	my ($cat, $param)=($1, $2)

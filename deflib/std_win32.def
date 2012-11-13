@@ -194,13 +194,18 @@ subcode: register_wndclass(@plist)
     $local WNDCLASSEX wc
     
     wc.cbSize = sizeof(WNDCLASSEX);
-    wc.style = 0;
+    $(ifeach:p:3=CS_)
+	wc.style = $(p)
+    $(else)
+	wc.style = 0
     $(ifeach:p:8=WndProc_)
 	wc.lpfnWndProc = $(p);
-    $(else)
-	wc.lpfnWndProc = WndProc;
     wc.cbClsExtra = 0;
-    wc.cbWndExtra = 0;
+    $(ifeach:p=DIALOG)
+	wc.lpfnWndProc = DefDlgProc
+	wc.cbWndExtra = DLGWINDOWEXTRA
+    $(else)
+	wc.cbWndExtra = 0;
     wc.hInstance = cur_instance;
     $(ifeach:p=CUSTOM_ICON)
 	#skip
@@ -212,7 +217,7 @@ subcode: register_wndclass(@plist)
 	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = NULL;
     wc.lpszMenuName = NULL;
-    $(ifeach:p:2=s_)
+    $(ifeach:p:1=")
 	wc.lpszClassName = $(p)
     $(else)
 	wc.lpszClassName = "Default"
@@ -321,4 +326,5 @@ subcode: AppendMenu_ogdl(var)
 		    $tempstr $(title)
 		    AppendMenu($(var), MF_STRING, $(name), $(tempstr))
 
+# -------------------------------------------------------------
 

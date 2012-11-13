@@ -28,19 +28,39 @@ subcode:: on_dumpout
 	    $(if:restype=res_h)
 		my $h_only=1
 	    $(else)
-		my $h_only=1
+		my $h_only=0
 	    $foreach $name in @$(restype)_list
 		$if !$res_name_hash{$name}
 		    $res_name_hash{$name}=1
 		    $call write_res, $name
+    my $pagename=$page->{pagename}
+    my $outdir=$page->{outdir}
+    my $res_h="$pagename-res.h"
+    $if @res_id_list
+	$includes{"\"$res_h\""}=1
+	print "  --> [$outdir/$res_h]\n"
+	open Out, ">$outdir/$res_h"
+	$foreach $l in @res_id_list
+	    print Out $l, "\n"
+	close Out
+    $if @res_rc_list
+	print "  --> [$outdir/$pagename-res.rc]\n"
+	open Out, ">$outdir/$pagename-res.rc"
+	print Out "#include \"$res_h\"\n"
+	$foreach $l in @res_rc_list
+	    print Out $l, "\n"
+	close Out
 
 subcode: write_res(name)
     my $ogdl=MyDef::compileutil::get_ogdl($(name))
     my $level=0
     $if $(name)=~/^menu_/
 	$call write_res_menu
-    $elif $(name)=~/^IDD_/
+    $elif $(name)=~/^dialog_/
 	$call write_res_dialog
+    $elif $(name)=~/^IDI_/
+	$call write_res_icon
+
 
 # -----------------------------------------------
 subcode:: preparse_elif
@@ -79,6 +99,13 @@ subcode: resource_define_range(type, name)
 	    $id_$(type)++
 	    my $val=sprintf("0x%3x0", $id_$(type))
 	    push @res_id_list, "#define $var\_MAX $val"
+
+# ---- ICON ---------------------------------------------
+subcode: write_res_icon
+    $call resource_define, other, $(name)
+    push @res_rc_list, ""
+    my $file=$ogdl->{_list}->[0]
+    push @res_rc_list, "$(name) ICON \"$file\""
 
 # ---- MENU ---------------------------------------------
 subcode:: preparse_elif
@@ -136,17 +163,17 @@ subcode: menu_root_res_end
 	push @res_rc_list, "}"
 subcode: menu_sublist_res
     $if !$h_only
-	push @res_rc_list, " "x$level . "POPUP \"$name\";
-	push @res_rc_list, " "x$level . "{";
+	push @res_rc_list, "    " x $level . "POPUP \"$name\""
+	push @res_rc_list, "    " x $level . "{";
     BLOCK
     $if !$h_only
-	push @res_rc_list, " "x$level . "}";
+	push @res_rc_list, "    " x $level . "}";
 
 subcode: menu_item_res
     $if !$h_only
 	$call resource_define, menu, $name
 	my $text=$item->{text}
-	push @res_rc_list, " "x$level . "MENUITEM \"$text\" $name
+	push @res_rc_list, "    " x $level . "MENUITEM \"$text\" $name"
 
 subcode: menu_item_res_MENU
     my $reserve=$item->{reserve}
@@ -180,52 +207,115 @@ subcode: write_res_dialog
 	my $name=$ogdl->{_name}
 	$call resource_define, other, $name
 	$call ogdl_size, $ogdl, $sizestr
-	push @res_rc_list, "$name DIALOG $sizestr"
+	my $attr
+	$if $ogdl->{discardable}
+	    $attr="DISCARDABLE "
+	push @res_rc_list, ""
+	push @res_rc_list, "$name DIALOG $attr$sizestr"
 	$if $ogdl->{style}
 	    push @res_rc_list, "STYLE $ogdl->{style}"
 	$else
 	    push @res_rc_list, "STYLE WS_POPUP | WS_BORDER"
 	$if $ogdl->{caption}
 	    push @res_rc_list, "CAPTION \"$ogdl->{caption}\""
-	$call ogdl_font, $ogdl, $fontstr
-	push @res_rc_list, "FONT $fontstr"
-	push @res_rc_list, "{"
+	$if $ogdl->{font}
+	    $call ogdl_font, $ogdl, $fontstr
+	    push @res_rc_list, "FONT $fontstr"
+	$if $ogdl->{class}
+	    push @res_rc_list, "CLASS \"$ogdl->{class}\""
+	push @res_rc_list, "BEGIN"
     $call ogdl_dialog_loop
     $if !$h_only
-	push @res_rc_list, "}"
+	push @res_rc_list, "END"
+
+    $call dialog_wndproc
 
 subcode: ogdl_dialog_loop
     my $ogdl_list=$ogdl->{_list}
-    $foreach $ogdl in @ogdl_list
-	$if ref($ogdl) eq "HASH"
-	    my $name=$ogdl->{_name}
-	    $if $name=~/^IDB_/
-		$call write_res_button
-	    $elif $name=~/^IDT_/
-		$call write_res_text
+    my $level=1
+    my $indent="    " x $level
+    $foreach $c_ogdl in @$ogdl_list
+	$if ref($c_ogdl) eq "HASH"
+	    $if (defined($c_ogdl->{disable}) && !$c_ogdl->{disable}) or (!defined($c_ogdl->{disable}) && !$ogdl->{disable})
+		my $name=$c_ogdl->{_name}
+		$if $name=~/^button_/
+		    $call write_res_button
+		$elif $name=~/^text_/
+		    $call write_res_text
+		$elif $name=~/^list_/
+		    $call write_res_listbox
+		$elif $name=~/^control_/
+		    $call write_res_control
+# ----
+subcode: dialog_wndproc
+    my $view=$ogdl
+    $view->{type}="dialog"
+    my $name=$ogdl->{_name}
+    $if $name=~/^dialog_(\w+)/
+	$name=$1
+    $call window_proc
 
 # ---- Button -----
 subcode: write_res_button
-    my $name=$ogdl->{_name}
     $call resource_define, ctrl, $name
-    $call ogdl_title, $ogdl, $title
-    $call ogdl_size, $ogdl, $sizestr
-    push @res_rc_list, " "x$level . "PUSHBUTTON \"$title\", $name, $sizestr"
+    $if !$h_only
+	$call ogdl_title, $c_ogdl, $title
+	$call ogdl_size, $c_ogdl, $sizestr
+	my $cname="PUSHBUTTON"
+	$if $c_ogdl->{default}
+	    $cname="DEFPUSHBUTTON"
+	push @res_rc_list, "$indent$cname \"$title\", $name, $sizestr"
 
 # ---- Text -----
 subcode: write_res_text
-    my $name=$ogdl->{_name}
     $call resource_define, ctrl, $name
-    $call ogdl_title, $ogdl, $title
-    $call ogdl_size, $ogdl, $sizestr
-    push @res_rc_list, " "x$level . "CTEXT \"$title\", $name, $sizestr"
+    $if !$h_only
+	$call ogdl_title, $c_ogdl, $title
+	$call ogdl_size, $c_ogdl, $sizestr
+	$call ogdl_attr, align, text
+	my $cname
+	$if $c_ogdl->{align}=~/center/
+	    $cname="CTEXT"
+	$else
+	    $cname="LTEXT"
+	push @res_rc_list, "$indent$cname \"$title\", $name, $sizestr"
+
+# ---- ListBox -----
+subcode: write_res_listbox
+    $call resource_define, ctrl, $name
+    $if !$h_only
+	$call ogdl_size, $c_ogdl, $sizestr
+	$call ogdl_style
+	my $cname="LISTBOX"
+	$call ogdl_attr, style, list
+	push @res_rc_list, "$indent$cname $name, $sizestr$style"
+
+# ---- Generic Control ----
+subcode: write_res_control
+    $call resource_define, ctrl, $name
+    $if !$h_only
+	my $cname="CONTROL"
+	$call ogdl_size, $c_ogdl, $sizestr
+	$call ogdl_style
+	my $text=$c_ogdl->{text}
+	my $class=$c_ogdl->{class}
+	push @res_rc_list, "$indent$cname \"$text\", $name, \"$class\", $sizestr$style"
 
 # ---- attr routines ---
+subcode: ogdl_attr(attr, type)
+    $if !$c_ogdl->{$(attr)}
+	$c_ogdl->{$(attr)}=$ogdl->{$(type)_$(attr)}
+
 subcode: ogdl_size(ogdl, sizestr)
     my $sizestr
     $if $(ogdl)->{size}=~/(\d+),\s*(\d+),\s*(\d+),\s*(\d+)/
 	my ($x, $y, $w, $h)=($1, $2, $3, $4)
 	$(sizestr)="$x, $y, $w, $h"
+
+subcode: ogdl_style
+    my $style=$c_ogdl->{style}
+    $if $style
+	$style=", $style"
 
 subcode: ogdl_title(ogdl, title)
     my $(title)=$name
@@ -235,4 +325,14 @@ subcode: ogdl_title(ogdl, title)
 	$(title)=$(ogdl)->{text}
 
 subcode: ogdl_font(ogdl, fontstr)
-    my $(fontstr)="8, \"MS Shell Dlg\""
+    my $tstr=$(ogdl)->{font}
+    my $font_name="Times New Roman"
+    my $font_size=10
+    $foreach $t in split(/,\s*/, $tstr)
+	$if $t=~/^\s*(\d+)/
+	    $font_size=$1
+	$else
+	    $t=~s/^\s+//
+	    $t=~s/\s+$//
+	    $font_name=$t
+    my $(fontstr)="$font_size, \"$font_name\""

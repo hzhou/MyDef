@@ -1,8 +1,7 @@
 subcode: support_ogdl
     $sub grab_ogdl
-	my ($name, $llist)=@_;
+	my ($ogdl, $llist)=@_;
 	my $cur_i=0;
-	my $ogdl={"_list"=>[], "_name"=>$name}
 	my $cur_item=$ogdl
 	my $last_item;
 	my $last_item_type;
