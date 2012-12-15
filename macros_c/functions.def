@@ -47,12 +47,16 @@ subcode:: c_support_subs
 	my $pbuf=$func->{param_list};
 	my $var_type=$func->{var_type};
 	# -- parsing param list
+	my $i=0
 	$foreach my $p in @plist
+	    $i++
 	    $if $p=~/(\S.*)\s+(\S+)\s*$/
 		my ($type, $name)=($1, $2)
 		$call check_pointer_type_name
 		push @$pbuf, "$type $name"
 		$var_type->{$name}=$type
+	    $elif $p eq "fmt" and $i==@plist
+		push @$pbuf, "char * fmt, ..."
 	    $else
 		$if $fntype{$p}
 		    push @$pbuf, $fntype{$p};
@@ -92,6 +96,31 @@ subcode:: c_support_subs
 	$cur_scope=pop @scope_stack
 # -----------------------------------------------------------------
 subcode:: c_support_subs
+    $sub get_var_type_complex
+	my $name=shift
+	my ($type, $tail)
+	$if $debug eq "type"
+	    print "get_var_type_complex [$name]\n"
+	$if $name=~/^(\w+)(.*)/
+	    $tail=$2
+	    $type=get_var_type($1)
+	$if $debug eq "type"
+	    print " ->type:$type, tail:[$tail]\n"
+	$while 1
+	    $if $tail=~/^\[.*?](.*)/
+		$tail=$1
+		$type=pointer_type($type)
+	    $elif $tail=~/^\.(\w+)(.*)/
+		$tail=$2
+		$type=get_struct_element_type($type, $1)
+	    $elif $tail=~/^->(\w+)(.*)/
+		$tail=$2
+		$type=pointer_type($type)
+		$type=get_struct_element_type($type, $1)
+	    $else
+		last
+	return $type
+
     $sub get_var_type
 	my $name=shift;
 	$if $cur_scope->{var_type}->{$name}
@@ -110,6 +139,30 @@ subcode:: c_support_subs
 	    return $cur_function->{var_flag}->{$name};
 	$else
 	    return $global_flag->{$name};
+    $sub get_compound_type
+	my $name=shift
+	$if $name=~/^(\w+)(.*)/
+	    return get_sub_type(get_var_type($1), $2)
+	return "void";
+
+    $sub get_sub_type
+	my ($type0, $tail)=@_
+	$if $debug eq "type"
+	    print "get_sub_type: $type0 - $tail\n"
+
+	$if $tail=~/^(\.|->)(\w+)(.*)/
+	    $tail=$3;
+	    my $type=get_struct_element_type($type0, $2)
+	    return get_sub_type($type, $tail)
+	$elif $tail=~/^\[.*?\](.*)/
+	    $tail=$1;
+	    $if $type0=~/(.*)\s*\*\s*$/
+		return get_sub_type($1, $tail)
+	    $else
+		die "error in derefencing pointer type $type\n"
+	$else
+	    return $type0
+
 # -----------------------------------------------------------------
 subcode:: c_support_subs
     $sub func_add_var($name, $type, $value)
@@ -201,13 +254,17 @@ subcode: c_struct_init
 # ----
 subcode: split_name
     my ($tail, $array);
+    my $explicit_type;
     my @attrs
+    # omit ;
+    $name=~s/;\s*$//
     # NOTE: space sensitive!
     $if !$type and $name=~/^\s*(\S[^=]*)\s+([^= \t].*)/
 	$type=$1
+	$explicit_type=1
 	$name=$2
 	$call check_pointer_type_name
-    $while $type=~/^\s*(extern|static)(.*)/
+    $while $type=~/^\s*(extern|static|const)\s*(.*)/
 	push @attrs, $1
 	$type=$2
     $if $name=~/(\S+?)\s*(=\s*(.*))/
@@ -239,7 +296,8 @@ subcode: var_array_type
     $if defined $array
 	my $layer=0
 	$while $array=~/\[.*?\]/g
-	    $type=pointer_type($type)
+	    $if !$explicit_type
+		$type=pointer_type($type)
 	    $layer++
 	$vtype=$type." "."*"x$layer
     $else
@@ -360,7 +418,8 @@ subcode:: c_support_subs
 
     $sub func_var_assign
 	my ($type, $name, $val, $out)=@_;
-	if($debug){print "func_var_assign: $type $name = $val\n"}
+	$if $debug eq "type"
+	    print "func_var_assign: $type $name = $val\n"
 	my $done_out;
 	$if @func_var_hooks
 	    $foreach my $fh in @func_var_hooks

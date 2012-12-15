@@ -1,4 +1,5 @@
 :syntax match xKey /^\s*\$\i\+/
+:syntax match xPrefix /\$\./
 :syntax match xKey /^\s*&call/
 :syntax match xKey /\$([^)]*)/
 :syntax match xCode /^\s*\$\(subclass\|method\)\s/
@@ -14,7 +15,7 @@
 :syntax region dString start=/"/ skip=/\\"/ end=/"/  oneline
 :syntax region sString start=/'/ skip=/\\'/ end=/'/  oneline
 
-:syntax match perlKey /^\s*\(push\|shift\|unshift\|pop\|print\|return\|goto\|last\|next\)/
+:syntax match perlKey /^\s*\(push\|shift\|unshift\|pop\|print\|return\|goto\|last\|next\|break\|continue\)\>/
 
 :syntax match perlVar /\(\$\|@\|%\)\i\+/
 :syntax match perlKey /^\s*\(our\|my\|package\|use\|require\|sub\)\s/
@@ -24,12 +25,16 @@
 :highlight link sString String
 :highlight link xKey Type
 :highlight link xCSS Underlined
-:highlight link xCode Keyword
-:highlight link xStage Keyword
+:highlight link xCode Statement
+:highlight link xStage Statement
 :highlight link xComment Comment
 :highlight link xInclude Include
 :highlight link xHTML Special
 
 :highlight link perlVar Comment
-:highlight link perlKey Keyword
+:highlight link perlKey Statement
 :highlight link perlRegex String
+
+" :highlight link xPrefix Keyword
+" :highlight xPrefix term=bold cterm=bold
+

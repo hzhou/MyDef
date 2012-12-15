@@ -1,0 +1,170 @@
+subcode:: preproc_elifs
+    $elsif $preproc=~/^reset:\s*(\w+)([+])?=(.*)/
+	my ($v, $op, $d)=($1, $2, $3)
+	expand_macro_recurse(\$d)
+	my $i=@$deflist;
+	$while $i>0 and !defined $deflist->[$i]->{$v}
+	    $i--;
+	$if $op
+	    $if $op eq '+'
+		$deflist->[$i]->{$v}+=$d;
+	$else
+	    $deflist->[$i]->{$v}=$d;
+    $elsif $preproc=~/^eval:\s*(\w+)=(.*)/
+	my ($t1,$t2)=($1,$2)
+	expand_macro_recurse(\$t2)
+	$deflist->[-1]->{$t1}=eval($t2)
+    $elsif $preproc=~/^set:\s*(.*)/
+	set_macro($deflist->[-1], $1)
+    $elsif $preproc=~/^export:\s*(.*)/
+	my $t=$1;
+	$if $t=~/^\w+,/
+	    my @plist=split /,\s*/, $t
+	    $foreach $p in @plist
+		set_macro($deflist->[-2], $p)
+	$else
+	    set_macro($deflist->[-2], $t)
+    $elsif $preproc=~/^mset:\s*(.*)/
+	my @plist=split /,\s*/, $1
+	$foreach $p in @plist
+	    set_macro($deflist->[-1], $p)
+    $elsif $preproc=~/^mexport:\s*(.*)/
+	my @plist=split /,\s*/, $1
+	$foreach $p in @plist
+	    set_macro($deflist->[-2], $p)
+    $elsif $preproc=~/^preset:([^:]+):(.*)/
+	my $preset=$1;
+	my $t=$2;
+	foreach my $tt(split /,/, $t){
+	    $deflist->[-1]->{$tt}="$preset$tt";
+	}
+
+subcode:: support_subs
+    $sub set_macro($m, $p)
+	$if $debug eq "macro"
+	    print "set_macro: [$p]\n";
+	$if $p=~/(\S+?)=(.*)/
+	    my ($t1, $t2)=($1, $2)
+	    $if $t1=~/\$\(.*\)/
+		expand_macro_recurse(\$t1)
+	    $if $t2=~/\$\(.*\)/
+	        expand_macro_recurse(\$t2, 1)
+	    $m->{$t1}=$t2
+	$elif my $t=get_def($p)
+	    $m->{$p}=$t
+	$else
+	    warn "[$cur_file:$cur_line] compileutil::set_macro parse error: [$p]\n"
+
+    $sub set_current_macro($name, $val)
+	$deflist->[-1]->{$name}=$val
+
+# ------------------------------------------------------
+subcode: expand_macro_seg
+    $if $s=~/^\$\((\w+)\.(\w+)\)/
+	my $t=$macros->{$1};
+	$if $t
+	    my $tt=$MyDef::def->{fields}->{$t};
+	    $if $tt
+		$if $tt->{$2}
+		    $segs[$j]=$tt->{$2};
+		$elsif $2 eq "title"
+		    $segs[$j]=$t;
+		$else
+		    $segs[$j]="";
+		$updated++;
+	    $else
+		$if $2 eq "title"
+		    $segs[$j]=$t;
+		    $updated++;
+    $elif $s=~/^\$\(rep\[(.*?)\](\d+):(.*)\)/
+	$if $2>1
+	    $segs[$j]="$3$1" x ($2-1) . $3
+	    $updated++;
+	$else
+	    die "Illegal rep macro in \"$$lref\"!\n"
+    $elif $s=~/^\$\(perl:(.*)\)/
+	my $outdir=".";
+	$if $MyDef::var->{output_dir}
+	    $outdir=$MyDef::var->{output_dir};
+	my $defname=$MyDef::def->{defname}
+	my $t=$1
+	$t=~s/,/ /g
+	$if open In, "perl $outdir/perl-$defname.pl $t|"
+	    my $t=<In>
+	    $segs[$j]=$t
+	    close In
+	$else
+	    die "Failed perl $outdir/perl-$defname.pl\n"
+	$updated++;
+    $elif $s=~/^\$\((\w+):(.*)\)/
+	my $t=$macros->{$1};
+	my $p=$2;
+	$if $t
+	    $updated++;
+	    $if $p=~/(\d+)-(\d+)/
+		# $(macro:0-3)
+		$segs[$j]=substr($t, $1, $2-$1+1);
+	    $elif $p=~/(\d+):(\d+|word|number)/
+		my $s=substr($t, $1)
+		$if $2 eq "word"
+		    $if $s=~/^\s*(\w+)/
+			$s=$1
+		$elif $2 eq "number"
+		    $if $s=~/^\s*([+-]?\d+)/
+			$s=$1
+		$else
+		    $s=substr($s, 0, $2)
+		$segs[$j]=$s
+	    $elif $p eq "len"
+		# $(macro:len)
+		$segs[$j]=length($t)
+	    $else
+		# INLINE macro -- $(macro:p1,p2,p3)
+		my @plist=split /,/, $p;
+		my $i=1;
+		$foreach $pp in @plist
+		    $t=~s/\$\($i\)/$pp/g
+		    $i++
+		$segs[$j]=$t
+    $elsif $s=~/^\$\((.+)\)/
+	$if exists($macros->{$1})
+	    my $t=$macros->{$1};
+	    $if $t eq $s
+		die "Looping macro $1 in \"$$lref\" [$t]=[$s]!\n";
+	    $segs[$j]=$t;
+	    $updated++;
+	$else
+	    # warn "Undefined macro $s\n"
+
+subcode:: support_subs
+    $sub expand_macro
+	my ($lref, $macros)=@_;
+	my $hasmacro=0
+	my $updated=0
+	$if  $$lref=~/\$\(\w[^()]*\)/
+	    my @segs=split /(\$\(\w[^()]*\))/, $$lref;
+	    my $j=0;
+	    $foreach my $s in  @segs
+		$call expand_macro_seg
+		$j++;
+	    $if $updated
+		$$lref=join '', @segs;
+	    $else
+		$hasmacro=1;
+	return ($hasmacro, $updated)
+
+subcode:: support_subs
+    $sub expand_macro_recurse($lref, $nowarn)
+	my ($hasmacro, $updated)
+	$$lref=~s/\$\.(?=\w)/\$(this)/g
+	$updated=1
+	$while $updated
+	    $for $j=$#$deflist:-1:-1
+		($hasmacro, $updated)=expand_macro($lref, $deflist->[$j]);
+		$if $updated or !$hasmacro
+		    last;
+	$if $hasmacro and !$nowarn
+	    $while $$lref=~/(\$\([^()]+\))/g
+		$if substr($`, -1) ne "\\"
+		    warn "[$cur_file:$cur_line] Macro $1 not defined in $$lref\n"
+

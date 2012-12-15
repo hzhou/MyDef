@@ -3,6 +3,7 @@ include: macros_c/cfunctions.def
 include: macros_util/tool_output.def
 include: macros_win32/views.def
 include: macros_win32/graphics.def
+include: macros_win32/resource.def
 
 page: output_win32, output_main
     type: pm
@@ -14,37 +15,15 @@ page: output_win32, output_main
 	$call c_main
     subcode: init_page
 	$call c_init
-	global_add_var("cur_instance", "HINSTANCE")
-	declare_struct("VIEW", "HWND hwnd")
+	# declare_struct("VIEW", "HWND hwnd")
     subcode: parsecode
 	$call pre_parse
 	$call check_text_includes
 	$call c_parsecode
     subcode: dumpout
+	$call @on_dumpout
 	push @$f, "#include <winsock2.h>\n";
 	push @$f, "#include <windows.h>\n";
-	# ----  Main Function -------------------
-	my $func=$functions{"WinMain"};
-	$if $func
-	    $func->{skip_declare}=1;
-	    $func->{ret_type}="int APIENTRY";
-	    $func->{param_list}=["HINSTANCE hInst", "HINSTANCE hPrev", "LPSTR s_cmdline", "int n_cmdshow"];
-
-	    my $initblock=$func->{init}
-	    $cur_function=$func
-	    &call replace_output, $initblock
-		push @$out, "cur_instance = hInst;"
-		$while my $wnd = shift @window_list
-		    register_window($wnd)
-		$foreach $var in sort(keys(%hgdi_hash))
-		    $if $var=~/^font_\w+/
-			$call make_font
-		push @$out, "NEWLINE"
-
-	    push @{$func->{init}}, "DUMP_STUB main_init";
-	    push @{$func->{finish}}, "DUMP_STUB main_exit";
-	    push @{$func->{finish}}, "return 0;";
-
 
 	# ---- process_function ------------------------
 	my $funclist=MyDef::dumpout::get_func_list()
@@ -55,20 +34,33 @@ page: output_win32, output_main
 	unshift @$out, "DUMP_STUB global_init";
 	$call c_dump_init
 
+subcode:: on_dumpout
+    # ----  Main Function -------------------
+    my $func=$functions{"WinMain"};
+    $if $func
+	$func->{skip_declare}=1;
+	$func->{ret_type}="int APIENTRY";
+	$func->{param_list}=["HINSTANCE hInst", "HINSTANCE hPrev", "LPSTR s_cmdline", "int n_cmdshow"];
+
+	my $initblock=$func->{init}
+	$cur_function=$func
+	&call replace_output, $initblock
+	    global_add_var("cur_instance", "HINSTANCE")
+	    push @$out, "cur_instance = hInst;"
+	    $while my $wnd = shift @window_list
+		register_window($wnd)
+	    $foreach $var in sort(keys(%hgdi_hash))
+		$if $var=~/^font_\w+/
+		    $call make_font
+	    push @$out, "NEWLINE"
+
+	push @{$func->{init}}, "DUMP_STUB main_init";
+	push @{$func->{finish}}, "DUMP_STUB main_exit";
+	push @{$func->{finish}}, "return 0;";
+
 # ---------------------------
 subcode:: package_global
     my %view_hash
-    my %menu_hash
-
-subcode: load_menu
-    my $menu
-    $if !$menu_hash{$name}
-	$call fetch_named_resource, menu
-	$menu_hash{$name}=$menu
-    $else
-	$menu=$menu_hash{$name}
-    $if !$menu->{processed}
-	$menu->{commands}={}
 
 subcode: load_view
     my $view
@@ -87,27 +79,15 @@ subcode: pre_parse
     $elif $l=~/^\s*\$WndProc\s+(\w+)/
 	my $name=$1
 	$call load_view
-	my $block=MyDef::compileutil::get_named_block("global_init")
-	my $old_function=$cur_function;
-	&call replace_output, $block
-	    $call window_proc
-	$cur_function=$old_function
+	$call window_proc
+	return 1
     $elif $l=~/^\$g_(\w+)(.*)/
 	my ($cat, $param)=($1, $2)
 	$param=~s/^\s*//
 	$call graphics, $cat, $param
 	return 1
-    $elif $l=~/^\s*\$(Make|Append)Menu\s+(\w+),\s*(\w+)/
-	my ($make, $var, $name)=($1, $2, $3)
-	# ----
-	$if $make eq "Make"
-	    func_add_var($var, "HMENU")
-	    push @$out, "$var = CreateMenu();"
-	$call load_menu
-	ogdl_menu($out, $var, $menu, 0);
-	return 1;
     $elif $l=~/^(\S+)\s*=\s*\$MakeFont\s+(.*)/
 	my ($var, $name)=($1, $2);
 	$call make_font
 	return 1;
-
+    $call @preparse_elif

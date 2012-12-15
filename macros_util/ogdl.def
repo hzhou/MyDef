@@ -1,17 +1,18 @@
 subcode: support_ogdl
     $sub grab_ogdl
-	my ($name, $llist)=@_;
-	my @ogdl_stack;
+	my ($ogdl, $llist)=@_;
 	my $cur_i=0;
-	my $cur_item={"_list"=>[], "_name"=>$name}
+	my $cur_item=$ogdl
 	my $last_item;
 	my $last_item_type;
 	my $last_item_key;
-	my $ogdl=$cur_item
 
+	my @ogdl_stack;
 	$foreach my $l in @$llist
 	    $if $l=~/^(\d)+:(.*)/
 		my ($i, $l)=($1, $2)
+		$if $l=~/^NOOP/
+		    next
 		# ---- check indentation
 		$if $i>$cur_i
 		    push @ogdl_stack, $cur_item;

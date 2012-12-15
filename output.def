@@ -49,7 +49,8 @@ subcode: output_main
 
     # ---- Final output, allows for 2nd pass translation
     $sub dumpout
-	my ($f, $out)=@_;
+	my $f;
+	($f, $out)=@_;
 	my $dump={out=>$out,f=>$f}
 	$call @dumpout
 	MyDef::dumpout::dumpout($dump);

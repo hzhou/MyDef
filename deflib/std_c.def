@@ -1,4 +1,5 @@
 #include: ref_counting.def
+include: c_slist.def
 
 ## frame
 subcode: basic_frame
@@ -89,6 +90,7 @@ subcode: make_hash(name, nbuckets, node)
 	    return p->next
 	}
 
+###############################################################
 ## doubly linked list
 #    $struct(name_node) prop1, prop2, ..., prev, next 
 #    $struct(name) prop1, prop2, ..., head
@@ -181,6 +183,7 @@ subcode: dlist_each_inverse_safe(plist, p, p2)
         BLOCK
         $(p2)=$(p2)->prev
 
+# ----
 ###############################################################
 ## Utility
 subcode: assert(check)

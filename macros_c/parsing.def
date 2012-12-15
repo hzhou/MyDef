@@ -1,19 +1,14 @@
 include: macros_c/parsing_short.def
+subcode:: package_globals
+    our $anonymous_count=0
+
 subcode: c_parsecode
     my $should_return=1
-    $if $l=~/^FUNC (\w+)-(.*)/
-	my $fname=$1;
-	my $t=$2;
-	$if $fname eq "n_main" or $fname eq "main2"
-	    $fname="main";
-	my $fidx=open_function($fname, $t);
-	push @$out, "OPEN_FUNC_$fidx";
-	$cur_indent=0;
-	return
-    $elif $l=~/^FUNC END/
-	$cur_function=pop @function_stack
-    $elif $l=~/^SUBBLOCK BEGIN (\d+)/
+    $if $l=~/^SUBBLOCK BEGIN (\d+)/
 	push @$out, "DUMP_STUB SUBBLOCK_$1"
+	$if $debug eq "DUMP"
+	    my ($code, $file, $line)=MyDef::compileutil::get_cur_code()
+	    push @$out, "printf(\"subcode: $file - $line - $code->{name}\\n\");";
 	open_scope("SUBBLOCK_$1")
     $elif $l=~/^SUBBLOCK END (\d+)/
 	close_scope("SUBBLOCK_$1")
@@ -56,12 +51,23 @@ subcode: parsecode_func_param
     $elsif $func eq "struct"
 	declare_struct($param1, $param2);
 	$type_prefix{"st$param1"}="struct $param1";
-    $elsif $func eq "get_type"
+    $elif $func eq "get_type"
 	my $type=get_var_type($param2);
-	return "SET:$param1=$type";
-    $elsif $func eq "get_pointer_type"
-	my $type=pointer_type(get_var_type($param2));
-	return "SET:$param1=$type";
+	MyDef::compileutil::set_current_macro($param1, $type)
+	return 
+    $elif $func eq "get_pointer_type"
+	my $type=pointer_type(get_var_type_complex($param2));
+	MyDef::compileutil::set_current_macro($param1, $type)
+	return
+    $elif $func eq "get_struct_var_prefix"
+	my $type=get_var_type_complex($param2)
+	$if $type=~/struct (\w+)\s*\*/
+	    MyDef::compileutil::set_current_macro($param1, "$param2->")
+	$elif $type=~/struct (\w+)/
+	    MyDef::compileutil::set_current_macro($param1, "$param2.")
+	$else
+	    die "get_var_type_complex: $param2 returns type $type\n"
+	return
     $elsif $func eq "define"
 	add_define($param1, $param2)
     $elsif $func eq "enum"
@@ -70,6 +76,17 @@ subcode: parsecode_func_param
 	    $enums{$param1}=$param2;
 	    $if $param1=~/^,\s*(\w+)/
 		global_add_symbol("int $1")
+    $elsif $func eq "enumbase"
+	my $base=0;
+	$if $param1=~/(\w*),\s*(\d+)/
+	    $param1=$1
+	    $base=$2
+	$if $param1
+	    $param1.="_"
+	my @plist=split /,\s+/, $param2;
+	$foreach my $t in @plist
+	    add_define("$param1$t", $base)
+	    $base++;
     $elsif $func eq "enumbit"
 	my $base=0;
 	$if $param1=~/(\w*),\s*(\d+)/
@@ -81,6 +98,8 @@ subcode: parsecode_func_param
 	$foreach my $t in @plist
 	    add_define("$param1$t",0x1<<$base)
 	    $base++;
+    $elsif $func eq "write_h"
+	$call write_h, $param1, $param2
     $else
 	$should_return=0
 
@@ -140,18 +159,48 @@ subcode: parsecode_func
     $elsif $func eq "mu_enable"
 	mu_enable();
     $elsif $func eq "include"
-	my @flist=split /,\s+/, $param;
+	my @flist=split /,\s*/, $param;
 	$foreach my $f in @flist
 	    $if $f=~/\.h$/
 		$includes{"\"$f\""}=1;
 	    $else
 		$includes{"<$f.h>"}=1;
     $elsif $func eq "declare"
-	push @declare_list, $param
+	$call @do_declare, $param
     $elsif $func eq "define"
 	push @$out, "#define $param";
+    $elsif $func eq "list"
+	my @flist=split /,\s*/, $param
+	$call check_h_names_init
+	$foreach my $f in @flist
+	    $if $f=~/^\$(\w+)/
+		$call check_h_names_name, $1
+	    $else
+		$call check_h_names_key, "function-$f"
+	    my $funcname=$f
+	    my $codename=$f
+	    $if $f=~/(\w+)\((\w+)\)/
+		$codename=$1
+		$funcname=$2
+	    my $params=MyDef::compileutil::get_sub_param_list($codename)
+	    my $paramline=join(",", @$params)
+	    $if $funcname eq "n_main" or $funcname eq "main2"
+		$funcname="main";
+	    my $fidx=open_function($funcname, $paramline);
+	    push @$out, "OPEN_FUNC_$fidx";
+	    $cur_indent=1
+	    push @$out, "SOURCE_INDENT"
+	    MyDef::compileutil::call_sub($codename, "\$list")
+	    push @$out, "SOURCE_DEDENT"
+	    $cur_function=pop @function_stack
+
     $elsif $func eq "typedef"
-	push @typedef_list, $param
+	$call @do_typedef, $param
+    $elsif $func eq "enum"
+	my $name="ANONYMOUS-$anonymous_count"
+	$anonymous_count++
+	push @enum_list, $name;
+	$enums{$name}=$param;
     $elsif $func eq "uselib"
 	my @flist=split /,\s+/, $param;
 	$foreach my $f in @flist
@@ -227,9 +276,9 @@ subcode: parsecode_func
 	    return list_foreach($out, $iv, $v)
     $elif $func eq "tempstr"
 	$if $param=~/^\s*"(.*)"/
-	    temp_string($1)
-	$else
-	    temp_string($param)
+	    $param=$1
+	my $t=temp_string($param)
+	MyDef::compileutil::set_current_macro("tempstr", $t)
     $else
 	$should_return=0
 
@@ -262,7 +311,7 @@ subcode: parsecode_other
 
 # ----------------------------------------------
 subcode: c_parse_for
-    $if $param=~/(\w+)=(.*?):(.*?)(:.*)?$/
+    $if $param=~/(\w+)\s*=\s*(.*?):(.*?)(:.*)?$/
 	my ($var, $i0, $i1, $step)=($1, $2, $3, $4);
 	func_add_var($var, undef, $i0);
 	my $stepclause;
