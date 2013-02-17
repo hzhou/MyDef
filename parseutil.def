@@ -406,6 +406,8 @@ subcode: load_standard_includes
     my @standard_includes;
     $if $var->{module} eq "php"
 	push @standard_includes, "std_php.def";
+    $elif $var->{module} eq "perl"
+	push @standard_includes, "std_perl.def";
     $elsif $var->{module} eq "c"
 	push @standard_includes, "std_c.def";
     $elsif $var->{module} eq "xs"

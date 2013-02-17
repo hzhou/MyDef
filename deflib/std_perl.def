@@ -7,6 +7,11 @@ subcode: sub_new
       BLOCK
       return $self
 
+subcode: block
+    {
+	BLOCK
+    }
+
 # -- IO -------------------------
 subcode: open_r(name)
     open In, "$(name)" or die "Can't open $(name).\n"
