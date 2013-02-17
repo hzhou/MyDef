@@ -78,12 +78,23 @@ subcode:: preparse_elif
 	return 1
 
 # =========================================================
+subcode: resource_id_inc
+    $id_$(type)++
+    my $val
+    $(if:name=menu)
+	$val=sprintf("0x%3x0", $id_$(type))
+    $(else)
+	$val=sprintf("0x%4x", $id_$(type))
+
 subcode: resource_define(type, name)
-    $if !$res_id_hash{$(name)}
+    $if $name=~/_DUMMY$/
+	$call resource_id_inc
+	$deflist->[-1]->{$(name)}=$val
+    $elif !$res_id_hash{$(name)}
 	$res_id_hash{$(name)}=1
-	$id_$(type)++
-	my $val=sprintf("0x%3x0", $id_$(type))
+	$call resource_id_inc
 	push @res_id_list, "#define $(name) $val"
+
 
 subcode: resource_define_range(type, name)
     $if $(name)=~/(\w+)\s+-\s*(\d+)/

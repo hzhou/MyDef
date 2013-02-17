@@ -10,6 +10,16 @@ subcode: global_darray(type, var)
     $global n_da_size_$(var)=0
 
 # ----------------------------------------------------
+subcode: darray_init(var)
+    $(var)=NULL
+    n_da_len_$(var)=0
+    n_da_size_$(var)=0
+
+subcode: darray_clear(var)
+    free($(var))
+    $call darray_init, $(var)
+
+# ----------------------------------------------------
 subcode: darray_check(var)
     $if n_da_len_$(var)+1>n_da_size_$(var)
 	tn_temp=(int)(n_da_size_$(var)*2/3)
