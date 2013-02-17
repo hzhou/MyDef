@@ -4,6 +4,7 @@ include: compile/callsub.def
 include: compile/parse.def
 include: compile/macro.def
 include: compile/ogdl.def
+include: compile/list.def
 include: compile/util.def
 
 page: compileutil

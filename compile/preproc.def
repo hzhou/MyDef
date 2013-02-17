@@ -60,8 +60,11 @@ subcode: parse_preproc
     $call @preproc_elifs
     $elsif $preproc=~/^allow_recurse:(\d+)/
 	my $code=$block_stack[-1]->{code}
-	$code->{allow_recurse}=$1
-	$deflist->[-1]->{recurse}=$code->{recurse}
+	$if $code->{allow_recurse}
+	    $deflist->[-1]->{recurse}=$code->{recurse}
+	$else
+	    $code->{allow_recurse}=$1
+	    $deflist->[-1]->{recurse}=0
     $elsif $preproc=~/^block:(\w+)/
 	my $name=$1;
 	$call parse_named_block

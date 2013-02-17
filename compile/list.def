@@ -1,0 +1,25 @@
+subcode:: package_global
+    my %list_list
+    my %list_hash
+
+subcode:: preproc_elifs
+    $elif $preproc=~/^list_init:(\w+)/
+	$list_list{$1}=[]
+    $elif $preproc=~/^list_push:(\w+)=(.*)/
+	push @{$list_list{$1}}, $2
+    $elif $preproc=~/^list_set:(\w+),(\d+)=(.*)/
+	$list_list{$1}->[$2]=$3
+    $elif $preproc=~/^list_each:(\w+)/
+	my $key=$1
+	my $subblock=grabblock($block, \$lindex);
+	my $idx=0
+	$foreach $val in @{$list_list{$key}}
+	    $deflist->[-1]->{idx}=$idx
+	    $deflist->[-1]->{val}=$val
+	    parseblock({source=>$subblock, name=>"list_each $key"})
+	    $idx++
+    $elif $preproc=~/^hash_init:(\w+)/
+	$list_hash{$1}={}
+    $elif $preproc=~/^hash_set:(\w+),([^=]+)=(.*)/
+	$list_hash{$1}->{$2}=$3
+
