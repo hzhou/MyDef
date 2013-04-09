@@ -33,28 +33,12 @@ page: output_perl, output_main
 		$else
 		    return single_block("sub $param {", "}")
 	    $elif $func eq "for" or $func eq "foreach"
-		$if $param=~/(\$\w+)=(.*?):(.*?)(:.*)?$/
-		    my ($var, $i0, $i1, $step)=($1, $2, $3, $4);
-		    my $stepclause;
-		    $if $step
-			my $t=substr($step, 1);
-			$if $t eq "-1"
-			    $stepclause="my $var=$i0;$var>$i1;$var--";
-			$elif $t=~/^-/
-			    $stepclause="my $var=$i0;$var>$i1;$var=$var$t";
-			$else
-			    $stepclause="my $var=$i0;$var<$i1;$var+=$t";
-		    $else
-			$if $i1=~/^-?\d+/ and $i0=~/^-?\d+/ and $i1<$i0
-			    $stepclause="my $var=$i0;$var>$i1;$var--";
-			$else
-			    $stepclause="my $var=$i0;$var<$i1;$var++";
-		    return single_block("for($stepclause){", "}")
-		$elif $param=~/(\$\w+)\s+(in\s+)?(.*)/
-		    my ($var, $list)=($1, $3)
-		    return single_block("foreach my $var ($list){", "}")
+		$call parse_for
+	    $elif $func =~ /^(my|our)$/
+		$if $param=~/^\(/ or $param!~/,/
+		    push @$out, "$func $param"
 		$else
-		    return single_block("$func($param){", "}")
+		    push @$out, "$func \($param\)"
 	    $else
 		check_termination(\$l);
 		push @$out, $l;
@@ -66,6 +50,7 @@ page: output_perl, output_main
 	my $pagetype=$MyDef::page->{type}
 	$if !defined $pagetype or $pagetype eq "pl"
 	    push @$f, "#!/usr/bin/perl\n"
+	    push @$f, "use strict;\n"
     subcode: support_subs
 	$sub check_termination 
 	    my $l=shift;
@@ -86,3 +71,26 @@ page: output_perl, output_main
 		#print "[$$l]\n";
 	    }
 
+    subcode: parse_for
+	$if $param=~/(\$\w+)=(.*?):(.*?)(:.*)?$/
+	    my ($var, $i0, $i1, $step)=($1, $2, $3, $4);
+	    my $stepclause;
+	    $if $step
+		my $t=substr($step, 1);
+		$if $t eq "-1"
+		    $stepclause="my $var=$i0;$var>$i1;$var--";
+		$elif $t=~/^-/
+		    $stepclause="my $var=$i0;$var>$i1;$var=$var$t";
+		$else
+		    $stepclause="my $var=$i0;$var<$i1;$var+=$t";
+	    $else
+		$if $i1=~/^-?\d+/ and $i0=~/^-?\d+/ and $i1<$i0
+		    $stepclause="my $var=$i0;$var>$i1;$var--";
+		$else
+		    $stepclause="my $var=$i0;$var<$i1;$var++";
+	    return single_block("for($stepclause){", "}")
+	$elif $param=~/(\$\w+)\s+(in\s+)?(.*)/
+	    my ($var, $list)=($1, $3)
+	    return single_block("foreach my $var ($list){", "}")
+	$else
+	    return single_block("$func($param){", "}")

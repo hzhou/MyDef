@@ -1,18 +1,17 @@
+include: macros_util/tool_output.def
+
+subcode:: package_globals
+    my %regex_hash
+
 subcode:: c_support_subs
-    $sub parse_regex_match
-	my ($re, $var, $pos, $end)=@_;
-	my @str_pool
-	$call parse_regex_str_pool
-	#  ---- parse into a postfix list ----
-	my $regex=parse_regex($re);
-	#  --- build NFA state list ----
-	my ($startstate, $straight)=build_nfa($regex);
-	#print_vm(build_vm($startstate));
+    $sub parse_regex_match($re, $var, $pos, $end)
+	#  -- regex pattern -> prefix list -> nfa state list
+	my $startstate=build_nfa(parse_regex($re))
+
 	# ---- implement -------------------------------------
+	my $straight=build_straight($startstate)
 	$if $straight
-	    my $p=["and"];
-	    $call regex_straight_build
-	    return regex_straight($p);
+	    return $straight
 	$else
 	    my $strstart="$var+$pos";
 	    my $strend="$var+$end";
@@ -23,14 +22,23 @@ subcode:: c_support_subs
 		$strend="$strstart+n_regex_limit"
 		push @$out, "n_regex_limit=strlen($strstart);"
 	    $call regex_init_code
-	    my $n=dump_vm_c(build_vm($startstate), \@str_pool, $out);
+	    my $strvar=$var;
+	    my $size=$end;
+	    $if $pos
+		$strvar="$var+$pos";
+		$size=$end-$pos;
+	    my $n=dump_vm_c(build_vm($startstate), $out);
 	    return "regex_vm_match(nfa, $n, $strstart, $strend)";
 
+subcode: regex_init_code
+    $if !$misc_vars{regex_init}
+	$misc_vars{regex_init}=1
+	print "regex_init_code\n";
+	my $block=MyDef::compileutil::get_named_block("global_init")
+	&call replace_output, $block
+	    MyDef::compileutil::call_sub("regex_init")
+
 #### Regex Parser ##############################################
-subcode: parse_regex_str_pool
-    $while $re=~/\$(\S+)\((.*?)\)/
-	push @str_pool, {s=>$1, len=>$2}
-	$re=$`."\\".$#str_pool.$';
 subcode:: c_support_subs
     # input: $re: regex pattern
     # output: \@dst
@@ -139,8 +147,7 @@ subcode: parse_regex_inclass
 	push @class, $c;
 
 subcode: parse_regex_escape
-    $if $c=~/[tnr'0-9]/
-	# -- \0, \1, ... are str_pool index
+    $if $c=~/[tnr']/
 	$c="\\$c";
     $elsif $c eq 'd'
 	$c="-09";
@@ -151,8 +158,7 @@ subcode: parse_regex_escape
 
 # ---------- NFA -----------------------------
 subcode:: c_support_subs
-    $sub build_nfa
-	my $src=shift;
+    $sub build_nfa($src)
 	$if ref($src) ne "ARRAY"
 	    die "build_nfa error.\n"
 	my @states;
@@ -160,154 +166,130 @@ subcode:: c_support_subs
 	my $straight=1;
 	my $match={idx=>0, c=>"Match"};
 	my $state_idx=1;
-	$foreach my $c in @$src
+	$foreach $c in @$src
 	    $if $c eq "]."
-		my $e2=pop @fragstack;
-		my $e1=pop @fragstack;
-		my $e1out=$e1->{out};
-		foreach $out (@$e1out){
-		    my $s=$out->{state};
-		    $s->{$out->{arrow}}=$e2->{start};
-		}
-		push @fragstack, {start=>$e1->{start}, out=>$e2->{out}};
+		$call nfa_concat
 	    $elsif $c eq "]|"
-		my $e2=pop @fragstack;
-		my $e1=pop @fragstack;
-		my $state={idx=>$state_idx, c=>"Split", out1=>$e1->{start}, out2=>$e2->{start}};
-		push @states, $state; $state_idx++;
-		my $e1out=$e1->{out};
-		my $e2out=$e2->{out};
-		foreach my $out (@$e2out){
-		    push @$e1out, $out;
-		}
-		push @fragstack, {start=>$state, out=>$e1out};
+		$call nfa_or
 	    $elsif $c eq "]?"
-		my $e=pop @fragstack;
-		my $point;
-		my $state={idx=>$state_idx, c=>"Split", out1=>$e->{start}};
-		push @states, $state; $state_idx++;
-		my $eout=$e->{out};
-		push @$eout, {state=>$state, arrow=>"out2"};
-		push @fragstack, {start=>$state, out=>$eout};
-		$straight=0;
+		$call nfa_question
 	    $elsif $c eq "]*"
-		my $e=pop @fragstack;
-		my $point;
-		my $state={idx=>$state_idx, c=>"Split", out1=>$e->{start}};
-		push @states, $state; $state_idx++;
-		my $eout=$e->{out};
-		foreach $out (@$eout){
-		    $out->{state}->{$out->{arrow}}=$state;
-		}
-		push @fragstack, {start=>$state, out=>[{state=>$state, arrow=>"out2"}]};
-		$straight=0;
+		$call nfa_star
 	    $elsif $c eq "]+"
-		my $e=pop @fragstack;
-		my $point;
-		my $state={idx=>$state_idx, c=>"Split", out1=>$e->{start}};
-		push @states, $state; $state_idx++;
-		my $eout=$e->{out};
-		foreach $out (@$eout){
-		    $out->{state}->{$out->{arrow}}=$state;
-		}
-		push @fragstack, {start=>$e->{start}, out=>[{state=>$state, arrow=>"out2"}]};
-		$straight=0;
+		$call nfa_plus
 	    $else
-		# ---- Straight match $c -------------------------
-		my $state={idx=>$state_idx, c=>$c};
-		push @states, $state; $state_idx++;
-		push @fragstack, {start=>$state, out=>[{state=>$state, arrow=>"out1"}]};
+		$call nfa_char
 	my $e=pop @fragstack;
 	$if @fragstack
 	    die "Unbalanced fragstack\n"
-	my $eout=$e->{out};
-	$foreach my $out in @$eout
-	    $out->{state}->{$out->{arrow}}=$match;
-	return ($e->{start}, $straight);
+	$call nfa_frag_connect, $e, $match
+	return $e->{start}
+
+subcode: nfa_char
+    $call nfa_new_state, $c
+    # each fragstack node is a fragment of regex vm
+    #     start is the starting state
+    #     out is list of exit arrows (state->)
+    push @fragstack, {start=>$state, out=>[{state=>$state, arrow=>"out1"}]};
+
+# --
+subcode: nfa_frag_connect(e, state)
+    $foreach $out in @{$(e)->{out}}
+	$out->{state}->{$out->{arrow})= $(state)
+
+subcode: nfa_new_state(name)
+    my $state={idx=>$state_idx, c=>$(name)}
+    push @states, $state; 
+    $state_idx++;
+
+# --
+subcode: nfa_concat
+    my $e2=pop @fragstack;
+    my $e1=pop @fragstack;
+    $call nfa_frag_connect, $e1, $e2->{start}
+    push @fragstack, {start=>$e1->{start}, out=>$e2->{out}}
+
+subcode: nfa_or
+    my $e2=pop @fragstack;
+    my $e1=pop @fragstack;
+    $call nfa_new_state, "Split"
+    $state->{out1}=$e1->{start}
+    $state->{out2}=$e2->{start}
+    my $eout=$e1->{out};
+    push @$eout, @{$e2->{out}}
+    push @fragstack, {start=>$state, out=>$eout}
+
+subcode: nfa_question
+    my $e=pop @fragstack
+    $call nfa_new_state, "Split"
+    $state->{out1}=$e->{start}
+    my $eout=$e->{out}
+    push @$eout, {state=>$state, arrow=>"out2"}
+    push @fragstack, {start=>$state, out=>$eout}
+
+subcode: nfa_star_state
+    my $e=pop @fragstack;
+    $call nfa_new_state, "Split"
+    $state->{out1}=$e->{start}
+    my $eout=$e->{out};
+    $call nfa_frag_connect, $e, $state
+
+subcode: nfa_star
+    $call nfa_star_state
+    push @fragstack, {start=>$state, out=>[{state=>$state, arrow=>"out2"}]};
+
+subcode: nfa_plus
+    $call nfa_star_state
+    push @fragstack, {start=>$e->{start}, out=>[{state=>$state, arrow=>"out2"}]};
 
 # ----------------- REGEX VM -----------------------
 subcode:: c_support_subs
+    # Regex VM is simply a list [opcode, char, n_out1, n_out2]
     $sub build_vm
 	my $startstate=shift;
 	my @threadstack;
 	push @threadstack, $startstate;
 	my $count;
 	my @vm;
-	my %history;
-	my %labelhash;
-	$while my $s=pop @threadstack
-	    $if defined $history{$s}
+	my %address;
+	$while my $state=pop @threadstack
+	    $if defined $address{$state}
 		next;
 	    $while 1
-		$if defined $history{$s}
-		    push @vm, ["Jmp", undef, $s, undef];
-		    $labelhash{$s}=1;
+		$if defined $address{$state}
+		    push @vm, ["Jmp", undef, $state, undef];
 		    last;
 		$else
-		    $history{$s}=$#vm+1;
-		    $if $s->{c} eq "Match"
+		    $address{$state}=$#vm+1;
+		    $if $state->{c} eq "Match"
 			push @vm,  ["Match", undef, undef, undef];
 			last;
-		    $elsif $s->{c} eq "Split"
-			push @vm, ["Split", undef, $s->{out1}, $s->{out2}];
-			push @threadstack, $s->{out1};
-			push @threadstack, $s->{out2};
-			$labelhash{$s->{out1}}=1;
-			$labelhash{$s->{out2}}=1;
+		    $elsif $state->{c} eq "Split"
+			push @vm, ["Split", undef, $state->{out1}, $state->{out2}];
+			push @threadstack, $state->{out1};
+			push @threadstack, $state->{out2};
 			last;
-		    $elsif $s->{c} eq "AnyChar"
+		    $elsif $state->{c} eq "AnyChar"
 			push @vm,  ["AnyChar", undef, undef, undef];
-			$s=$s->{out1};
-		    $elsif $s->{c} =~ /\\(\d)/
-			push @vm,  ["Str", $1, undef, undef];
-			$s=$s->{out1};
+			$state=$state->{out1};
 		    $else
-			push @vm,  ["Char", $s->{c}, undef, undef];
-			$s=$s->{out1};
+			push @vm,  ["Char", $state->{c}, undef, undef];
+			$state=$state->{out1};
 		    $count++;
 		    $if $count>1000
 			die "deadloop\n"
 	# -- patch labels
 	$foreach my $l  in @vm
 	    $if $l->[0] eq "Jmp"
-		$l->[2]=$history{$l->[2]};
+		$l->[2]=$address{$l->[2]};
 	    $elsif $l->[0] eq "Split"
-		$l->[2]=$history{$l->[2]};
-		$l->[3]=$history{$l->[3]};
-	$foreach my $s  in keys %labelhash
-	    $vm[$history{$s}]->[4]=1;
-
+		$l->[2]=$address{$l->[2]};
+		$l->[3]=$address{$l->[3]};
 	return \@vm;
 
-subcode: regex_init_code
-    print "regex_init_code\n";
-    $includes{"<stdlib.h>"}=1;
-    $if !$structs{"VMInst"}
-	declare_struct("VMInst", "int opcode, int c, int x, int y")
-	add_regex_vm_code(\@initcodes);
-    $if !$structs{"String"}
-	declare_struct("String", "int len, char * s")
-    $if !$enums{"RegexOp"}
-	push @enum_list, "RegexOp";
-	$enums{"RegexOp"}="Char, Match, Jmp, Split, AnyChar, Str, MatchedStr";
-
 subcode:: c_support_subs
-    $sub dump_vm_c
-	my ($vm, $str_pool, $out)=@_;
-	# TODO: Need Move to Function init, nfa$i, and str_pool$i
-	my $ns=@$str_pool
-	$if $ns>0
-	    $if $ns>10
-		die "Maximum strings in regex is limited to 10 ($ns)\n";
-	    func_add_var("str_pool[10]", "struct String")
-	    push @$out, "str_pool = (struct String *)malloc(sizeof(struct String)*$ns);";
-	    my $i=0
-	    $foreach my $str in @$str_pool
-		my ($s, $len)=($str->{s}, $str->{len})
-		push @$out, "str_pool[$i].len=$len;"; 
-		push @$out, "str_pool[$i].s=$s;"; 
-		$i++
-
+    $sub dump_vm_c($vm, $out)
+	# TODO: Need Move to Function init, nfa$i
 	my $n=@$vm;
 	func_add_var("nfa", "struct VMInst *")
 	push @$out, "nfa=(struct VMInst[$n]) {";
@@ -328,150 +310,101 @@ subcode:: c_support_subs
 	push @$out, "};";
 	return $n;
 
-    $sub print_vm 
-	my $vm=shift;
-	my $i=0;
-	$foreach my $l in @$vm
-	    $if $l->[4]
-		print "$i:";
+subcode: print_vm(vm)
+    $call vm_find_labels, $(vm)
+    my $i=0
+    $foreach my $l in @$(vm)
+	$if $labelhash{$i}
+	    print "$i:"
 
-	    $if $l->[0] eq "Match"
-		print "\tMatch\n";
-	    $elsif $l->[0] eq "Char"
-		print "\tChar $l->[1]\n";
-	    $elsif $l->[0] eq "Split"
-		print "\tSplit $l->[2], $l->[3]\n";
-	    $elsif $l->[0] eq "Jmp"
-		print "\tJmp $l->[2]\n";
-	    $elsif $l->[0] eq "AnyChar"
-		print "\tAnyChar\n";
-	    $i++;
-#### ------------------------------------------------------------------
-# Regular Expression Matching: the Virtual Machine Approach
-# http://swtch.com/~rsc/regexp/regexp2.html
-subcode:: c_support_subs
-    $sub add_regex_vm_code
-	my ($out, $n, $var, $end)=@_;
-	push @$out, "void add_vm_thread(int* tlist, int thread){";
-	push @$out, "    int i;";
-	push @$out, "    for(i=0;i<tlist[0];i++){";
-	push @$out, "        if(tlist[i+1]==thread){";
-	push @$out, "            return;";
-	push @$out, "        }";
-	push @$out, "    }";
-	push @$out, "    tlist[0]++;";
-	push @$out, "    tlist[tlist[0]]=thread;";
-	push @$out, "}";
-	push @$out, "";
-	push @$out, "int regex_vm_match(struct VMInst* nfa, int nfasize, char* s, char* end, struct String * str_pool){";
-	push @$out, "    struct VMInst* pc;";
-	push @$out, "    int* clist=(int*)malloc((nfasize+1)*sizeof(int));";
-	push @$out, "    int* nlist=(int*)malloc((nfasize+1)*sizeof(int));";
-	push @$out, "    int* tlist;";
-	push @$out, "    clist[0]=0;";
-	push @$out, "    nlist[0]=0;";
-	push @$out, "    add_vm_thread(clist, 0);";
-	push @$out, "    char * sp;";
-	push @$out, "    int i;";
-	push @$out, "    for(sp=s; sp<end; sp++){";
-	# ------------------ Lock-Step running of all threads --------------
-	push @$out, "        for(i=1; i<clist[0]+1; i++){";
-	push @$out, "            pc=nfa+clist[i];";
-	push @$out, "            switch(pc->opcode){";
-	push @$out, "            case Char:";
-	push @$out, "                if(*sp != pc->c)";
-	push @$out, "                    break;";
-	push @$out, "                add_vm_thread(nlist, clist[i]+1);"; 
-	push @$out, "                break;";
-	push @$out, "            case AnyChar:";
-	push @$out, "                add_vm_thread(nlist, clist[i]+1);";
-	push @$out, "                break;";
-	push @$out, "            case Str:";
-	push @$out, "                if(strncmp(sp, str_pool[pc->c].s, str_pool[pc->c].len)!=0)";
-	push @$out, "                    break;";
-	push @$out, "                pc->opcode=MatchedStr;";
-	push @$out, "            case MatchedStr:";
-	push @$out, "                str_pool[pc->c].len--;";
-	push @$out, "                if(str_pool[pc->c].len>0)";
-	push @$out, "                    add_vm_thread(nlist, clist[i]);";
-	push @$out, "                else";
-	push @$out, "                    add_vm_thread(nlist, clist[i]+1);";
-	push @$out, "                break;";
-	push @$out, "            case Match:";
-	push @$out, "                free(clist);";
-	push @$out, "                free(nlist);";
-	push @$out, "                return 1;";
-	push @$out, "            case Jmp:";
-	push @$out, "                add_vm_thread(clist, pc->x);";
-	push @$out, "                break;";
-	push @$out, "            case Split:";
-	push @$out, "                add_vm_thread(clist, pc->x);";
-	push @$out, "                add_vm_thread(clist, pc->y);";
-	push @$out, "                break;";
-	push @$out, "            }";
-	push @$out, "         }";
-	push @$out, "         tlist=nlist; nlist=clist; clist=tlist;";
-	push @$out, "         nlist[0]=0;";
-	push @$out, "    }";
-	push @$out, "    free(clist);";
-	push @$out, "    free(nlist);";
-	push @$out, "    return 0;";
-	push @$out, "}";
-	push @$out, "";
-	my $strvar=$var;
-	my $size=$end;
-	$if $pos
-	    $strvar="$var+$pos";
-	    $size=$end-$pos;
+	$if $l->[0] eq "Match"
+	    print "\tMatch\n";
+	$elsif $l->[0] eq "Char"
+	    print "\tChar $l->[1]\n";
+	$elsif $l->[0] eq "Split"
+	    print "\tSplit $l->[2], $l->[3]\n";
+	$elsif $l->[0] eq "Jmp"
+	    print "\tJmp $l->[2]\n";
+	$elsif $l->[0] eq "AnyChar"
+	    print "\tAnyChar\n";
+	$i++;
 
+subcode: vm_find_labels(vm)
+    my %labelhash
+    $foreach $l in @$(vm)
+	$if $l->[0] eq "Jmp"
+	    $labelhash{$l->[2]}=1
+	$elif $l->[0] eq "Split"
+	    $labelhash{$l->[2]}=1
+	    $labelhash{$l->[3]}=1
 
+#### --------------------------------------------------------------
 # ----------- Straight -----------------------------
-subcode: regex_straight_build
-    # -- buildup "and" "or" list
-    my @threadstack;
-    push @threadstack, {state=>$startstate, offset=>0, output=>$p};
-    $while my $thread=pop @threadstack
-	my $s=$thread->{state};
-	my $off=$thread->{offset};
-	my $rout=$thread->{output};
-	$while 1
-	    my $position
-	    $call regex_get_position
-	    my @str_buffer
-	    $while $s->{c} !~ /^(Match|Split|AnyChar|Class|-..|\\\d)/
-		push @str_buffer, $s->{c}
-		$s=$s->{"out1"};
-	    $call regex_get_str
+subcode:: c_support_subs
+    $sub build_straight($startstate)
+	# -- buildup "and" "or" list
+	my @threadstack;
+	my $p=["and"]
+	push @threadstack, {state=>$startstate, offset=>0, output=>$p};
+	my %state_hash
+	$while my $thread=pop @threadstack
+	    my $state=$thread->{state};
+	    my $off=$thread->{offset};
+	    my $rout=$thread->{output};
+	    $while 1
+		my $position
+		$call regex_get_position
+		my @str_buffer
+		$while $state->{c} !~ /^(Match|Split|AnyChar|Class|-..|\\\d)/
+		    push @str_buffer, $state->{c}
+		    $state=$state->{"out1"};
+		$call regex_get_str
 
-	    $if $s->{c} eq "Match"
-		last;
-	    $elsif $s->{c} eq "Split"
-		my ($s1, $s2)=(["and"], ["and"]);
-		push @$rout, ["or", $s1, $s2];
-		push @threadstack, {state=>$s->{"out1"}, offset=>$off, output=>$s1};
-		push @threadstack, {state=>$s->{"out2"}, offset=>$off, output=>$s2};
-		last;
-	    $elsif $s->{c} eq "AnyChar"
-		$s=$s->{"out1"};
-		$off++;
-	    $elsif $s->{c} eq "Class"
-		$s=$s->{"out1"};
-		$off++;
-	    $elif $s->{c} =~ /\\(\d)/
-		my $str=$str_pool[$1]
-		my $len=$str->{len}
-		push @$rout, "strncmp($var+$position, $str->{s}, $len)==0";
-		$s=$s->{"out1"};
-		$if $len=~/\d+/
-		    $off+=$len
-		$elif !$pos
-		    $pos=$len
+		$call straight_hash
+		$if $state->{c} eq "Match"
+		    last;
+		$elsif $state->{c} eq "Split"
+		    my ($s1, $s2)=(["and"], ["and"]);
+		    push @$rout, ["or", $s1, $s2];
+		    push @threadstack, {state=>$state->{"out1"}, offset=>$off, output=>$s1};
+		    push @threadstack, {state=>$state->{"out2"}, offset=>$off, output=>$s2};
+		    last;
+		$elsif $state->{c} eq "AnyChar"
+		    $state=$state->{"out1"};
+		    $off++;
+		$elsif $state->{c} eq "Class"
+		    $state=$state->{"out1"};
+		    $off++;
+		$elif $state->{c} =~/^-(.)(.)/
+		    push @$rout, "$var\[$position\]>='$1' && $var\[$position\]<='$2'"
+		    $state=$state->{"out1"};
+		    $off++;
+	return regex_straight($p)
+
+    $sub regex_straight
+	my $a=shift;
+	$if !ref($a)
+	    return $a;
+	$elsif ref($a) eq "ARRAY"
+	    my $t=shift(@$a);
+	    my $sep;
+	    my @tlist;
+	    $foreach my $b in @$a
+		push @tlist, regex_straight($b);
+	    $if $t eq "and"
+		$if @tlist==1 and $tlist[0]=~/^\((.*)\)$/
+		    return $1;
 		$else
-		    $pos="$pos+$len"
-	    $elif $s->{c} =~/^-(.)(.)/
-		push @$rout, "$var\[$position\]>='$1' && $var\[$position\]<='$2'"
-		$s=$s->{"out1"};
-		$off++;
+		    return join(" && ", @tlist);
+	    $elsif $t eq "or"
+		return "(".join(" || ", @tlist).")";
+
+
+subcode: straight_hash
+    $if $state_hash{$state}
+	return undef
+    $else
+	$state_hash{$state}=1
 
 subcode: regex_get_position
     $if !$pos
@@ -497,21 +430,3 @@ subcode: regex_get_str
 	    $call regex_get_position
 
 subcode:: c_support_subs
-    $sub regex_straight
-	my $a=shift;
-	$if !ref($a)
-	    return $a;
-	$elsif ref($a) eq "ARRAY"
-	    my $t=shift(@$a);
-	    my $sep;
-	    my @tlist;
-	    $foreach my $b in @$a
-		push @tlist, regex_straight($b);
-	    $if $t eq "and"
-		$if @tlist==1 and $tlist[0]=~/^\((.*)\)$/
-		    return $1;
-		$else
-		    return join(" && ", @tlist);
-	    $elsif $t eq "or"
-		return "(".join(" || ", @tlist).")";
-
