@@ -1,4 +1,6 @@
-## dynamic array
+# dynamic array ----------------------------------------------------
+#     function does  not work because we want flexible element types
+
 subcode: local_darray(type, var)
     $local $(type) * $(var)=NULL
     $local n_da_len_$(var)=0
@@ -8,6 +10,10 @@ subcode: global_darray(type, var)
     $global $(type) * $(var)=NULL
     $global n_da_len_$(var)=0
     $global n_da_size_$(var)=0
+
+subcode: use_darray(var)
+    $(export: da_len=n_da_len_$(var))
+    $(export: da_size=n_da_size_$(var))
 
 # ----------------------------------------------------
 subcode: darray_init(var)
@@ -21,8 +27,12 @@ subcode: darray_clear(var)
 
 # ----------------------------------------------------
 subcode: darray_check(var)
-    $if n_da_len_$(var)+1>n_da_size_$(var)
-	tn_temp=(int)(n_da_size_$(var)*2/3)
+    $(export:da_len=n_da_len_$(var))
+    $(export:da_size=n_da_size_$(var))
+
+    $if $(da_len)+1>$(da_size)
+	$my tn_temp
+	tn_temp=(int)($(da_size)*2/3)
 	$if tn_temp<64
 	    tn_temp=64
 	$call darray_expand_n, $(var), tn_temp
@@ -32,9 +42,9 @@ subcode: darray_check_n(var, n)
 	$call darray_expand_n, $(var), n_da_len_$(var)+$(n)-n_da_size_$(var)
     
 subcode: darray_expand_n(var, n)
-    $get_pointer_type(type) var
+    $get_pointer_type(type) $(var)
     n_da_size_$(var)+=$(n)
-    $(var)=($(type) *)realloc(n_da_size_$(var)*sizeof($(type)))
-    assert($(var))
+    $(var)=($(type) *)realloc($(var), n_da_size_$(var)*sizeof($(type)))
+    $call @assert, $(var)
 
 # ----------------------------------------------------

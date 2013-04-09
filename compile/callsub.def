@@ -104,8 +104,7 @@ subcode:: support_subs
 	    die "    Code $codename not found\n"
 	return $codelib->{params}
 
-    $sub call_sub
-	my ($param, $calltype)=@_;
+    $sub call_sub($param, $calltype)
 	$call call_sub_param
 	&call call_sub_block
 	    my $np=@pre_plist;
@@ -170,9 +169,35 @@ subcode:: support_subs
 		push @$callback_list, {block=>$n, source=>$source, line=>$i}
 	    $elif $source->[$i]=~/^\$call\s+(.*)/
 		my $t=$1
-		expand_macro_recurse(\$t)
+		# problemetic, because we have not updated macros within the block
+		expand_macro_recurse(\$t, 1)
 		$if $t=~/(\w+)/
-		my $codelib=get_subcode($1)
+		my $codelib=get_subcode($1, '@')
 		$if $codelib
 		    extract_callback_block($codelib->{source}, $callback_list)
+
+subcode:: support_subs
+    $sub eval_sub($codename)
+	my $codelib=get_def_attr("codes", $codename);
+	$if !$codelib
+	    warn "    eval_sub: Code $codename not found\n"
+
+	require MyDef::output_perl
+	my $save_out=$out
+	my @save_interface=get_interface()
+
+	set_interface(MyDef::output_perl::get_interface())
+	$out=[]
+	$f_setout->($out)
+
+	parse_code($codelib)
+	my @t
+	$f_dumpout->(\@t, $out)
+
+	set_interface(@save_interface)
+	$out=$save_out
+	$f_setout->($out)
+
+	my $t=join("", @t)
+	return $t
 

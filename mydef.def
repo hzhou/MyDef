@@ -39,14 +39,14 @@ subcode: mydef_subs
     $sub createpage_lines
 	my ($pagename)=@_;
 	$page=$def->{pages}->{$pagename};
-	my ($plines, $ext)=MyDef::compileutil::compile($pagename);
+	my ($plines, $ext)=MyDef::compileutil::compile
 	return $plines;
 
     $sub createpage
 	my ($pagename)=@_;
 	$page=$def->{pages}->{$pagename};
-	my ($plines, $ext)=MyDef::compileutil::compile($pagename);
-	MyDef::compileutil::output($pagename, $plines, $ext);
+	my ($plines, $ext)=MyDef::compileutil::compile
+	MyDef::compileutil::output($plines, $ext);
 
     $sub import_data_lines
 	my $plines=shift;

@@ -14,7 +14,8 @@ subcode:: c_support_subs
 	    $s_list=[]
 	    $s_hash={"-init"=>$s_init, "-exit"=>$s_exit}
 	    $structs{$name}={list=>$s_list, hash=>$s_hash}
-	    push @struct_list, $name
+	    $if !($page->{_autoload} and $page->{autoload} eq "h")
+		push @struct_list, $name
 
 	$call check_h_names, $param, "struct-$name"
 	my @plist=split /,\s+/, $param;
@@ -26,6 +27,7 @@ subcode:: c_support_subs
 		$s_hash->{$1}=$2
 		next;
 	    $elif $p=~/class (\w+)/
+		# inheretance
 		my $o=$structs{$1}
 		$if $o
 		    my $h=$o->{hash}
@@ -49,9 +51,11 @@ subcode:: c_support_subs
 		$p=$2
 	    $else
 		$m_name=$p;
-		$if $fntype{$p}
+		$if $p=~/^(next|prev)$/
+		    $type="struct $name *"
+		$elif $fntype{$p}
 		    $type="function";
-		$elif $p
+		$else
 		    $type=get_c_type($p);
 	    # -- init & exit
 	    $foreach my $fh in @func_var_hooks

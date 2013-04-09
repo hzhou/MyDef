@@ -87,6 +87,9 @@ subcode:: c_support_subs
 	    return "char";
 	$elif $val=~/^\((\w+)\)\w/
 	    return $1
+	$elif $val=~/(\w+)\(.*\)/
+	    my $func=$functions{$1}
+	    return $func->{ret_type}
 	$elif $val=~/(\w+)(.*)/
 	    my $tail=$2;
 	    my $type=get_var_type_complex($val)

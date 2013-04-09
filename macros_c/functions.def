@@ -39,6 +39,8 @@ subcode:: c_support_subs
 	# -- var_type: types of local variables
 	# -- var_flag: flags
 	my $func= {param_list=>[], var_list=>[], var_type=>{}, var_flag=>{}, var_decl=>{}, init=>[], finish=>[]};
+	MyDef::compileutil::set_named_block("fn_init", $func->{init})
+	MyDef::compileutil::set_named_block("fn_finish", $func->{finish})
 
 	while(my ($k, $v)=each %function_flags){
 	    $func->{$k}=$v;
@@ -185,29 +187,29 @@ subcode: add_var(scope)
     $call split_name
     $(if:scope=global)
 	$if $global_type->{$name}
-	    return
+	    return $name
     $(elif:scope=symbol)
 	$if $global_type->{$name}
-	    return
+	    return $name
     $(elif:scope=scope)
 	my $var_list=$cur_scope->{var_list};
 	my $var_decl=$cur_scope->{var_decl};
 	my $var_type=$cur_scope->{var_type};
 
 	$if $var_type->{$name}
-	    return
+	    return $name
     $(else)
 	my $var_list=$cur_function->{var_list};
 	my $var_decl=$cur_function->{var_decl};
 	my $var_type=$cur_function->{var_type};
 
 	$if !$cur_function
-	    return
+	    return $name
 	$if $scope eq "local"
 	    $if $var_type->{$name}
-		return
+		return $name
 	$elif get_var_type($name)
-	    return
+	    return $name
 
     $if $debug eq "type"
 	print "\033[33m", "$(scope) - ($attr) $type - $name ($array) - $tail ($value)\n", "\033[m"
@@ -219,7 +221,8 @@ subcode: add_var(scope)
 
     $(if:scope=global)
 	$global_type->{$name}=$vtype
-	push @global_list, $vinit
+	$if !($page->{_autoload} and $page->{autoload} eq "h")
+	    push @global_list, $vinit
     $(elif:scope=symbol)
 	$global_type->{$name}=$vtype
     $(else)
@@ -232,6 +235,7 @@ subcode: add_var(scope)
 	# ----
 	$if $type=~/struct (\w+)$/
 	    $call c_struct_init
+    return $name
 
 subcode: c_var_init
     my $init_value=func_var_init($name, $type);

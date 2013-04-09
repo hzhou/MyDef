@@ -15,13 +15,13 @@ page: output_c, output_main
 	$call c_parsecode
     subcode: dumpout
 	# ----  Main Function -------------------
-	my $func=$functions{"main"};
-	$if $func
-	    $func->{skip_declare}=1;
-	    $func->{ret_type}="int";
-	    $func->{param_list}=["int argc", "char** argv"];
-	    $func->{init}=["DUMP_STUB main_init"];
-	    $func->{finish}=["DUMP_STUB main_exit", "return 0;"];
+	my $mainfunc=$functions{"main"};
+	$if $mainfunc
+	    $mainfunc->{skip_declare}=1;
+	    $mainfunc->{ret_type}="int";
+	    $mainfunc->{param_list}=["int argc", "char** argv"];
+	    unshift @{$mainfunc->{init}}, "DUMP_STUB main_init"
+	    push @{$mainfunc->{finish}}, "DUMP_STUB main_exit", "return 0;"
 
 	# ---- process_function ------------------------
 	my $funclist=MyDef::dumpout::get_func_list()
@@ -32,12 +32,17 @@ page: output_c, output_main
 	$call dump_Makefile
 
 	# ---- Header stuff --------------------------
-	unshift @$out, "\n/**** END GLOBAL INIT ****/\n";
-	unshift @$out, "DUMP_STUB global_init";
+	$if $page->{autoload} eq "write_h"
+	    $call write_h, "autoload.h", "autoload"
+	$elif $page->{autoload} eq "h"
+	    unshift @$out, "#include \"autoload.h\""
+	unshift @$out, "\n/**** END GLOBAL INIT ****/\n"
+	$if $mainfunc
+	    unshift @$out, "DUMP_STUB global_init"
 	$call c_dump_init
 
     subcode: dump_Makefile
-	$if $functions{"main"}
+	$if $mainfunc
 	    my $ofile=$page->{outdir}."/Makefile"
 	    $if !-f $ofile or $page->{makefile}
 		print "  ---> $ofile\n"
