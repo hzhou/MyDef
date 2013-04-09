@@ -1,0 +1,73 @@
+subcode:: _autoload
+    $include string
+    $include pcre
+    $uselib pcre
+    $plugin(regex) pcre_condition
+    $plugin(regex) pcre_statement
+
+# =========================================================
+subcode: pcre_statement
+    $call pcre_plugin_match, count
+    $call pcre_plugin_capture
+
+subcode: pcre_condition
+    $call pcre_plugin_match, condition
+
+subcode: pcre_plugin_match(condition)
+    $if $param=~/^(\S+)\s*=~\s*\/(.*)\/(.*)/
+	my ($var, $pattern, $option)=($1, $2, $3)
+	$pattern=~s/\\/\\\\/g
+	my $idx=$cur_function->{regex_idx}
+	$cur_function->{regex_idx}++
+	MyDef::compileutil::set_current_macro("re", "re$idx")
+	MyDef::compileutil::set_current_macro("re_pat", $pattern)
+	MyDef::compileutil::set_current_macro("re_var", $var)
+	my $capsize=60
+	func_add_var("pn_pcre_off[$capsize]", "int *")
+	MyDef::compileutil::call_sub("pcre_match_compile")
+	$(if:condition=condition)
+	    $condition="pcre_exec(re$idx, NULL, $var, strlen($var), 0, 0, pn_pcre_off, $capsize)>0"
+	$(else)
+	    func_add_var("tn_match", "int")
+	    push @$out, "tn_match=pcre_exec(re$idx, NULL, $var, strlen($var), 0, 0, pn_pcre_off, $capsize);"
+
+# --------------------------------------------
+subcode: pcre_match_compile
+    $(block:fn_init)
+	$local pcre * $(re)
+	$local const char * pcre_err_msg, int pcre_err_pos
+	tn_pcre_opt=0
+	$(re)=pcre_compile("$(re_pat)", tn_pcre_opt, &pcre_err_msg, &pcre_err_pos, NULL) 
+
+# =========================================================
+subcode: pcre_plugin_capture
+    $elif $param=~/(.*?)\s*=>\s*(.*\d)/
+	my ($g1, $g2)=($1, $2)
+	my $capture_type="dup"
+	$if $g1=~/^(\S+):\s*(.*)/
+	    $capture_type=$1
+	    $g1=$2
+	my @names=split /,\s*/, $g1
+	my @indexes=split /,\s*/, $g2
+	$for $i=0:@names
+	    my $name=$names[$i]
+	    my $idx=$indexes[$i]
+	    MyDef::compileutil::call_sub("pcre_capture, $name, $idx, $capture_type")
+
+# --------------------------------------------
+subcode: pcre_capture(name, idx, type)
+    $(set:off=pn_pcre_off[$(idx)*2])
+    $(set:size=pn_pcre_off[$(idx)*2+1]-pn_pcre_off[$(idx)*2])
+    $(if:type=zero)
+	ts_$(name)=$(re_var)+$(off)
+	ts_$(name)[$(size)]='\0'
+    $(elif:type=size)
+	ts_$(name)=$(re_var)+$(off)
+	tn_$(name)=$(size)
+    $(else)
+	ts_$(name)=(char *) malloc($(size)+1)
+	$(block:_post3)
+	    free(ts_$(name))
+	$if ts_$(name)
+	    strncpy(ts_$(name), $(re_var)+$(off), $(size))
+	    ts_$(name)[$(size)]='\0'

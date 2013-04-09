@@ -33,6 +33,9 @@ subcode: ogdl_inherit
 subcode:: package_global
     my $cur_ogdl
     my @ogdl_stack
+    my @ogdl_path
+    my $ogdl_path_index_base
+    my %ogdl_path_index
 
 subcode: ogdl_parse
     expand_macro_recurse(\$preproc)
@@ -46,6 +49,17 @@ subcode: ogdl_parse
 	    $cur_ogdl=$item
 	    parseblock({source=>$subblock, name=>"\${ogdl_each}"})
 	$cur_ogdl=pop @ogdl_stack
+    $elif $preproc=~/^ogdl_set_path:(\d+)=(.*)/
+	$ogdl_path[$1]=$2
+    $elif $preproc=~/^ogdl_path_init/
+	$ogdl_path_index_base=0
+    $elif $preproc=~/^ogdl_path:(\d+)/
+	splice @ogdl_path, $1+1
+	my $path=join('/', @ogdl_path)
+	$ogdl_path_index{$path}=$ogdl_path_index_base
+	$deflist->[-1]->{path}=$path
+	$deflist->[-1]->{path_index}=$ogdl_path_index_base
+	$ogdl_path_index_base++
     $elif $preproc=~/^ogdl_get:(\w+)=(.*)/
 	my $key=$1
 	my $val;

@@ -33,10 +33,12 @@ subcode: check_exponential
 	$l="$t_head($t_trunk)$t_tail";
 
 subcode: check_functioncall
-    $if $l=~/^(\w+)\s+(.*)$/ and ($functions{$1} or $stock_functions{$1})
-	my $fn=$1;
-	my $t=$2;
-	$t=~s/;\s*$//;
-	$t=~s/\s+$//;
-	$l="$fn($t);";
+    $if $l=~/^(\w+)\s+(.*)$/
+	# print "check_functioncall: $1\n"
+	$if $functions{$1} or $stock_functions{$1}
+	    my $fn=$1;
+	    my $t=$2;
+	    $t=~s/;\s*$//;
+	    $t=~s/\s+$//;
+	    $l="$fn($t);";
 

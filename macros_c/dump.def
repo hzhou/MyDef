@@ -17,73 +17,6 @@ subcode: c_dump_init
     $call dump_globals
     $call dump_code_list
 
-# ---- h name list -----------------
-subcode:: package_globals
-    # name hashes for header files
-    # $h_names{name} is list of macro, structure, function declarations
-    my %h_names
-    my %h_files
-
-subcode: write_h(file, names)
-    my $tlist=$h_files{$(file)}
-    $if !$tlist
-	$tlist=[]
-	$h_files{$(file)}=$tlist
-    my @namelist=split /,\s*/, $(names)
-    $foreach $name in @namelist
-	push @$tlist, $name
-
-subcode: dump_h_files
-    my $outdir=$page->{outdir}
-    $foreach $f in keys %h_files
-	my %allkey_list=("define"=>[],"struct"=>[],"function"=>[])
-	my %allkey_hash
-	my $tlist=$h_files{$f}
-	$foreach $t in @$tlist
-	    my $klist=$h_names{$t}
-	    $foreach $k in @$klist
-		print "dump_h_files [$k] in $klist\n"
-		$if !$allkey_hash{$k}
-		    $allkey_hash{$k}=1
-		    $if $k=~/^(\w+)-(.*)/
-			push @{$allkey_list{$1}}, $2
-	my @buf
-	my $dump_out=\@buf
-	$foreach $k in @{$allkey_list{"define"}}
-	    $call dump_define, $k
-	$foreach $k in @{$allkey_list{"struct"}}
-	    $call dump_struct, $k
-	$foreach $k in @{$allkey_list{"function"}}
-	    $call dump_function_declare, $k
-	open Out, ">$outdir/$f" or die "can't write $outdir/$f\n"
-	$foreach $l in @buf
-	    print Out $l
-	close Out
-
-subcode: check_h_names_init
-    my @h_name_list
-
-subcode: check_h_names(v, name)
-    $call check_h_names_init
-    $while $(v)=~/^\$(\w+),?\s*(.*)/
-	$(v)=$2
-	$call check_h_names_name, $1
-    $call check_h_names_key, $(name)
-
-subcode: check_h_names_name(name)
-    print "check_h_names_name ",  $(name), "\n"
-    $if !$h_names{$(name)}
-	my $t=[]
-	$h_names{$(name)}=$t
-	push @h_name_list, $t
-    $else
-	push @h_name_list, $h_names{$(name)}
-
-subcode: check_h_names_key(key)
-    $foreach $h in @h_name_list
-	print "check_h_names_key [$h] ",  $(key), "\n"
-	push @$h, $(key)
-
 # ---- Includes ----
 subcode:: package_globals
     our %includes
@@ -152,8 +85,11 @@ subcode:: do_typedef(param)
 subcode: dump_typedefs
     $if @typedef_list
 	$foreach $k in @typedef_list
-	    push @$dump_out, "typedef $typedef_hash{$k} $k;"
+	    $call dump_typedef, $k
 	push @$dump_out, "\n";
+
+subcode: dump_typedef(k)
+    push @$dump_out, "typedef $typedef_hash{$(k)} $(k);"
 
 # ---- Enums ----
 subcode:: package_globals

@@ -9,16 +9,20 @@ my $yellow="\033[33;1m";
 my $normal="\033[0m";
 my $f=$ARGV[0];
 if($f=~/([a-z0-9]+)_.*\.def$/){
+    unlink "out/Makefile";
     my $cmd= "perl ../MyDef/script/mydef_page.pl $f -m$1 -oout";
     print "$cmd \n";
     system $cmd;
     chdir "out";
     if($1 eq "c"){
 	print "$yellow*** Compiling test.c ***$normal\n";
-	system "gcc -o a.out test.c";
-	if(-f "a.out"){
-	    print "$yellow*** Testing a.out ***$normal\n";
-	    system "./a.out";
+	#system "gcc -o a.out test.c";
+	chdir "out";
+	unlink "test";
+	system "make";
+	if(-f "test"){
+	    print "$yellow*** Testing output ***$normal\n";
+	    system "./test";
 	}
     }
     elsif($1 eq "xs"){

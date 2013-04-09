@@ -5,6 +5,7 @@ include: macros_c/functions.def
 include: macros_c/hash_and_list.def
 include: macros_c/types.def
 include: macros_c/dump.def
+include: macros_c/dump_h.def
 include: macros_c/regex.def
 
 subcode: c_main
@@ -63,16 +64,6 @@ subcode: deallocate_array(out)
 	push @$(out), "for(i=0;i<$dim;i++)$1_destructor($p\[i]);";
     push @$(out), "free($p);";
 
-subcode: check_destructor(out)
-    $if $misc_vars{mu_enable}
-	my $destructor="NULL";
-	$if $exit
-	    $destructor="&$1_destructor";
-	push @$(out), "mu_add((void*)$p, sizeof($type), $dim, $destructor);";
-subcode: allocate_debug(out)
-    $if $misc_vars{"debug_mem"}==1
-	push @$(out), "printf(\"Mem \%d - $p \%d $type [%x]\\n\", mu_lastmem, $dim, $p);";
-
 subcode: check_struct_init_exit
     my ($init, $exit)
     $if $type=~/struct (\w+)/
@@ -99,12 +90,8 @@ subcode:: c_support_subs
 		    $call allocate_one, $out
 		$else 
 		    $call allocate_array, $out
-		$if $global_type->{mu_total_mem}
-		    push @$out, "mu_total_mem+=(float)$dim*sizeof($type)/1e6;"
-		$if $global_type->{p_memlist}
-		    push @$out, "mu_add_pointer((void*)$p, \"$p\", $dim*sizeof($type));"
-		$call check_destructor, $out
-		$call allocate_debug, $out
+		$if $global_type->{memtrack_on}
+		    MyDef::compileutil::call_sub("\@memtrack, $p")
 	$call allocate_init_value, $out
 
     $sub local_allocate($dim, $param2)
@@ -134,21 +121,37 @@ subcode: allocate_init_value(out)
 		push @$(out), "    $p\[i]=$init_value;";
 	push @$(out), "}";
 # -------------------------------------
-subcode:: c_support_subs
-    $sub temp_string($str)
-	$if $str=~/\$/
-	    func_add_var("ts_temp_buf[100]", "local")
-	    my @segs=split /(\$\w+)/, $str
-	    my @vlist;
-	    $for $j=0:@segs
-		$if $segs[$j]=~/^\$(\w+)/
-		    push @vlist, $1
-		    $segs[$j]=get_var_fmt($1)
-	    push @$out, "snprintf(ts_temp_buf, 100, \"".join('', @segs)."\", ".join(', ', @vlist).");"
-	    return "ts_temp_buf"
-	$else
-	    return "\"$str\""
+subcode: fmt_string_check_escape
+    $if $j>0 and $segs[$j-1]=~/(\\+)$/
+	$if length($1)%2==1
+	    $segs[$j-1]=~s/\\$//
+	    next
 
+subcode: fmt_string_check_trailing
+    $if $segs[$j+1]=~/^\\-\w/
+	$segs[$j+1]=~s/^\\-//
+
+subcode:: c_support_subs
+    $sub fmt_string($str)
+	$if $str=~/^\w+$/
+	    return (0, $str)
+	$if $str=~/^\s*\"(.*)\"\s*$/
+	    $str=$1
+	my @segs=split /(\$\w+)/, $str
+	my @vlist;
+	my $vcnt=0;
+	$for $j=0:@segs
+	    $if $segs[$j]=~/^\$(\w+)/
+		my $v=$1
+		$call fmt_string_check_escape
+		$call fmt_string_check_trailing
+		$vcnt++
+		push @vlist, $v
+		$segs[$j]=get_var_fmt($v)
+	$if $vcnt>0
+	    return ($vcnt, '"'.join('',@segs).'", '.join(', ', @vlist))
+	$else
+	    return (0, '"'. join('', @segs).'"')
 
     $sub debug_dump($param, $prefix, $out)
 	my @vlist=split /,\s+/, $param;

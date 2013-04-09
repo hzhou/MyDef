@@ -1,0 +1,32 @@
+include: c_hash.def
+
+page: test
+    autoload: h
+    subcode: main
+	$list n_main
+	$list test
+
+    fncode: n_main
+	test()
+
+    fncode: test
+	$call hash, h
+	s_home="Earth"
+	s_moon="Moon"
+	$call hash_set, h, "Mercury", "0.05"
+	$call hash_set, h, "Venus", "0.81"
+	$call hash_set, h, s_home, "1.00"
+	$call hash_set, h, "home:$s_home", "1"
+	$call hash_set, h, "home:\$s_home", "2"
+	$call hash_set, h, "$s_home\-Moon", "0.012"
+	$call hash_set, h, "Mars", "0.11"
+	$call hash_set, h, "Jupiter", "317.8"
+	$call hash_set, h, "Saturn", "95.2"
+	$call hash_set, h, "Uranus", "14.5"
+	$call hash_set, h, "Neptune", "17.2"
+	$(for:p in Mars, Venus, Earth, home:Earth, EarthMoon)
+	    ts_val=hash_getstr(h, "$(p)")
+	    printf("    $(p):\t%s\n", ts_val)
+	hash_free(h)
+
+

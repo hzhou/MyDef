@@ -4,6 +4,7 @@ include: compile/callsub.def
 include: compile/parse.def
 include: compile/macro.def
 include: compile/ogdl.def
+include: compile/list.def
 include: compile/util.def
 
 page: compileutil
@@ -20,15 +21,16 @@ subcode: compile_main
     $call support_subs
     # ---------------------------------------------------
     $sub compile
-	my ($pagename)=@_;
-	my $page=$MyDef::def->{pages}->{$pagename};
+	my $page=$MyDef::page
+	my $pagename=$page->{pagename}
 	$call output_outdir
 	$page->{outdir}=$outdir
 	$call compile
 
     $sub output
-	my ($pagename, $plines, $ext)=@_;
-	my $page=$MyDef::def->{pages}->{$pagename};
+	my ($plines, $ext)=@_;
+	my $page=$MyDef::page
+	my $pagename=$page->{pagename}
 	my $outdir=$page->{outdir}
 
 	my $outname=$outdir."/".$pagename;
@@ -61,6 +63,9 @@ subcode:: package_global
     $sub set_interface
 	($f_init, $f_parse, $f_setout, $f_modeswitch, $f_dumpout)=@_;
 
+    $sub get_interface
+	return ($f_init, $f_parse, $f_setout, $f_modeswitch, $f_dumpout)
+
     $sub set_output($output)
 	$out=$output
 	$f_setout->($out)
@@ -70,6 +75,8 @@ subcode:: package_global
     our $modelist;
 
     my $debug;
+
+    our %misc_vars;
 
 
 subcode: manage_output
@@ -106,14 +113,18 @@ subcode: compile
 
     #---- autoload
     my $codelist=$MyDef::def->{codes};
+    $page->{_autoload}=1
     $foreach my $codename  in keys %$codelist
 	$if $codename=~/_autoload$/
 	    parse_code($codelist->{$codename});
+    $page->{_autoload}=0
 
     #---- main
     my $maincode=$page->{codes}->{main};
     $if !$maincode
 	$maincode=$MyDef::def->{codes}->{main};
+    $if !$maincode
+	$maincode=$MyDef::def->{codes}->{basic_frame};
     parse_code($maincode);
 
     #---- restore var

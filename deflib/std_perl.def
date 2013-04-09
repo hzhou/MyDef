@@ -1,0 +1,37 @@
+
+subcode: sub_new
+    $sub new($class, $self)
+      $class = ref($class) || $class;
+      if (!defined $self) { $self = { }; }
+      bless ($self, $class);
+      BLOCK
+      return $self
+
+subcode: block
+    {
+	BLOCK
+    }
+
+# -- IO -------------------------
+subcode: open_r(name)
+    open In, "$(name)" or die "Can't open $(name).\n"
+    $while <In>
+        BLOCK
+    close In
+
+subcode: open_w(name)
+    open Out, ">$(name)" or die "Can't write $(name).\n"
+    BLOCK
+    close Out
+
+subcode: assert(cond)
+    $if !($(cond))
+        die "$(cond) - FALSE!\n"
+
+# -- HTML -----------------------------
+subcode: html_tag(tag)
+    print Out "<$(tag)>"
+    BLOCK
+    print Out "</$(tag)>\n"
+
+

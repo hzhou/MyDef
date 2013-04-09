@@ -153,7 +153,6 @@ subcode:: support_subs
 		$hasmacro=1;
 	return ($hasmacro, $updated)
 
-subcode:: support_subs
     $sub expand_macro_recurse($lref, $nowarn)
 	my ($hasmacro, $updated)
 	$$lref=~s/\$\.(?=\w)/\$(this)/g
@@ -168,3 +167,7 @@ subcode:: support_subs
 		$if substr($`, -1) ne "\\"
 		    warn "[$cur_file:$cur_line] Macro $1 not defined in $$lref\n"
 
+    $sub get_macro($name)
+	my $t='$'."($name)"
+	expand_macro_recurse(\$t)
+	return $t

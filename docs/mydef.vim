@@ -16,6 +16,7 @@
 :syntax region sString start=/'/ skip=/\\'/ end=/'/  oneline
 
 :syntax match perlKey /^\s*\(push\|shift\|unshift\|pop\|print\|return\|goto\|last\|next\|break\|continue\)\>/
+:syntax match perlKey /^\s*\i\+:/
 
 :syntax match perlVar /\(\$\|@\|%\)\i\+/
 :syntax match perlKey /^\s*\(our\|my\|package\|use\|require\|sub\)\s/
