@@ -1,0 +1,79 @@
+# ---- h name list -----------------
+subcode:: package_globals
+    # name hashes for header files
+    # $h_names{name} is list of macro, structure, function declarations
+    my %h_names
+    my %h_files
+
+subcode:: c_init
+    %h_names=()
+    %h_files=()
+
+subcode: write_h(file, names)
+    my $tlist=$h_files{$(file)}
+    $if !$tlist
+	$tlist=[]
+	$h_files{$(file)}=$tlist
+    my @namelist=split /,\s*/, $(names)
+    $foreach $name in @namelist
+	push @$tlist, $name
+
+subcode: dump_h_files
+    my $outdir=$page->{outdir}
+    $foreach $f in keys %h_files
+	my %allkey_list=("define"=>[],"struct"=>[],"function"=>[],"global"=>[])
+	my %allkey_hash
+	$foreach $t in @{$h_files{$f}}
+	    $foreach $k in @{$h_names{$t}}
+		$if !$allkey_hash{$k}
+		    $allkey_hash{$k}=1
+		    $if $k=~/^(\w+)-(.*)/
+			push @{$allkey_list{$1}}, $2
+	my @buf
+	my $dump_out=\@buf
+	$foreach $k in @{$allkey_list{"define"}}
+	    $call dump_define, $k
+	$foreach $k in @{$allkey_list{"struct"}}
+	    $call dump_struct, $k
+	$foreach $k in @{$allkey_list{"typedef"}}
+	    $call dump_typedef, $k
+	$foreach $k in @{$allkey_list{"function"}}
+	    $call dump_function_declare, $k
+	push @buf, "\n"
+	$foreach $k in @{$allkey_list{"global"}}
+	    push @buf, "extern $global_type->{$k} $k;\n"
+	open Out, ">$outdir/$f" or die "can't write $outdir/$f\n"
+	$foreach $l in @buf
+	    print Out $l
+	close Out
+
+# -----------------------------------------
+# $call check_h_names, $param, "struct-$name"
+subcode: check_h_names(v, name)
+    $call check_h_names_init
+    $while $(v)=~/^\$(\w+),?\s*(.*)/
+	$(v)=$2
+	$call check_h_names_name, $1
+    $if $page->{_autoload} and $page->{autoload} eq "write_h"
+	$call check_h_names_name, "autoload"
+    $(if:name!=undef)
+	$call check_h_names_key, $(name)
+
+# ----
+subcode: check_h_names_init
+    my @h_name_list
+
+subcode: check_h_names_name(name)
+    #print "check_h_names_name ",  $(name), "\n"
+    $if !$h_names{$(name)}
+	my $t=[]
+	$h_names{$(name)}=$t
+	push @h_name_list, $t
+    $else
+	push @h_name_list, $h_names{$(name)}
+
+subcode: check_h_names_key(key)
+    $foreach $h in @h_name_list
+	#print "check_h_names_key [$h] ",  $(key), "\n"
+	push @$h, $(key)
+
