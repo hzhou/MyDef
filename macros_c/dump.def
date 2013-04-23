@@ -53,10 +53,12 @@ subcode:: c_init
 
 subcode:: support_subs
     $sub add_define($name, $var)
-	$call check_h_names, $var, "define-$name"
-	$if !defined $defines{$name}
-	    push @define_list, $name
-	$defines{$name}=$var
+	$call check_autoload_h
+	$if !$autoload_h
+	    $if !defined $defines{$name}
+		push @define_list, $name
+	    $defines{$name}=$var
+	    $call add_to_autoload_h, "define-$name"
 
 subcode: dump_defines
     my $cnt=0
@@ -76,11 +78,14 @@ subcode:: c_init
     @typedef_list=()
     my %typedef_hash
 
-subcode:: do_typedef(param)
-    $if $(param)=~/(.*)\s+(\w+)\s*$/
-	$typedef_hash{$2}=$1
-	push @typedef_list, $2
-	$call check_h_names, $(param), "typedef-$2"
+subcode:: support_subs
+    $sub add_typedef($param)
+	$call check_autoload_h
+	$if !$autoload_h
+	    $if $param=~/(.*)\s+(\w+)\s*$/
+		$typedef_hash{$2}=$1
+		push @typedef_list, $2
+		$call add_to_autoload_h, "typedef-$2"
 
 subcode: dump_typedefs
     $if @typedef_list
@@ -128,16 +133,10 @@ subcode:: c_init
 subcode: dump_globals
     my $cnt=0
     $foreach my $v in @global_list
-	$call dump_global
+	push @$dump_out, "$v;\n";
+	$cnt++
     $if $cnt>0
 	push @$dump_out, "\n";
-
-subcode: dump_global
-    $call dump_global_std
-
-subcode: dump_global_std
-    push @$dump_out, "$v;\n";
-    $cnt++
 
 # ---- Function Delcares ----
 subcode:: package_globals

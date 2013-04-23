@@ -1,93 +1,45 @@
-include: output.def
-include: macros_c/cfunctions.def
-include: macros_util/tool_output.def
-include: macros_win32/views.def
-include: macros_win32/graphics.def
-include: macros_win32/resource.def
-
-page: output_win32, output_main
+page: output_win32
     type: pm
     output_dir: lib/MyDef
     ext: c
     init_mode: sub
-    subcode: package_subs
-	$call package_global
-	$call c_main
-    subcode: init_page
-	$call c_init
-	# declare_struct("VIEW", "HWND hwnd")
-    subcode: parsecode
-	$call pre_parse
-	$call check_text_includes
-	$call c_parsecode
-    subcode: dumpout
-	$call @on_dumpout
-	push @$f, "#include <winsock2.h>\n";
-	push @$f, "#include <windows.h>\n";
+    subcode: main
+	use MyDef::dumpout;
+	use MyDef::output_c;
+	package MyDef::$(pagename);
 
-	# ---- process_function ------------------------
-	my $funclist=MyDef::dumpout::get_func_list()
-	$foreach my $func in @$funclist
-	    $call process_function_std
+	$sub get_interface
+	    return (\&init_page, \&MyDef::output_c::parsecode, \&MyDef::output_c::set_output, \&MyDef::output_c::modeswitch, \&dumpout);
 
-	# --- c global stuff -----------------
-	unshift @$out, "DUMP_STUB global_init";
-	$call c_dump_init
+	$sub init_page
+	    my @ret = MyDef::output_c::init_page(@_)
+	    $call @on_init
+	    return @ret
+
+	$sub dumpout
+	    my ($f, $out)=@_;
+	    $call @on_dumpout
+	    push @$f, "#include <windows.h>\n";
+	    MyDef::output_c::dumpout($f, $out)
+
+	1;
+
+subcode:: on_init
+    MyDef::output_c::global_add_symbol("cur_instance", "HINSTANCE")
 
 subcode:: on_dumpout
+    my $extern
     # ----  Main Function -------------------
-    my $func=$functions{"WinMain"};
+    my $func=$MyDef::output_c::functions{"WinMain"};
     $if $func
 	$func->{skip_declare}=1;
 	$func->{ret_type}="int APIENTRY";
 	$func->{param_list}=["HINSTANCE hInst", "HINSTANCE hPrev", "LPSTR s_cmdline", "int n_cmdshow"];
-
-	my $initblock=$func->{init}
-	$cur_function=$func
-	&call replace_output, $initblock
-	    global_add_var("cur_instance", "HINSTANCE")
-	    push @$out, "cur_instance = hInst;"
-	    $while my $wnd = shift @window_list
-		register_window($wnd)
-	    $foreach $var in sort(keys(%hgdi_hash))
-		$if $var=~/^font_\w+/
-		    $call make_font
-	    push @$out, "NEWLINE"
-
+	push @{$func->{init}}, "cur_instance=hInst;";
 	push @{$func->{init}}, "DUMP_STUB main_init";
 	push @{$func->{finish}}, "DUMP_STUB main_exit";
 	push @{$func->{finish}}, "return 0;";
-
-# ---------------------------
-subcode:: package_global
-    my %view_hash
-
-subcode: load_view
-    my $view
-    $if !$view_hash{$name}
-	$view={"_name"=>$name}
-	$call collect_view_attr, $view
-	$view_hash{$name}=$view
     $else
-	$view=$view_hash{$name}
+	$extern="extern "
 
-subcode: pre_parse
-    $if $l=~/^\s*\$MakeView\s+(\w+)/
-	my $view={"_name"=>$1}
-	create_view($out, $view, {hwnd=>"NULL", child=>"hwnd"})
-	return 1
-    $elif $l=~/^\s*\$WndProc\s+(\w+)/
-	my $name=$1
-	$call load_view
-	$call window_proc
-	return 1
-    $elif $l=~/^\$g_(\w+)(.*)/
-	my ($cat, $param)=($1, $2)
-	$param=~s/^\s*//
-	$call graphics, $cat, $param
-	return 1
-    $elif $l=~/^(\S+)\s*=\s*\$MakeFont\s+(.*)/
-	my ($var, $name)=($1, $2);
-	$call make_font
-	return 1;
-    $call @preparse_elif
+    push @MyDef::output_c::global_list, $extern."HINSTANCE cur_instance"

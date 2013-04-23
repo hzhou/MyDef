@@ -1,74 +1,62 @@
 page: test
     subcode: main
-	# Non-GUI functions and declarations here
-	# The Model part of MVP also may go here
 	$list WinMain
 
-#### GUI Part ########################################
 fncode: WinMain
-    $call win_main
+    $global hwnd_main
+    NEWLINE
+    $call wc_background, COLOR_BACKGROUND
+    $call register_wndclass, "test", WndProc_main
+    $call create_window, hwnd_main, "test"
+    $call create_menu
+    $call win_show, hwnd_main
     $call win_loop
 
-# ---- Controller part for main window -----------------
-subcode: main_on_paint
-    $g_font font_main
-    $g_moveto 10, 10
-    $g_text "Hello World!"
+subcode: create_menu
+    $(set:IDM_base=0x100)
+    $(set:IDM_step=0x10)
+    #$(unset:IDM_step)
+    $local HMENU menu_main
+    menu_main=CreateMenu()
+    $call AppendMenu, menu_main, menu_main
 
-subcode: main_on_click
-    MessageBox(hwnd, "Button clicked!", "MsgBox", MB_OK)
+    SetMenu(hwnd_main, menu_main)
 
-subcode: main_on_file_open
-    MessageBox(hwnd, "Menu -> File -> Open!", "MsgBox", MB_OK)
-
-# ---- View part for main window -----------------------
-resource: view_main
-    style: WS_OVERLAPPEDWINDOW
-    size: 500, 350
-    menu: main
-    text: Hello World from MyDef
-    label
-	text: static label
-	position: 5, 100
-	size: 200, 20
-	font: font_main
-    button
-	text: push me
-	position: 5, 200
-	size: 80, 40
-	action: on_click
-    editor
-	position: 120, 50
-	size: -10, -10
-    
-# ---- Controller part for editor window -----------------
-subcode: editor_on_paint
-    $g_font font_editor
-    TextOut(hdc, 10, 10, "MyDef Editor", 12)
-
-# ---- View part for editor window -----------------------
-resource: view_editor
-    style: WS_CHILD|WS_VISIBLE|WS_BORDER
-
-# ---- Other GUI resources --------------------------------
 resource: menu_main
-    File
-	Open
-	    action: on_file_open
-	Close
-	Exit
-        ----
-        Recent &Files
-            File 1
-	    File 2
-	    File 3
-    Edit
-        Cut, Copy, Paste
+    MENU
+	text: &File
+	IDM_Open
+	    text: &Open
+	IDM_Save
+	    disable: 1
+	    text: &Save
+	MENU
+	    disable: 1
+	    text: Extra
+	    var: menu_extra
+	    reserve: IDM_Extra -- 15
+    MENU
+	text: &Edit
+	IDM_Copy
+	    text: &Copy
+	IDM_Paste
+	    text: &Paste
+    IDM_Exit
+	text: E&xit
 
-resource: font_main
-    lfFaceName: "Arial"
-    lfHeight: 24
+# -------------------------------------------------
+subcode: main_on_WM_PAINT
+    $local PAINTSTRUCT ps
+    $local HDC hdc
+    hdc=BeginPaint(hwnd, &ps)
+    TextOut(hdc, 10, 10, "Hello World!", 12)
+    EndPaint(hwnd, &ps)
+    return 0
 
-resource: font_editor
-    lfFaceName: "Courier New"
-    lfHeight: 16
+#### RC file ########################################
+
+page: test
+    type: rc
+    module: win32rc
+    subcode: main
+	Icon test.ico

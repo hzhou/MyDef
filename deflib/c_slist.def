@@ -13,7 +13,7 @@ subcode: slist_init(var, @plist)
 	$(sl)$(p)
 
 # ----------------------------------------------------
-subcode: slist_set_macro
+subcode: slist_set_macro(var)
     $get_struct_var_prefix(sl) $(var)
     $get_pointer_type(nodetype) $(sl)head
     $(set:nodename=$(nodetype:6:word))
@@ -21,9 +21,41 @@ subcode: slist_set_macro
     $(export:p=p_$(nodename)_temp)
     $(export:p2=p_$(nodename)_temp2)
     $(export:pp=pp_$(nodename)_temp)
+
+# ----------------------------------------------------
+subcode: slist_index(var, n)
+    $call slist_set_macro, $(var)
+    tn_sl_index=$(n)
+    $(p)=$(sl)head
+    $while 1
+	$if !$(p)
+	    break
+	$elif tn_sl_index==0
+	    BLOCK
+	    break
+	$else
+	    $(p)=$(p)->next
+	    tn_sl_index--
+    $(export:p)
+
+subcode: slist_head(var)
+    $call slist_set_macro, $(var)
+    $if $(sl)head
+	$(p)=$(sl)head
+	BLOCK
+    $(export:p)
+    $(export:sl)
+
+subcode: slist_tail(var)
+    $call slist_set_macro, $(var)
+    $if $(sl)tail
+	$(p)=$(sl)tail
+	BLOCK
+    $(export:p)
+    $(export:sl)
 # --
 subcode: slist_head_pop(var)
-    $call slist_set_macro
+    $call slist_set_macro, $(var)
     $while $(sl)head
 	$local $(nodetype) * $(p)
 	$(p)=$(sl)head
@@ -40,7 +72,7 @@ subcode: slist_clear(var)
 	# NOOP
 	
 subcode: slist_push(var, @plist)
-    $call slist_set_macro
+    $call slist_set_macro, $(var)
     $local $(nodetype) * $(p)
     $(p)=($(nodetype) *)malloc(sizeof($(nodetype)))
     $(p)->next=NULL
@@ -55,7 +87,7 @@ subcode: slist_push(var, @plist)
     $(export:p)
 
 subcode: slist_shift(var)
-    $call slist_set_macro
+    $call slist_set_macro, $(var)
     $local $(nodetype) * $(p)
     $(p)=$(sl)head
     $(sl)head=$(sl)head->next
@@ -65,7 +97,7 @@ subcode: slist_shift(var)
     $(export:p)
 
 subcode: slist_unshift(var, @plist)
-    $call slist_set_macro
+    $call slist_set_macro, $(var)
     $local $(nodetype) * $(p)
     $(p)=($(nodetype) *)malloc(sizeof($(nodetype)))
     $(p)->next=$(sl)head
@@ -78,7 +110,7 @@ subcode: slist_unshift(var, @plist)
     $(export:p)
 
 subcode: slist_each(var)
-    $call slist_set_macro
+    $call slist_set_macro, $(var)
     $local $(nodetype) * $(p)
     $(p)=$(sl)head
     $while $(p)
@@ -90,7 +122,7 @@ subcode: slist_each(var)
 #      $(p) points to the current node (even after slist_delete)
 #      $(p) points to the new node after insert
 subcode: slist_each_2(var)
-    $call slist_set_macro
+    $call slist_set_macro, $(var)
     $local $(nodetype) * $(p)
     $local $(nodetype) * $(p2)
     $local $(nodetype) ** $(pp)

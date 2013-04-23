@@ -58,6 +58,6 @@ if($f=~/([a-z0-9]+)_.*\.def$/){
 	system "cat test.php"
     }
     else{
-	print "unknown module [$1]\n";
+	# print "unknown module [$1]\n";
     }
 }

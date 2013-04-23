@@ -1,3 +1,33 @@
+subcode: check_termination
+    if($l=~/^\s*$/){
+    }
+    elsif($l=~/(for|while|if|else if)\s*\(.*\)\s*$/){
+    }
+    elsif($l!~/[:\{\};]\s*$/){
+	$l.=";";
+    }
+
+subcode: check_exponential
+    # x^4
+    $while $l=~/\^([234])/
+	my $t_p=$1;
+	my $t_tail=$';
+	my ($t_head, $t_exp)=last_exp($`);
+	my $t_trunk="$t_exp*" x ($t_p-1);
+	$t_trunk.=$t_exp;
+	$l="$t_head($t_trunk)$t_tail";
+
+subcode: check_functioncall
+    $if $l=~/^(\w+)\s+(.*)$/
+	# print "check_functioncall: $1\n"
+	$if $functions{$1} or $stock_functions{$1}
+	    my $fn=$1;
+	    my $t=$2;
+	    $t=~s/;\s*$//;
+	    $t=~s/\s+$//;
+	    $l="$fn($t);";
+
+
 subcode:: c_support_subs
     $sub comma_split
 	my $l=shift;
@@ -62,20 +92,12 @@ subcode:: c_support_subs
 	    $left=$2;
 	$if $left=~/^\w+$/
 	    func_add_var($left, $type, $right);
-	    $type=get_var_type($left);
-	    func_var_assign($type, $left, $right, $out);
-	$elsif $left=~/^(\w+\S+)$/
-	    # -- complex case --
-	    $type=get_var_type_complex($1)
-	    func_var_assign($type, $left, $right, $out);
-	$else
-	    push @$out, "$left=$right;";
+	push @$out, "$left=$right;";
 
-    sub last_exp {
-	my $l=shift;
+    $sub last_exp($l)
 	my $tlen=length($l);
 	my $i=$tlen-1;
-	if(substr($l, $i, 1) eq ')'){
+	$if substr($l, $i, 1) eq ')'
 	    my $level=1;
 	    while($i>1){
 		$i--;
@@ -83,8 +105,7 @@ subcode:: c_support_subs
 		if(substr($l, $i, 1) eq '('){$level--;}
 		if($level==0){last;}
 	    }
-	}
-	else{
+	$else
 	    while($i>0){
 		if(substr($l, $i, 1) eq ']'){
 		    my $level=1;
@@ -110,9 +131,20 @@ subcode:: c_support_subs
 	    if(substr($l, $i, 1)!~/[a-zA-Z_.]/){
 		$i++;
 	    }
-	}
+
 	my $t0=substr($l, 0, $i);
 	my $t3=substr($l, $i, $tlen-$i);
 	return ($t0, $t3);
-    }
+
+# -----------------------
+	/*
+	    # $type=get_var_type_direct($left);
+	    # func_var_assign($type, $left, $right, $out);
+	$elsif $left=~/^(\w+\S+)$/
+	    # -- complex case --
+	    # $type=get_var_type($1)
+	    # func_var_assign($type, $left, $right, $out);
+	$else
+	    push @$out, "$left=$right;";
+	    */
 

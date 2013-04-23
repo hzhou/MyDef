@@ -47,6 +47,9 @@ subcode:: support_subs
 	$call parse_stack_pop
 
 subcode:: support_subs
+    $sub curfile_curline
+	return "$cur_file:$cur_line"
+
     $sub protect_key($key)
 	$foreach $blk in @block_stack
 	    $if $blk->{$key}
@@ -55,8 +58,10 @@ subcode:: support_subs
 
 ######## Parse Output Stacks ######################################
 subcode:: package_global
-    my $block_index=0;
+    my $block_index=0
     our @block_stack;    # maintain state for each parseblock
+
+    our $parse_line_count=0
 
 subcode: parse_stack_push
     # ---- protect $out context
@@ -131,9 +136,15 @@ subcode: parse_catch_meta
 	$cur_line=$2
 	next
 
+subcode: parse_line_progress
+    $if $parse_line_count % 100 == 0
+	print "\tcompiling $parse_line_count ...\n"
+
 subcode: parse_line
     undef $callback_output
     my $idx=$#$out+1;
+    $parse_line_count++
+    #$call parse_line_progress
     my $msg=$f_parse->($l);
     my @tails
     $if $msg
@@ -148,6 +159,8 @@ subcode: parse_line
 	    $callback_output=$out;
 	    $if $'=~/-(.*)/
 		push @tails, $1
+	$elsif $msg=~/^SKIPBLOCK/
+	    grabblock($block, \$lindex)
 	$elsif $msg=~/^SET:(\w+)=(.*)/
 	    # set/reset definitions
 	    #     eg. cfunctions.pm get_pointer_type

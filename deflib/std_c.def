@@ -13,8 +13,11 @@ subcode: basic_frame
 ## Utility
 subcode: assert(check)
     $if !($(check))
-	printf("Error: !($(check)) at line %d \n", __LINE__)
-	exit(1)
+	$call assert_action
+
+subcode: assert_action
+    printf("Assert Error: ($(check)) at line %d \n", __LINE__)
+    exit(1)
 
 ## FILE IO
 subcode: mmap(filename, strname, strsize)

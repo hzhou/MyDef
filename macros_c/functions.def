@@ -33,8 +33,7 @@ subcode: check_pointer_type_name
 
 subcode:: c_support_subs
     $sub open_function
-	my ($fname, $t)=@_;
-	my @plist=split /,/, $t;
+	my ($fname, $param)=@_;
 	# -- var_list: list of local variables
 	# -- var_type: types of local variables
 	# -- var_flag: flags
@@ -49,24 +48,10 @@ subcode:: c_support_subs
 	my $pbuf=$func->{param_list};
 	my $var_type=$func->{var_type};
 	# -- parsing param list
-	my $i=0
-	$foreach my $p in @plist
-	    $i++
-	    $if $p=~/(\S.*)\s+(\S+)\s*$/
-		my ($type, $name)=($1, $2)
-		$call check_pointer_type_name
-		push @$pbuf, "$type $name"
-		$var_type->{$name}=$type
-	    $elif $p eq "fmt" and $i==@plist
-		push @$pbuf, "char * fmt, ..."
-	    $else
-		$if $fntype{$p}
-		    push @$pbuf, $fntype{$p};
-		    $var_type->{$p}="function";
-		$else
-		    my $t= get_c_type($p);
-		    push @$pbuf, "$t $p";
-		    $var_type->{$p}=$t;
+	$if $param eq "api"
+	    $call open_function_api
+	$if $param
+	    $call open_function_params
 	# --
 	$if $func->{name}
 	    my $name=$func->{name};
@@ -78,6 +63,34 @@ subcode:: c_support_subs
 	my $fidx=MyDef::dumpout::add_function($func);
 	return $fidx;
 
+subcode: open_function_params
+    my @plist=split /,/, $param
+    my $i=0
+    $foreach my $p in @plist
+	$i++
+	$if $p=~/(\S.*)\s+(\S+)\s*$/
+	    my ($type, $name)=($1, $2)
+	    $call check_pointer_type_name
+	    push @$pbuf, "$type $name"
+	    $var_type->{$name}=$type
+	$elif $p eq "fmt" and $i==@plist
+	    push @$pbuf, "char * fmt, ..."
+	$else
+	    $if $fntype{$p}
+		push @$pbuf, $fntype{$p};
+		$var_type->{$p}="function";
+	    $else
+		my $t= get_c_type($p);
+		push @$pbuf, "$t $p";
+		$var_type->{$p}=$t;
+
+subcode: open_function_api
+    $if $fname=~/^([a-zA-Z0-9]+)_(\w+)/
+	$if $fntype{$2}
+	    my $t=$fntype{$2}
+	    $if $t=~/^(.*?)\s*\(\s*\*\s*(\w+)\s*\)\s*\(\s*(.*)\)/
+		$func->{ret_type}=$1
+		$param=$3
 # -----------------------------------------------------------------
 subcode:: c_support_subs
     my $cur_scope
@@ -98,32 +111,7 @@ subcode:: c_support_subs
 	$cur_scope=pop @scope_stack
 # -----------------------------------------------------------------
 subcode:: c_support_subs
-    $sub get_var_type_complex
-	my $name=shift
-	my ($type, $tail)
-	$if $debug eq "type"
-	    print "get_var_type_complex [$name]\n"
-	$if $name=~/^(\w+)(.*)/
-	    $tail=$2
-	    $type=get_var_type($1)
-	$if $debug eq "type"
-	    print " ->type:$type, tail:[$tail]\n"
-	$while 1
-	    $if $tail=~/^\[.*?](.*)/
-		$tail=$1
-		$type=pointer_type($type)
-	    $elif $tail=~/^\.(\w+)(.*)/
-		$tail=$2
-		$type=get_struct_element_type($type, $1)
-	    $elif $tail=~/^->(\w+)(.*)/
-		$tail=$2
-		$type=pointer_type($type)
-		$type=get_struct_element_type($type, $1)
-	    $else
-		last
-	return $type
-
-    $sub get_var_type
+    $sub get_var_type_direct
 	my $name=shift;
 	$if $cur_scope->{var_type}->{$name}
 	    return $cur_scope->{var_type}->{$name}
@@ -141,14 +129,17 @@ subcode:: c_support_subs
 	    return $cur_function->{var_flag}->{$name};
 	$else
 	    return $global_flag->{$name};
-    $sub get_compound_type
+
+    $sub get_var_type
 	my $name=shift
 	$if $name=~/^(\w+)(.*)/
-	    return get_sub_type(get_var_type($1), $2)
+	    return get_sub_type(get_var_type_direct($1), $2)
 	return "void";
 
     $sub get_sub_type
 	my ($type0, $tail)=@_
+	$if !$type0
+	    return "void"
 	$if $debug eq "type"
 	    print "get_sub_type: $type0 - $tail\n"
 
@@ -161,13 +152,20 @@ subcode:: c_support_subs
 	    $if $type0=~/(.*)\s*\*\s*$/
 		return get_sub_type($1, $tail)
 	    $else
-		die "error in derefencing pointer type $type\n"
+		my $curfile=MyDef::compileutil::curfile_curline()
+		warn "[$curfile] error in dereferencing pointer type $type0\n"
+		return "void"
 	$else
 	    return $type0
 
 # -----------------------------------------------------------------
+subcode: debug_add_var
+    my $curfile=MyDef::compileutil::curfile_curline()
+    print "[$curfile]func_add_var, $name, $type, $value\n"
+
 subcode:: c_support_subs
     $sub func_add_var($name, $type, $value)
+	# $call debug_add_var
 	my $scope
 	$if $type eq "local"
 	    undef $type
@@ -208,7 +206,7 @@ subcode: add_var(scope)
 	$if $scope eq "local"
 	    $if $var_type->{$name}
 		return $name
-	$elif get_var_type($name)
+	$elif get_var_type_direct($name)
 	    return $name
 
     $if $debug eq "type"
@@ -221,8 +219,7 @@ subcode: add_var(scope)
 
     $(if:scope=global)
 	$global_type->{$name}=$vtype
-	$if !($page->{_autoload} and $page->{autoload} eq "h")
-	    push @global_list, $vinit
+	push @global_list, $vinit
     $(elif:scope=symbol)
 	$global_type->{$name}=$vtype
     $(else)

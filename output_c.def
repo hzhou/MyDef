@@ -25,20 +25,20 @@ page: output_c, output_main
 
 	# ---- process_function ------------------------
 	my $funclist=MyDef::dumpout::get_func_list()
-	$foreach my $func in @$funclist
-	    $call process_function_std
+	$foreach $func in @$funclist
+	    $if !$func->{processed}
+		$call process_function_std
 
 	$call process_extern_binary
 	$call dump_Makefile
 
 	# ---- Header stuff --------------------------
-	$if $page->{autoload} eq "write_h"
-	    $call write_h, "autoload.h", "autoload"
-	$elif $page->{autoload} eq "h"
-	    unshift @$out, "#include \"autoload.h\""
 	unshift @$out, "\n/**** END GLOBAL INIT ****/\n"
-	$if $mainfunc
-	    unshift @$out, "DUMP_STUB global_init"
+	unshift @$out, "DUMP_STUB global_init"
+
+	$if $page->{autoload} eq "h"
+	    unshift @$out, "#include \"autoload.h\""
+
 	$call c_dump_init
 
     subcode: dump_Makefile
@@ -77,77 +77,3 @@ subcode: set_make_macro(name, default)
 	$else
 	    print Subfile "$(name)=$(default)\n"
 
-page: output_glsl, output_main
-    type: pm
-    output_dir: lib/MyDef
-    ext: glsl
-    init_mode: sub
-    subcode: package_subs
-	$call c_main
-    subcode: init_page
-	$call c_init
-	$type_prefix{v}="vec4"
-	$type_prefix{v2}="vec2"
-	$type_prefix{v3}="vec3"
-	$type_prefix{v4}="vec4"
-	$type_prefix{iv2}="ivec2"
-	$type_prefix{iv3}="ivec3"
-	$type_prefix{iv4}="ivec4"
-	$type_prefix{bv2}="bvec2"
-	$type_prefix{bv3}="bvec3"
-	$type_prefix{bv4}="bvec4"
-	$type_prefix{m}="mat4"
-	$type_prefix{m2}="mat2"
-	$type_prefix{m3}="mat3"
-	$type_prefix{m4}="mat4"
-	$type_prefix{s1}="sampler1D"
-	$type_prefix{s2}="sampler2D"
-	$type_prefix{s3}="sampler3D"
-	$type_prefix{sc}="samplerCube"
-	$type_prefix{s1w}="sampler1Dshadow"
-	$type_prefix{s2w}="sampler2Dshadow"
-	$global_type->{gl_FrontColor}="vec4"
-	$global_type->{gl_BackColor}="vec4"
-	$global_type->{gl_TexCoord}="vec4 *"
-	$global_type->{gl_Position}="vec4"
-	$global_type->{gl_FragColor}="vec4"
-	$global_type->{gl_FragDepth}="float"
-    subcode: parsecode
-	$call pre_parse
-	$call c_parsecode
-    subcode: dumpout
-	# ----  Main Function -------------------
-	my $func=$functions{"main"};
-	$if $func
-	    $func->{skip_declare}=1;
-	    $func->{ret_type}="void";
-	    $func->{param_list}=["void"];
-	    $func->{init}=["DUMP_STUB main_init"];
-	    $func->{finish}=["DUMP_STUB main_exit"];
-
-	# ---- process_function ------------------------
-	my $funclist=MyDef::dumpout::get_func_list()
-	$foreach my $func in @$funclist
-	    $call process_function_std
-
-	my @dump_init
-	$dump->{block_init}=\@dump_init
-	unshift @$out, "INCLUDE_BLOCK block_init"
-	$call dump_structs
-	$call dump_function_declares
-	$call dump_declares
-	$call dump_structs_functions
-	$call dump_globals
-	$call dump_code_list
-
-    subcode: pre_parse
-	$if $l=~/^\$(attribute|uniform|varying)\s*(.*)/
-	    my $a=$1;
-	    my @vlist=split /,\s+/, $2
-	    $foreach $v in @vlist
-		my $n0=$#global_list
-		global_add_var($v)
-		my $n1=$#global_list
-		$if $n1>$n0
-		    $global_list[$n1]="$a $global_list[$n1]"
-	    return

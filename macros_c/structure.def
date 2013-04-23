@@ -2,6 +2,7 @@
 subcode:: c_support_subs
     $sub declare_struct 
 	my ($name, $param)=@_;
+	$call check_autoload_h
 	my ($s_list, $s_hash)
 	$if $structs{$name}
 	    $s_list=$structs{$name}->{list}
@@ -14,66 +15,78 @@ subcode:: c_support_subs
 	    $s_list=[]
 	    $s_hash={"-init"=>$s_init, "-exit"=>$s_exit}
 	    $structs{$name}={list=>$s_list, hash=>$s_hash}
-	    $if !($page->{_autoload} and $page->{autoload} eq "h")
+	    $if !$autoload_h
 		push @struct_list, $name
 
-	$call check_h_names, $param, "struct-$name"
-	my @plist=split /,\s+/, $param;
-	$foreach my $p in @plist
-	    my ($m_name, $type, $needfree);
-	    $if $p=~/^\s*$/
-		next;
-	    $elif $p=~/(-\w+)=>(.*)/
-		$s_hash->{$1}=$2
-		next;
-	    $elif $p=~/class (\w+)/
-		# inheretance
-		my $o=$structs{$1}
-		$if $o
-		    my $h=$o->{hash}
-		    my $l=$o->{list}
-		    $foreach $m in @$l
-			$if !$s_hash->{$m}
-			    $s_hash->{$m}=$h->{$m}
-			    push @$s_list, $m
-		next
-	    $elif $p=~/^@/
-		$needfree=1
-		$p=$';
+	$call add_to_autoload_h, "struct-$name"
+	$type_prefix{"st$name"}="struct $name";
 
-	    $if $p=~/(.*?)(\S+)\s*=\s*(.*)/
-		$p="$1$2";
-		push @$s_init, "p->$2=$3;";
+	$call declare_struct_elements
 
-	    $if $p=~/(.*\S)\s+(\S+)\s*$/
-		$type=$1;
-		$m_name=$2;
-		$p=$2
+subcode: declare_struct_elements
+    my @plist=split /,\s+/, $param;
+    $foreach my $p in @plist
+	my ($m_name, $type, $needfree);
+	$if $p=~/^\s*$/
+	    next;
+	$elif $p=~/(-\w+)=>(.*)/
+	    $s_hash->{$1}=$2
+	    next;
+	$elif $p=~/class (\w+)/
+	    # inheretance
+	    my $o=$structs{$1}
+	    $if $o
+		my $h=$o->{hash}
+		my $l=$o->{list}
+		$foreach $m in @$l
+		    $if !$s_hash->{$m}
+			$s_hash->{$m}=$h->{$m}
+			push @$s_list, $m
+	    next
+	$elif $p=~/^@/
+	    $needfree=1
+	    $p=$';
+
+	$if $p=~/(.*?)(\S+)\s*=\s*(.*)/
+	    $p="$1$2";
+	    push @$s_init, "p->$2=$3;";
+
+	$if $p=~/(.*\S)\s+(\S+)\s*$/
+	    $type=$1;
+	    $m_name=$2;
+	    $if $m_name=~/^(\*+)(.*)/
+		$type.=" $1"
+		$m_name=$2
+	    $p=$m_name
+	$else
+	    $m_name=$p;
+	    $if $p=~/^(next|prev)$/
+		$type="struct $name *"
+	    $elif $fntype{$p}
+		$type="function";
 	    $else
-		$m_name=$p;
-		$if $p=~/^(next|prev)$/
-		    $type="struct $name *"
-		$elif $fntype{$p}
-		    $type="function";
-		$else
-		    $type=get_c_type($p);
-	    # -- init & exit
-	    $foreach my $fh in @func_var_hooks
-		$if $fh->{var_check}->($type)
-		    my $init=$fh->{var_init}->($type, "p->$m_name") 
-		    $if $init
-			push @$s_init, "p->$p=$init;";
-		    my $exit=$fh->{var_release}->($type, "p->$m_name", "skipcheck")
-		    $if $exit
-			$foreach my $l in @$exit
-			    push @$s_exit, $l;
-	    # ----
-	    $if !$s_hash->{$m_name}
-		push @$s_list, $m_name
-	    $s_hash->{$m_name}=$type
-	    $if $needfree
-		$s_hash->{"$name-needfree"}=1
+		$type=get_c_type($p);
+	$call declare_struct_element_init_exit
 
+subcode: declare_struct_element_init_exit
+    # -- init & exit
+    $foreach my $fh in @func_var_hooks
+	$if $fh->{var_check}->($type)
+	    my $init=$fh->{var_init}->($type, "p->$m_name") 
+	    $if $init
+		push @$s_init, "p->$p=$init;";
+	    my $exit=$fh->{var_release}->($type, "p->$m_name", "skipcheck")
+	    $if $exit
+		$foreach my $l in @$exit
+		    push @$s_exit, $l;
+    # ----
+    $if !$s_hash->{$m_name}
+	push @$s_list, $m_name
+    $s_hash->{$m_name}=$type
+    $if $needfree
+	$s_hash->{"$name-needfree"}=1
+
+subcode:: c_support_subs
     $sub get_struct_element_type 
 	my ($stype, $evar)=@_;
 	$if $stype=~/(\w+)(.*)/
@@ -81,16 +94,18 @@ subcode:: c_support_subs
 		$stype=$typedef_hash{$1}.$2
 	$if $stype=~/struct\s+(\w+)/
 	    my $struc=$structs{$1};
-	    $if $struc->{hash}->{$evar}
-		return $struc->{hash}->{$evar}
+	    my $h=$struc->{hash}
+	    $if $h->{$evar}
+		return $h->{$evar}
 	    $else
-		my $h=$struc->{hash}
-		$while my ($k, $v)=each %$h
-		    $if $k=~/$evar\[.*/
-			return "$v *"
+		$foreach $k in keys(%$h)
+		    $if $k=~/^$evar\[/
+			return "$h->{$k} *"
 	    $if $debug eq "type"
-		print "$evar not defined in struct $1\n";
-	return "void";
+		$while my ($k, $v)=each %$h
+		    print "  :|$k: $v\n"
+		print "$evar not defined in struct $1\n"
+	return "void"
 
     $sub struct_free
 	my ($out, $ptype, $name)=@_;

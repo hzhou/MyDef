@@ -91,28 +91,7 @@ subcode:: c_support_subs
 	    my $func=$functions{$1}
 	    return $func->{ret_type}
 	$elif $val=~/(\w+)(.*)/
-	    my $tail=$2;
-	    my $type=get_var_type_complex($val)
-	    $if !$type
-		$type=get_c_type($1)
-	    # --
-	    my $check_tail=1
-	    $while $check_tail
-		$check_tail=0
-		$if $type=~/struct (\w+)/
-		    $if $structs{$1}
-			my $s_hash=$structs{$1}->{hash}
-			$if $tail=~/^(->|\.)(\w+)/
-			    $tail=$';
-			    $type=$s_hash->{$2}
-			    $check_tail=1
-		    $else
-			return;
-		$if $type=~/\*\s*$/
-		    $if $tail=~/^\[.*?\]/
-			$tail=$';
-			$type=~s/\s*\*\s*$//;
-			$check_tail=1
+	    my $type=get_var_type($val)
 	    return $type
 
     $sub get_c_type_word
@@ -184,19 +163,10 @@ subcode:: c_support_subs
 	    return ($1, $2)
 	$else
 	    return (get_c_type($t), $t)
-    # --------------------------------------------
-    $sub get_c_fmt 
-	my $name=shift;
-	my $type=get_var_type($name);
-	$if $type =~/(int|long)$/
-	    return "%d";
-	$elsif $type eq "char"
-	    return "%c";
-	$elsif $type eq "char *"
-	    return "%s";
 
+    # --------------------------------------------
     $sub get_var_fmt($v)
-	my $type=get_compound_type($v)
+	my $type=get_var_type($v)
 	$if !$type
 	    $type=get_c_type($v);
 	$if $type=~/^char \*/
@@ -214,4 +184,52 @@ subcode:: c_support_subs
 	$else
 	    print "get_var_fmt: unhandled $v - $type\n";
 	    return $v
+
+# -------------------------------------
+subcode:: c_support_subs
+    $sub fmt_string($str)
+	$if $str=~/^\w+$/
+	    return (0, $str)
+	$if $str=~/^\s*\"(.*)\"\s*$/
+	    $str=$1
+	my @segs=split /(\$\w+)/, $str
+	my @vlist;
+	my $vcnt=0;
+	$for $j=0:@segs
+	    $if $segs[$j]=~/^\$(\w+)/
+		my $v=$1
+		$call fmt_string_check_escape
+		$call fmt_string_check_trailing
+		$vcnt++
+		push @vlist, $v
+		$segs[$j]=get_var_fmt($v)
+	$if $vcnt>0
+	    return ($vcnt, '"'.join('',@segs).'", '.join(', ', @vlist))
+	$else
+	    return (0, '"'. join('', @segs).'"')
+
+subcode: fmt_string_check_escape
+    $if $j>0 and $segs[$j-1]=~/(\\+)$/
+	$if length($1)%2==1
+	    $segs[$j-1]=~s/\\$//
+	    next
+
+subcode: fmt_string_check_trailing
+    $if $segs[$j+1]=~/^\\-\w/
+	$segs[$j+1]=~s/^\\-//
+
+# -------------------------------------
+subcode:: c_support_subs
+    $sub debug_dump($param, $prefix, $out)
+	my @vlist=split /,\s+/, $param;
+	my @a1;
+	my @a2;
+	$foreach my $v in @vlist
+	    push @a2, $v;
+	    push @a1, "$v=".get_var_fmt($v)
+	$if $prefix
+	    push @$out, "fprintf(stdout, \"    :[$prefix] ".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
+	$else
+	    push @$out, "fprintf(stdout, \"    :".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
+	$includes{"<stdio.h>"}=1;
 

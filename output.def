@@ -55,7 +55,14 @@ subcode: output_main
 	$call @dumpout
 	MyDef::dumpout::dumpout($dump);
 
-    # ---- supporting subroutines ----
+    $call @support_subs
+
+    1;
+
+subcode: parsecode
+    push @$out, $l
+
+subcode:: support_subs
     $sub single_block($t1, $t2)
 	push @$out, "$t1";
 	push @$out, "INDENT";
@@ -73,11 +80,4 @@ subcode: output_main
 	    $foreach my $l in @$post
 		push @$out, $l
 	return "NEWBLOCK";
-
-    $call @support_subs
-
-    1;
-
-subcode: parsecode
-    push @$out, $l
 

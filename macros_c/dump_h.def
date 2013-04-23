@@ -1,79 +1,66 @@
 # ---- h name list -----------------
 subcode:: package_globals
-    # name hashes for header files
-    # $h_names{name} is list of macro, structure, function declarations
-    my %h_names
-    my %h_files
+    # $h_hash is hash of list of header contents
+    my %h_hash
 
 subcode:: c_init
-    %h_names=()
-    %h_files=()
+    %h_hash=()
 
-subcode: write_h(file, names)
-    my $tlist=$h_files{$(file)}
+subcode: write_h(name, param)
+    my $tlist=$h_hash{$(name)}
     $if !$tlist
 	$tlist=[]
-	$h_files{$(file)}=$tlist
-    my @namelist=split /,\s*/, $(names)
-    $foreach $name in @namelist
-	push @$tlist, $name
+	$h_hash{$(name)}=$tlist
+    push @$tlist, split(/,\s*/, $(param))
 
 subcode: dump_h_files
     my $outdir=$page->{outdir}
     $foreach $f in keys %h_files
-	my %allkey_list=("define"=>[],"struct"=>[],"function"=>[],"global"=>[])
-	my %allkey_hash
-	$foreach $t in @{$h_files{$f}}
-	    $foreach $k in @{$h_names{$t}}
-		$if !$allkey_hash{$k}
-		    $allkey_hash{$k}=1
-		    $if $k=~/^(\w+)-(.*)/
-			push @{$allkey_list{$1}}, $2
+    $while my ($name, $content)=each %h_hash
+	my %ahash
+	my %ghash=("define"=>[],"struct"=>[],"function"=>[],"global"=>[])
+	$foreach $t in @$content
+	    $if !$ahash{$t}
+		$if $t=~/^(\w+)-(.*)/
+		    push @{$ghash{$1}}, $2
+		$ahash{$t}=1
+
 	my @buf
 	my $dump_out=\@buf
-	$foreach $k in @{$allkey_list{"define"}}
+	$foreach $k in @{$ghash{"define"}}
 	    $call dump_define, $k
-	$foreach $k in @{$allkey_list{"struct"}}
+	$foreach $k in @{$ghash{"struct"}}
 	    $call dump_struct, $k
-	$foreach $k in @{$allkey_list{"typedef"}}
+	$foreach $k in @{$ghash{"typedef"}}
 	    $call dump_typedef, $k
-	$foreach $k in @{$allkey_list{"function"}}
+	$foreach $k in @{$ghash{"function"}}
 	    $call dump_function_declare, $k
 	push @buf, "\n"
-	$foreach $k in @{$allkey_list{"global"}}
+	$foreach $k in @{$ghash{"global"}}
 	    push @buf, "extern $global_type->{$k} $k;\n"
-	open Out, ">$outdir/$f" or die "can't write $outdir/$f\n"
+
+	my $out_h="$outdir/$name.h"
+	print "  ---> $out_h\n"
+	open Out, ">$out_h" or die "can't write $out_h\n"
 	$foreach $l in @buf
 	    print Out $l
 	close Out
 
 # -----------------------------------------
-# $call check_h_names, $param, "struct-$name"
-subcode: check_h_names(v, name)
-    $call check_h_names_init
-    $while $(v)=~/^\$(\w+),?\s*(.*)/
-	$(v)=$2
-	$call check_h_names_name, $1
-    $if $page->{_autoload} and $page->{autoload} eq "write_h"
-	$call check_h_names_name, "autoload"
-    $(if:name!=undef)
-	$call check_h_names_key, $(name)
+subcode: check_autoload_h
+    my $autoload
+    my $autoload_h=0
+    $if $page->{_autoload}
+	$if $page->{autoload} eq "write_h"
+	    $if !$h_hash{"autoload"}
+		$autoload=[]
+		$h_hash{"autoload"}=$autoload
+	    $else
+		$autoload=$h_hash{"autoload"}
+	$elif $page->{autoload} eq "h"
+	    $autoload_h=1
 
-# ----
-subcode: check_h_names_init
-    my @h_name_list
-
-subcode: check_h_names_name(name)
-    #print "check_h_names_name ",  $(name), "\n"
-    $if !$h_names{$(name)}
-	my $t=[]
-	$h_names{$(name)}=$t
-	push @h_name_list, $t
-    $else
-	push @h_name_list, $h_names{$(name)}
-
-subcode: check_h_names_key(key)
-    $foreach $h in @h_name_list
-	#print "check_h_names_key [$h] ",  $(key), "\n"
-	push @$h, $(key)
+subcode: add_to_autoload_h(key)
+    $if $autoload
+	push @$autoload, $(key)
 

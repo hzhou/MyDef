@@ -212,7 +212,6 @@ subcode: check_eachfile
 	my @page_list;
 	my $page;
 	my $output_path;
-	my $perlcode=0
 	$if !$h_def{$f} or $h_def{$f} == 1
 	    my $deplist=[];
 	    $h_def{$f}=$deplist;
@@ -229,19 +228,6 @@ subcode: check_eachfile
 		$for my $page in @page_list
 		    $if !$page->{output_dir}
 			$page->{output_dir}=$output_path
-	    $if $perlcode
-		my $defname="default"
-		$if $f=~/([^\/]+)\.def/
-		    $defname=$1
-		$h_page{"$f-perlcode"}={page=>"perl-$defname", module=>"perl", type=>"pl", def=>$f}
-		$if $output_path
-		    $if $output_path!~/^\//
-			$output_path="$config_outputdir/$output_path"
-		$else
-		    $output_path=$config_outputdir
-		$for my $page in @page_list
-		    $page->{depend}.=" $output_path/perl-$defname.pl"
-
 
 subcode: check_file_inpage
     $if /^\s*output_dir: (\S+)/
@@ -286,8 +272,6 @@ subcode: check_file_notinpage
 	$h_page{$key}=$page;
     $elif /^output_dir: (\S+)/
 	$output_path=$t;
-    $elif /^perlcode:/
-	$perlcode=1
 
 subcode: outputdir_inpage
     my $dir=expand_macros($1);

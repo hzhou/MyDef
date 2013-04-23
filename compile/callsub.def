@@ -96,12 +96,20 @@ subcode: call_sub_block
 	BLOCK
 	modepop()
 	pop @callsub_stack
+	set_current_macro("notfound", 0)
+    $else
+	# $call @somecode
+	# $(if:notfound=1)
+	#     $call @othercode
+	set_current_macro("notfound", 1)
+
 
 subcode:: support_subs
     $sub get_sub_param_list($codename)
+	$codename=~s/^@//
 	my $codelib=get_def_attr("codes", $codename);
 	$if !$codelib
-	    die "    Code $codename not found\n"
+	    return undef
 	return $codelib->{params}
 
     $sub call_sub($param, $calltype)
