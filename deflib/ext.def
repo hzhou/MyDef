@@ -1,0 +1,18 @@
+perlcode: replace_output(name)
+    my $tempout=$MyDef::compileutil::out
+    $MyDef::compileutil::out=$(name)
+    $out=$(name)
+    BLOCK
+    $MyDef::compileutil::out=$tempout
+    $out=$tempout
+
+perlcode: push_open_function
+    push @$out, "OPEN_FUNC_$fidx"
+    push @$out, "SOURCE_INDENT"
+    BLOCK
+    push @$out, "SOURCE_DEDENT"
+
+perlcode: push_indent_block
+    push @$out, "INDENT"
+    BLOCK
+    push @$out, "DEDENT"

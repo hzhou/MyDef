@@ -1,0 +1,75 @@
+
+perlcode: getopt
+    my @vlist=split /,\s+/, $param;
+
+    $includes{"<stdlib.h>"}=1;
+    $includes{"<unistd.h>"}=1;
+    my $cstr='';
+    $foreach my $v in @vlist
+	$if $v=~/(\w+):(\w+)(=.*)?/
+	    func_add_var($1);
+	    $if substr($1, 0, 2) eq "b_"
+		$cstr.=$2;
+		push @$out, "$1=0;";
+	    $elsif $3
+		push @$out, "$1$3;";
+		$cstr.="$2::";
+	    $else
+		$cstr.="$2:";
+    push @$out, "opterr = 1;";
+    func_add_var("c", "char");
+    push @$out, "while ((c=getopt(argc, argv, \"$cstr\"))!=-1){";
+    push @$out, "    switch(c){";
+    $foreach my $v in @vlist
+	$if $v=~/(\w+):(\w+)/
+	    push @$out, "        case '$2':";
+	    my $type=get_var_type_direct($1);
+	    $if substr($1, 0, 2) eq "b_"
+		push @$out, "            $1=1;";
+	    $elsif $type eq "char *"
+		push @$out, "            $1=optarg;";
+	    $elsif $type eq "int" or $type eq "long"
+		push @$out, "            $1=atoi(optarg);";
+	    $elsif $type eq "float" or $type eq "double"
+		push @$out, "            $1=atof(optarg);";
+	push @$out, "            break;";
+    push @$out, "    }";
+    push @$out, "}";
+
+perlcode: getbits
+    use integer
+    my ($var, $buf, $pos, $bits)=split /,\s+/, $param
+    func_add_var($var)
+    my ($bufvar, $bufpos)=($buf,0)
+    $if $buf=~/(.*)\[(.*)\]/
+	$bufvar=$1
+	$bufpos=$2
+    my @tlist
+    my $byte_off=$pos / 8
+    my $bits_off=$pos % 8
+    $while $bits>0
+	my $t=$bufvar
+	$if $bufpos and $byte_off>0
+	    $t.="[$bufpos+$byte_off]"
+	$elif $bufpos
+	    $t.="[$bufpos]"
+	$else
+	    $t.="[$byte_off]"
+	$if $bits>8
+	    $t="(unsigned int)$t"
+	$if $bits_off
+	    my $mask=sprintf "0x%02x", 0xff>>$bits_off
+	    $t="($t & $mask)"
+	$if $bits>8-$bits_off
+	    $bits-=8-$bits_off
+	    $t="($t<<$bits)"
+	$elif $bits<8-$bits_off
+	    $bits=8-$bits_off-$bits
+	    $t="($t>>$bits)"
+	    $bits=0
+	$else
+	    $bits=0
+	push @tlist, $t
+	$bits_off=0
+	$byte_off++
+    push @$out, "$var = ".join("|", @tlist).";"

@@ -1,0 +1,77 @@
+page: output_glsl
+    type: pm
+    output_dir: lib/MyDef
+    ext: glsl
+    init_mode: sub
+    subcode: main
+	use MyDef::dumpout;
+	use MyDef::output_c;
+	package MyDef::$(pagename);
+
+	$sub get_interface
+	    return (\&init_page, \&parsecode, \&MyDef::output_c::set_output, \&MyDef::output_c::modeswitch, \&dumpout);
+
+	$sub init_page
+	    my @ret = MyDef::output_c::init_page(@_)
+	    $call @on_init
+	    return @ret
+
+	$sub parsecode($l)
+	    $call on_parsecode
+	    return MyDef::output_c::parsecode($l)
+
+	$sub dumpout($f, $out)
+	    $call @on_dumpout
+	    MyDef::output_c::dumpout($f, $out)
+
+	1;
+
+subcode: on_init
+    $MyDef::output_c::type_prefix{v}="vec4"
+    $MyDef::output_c::type_prefix{v2}="vec2"
+    $MyDef::output_c::type_prefix{v3}="vec3"
+    $MyDef::output_c::type_prefix{v4}="vec4"
+    $MyDef::output_c::type_prefix{iv2}="ivec2"
+    $MyDef::output_c::type_prefix{iv3}="ivec3"
+    $MyDef::output_c::type_prefix{iv4}="ivec4"
+    $MyDef::output_c::type_prefix{bv2}="bvec2"
+    $MyDef::output_c::type_prefix{bv3}="bvec3"
+    $MyDef::output_c::type_prefix{bv4}="bvec4"
+    $MyDef::output_c::type_prefix{m}="mat4"
+    $MyDef::output_c::type_prefix{m2}="mat2"
+    $MyDef::output_c::type_prefix{m3}="mat3"
+    $MyDef::output_c::type_prefix{m4}="mat4"
+    $MyDef::output_c::type_prefix{s1}="sampler1D"
+    $MyDef::output_c::type_prefix{s2}="sampler2D"
+    $MyDef::output_c::type_prefix{s3}="sampler3D"
+    $MyDef::output_c::type_prefix{sc}="samplerCube"
+    $MyDef::output_c::type_prefix{s1w}="sampler1Dshadow"
+    $MyDef::output_c::type_prefix{s2w}="sampler2Dshadow"
+    $MyDef::output_c::global_type->{gl_FrontColor}="vec4"
+    $MyDef::output_c::global_type->{gl_BackColor}="vec4"
+    $MyDef::output_c::global_type->{gl_TexCoord}="vec4 *"
+    $MyDef::output_c::global_type->{gl_Position}="vec4"
+    $MyDef::output_c::global_type->{gl_FragColor}="vec4"
+    $MyDef::output_c::global_type->{gl_FragDepth}="float"
+subcode: on_dumpout
+    # ----  Main Function -------------------
+    my $func=$MyDef::output_c::functions{"main"};
+    $if $func
+	$func->{skip_declare}=1;
+	$func->{ret_type}="void";
+	$func->{param_list}=["void"];
+	$func->{init}=["DUMP_STUB main_init"];
+	$func->{finish}=["DUMP_STUB main_exit"];
+
+subcode: on_parsecode
+    $if $l=~/^\$(attribute|uniform|varying)\s*(.*)/
+	my $a=$1;
+	my @vlist=split /,\s+/, $2
+	my $glist=\@MyDef::output_c::global_list
+	$foreach $v in @vlist
+	    my $n0=$#$glist
+	    MyDef::output_c::global_add_var($v)
+	    my $n1=$#$glist
+	    $if $n1>$n0
+		$glist->[$n1]="$a $glist->[$n1]"
+	return
