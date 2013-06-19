@@ -3,6 +3,8 @@ subcode:: package_globals
     our %plugin_statement
     our %plugin_condition
 
+    our $print_type=1
+
 subcode: debug_plugin
     $while my ($funcname, $codename)=each %plugin_statement
 	print " plugin statement:  $funcname => $codename\n"
@@ -20,9 +22,20 @@ subcode: c_parsecode
 	open_scope("SUBBLOCK_$1")
     $elif $l=~/^SUBBLOCK END (\d+)/
 	close_scope("SUBBLOCK_$1")
-    $elif $l=~/^\s*PRINT\s+(.*)$/
-	my ($n, $fmt)=fmt_string($1)
-	push @$out, "printf($fmt);"
+    $elif $l=~/^\s*PRINT\s+(.*)$/i
+	my $t=$1
+	$if $t=~/usesub:\s*(\w+)/
+	    $print_type=$1
+	$elif $print_type==1
+	    $if $t=~/^".*",/
+		push @$out, "printf($t);"
+	    $else
+		my ($n, $fmt)=fmt_string($t)
+		push @$out, "printf($fmt);"
+		$if $fmt!~/\\n/
+		    push @$out, "printf(\"\\n\");"
+	$elif $print_type
+	    MyDef::compileutil::call_sub("$print_type, $t")
     $elif $l=~/^\s*\$(\w+)\((.*)\)\s+(.*)$/
 	# $function(param1) param2 ---------------------------
 	my ($func, $param1, $param2)=($1, $2, $3)
@@ -157,13 +170,17 @@ subcode: parsecode_func
 		$cur_function->{var_type}->{$2}=$1;
     $elsif $func eq "include"
 	my @flist=split /,\s*/, $param;
+	$call check_autoload_h
 	$foreach my $f in @flist
+	    my $key
 	    $if $f=~/\.\w+$/
-		$includes{"\"$f\""}=1;
+		$key="\"$f\""
 	    $elif $f=~/^".*"$/
-		$includes{$f}=1;
+		$key=$f
 	    $else
-		$includes{"<$f.h>"}=1;
+		$key="<$f.h>"
+	    $includes{$key}=1
+	    $call add_to_autoload_h, "include-$key"
     $elsif $func eq "declare"
 	$call @do_declare, $param
     $elsif $func eq "define"

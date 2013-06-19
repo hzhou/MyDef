@@ -191,21 +191,19 @@ subcode: collect_files
 	    push @files, $f;
 	$elif -d $f
 	    # ---- folder ----
-	    $if $f eq $config_outputdir
-		$if -f "$f/Makefile"
-		    $config_outputdir_make = 1
+	    $if -e "$f/skipmake"
+		print "    Skip folder $f\n"
+	    $elif $f =~ /^(cmp|old|tests|macros_.*)$/
+		print "    Skip folder $f\n"
+	    $elif $f eq $config_outputdir and -f "$f/Makefile"
+		$config_outputdir_make = 1
 	    $else
-		$if -e "$f/skipmake"
-		    print "    Skip folder $f\n"
-		$elif $f =~ /^(cmp|old|tests|macros_.*)$/
-		    print "    Skip folder $f\n"
-		$else
-		    my @t=glob("$f/*.def");
-		    $if @t 
-			print "$script $f ... \n";
-			system("$script $f")==0 or die "Failed to spawn sub make: $?\n";
-		    $if -f "$f/Makefile"
-			push @make_folders, $f;
+		my @t=glob("$f/*.def");
+		$if @t 
+		    print "$script $f ... \n";
+		    system("$script $f")==0 or die "Failed to spawn sub make: $?\n";
+		$if -f "$f/Makefile"
+		    push @make_folders, $f;
 
 subcode: check_eachfile
     $while my $f=pop @files

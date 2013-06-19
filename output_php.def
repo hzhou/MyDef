@@ -15,7 +15,6 @@ page: output_php
 	my @style_key_list;
 	my $style;
 	my $style_sheets
-	my $java_scripts
 	# ------ custom dump states
 	my $cur_mode
 	my $in_js=0
@@ -28,7 +27,6 @@ page: output_php
 	$style={};
 	@style_key_list=()
 	$style_sheets=[]
-	$java_scripts=[]
 
     subcode: modeswitch
 	$if $mode eq "sub"
@@ -155,8 +153,6 @@ page: output_php
 	    foreach my $n(@p){
 		push @$out, "print \"<input type=\\\"hidden\\\" name=\\\"$n\\\" value=\\\"\$$n\\\" />\";";
 	    }
-	$elsif $func eq 'use_js'
-	    push @$java_scripts, $param
 	$elsif $func eq 'use_css'
 	    push @$style_sheets, $param
 	# ----------- End HTML handy notions 
@@ -405,12 +401,6 @@ subcode:: support_subs
 	    $if !$sheet_hash{$s}
 		$sheet_hash{$s}=1;
 		push @$f, "<link rel=\"stylesheet\" type=\"text/css\" href=\"$s\" />\n";
-	my %js_hash;
-	$foreach my $s in @$java_scripts
-	    $if !$js_hash{$s}
-		$js_hash{$s}=1;
-		push @$f, "<script type=\"text/javascript\" src=\"$s\"></script>\n";
-
 
 ################################################
 subcode:: support_subs

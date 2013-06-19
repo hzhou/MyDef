@@ -1,3 +1,5 @@
+subcode:: _autoload
+    $include string
 
 # ---- Read/Write Wrapper --------------------------------
 subcode: Read(fd, buf, size)
@@ -76,6 +78,35 @@ subcode: tcp_listen(port)
     tn_ret=listen(tn_socket_listen, 4)
     $call assert, tn_ret==0
 
+# ---- Read Loop ---------------------------------------
+subcode: socket_read_loop
+    $(set:SIZE=1000)
+    $local ts_socket_buffer[$(SIZE)+1]
+    $while 1
+	# $call Read, tn_socket, ts_socket_buffer, $(SIZE)
+	n=read(tn_socket, ts_socket_buffer, $(SIZE))
+	$if n<0
+	    $call debug_errno, Read Error
+	    break
+	$elif n==0
+	    break
+	$else
+	    BLOCK
+
+# ---- Generic Server -------------------------------------
+subcode: socket_server(port)
+    $call tcp_listen, $(port)
+
+    $while 1
+	print "Accepting connection at port $(port)"
+	tn_addrlen=sizeof(inet_addr)
+	tn_socket=accept(tn_socket_listen, (struct sockaddr *)&inet_addr, &tn_addrlen)
+	$if tn_socket<0 && errno==EINTR
+	    continue
+	$call assert, tn_socket>=0
+	BLOCK
+	$call Close, tn_socket
+
 # ---- Common Util-----------------------------------------
 subcode: fork_server
     tn_pid=fork()
@@ -120,9 +151,12 @@ subcode: daemon_start
     open("/dev/null", O_RDWR)
     open("/dev/null", O_RDWR)
 
+    $call sig_child
+
 subcode: daemon_fork
     tn_pid=fork()
     $if tn_pid<0
+	print "daemon_fork failed!"
 	return -1
     $elif tn_pid>0
 	# parent
@@ -174,4 +208,19 @@ subcode: select(@plist)
 subcode: select_on(fd)
     $if FD_ISSET($(fd), &select_rset)
 	BLOCK
+
+# DEBUG #############################################
+
+subcode: debug_errno(label)
+    # /usr/include/asm-generic/errno.h
+    print "$(label): errno = %d ", errno
+    $if 0
+	NOOP
+    $map debug_errno_code, EAGAIN, EWOULDBLOCK, EBADF, EFAULT, EINTR, EINVAL, EIO, EISDIR, ECONNRESET
+    $else
+	print "Unknown\n"
+
+subcode: debug_errno_code(code)
+    $elif errno==$(code)
+	print "$(code)\n"
 

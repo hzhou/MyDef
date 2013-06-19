@@ -167,7 +167,7 @@ subcode:: c_support_subs
     # --------------------------------------------
     $sub get_var_fmt($v)
 	my $type=get_var_type($v)
-	$if !$type
+	$if !$type or $type eq "void"
 	    $type=get_c_type($v);
 	$if $type=~/^char \*/
 	    return "\%s";

@@ -66,7 +66,7 @@ subcode:: c_support_subs
 	return @t
     $sub check_assignment
 	my ($l, $out)=@_;
-	$if $cur_function and $$l=~/^[^'"]*=/
+	$if $cur_function and $$l=~/^[^'"\(]*=/
 	    my $tl=$$l;
 	    $tl=~s/;+\s*$//;
 	    $if $tl=~/^\s*\((.*?\w)\)\s*=\s*\((.*)\)/

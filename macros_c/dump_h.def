@@ -18,7 +18,7 @@ subcode: dump_h_files
     $foreach $f in keys %h_files
     $while my ($name, $content)=each %h_hash
 	my %ahash
-	my %ghash=("define"=>[],"struct"=>[],"function"=>[],"global"=>[])
+	my %ghash=("include"=>[], "define"=>[],"struct"=>[],"function"=>[],"global"=>[])
 	$foreach $t in @$content
 	    $if !$ahash{$t}
 		$if $t=~/^(\w+)-(.*)/
@@ -27,6 +27,8 @@ subcode: dump_h_files
 
 	my @buf
 	my $dump_out=\@buf
+	$foreach $k in @{$ghash{"include"}}
+	    push @$dump_out, "#include $k\n";
 	$foreach $k in @{$ghash{"define"}}
 	    $call dump_define, $k
 	$foreach $k in @{$ghash{"struct"}}

@@ -159,13 +159,8 @@ subcode:: c_support_subs
 	    return $type0
 
 # -----------------------------------------------------------------
-subcode: debug_add_var
-    my $curfile=MyDef::compileutil::curfile_curline()
-    print "[$curfile]func_add_var, $name, $type, $value\n"
-
 subcode:: c_support_subs
     $sub func_add_var($name, $type, $value)
-	# $call debug_add_var
 	my $scope
 	$if $type eq "local"
 	    undef $type
@@ -210,12 +205,16 @@ subcode: add_var(scope)
 	    return $name
 
     $if $debug eq "type"
-	print "\033[33m", "$(scope) - ($attr) $type - $name ($array) - $tail ($value)\n", "\033[m"
+	my $curfile=MyDef::compileutil::curfile_curline()
+	print "[$curfile]", "\033[33m", "$(scope) - ($attr) $type - $name ($array) - $tail ($value)\n", "\033[m"
 
     $call infer_type
     my ($vtype, $vinit)
     $call var_array_type
     $call var_init_line
+
+    $if $debug eq "type"
+	print "    vtype: $vtype\n"
 
     $(if:scope=global)
 	$global_type->{$name}=$vtype

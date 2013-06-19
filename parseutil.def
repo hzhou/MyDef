@@ -76,7 +76,8 @@ subcode: parse_main
 	    $cur_line++
 	    $call get_multiline_comment
 	    $call get_indentation  # and skip comments, trim leading and tailing spaces
-	    $call grab_block
+	    $if $grab
+		$call grab_block
 
 	    $if $curindent==0
 		$if $stage eq "code"
@@ -94,6 +95,8 @@ subcode: parse_main
 		push @$source, $line;
 	    $elif $line=~/^(\w+)code:([:-@]?)\s*(\w+)(.*)/
 		my ($type, $dblcolon, $name, $t)=($1, $2, $3, $4)
+		$if $name eq "_autoload"
+		    $dblcolon=":"
 		$call start_subcode
 	    $elif $curindent==0
 		$if $line=~/^include:? (.*)/
@@ -178,16 +181,15 @@ subcode: get_indentation
 	$curindent=$indent
 
 subcode: grab_block
-    $if $grab
-	$if $curindent>$grab_indent
-	    my $i=$curindent-$grab_indent-1;
-	    push @grab, "$i:$line";
-	    next;
-	$else
-	    grab_ogdl($grab, \@grab)
-	    #print_ogdl($grab, 0)
-	    $grab=undef
-	    @grab=()
+    $if $curindent>$grab_indent
+	my $i=$curindent-$grab_indent-1;
+	push @grab, "$i:$line";
+	next;
+    $else
+	grab_ogdl($grab, \@grab)
+	#print_ogdl($grab, 0)
+	$grab=undef
+	@grab=()
 
 subcode: get_source_indent(curindent)
     $while $$(curindent)>$lastindent
@@ -209,6 +211,7 @@ subcode: start_subcode
     my $src_location="SOURCE: $cur_file - $cur_line";
     $source=[$src_location];
     $codeindent=$curindent+1;
+    $curindent=$codeindent # prevent starting empty line triger dedent
     $lastindent=$codeindent;
     # -------------------
     $if $curindent == 0
@@ -217,7 +220,7 @@ subcode: start_subcode
 	undef $code_prepend
 
     $if $curindent==0 and $codes->{$name} and $codes->{$name}->{attr} ne "default"
-	# ---- skip or append -------------
+	# Subcode Already Exist --
 	$if $dblcolon eq "@"
 	    # -- skip the default subcode
 	$elif $dblcolon eq ":"

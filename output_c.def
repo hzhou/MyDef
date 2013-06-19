@@ -37,7 +37,8 @@ page: output_c, output_main
 	unshift @$out, "DUMP_STUB global_init"
 
 	$if $page->{autoload} eq "h"
-	    unshift @$out, "#include \"autoload.h\""
+	    $includes{"\"autoload.h\""}=1
+	    #unshift @$out, "#include \"autoload.h\""
 
 	$call c_dump_init
 
