@@ -57,21 +57,31 @@ subcode:: c_support_subs
 
     $sub local_allocate($dim, $param2)
 	my $post=MyDef::compileutil::get_named_block("_post")
-	$includes{"<stdlib.h>"}=1;
-	$call allocate_dimension
-	my @plist=split /,\s+/, $param2;
-	$foreach my $p in @plist
-	    $if $p
-		func_add_var($p);
-		my $type=pointer_type(get_var_type($p));
-		$call check_struct_init_exit
-		$if $dim == 1
-		    $call allocate_one, $out
-		    $call deallocate_one, $post
-		$else 
-		    $call allocate_array, $out
-		    $call deallocate_array, $post
-	$call allocate_init_value, $out
+	$call auto_allocate, local
+
+    $sub global_allocate($dim, $param2)
+	my $post=MyDef::compileutil::get_named_block("global_cleanup")
+	$call auto_allocate, global
+
+subcode: auto_allocate(scope)
+    $includes{"<stdlib.h>"}=1;
+    $call allocate_dimension
+    my @plist=split /,\s+/, $param2;
+    $foreach my $p in @plist
+	$if $p
+	    $(if:scope=global)
+		global_add_var($p);
+	    $(else)
+		func_add_var($p)
+	    my $type=pointer_type(get_var_type($p));
+	    $call check_struct_init_exit
+	    $if $dim == 1
+		$call allocate_one, $out
+		$call deallocate_one, $post
+	    $else 
+		$call allocate_array, $out
+		$call deallocate_array, $post
+    $call allocate_init_value, $out
 
 subcode: allocate_init_value(out)
     $if defined $init_value and $init_value ne ""

@@ -211,7 +211,6 @@ subcode: start_subcode
     my $src_location="SOURCE: $cur_file - $cur_line";
     $source=[$src_location];
     $codeindent=$curindent+1;
-    $curindent=$codeindent # prevent starting empty line triger dedent
     $lastindent=$codeindent;
     # -------------------
     $if $curindent == 0
@@ -257,6 +256,9 @@ subcode: start_subcode
 		$page->{codes}->{'main2'}=$t_code;
 	    $else
 		$page->{codes}->{$name}=$t_code;
+
+    # prevent starting empty line triger dedent
+    $curindent=$codeindent
 
 subcode: end_subcode
     $if $code_prepend

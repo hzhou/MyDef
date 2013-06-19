@@ -6,6 +6,7 @@ page: output_xs
     ext: xs
     init_mode: sub
     subcode: main
+	$call output_main
 	use MyDef::dumpout;
 	use MyDef::output_c;
 	package MyDef::$(pagename);

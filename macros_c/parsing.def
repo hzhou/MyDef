@@ -56,6 +56,9 @@ subcode: parsecode_func_param
 	allocate($param1, $param2);
     $elif $func eq "local_allocate"
 	local_allocate($param1, $param2);
+    $elif $func eq "global_allocate"
+	# at main_exit: DUMP_STUB global_cleanup
+	global_allocate($param1, $param2);
     $elsif $func eq "dump"
 	debug_dump($param2, $param1, $out);
     $elsif $func eq "register_prefix"
