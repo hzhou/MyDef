@@ -1,12 +1,12 @@
 page: MyDef
     type: pm
     output_dir: lib
+    package: MyDef
+
     subcode: main
 	$call mydef_main
 
 subcode: mydef_main
-    package MyDef;
-
     our $def;
     our $page;
     our $var={};

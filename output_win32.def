@@ -3,10 +3,11 @@ page: output_win32
     output_dir: lib/MyDef
     ext: c
     init_mode: sub
+    package: MyDef::output_win32
+
     subcode: main
 	use MyDef::dumpout;
 	use MyDef::output_c;
-	package MyDef::$(pagename);
 
 	$sub get_interface
 	    return (\&init_page, \&MyDef::output_c::parsecode, \&MyDef::output_c::set_output, \&MyDef::output_c::modeswitch, \&dumpout);

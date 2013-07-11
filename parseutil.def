@@ -4,8 +4,9 @@ include: macros_util/debug.def
 page: parseutil
     type: pm
     output_dir: lib/MyDef
+    package: MyDef::parseutil
     subcode: main
-	package MyDef::parseutil;
+	my $debug=0
 	$call parse_main
 	$call support_subs
 	$call support_eachfile
@@ -16,13 +17,13 @@ subcode: parse_main
     my $defname="default";
 
     $sub import_data
-	my ($file, $var)=@_
+	my ($file)=@_
 	$if $file=~/([^\/]+)\.def/
 	    $defname=$1
-	import_data_lines($file, undef, $var)
+	import_data_lines($file, undef)
 
     $sub import_data_lines
-	my ($file, $plines, $var)=@_;
+	my ($file, $plines)=@_;
 	my $def={"resource"=>{}, 
 		"pages"=>{}, 
 		"pagelist"=>[],
@@ -32,7 +33,7 @@ subcode: parse_main
 		};
 
 	# -------- global macros from config ---------
-	$while my ($k, $v)=each %$var
+	$while my ($k, $v)=each %$MyDef::var
 	    $if $k=~/macro_(\w+)/
 		$def->{macros}->{$1}=$v;
 	# -------- include files ---------
@@ -41,12 +42,12 @@ subcode: parse_main
 	$call load_standard_includes
 
 	# -----------------------------------------------
-	import_file($file, $plines, $var, $def, \@includes,\%includes)
+	import_file($file, $plines, $def, \@includes,\%includes)
 	$while 1
 	    $if my $file=shift(@includes)
-		import_file($file, undef, $var, $def, \@includes,\%includes)
+		import_file($file, undef, $def, \@includes,\%includes)
 	    $elif my $file=shift(@standard_includes)
-		import_file($file, undef, $var, $def, \@includes,\%includes)
+		import_file($file, undef, $def, \@includes,\%includes)
 	    $else
 		last
 
@@ -58,7 +59,7 @@ subcode: parse_main
 	return $def;
 
     $sub import_file
-	my ($f, $plines, $var, $def, $include_list, $include_hash)=@_
+	my ($f, $plines, $def, $include_list, $include_hash)=@_
 	my $pages=$def->{pages}
 	my $pagelist=$def->{pagelist}
 	my $codes=$def->{codes}
@@ -66,7 +67,7 @@ subcode: parse_main
 	# ---------------------
 	$call perfile_variables
 	$if !$plines
-	    $plines=get_lines($f, $var);
+	    $plines=get_lines($f);
 	# Insert an END to flush all the indentations
 	# Empty "END" stage gets ignored by default
 	push @$plines, "END"
@@ -387,20 +388,21 @@ subcode: support_subs
 	    $else
 		last;
 
+    $sub get_path($file)
     $sub get_lines
-	my ($file, $var)=@_;
+	my ($file)=@_;
 
 	my $filename="";
 	$if -f $file
 	    $filename=$file;
-	$if !$filename and $var->{'include_path'}
-	    my @dirs=split /:/, $var->{'include_path'};
+	$if !$filename and $MyDef::var->{'include_path'}
+	    my @dirs=split /:/, $MyDef::var->{'include_path'};
 	    $foreach my $dir in @dirs
 		$if -f "$dir/$file"
 		    $filename="$dir/$file";
 		    last;
 	$if !-f $filename
-	    print "include_path: $var->{include_path}\n";
+	    print "include_path: $MyDef::var->{include_path}\n";
 	    die "$file not found\n";
 	#print STDERR "Parsing Definition File: $filename\n";
 	open In, $filename or die "Can't open $file.\n";
@@ -410,19 +412,8 @@ subcode: support_subs
 
 subcode: load_standard_includes
     my @standard_includes;
-    $if $var->{module} eq "php"
-	push @standard_includes, "std_php.def";
-    $elif $var->{module} eq "perl"
-	push @standard_includes, "std_perl.def";
-    $elsif $var->{module} eq "c"
-	push @standard_includes, "std_c.def";
-    $elsif $var->{module} eq "xs"
-	push @standard_includes, "std_c.def";
-    $elsif $var->{module} eq "apple"
-	push @standard_includes, "std_c.def";
-    $elsif $var->{module} eq "win32"
-	push @standard_includes, "std_c.def";
-	push @standard_includes, "std_win32.def";
+    my $stdinc="std_".$MyDef::var->{module}.".def"
+    push @standard_includes, $stdinc
 
 subcode: support_eachfile
     # Hack for the following work:
@@ -499,7 +490,7 @@ subcode: support_eachfile
     $sub dupe_line
 	my ($l, $n, @pat_list)=@_;
 	$for my $i=1; $i<=$n; $i++
-	    $rep=$pat_list[$i-1];
+	    my $rep=$pat_list[$i-1];
 	    $l=~s/\$$i/$rep/g;
 	return $l;
 

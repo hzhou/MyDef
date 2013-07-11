@@ -6,7 +6,7 @@ subcode: basic_frame
     $include stdio
     $include stdlib
     $call @global
-    $list n_main
+    $list main2
 
 # ----
 ###############################################################

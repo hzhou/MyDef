@@ -4,6 +4,7 @@ subcode:: c_support_subs
 	my ($name, $param)=@_;
 	$call check_autoload_h
 	my ($s_list, $s_hash)
+	my ($s_init, $s_exit)
 	$if $structs{$name}
 	    $s_list=$structs{$name}->{list}
 	    $s_hash=$structs{$name}->{hash}
@@ -111,8 +112,8 @@ subcode:: c_support_subs
 	my ($out, $ptype, $name)=@_;
 	my $type=pointer_type($ptype);
 	$if $type=~/struct\s+(\w+)/ and $structs{$1}
-	    $s_list=$structs{$1}->{list}
-	    $s_hash=$structs{$1}->{hash}
+	    my $s_list=$structs{$1}->{list}
+	    my $s_hash=$structs{$1}->{hash}
 	    $foreach my $p in @$s_list
 		$if $s_hash->{"$p-needfree"}
 		    struct_free($out, $s_hash->{$p}, "$name->$p")

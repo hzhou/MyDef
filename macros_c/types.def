@@ -1,6 +1,7 @@
 subcode:: package_globals
-    our %fntype;
-    our %type_name=(
+    $global %type_name, %type_prefix
+    $global %fntype
+    %type_name=(
 	c=>"unsigned char",
 	i=>"int",
 	j=>"int",
@@ -12,7 +13,7 @@ subcode:: package_globals
 	d=>"double",
 	count=>"int",
     );
-    our %type_prefix=(
+    %type_prefix=(
 	n=>"int",
 	n1=>"int8_t",
 	n2=>"int16_t",
@@ -38,39 +39,38 @@ subcode:: package_globals
 	"is"=>"int",
     );
 
-    our %stock_functions=(
+    $global %stock_functions
+    %stock_functions=(
 	"printf"=>1,
     );
 
-    my %lib_include=(
-	glib=>"glib.h",
+    $global %lib_include, %type_include, %text_include
+    %lib_include=(
+	glib=>"glib",
     );
 
-    my %type_include=(
-	time_t=>"time.h",
-	int8_t=>"stdlib.h",
-	int16_t=>"stdlib.h",
-	int32_t=>"stdlib.h",
-	int64_t=>"stdlib.h",
-	uint8_t=>"stdlib.h",
-	uint16_t=>"stdlib.h",
-	uint32_t=>"stdlib.h",
-	uint64_t=>"stdlib.h",
+    %type_include=(
+	time_t=>"time",
+	int8_t=>"stdlib",
+	int16_t=>"stdlib",
+	int32_t=>"stdlib",
+	int64_t=>"stdlib",
+	uint8_t=>"stdlib",
+	uint16_t=>"stdlib",
+	uint32_t=>"stdlib",
+	uint64_t=>"stdlib",
     );
 
-    my %text_include=(
-	"printf|perror"=>"stdio.h",
-	"malloc"=>"stdlib.h",
-	"str(len|dup|cpy)|memcpy"=>"string.h",
-	"\\bopen\\("=>"fcntl.h",
-	"sin|cos|sqrt|pow"=>"math.h",
-	"fstat"=>"sys/stat.h",
+    # TODO: limit to function call?
+    %text_include=(
+	"printf|perror"=>"stdio",
+	"malloc"=>"stdlib",
+	"str(len|dup|cpy)|memcpy"=>"string",
+	"\\bopen\\("=>"fcntl",
+	"sin|cos|sqrt|pow"=>"math",
+	"fstat"=>"sys/stat",
+	"assert"=>"assert",
     );
-
-    sub register_type_prefix {
-	my ($k, $v)=@_;
-	$type_prefix{$k}=$v;
-    }
 
 subcode:: c_support_subs
     $sub infer_c_type
@@ -108,7 +108,7 @@ subcode:: c_support_subs
 	$elsif $name=~/^st(\w+)/
 	    return "struct $1";
 	$elif $name=~/^([a-z0-9]+)/
-	    $prefix=$1;
+	    my $prefix=$1;
 	    $if $type_prefix{$prefix}
 		return $type_prefix{$prefix};
 	    $elif $prefix=~/^(.*?)\d+$/ and $type_prefix{$1}
@@ -143,7 +143,7 @@ subcode:: c_support_subs
 	    $type="void";
 	# --
 	$if $type_include{$type}
-	    add_include($type_include{$type});
+	    $call add_include, $type_include{$type}
 	# --
 	$while $name=~/\[.*?\]/g
 	    $type=pointer_type($type);

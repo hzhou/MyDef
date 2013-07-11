@@ -1,91 +1,153 @@
 include: output.def
-include: macros_c/cfunctions.def
-include: macros_apple/classes.def
-include: macros_apple/views.def
 
-page: output_apple, output_main
+# Goal: a general class interface for OOP languages
+#       seperate implementations for ObjC
+
+include: macros_apple/classes.def
+#include: macros_apple/views.def
+
+page: output_apple, inherit_c
     type: pm
     output_dir: lib/MyDef
     ext: m
     init_mode: sub
-    subcode: package_subs
-	$call package_global
-	$call apple_functions
-	$call c_main
-    subcode: init_page
-	$call c_init
-	register_type_prefix("obj", "id")
-	$global_type->{self}=1
-	$class_default=$MyDef::def->{resource}->{"class_default"}
-    subcode: parsecode
-	$call translate_macros
-	$call objc_parsecode
-	$call c_parsecode
-    subcode: dumpout
-	# ----  Main Function -------------------
-	my $func=$functions{"main"};
-	$if $func
-	    $func->{skip_declare}=1;
-	    $func->{ret_type}="int";
-	    $func->{param_list}=["int argc", "char** argv"];
-	    $func->{init}=["DUMP_STUB main_init"];
-	    $func->{finish}=["DUMP_STUB main_exit", "return 0;"];
-	# ---- process_function ------------------------
-	my $funclist=MyDef::dumpout::get_func_list()
-	$foreach my $func in @$funclist
-	    $call process_function_std
+    package: MyDef::output_apple
 
-	# ---- process views ----
-	$call process_views
+subcode:: on_init
+    $$(C)type_prefix{"obj"}="id"
+    $$(C)global_type->{self}=1
+    $global %imports
+    $imports{"UIKit/UIKit.h"}=1
 
-	my $block=MyDef::compileutil::get_named_block("global_init")
-	# ---- dump classes ----
-	my @class_list = sort keys %classes;
-	$foreach my $name in @class_list
-	    push @$block, "\@class $name;";
-	push @$block, "NEWLINE"
-	$foreach my $name in @class_list
-	    my $class=$classes{$name}
-	    $call dump_class_interface, $block
-	$foreach my $name in @class_list
-	    my $class=$classes{$name}
-	    $call dump_class_implementation, $block
+subcode: on_dumpout
+    # ---- process_function ------------------------
+    my $funclist=MyDef::dumpout::get_func_list()
+    $foreach $func in @$funclist
+	$if $func->{is_method}
+	    $call process_function_method
+	    $func->{processed}=1
 
-	# ----
-	$while my ($k, $v)=each %method_hash
-	    $dump->{$k}=$v
-	# ---- c global stuff -----------------------
-	$call objc_dump_includes
-	unshift @$out, "DUMP_STUB global_init";
-	$call c_dump_init
+    # ---- process classes ----
+    my $block=MyDef::compileutil::get_named_block("global_init")
+    $foreach $class in @class_list
+	push @$block, "\@class $class->{name};";
+    push @$block, "NEWLINE"
 
-subcode:: package_global
-    my %view_hash;
-    my %imports=("UIKit/UIKit.h"=>1);
+    $foreach $class in @class_list
+	my $name=$class->{name}
+	my $block=MyDef::compileutil::get_named_block("CLASS-$name")
+	print "block CLASS-$name $block\n"
+	my $class=$classes{$name}
+	$call dump_class_interface, $block
+	$call dump_class_implementation, $block
 
-subcode: objc_dump_includes
-    my @includes=keys %imports;
-    foreach my $i (@includes){
+    # ---- imports -----------------------
+    my @includes=keys %imports
+    $foreach $i in keys %imports
 	push @$f, "#import <$i>\n";
-    }
     push @$f, "\n";
+
+##--------------------------------------------
+subcode: on_parsecode
+    $call translate_macros
+    $call objc_parsecode
+
+###################################################
+subcode: dump_class_interface(block)
+    my $interface=$class->{interface};
+    $if $class->{protocols} and @{$class->{protocols}}
+	my $plist=$class->{protocols}
+	$interface.=" <".join(", ", @$plist).">";
+    push @$(block), "// ---------- BEGIN CLASS $name -------------"
+    push @$(block), "\@interface $name : $interface";
+
+
+    # -- properties --
+    $while my ($pname, $ptype)=each %{$class->{properties}}
+	push @$(block), "    \@property $ptype $pname;";
+
+    $foreach $fidx in @{$class->{methods}}
+	my $func=MyDef::dumpout::get_function($fidx)
+	push @$(block), "    $func->{declare};";
+
+    push @$(block), "\@end";
+    push @$(block), "NEWLINE";
+
+subcode: dump_class_implementation(block)
+    push @$(block), "\@implementation $name";
+    push @$(block), "NEWLINE"
+    $while my ($pname, $ptype)=each %{$class->{properties}}
+	push @$(block), "\@synthesize $pname;";
+
+    $foreach $fidx in @{$class->{methods}}
+	my $func=MyDef::dumpout::get_function($fidx)
+	push @$(block), "NEWLINE";
+	push @$(block), "DUMP_STUB METHOD-$fidx"
+	push @$(block), "NEWLINE";
+
+    push @$(block), "\@end";
+    push @$(block), "// ----------- END CLASS $name --------------"
+    push @$(block), "NEWLINE";
+
+###################################################
+subcode: process_class
+
+subcode: process_function_method
+    $(C)process_function_std($func)
+
+    my $declare=$func->{declare}
+    $if !$declare
+	my $name=$func->{"name"}
+	my $ret_type=$func->{'ret_type'};
+	$if !$ret_type
+	    $ret_type="void"
+	$declare="- ($ret_type)"
+
+	my $param_list=$func->{'param_list'};
+	$if @$param_list
+	    my @tlist
+	    my @name_list=split /:/, $name
+	    $if $#$param_list==$#name_list
+		$for $i=0:@name_list
+		    $if $param_list->[$i]=~/(.*)\s(\W+)$/
+			push @tlist, "$name_list[$i]:($1)$2"
+	    $else
+		$for $i=0:@name_list
+		    $if $param_list->[$i]=~/(.*)\s(\W+)$/
+			push @tlist, "$name_list[$i]:($1)$2"
+		$for $i=@name_list:@$param_list
+		    $if $param_list->[$i]=~/(.*)\s(\W+)$/
+			push @tlist, "p$i:($1)$2"
+	    $declare.=join(' ', @tlist)
+	$else
+	    $declare.=$name
+	$func->{declare}=$declare
+
+    $func->{openblock}=[$declare."{"]
+    $func->{processed}=1
 
 # -------------- Parsing --------------------------
 subcode: objc_parsecode
-    $if $l=~/^\$MakeController\s+(\w+)/
-	create_controller($1)
-	return 
-    $elif $l=~/^\$subclass\s+(\w+)(.*)/
-	new_class($1, $2)
+    $if $l=~/^\$class\s+(\w+)(.*)/
+	my $name=new_class($1, $2)
+	push @$(Cout), "DUMP_STUB CLASS-$name"
+	push @$(Cout), "BLOCK"
+	return "NEWBLOCK-\$class_end"
+    $elif $l=~/^\$class_end/
+	undef $cur_class
 	return
     $elsif $l=~/^\$implement\s+(\w+)/
 	my $protocol=$1;
 	$call implement_protocol
 	return
-    $elsif $l=~/^\$method\s+(\w+)(.*)/
+    $elsif $l=~/^\$method\s+(\w+)\s*(.*)/
 	my ($name, $tail)=($1, $2)
-	$call new_method, $name, BLOCK
-	return \@method_block;
+	$if $tail=~/^\((.*)\)/
+	    $tail=$1
+	return new_method($name, $tail)
+    $elif $l=~/^\$MakeController\s+(\w+)/
+	create_controller($1)
+	return 
     # -------------------------------------------------
     # ---- Properties
     $elsif $l=~/^\s*\$prop\s+(.*)/
@@ -111,44 +173,11 @@ subcode: objc_parsecode
 	    declare_var($2, $type);
 	}
 	$l="$2 = $3";
-    ## ---- add view
-    $elsif $l=~/^\$addview\s+(.+)/
-	my @tlist=split /,\s*/, $1;
-	foreach my $v(@tlist){
-	    addview($out, $v);
-	}
-    ## ---- animation blocks --------------------------------------
-    $elsif $l=~/^\$animate_begin\s+(.+)/
-	$if $animate_block_depth!=0
-	    die "animate_block_depth=$animate_block_depth at \$animate_begin\n";
-	$animate_block_depth=1;
-	my $param=parse_animation_param($1);
-	return single_block("[UIView animateWithDuration:$param animations:^{", "}")
-    $elsif $l=~/^\$animate_next\s+(.+)/
-	$if $animate_block_depth<=0
-	    die "Missing \$animate_begin?\n";
-	$if $animate_need_completion>0
-	    $animate_need_completion--;
-	$animate_block_depth++;
-	my $param=parse_animation_param($1);
-	return single_block("completion:^(BOOL finished){ [UIView animateWithDuration:$param animations:^{", "}")
-    $elsif $l=~/^\$animate_complete/
-	$if $animate_need_completion>0
-	    $animate_need_completion--;
-	return single_block("completion:^(BOOL finished){", "}")
-    $elsif $l=~/^\$animate_finish/
-	$while $animate_block_depth>1
-	    push @$out, "]}";
-	    $animate_block_depth--;
-	$if $animate_need_completion>0
-	    $animate_need_completion=0;
-	    push @$out, "completion:NULL";
-	push @$out, "];";
-	$animate_block_depth=0;
-	return
     ## ---- new -----------------------------------------------
     $elsif $l=~/^(\S+)\s*=\s*new (\w+)(.*)/
-	new_object($out, $1, $2, $3);
+	my ($v, $name, $spec)=($1, $2, $3)
+	$spec=~s/^,?\s*//
+	$call new_object, $v, $name, $spec
 	return
     # ---- foreach
     $elsif $l=~/^\s*\$foreach\s+(\w+)\s+in\s+(\w+)/
@@ -156,13 +185,13 @@ subcode: objc_parsecode
 	return single_block("for($1 in $2){", "}")
     # ---- Object-C message syntax --------------------------------
     $elsif $l=~/^\s*([a-zA-Z0-9._]+)->(\w+)(\s*)(.*)/
+	my ($obj, $mtd, $s, $t)=($1, $2, $3, $4);
 	$if !$4
-	    push @$out, "[$1 $2];";
+	    push @$(Cout), "[$1 $2];";
 	    return;
 	$else
-	    my ($obj, $mtd, $s, $t)=($1, $2, $3, $4);
 	    $if $s=~/\s/
-		push @$out, "[$obj $mtd:$t];";
+		push @$(Cout), "[$obj $mtd:$t];";
 		return;
 
 ###################################################################
@@ -221,12 +250,50 @@ subcode: translate_macro_HASH
     my @plist=split /,\s*/, $param;
     my @objs;
     my @keys;
-    foreach my $p(@plist){
+    $foreach $p in @plist
 	my ($key, $val)=split /=>/, $p;
 	push @objs, $val;
-	push @keys, "@\"$keys\"";
-    }
+	push @keys, "@\"$key\""
     my $objlist=join(", ", @objs);
     my $keylist=join(", ", @keys);
     $l=$pre."[NSDictionary dictionaryWithObjects:[arrayWithObjects $objlist, nil] forKeys:[arrayWithObjects $keylist, nil]]". $post;
 
+
+############################################################
+subcode: other_parse
+    # -------------------------------------------------
+    ## ---- add view
+    $elsif $l=~/^\$addview\s+(.+)/
+	my @tlist=split /,\s*/, $1;
+	foreach my $v(@tlist){
+	    addview($out, $v);
+	}
+    ## ---- animation blocks --------------------------------------
+    $elsif $l=~/^\$animate_begin\s+(.+)/
+	$if $animate_block_depth!=0
+	    die "animate_block_depth=$animate_block_depth at \$animate_begin\n";
+	$animate_block_depth=1;
+	my $param=parse_animation_param($1);
+	return single_block("[UIView animateWithDuration:$param animations:^{", "}")
+    $elsif $l=~/^\$animate_next\s+(.+)/
+	$if $animate_block_depth<=0
+	    die "Missing \$animate_begin?\n";
+	$if $animate_need_completion>0
+	    $animate_need_completion--;
+	$animate_block_depth++;
+	my $param=parse_animation_param($1);
+	return single_block("completion:^(BOOL finished){ [UIView animateWithDuration:$param animations:^{", "}")
+    $elsif $l=~/^\$animate_complete/
+	$if $animate_need_completion>0
+	    $animate_need_completion--;
+	return single_block("completion:^(BOOL finished){", "}")
+    $elsif $l=~/^\$animate_finish/
+	$while $animate_block_depth>1
+	    push @$out, "]}";
+	    $animate_block_depth--;
+	$if $animate_need_completion>0
+	    $animate_need_completion=0;
+	    push @$out, "completion:NULL";
+	push @$out, "];";
+	$animate_block_depth=0;
+	return

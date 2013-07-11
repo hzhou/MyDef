@@ -69,8 +69,6 @@ subcode: parse_stack_push
     push @block_stack, {out=>$out, index=>$block_index, eindex=>$block_index, file=>$cur_file, line=>$cur_line, code=>$code};
     # SUBBLOCK messages to enable block scopes ------
     $f_parse->("SUBBLOCK BEGIN $block_index")
-    $if $debug eq "DUMP_C"
-	push @$out, "printf(\"subcode: $codename\\n\");"
 
 subcode: parse_stack_pop
     my $blk=pop @block_stack;

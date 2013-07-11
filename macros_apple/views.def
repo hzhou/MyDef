@@ -2,11 +2,9 @@ include: macros_util/resource.def
 include: macros_util/tool_output.def
 
 subcode:: package_global
-    my %view_hash;
-    my %view_id_hash;
-    my %controller_hash;
-    my @cur_method_stack
-    my @cur_class_stack
+    $global %view_hash, %view_id_hash, %controller_hash
+    $global @cur_method_stack, 
+    $global @cur_class_stack
 
 subcode: add_class
     push @cur_class_stack, $cur_class

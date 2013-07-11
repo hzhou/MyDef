@@ -12,6 +12,11 @@ subcode: debug_plugin
 	print " plugin condition:  $funcname => $codename\n"
 
 
+subcode: check_text_includes
+    $while my ($k, $v)=each %text_include
+	$if $l=~/$k/
+	    $call add_include, $v
+
 subcode: c_parsecode
     my $should_return=1
     $if $l=~/^SUBBLOCK BEGIN (\d+)/
@@ -172,18 +177,7 @@ subcode: parsecode_func
 	    $if $p=~/(.*)\s+(\w+)\s*$/
 		$cur_function->{var_type}->{$2}=$1;
     $elsif $func eq "include"
-	my @flist=split /,\s*/, $param;
-	$call check_autoload_h
-	$foreach my $f in @flist
-	    my $key
-	    $if $f=~/\.\w+$/
-		$key="\"$f\""
-	    $elif $f=~/^".*"$/
-		$key=$f
-	    $else
-		$key="<$f.h>"
-	    $includes{$key}=1
-	    $call add_to_autoload_h, "include-$key"
+	$call add_include, $param
     $elsif $func eq "declare"
 	$call @do_declare, $param
     $elsif $func eq "define"
@@ -205,7 +199,7 @@ subcode: parsecode_func
 	$foreach my $f in @flist
 	    $objects{"lib$f"}=1;
 	    $if $lib_include{$f}
-		add_include($lib_include{$f});
+		$call add_include, $lib_include{$f}
     $elsif $func eq "fntype"
 	# Similar to type_name, but for funtion pointer types
 	$if $param=~/^.*?\(\s*\*\s*(\w+)\s*\)/
@@ -256,10 +250,11 @@ subcode: parsecode_func
 	    list_shift($out, $1);
     $elif $func eq "foreach"
 	$if $param=~/(\w+)\s+in\s+(\w+)/
+	    my ($iv, $v)=($1, $2)
 	    return list_foreach($out, $iv, $v)
     $elif $func eq "eval"
 	$if $param=~/(\w+)(.*)/
-	    $codename=$1
+	    my $codename=$1
 	    $param=$2
 	    $param=~s/^\s*,\s*//
 	    my $t=MyDef::compileutil::eval_sub($codename)
@@ -313,7 +308,12 @@ subcode: c_parse_for
 	    $else
 		$stepclause="$var=$i0;$var<$i1;$var+=$t";
 	$else
-	    $if $i1=~/^-?\d+/ and $i0=~/^-?\d+/ and $i1<$i0
+	    # CAUTION
+	    # I would like to have $i=n:0 be the reverse of $i=0:n
+	    # Infact I would to symmetry between $i=$a:$b:$step and $i=$b:$a:-$step, TO BE DONE
+	    $if $i1 eq "0"
+		$stepclause="$var=$i0-1;$var>=0;$var--";
+	    $elif $i1=~/^-?\d+/ and $i0=~/^-?\d+/ and $i1<$i0
 		$stepclause="$var=$i0;$var>$i1;$var--";
 	    $else
 		$stepclause="$var=$i0;$var<$i1;$var++";
@@ -363,7 +363,7 @@ subcode: parse_function
 	push @$out, "BLOCK";
 	push @$out, "SOURCE_DEDENT";
 	$call add_to_autoload_h, "function-$fname"
-	return "NEWBLOCK-$function_end";
+	return "NEWBLOCK-\$function_end";
     $else
 	return "SKIPBLOCK"
 

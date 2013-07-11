@@ -3,10 +3,10 @@ page: output_glsl
     output_dir: lib/MyDef
     ext: glsl
     init_mode: sub
+    package: MyDef::output_glsl
     subcode: main
 	use MyDef::dumpout;
 	use MyDef::output_c;
-	package MyDef::$(pagename);
 
 	$sub get_interface
 	    return (\&init_page, \&parsecode, \&MyDef::output_c::set_output, \&MyDef::output_c::modeswitch, \&dumpout);

@@ -1,9 +1,7 @@
 # ---- h name list -----------------
-subcode:: package_globals
-    # $h_hash is hash of list of header contents
-    my %h_hash
-
 subcode:: c_init
+    # $h_hash is hash of list of header contents
+    $global %h_hash
     %h_hash=()
 
 subcode: write_h(name, param)
@@ -15,7 +13,6 @@ subcode: write_h(name, param)
 
 subcode: dump_h_files
     my $outdir=$page->{outdir}
-    $foreach $f in keys %h_files
     $while my ($name, $content)=each %h_hash
 	my %ahash
 	my %ghash=("include"=>[], "define"=>[],"struct"=>[],"function"=>[],"global"=>[])

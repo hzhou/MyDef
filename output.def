@@ -2,13 +2,12 @@ include: macros_util/debug.def
 
 subcode: output_main
     use MyDef::dumpout;
-    package MyDef::$(pagename);
 
-    my $debug;
-    my $mode;
-    my $out;
-    my $page;
-    $call @package_subs
+    our $debug;
+    our $mode;
+    our $page;
+    our $out;
+    $call @package_globals
 
     $sub get_interface
 	return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
@@ -29,7 +28,7 @@ subcode: output_main
 
     # ---- php has php,  html and js mode ----------
     $sub modeswitch
-	($mode, $in)=@_;
+	my ($mode, $in)=@_;
 	$call @modeswitch
 
     # ---- All specialized parsing goes here.
@@ -55,14 +54,51 @@ subcode: output_main
 	$call @dumpout
 	MyDef::dumpout::dumpout($dump);
 
+    $call single_blocks
     $call @support_subs
 
     1;
 
+# -------------------------
+subcode: inherit_c
+    use MyDef::output_c
+    $(export:C=MyDef::output_c::)
+    $(export:Cpage=$MyDef::output_c::page)
+    $(export:Cout=$MyDef::output_c::out)
+
+    $call @package_globals
+
+    $sub get_interface
+	return (\&init_page, \&parsecode, \&$(C)set_output, \&modeswitch, \&dumpout);
+
+    $sub modeswitch($mode, $in)
+	$call @on_modeswitch
+
+    $sub init_page
+	my ($page)=@_
+	$if !$page->{type}
+	    $page->{type}="$(ext)"
+	my ($ext, $c_init_mode) = $(C)init_page(@_)
+	$call @on_init
+	return ($ext, "$(init_mode)");
+
+    $sub parsecode($l)
+	$call on_parsecode
+	return $(C)parsecode($l)
+
+    $sub dumpout($f, $out)
+	$call @on_dumpout
+	$(C)dumpout($f, $out)
+
+    $call @support_subs
+
+    1;
+
+# -------------------------
 subcode: parsecode
     push @$out, $l
 
-subcode:: support_subs
+subcode: single_blocks
     $sub single_block($t1, $t2)
 	push @$out, "$t1";
 	push @$out, "INDENT";

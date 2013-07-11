@@ -1,3 +1,4 @@
+include: std_c.def
 include: ext.def
 
 # GUI needs Model View Controller

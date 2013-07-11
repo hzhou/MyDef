@@ -7,6 +7,8 @@ page: output_php
     output_dir: lib/MyDef
     ext: php
     init_mode: html
+    package: MyDef::output_php
+
     subcode: main
 	use MyDef::compileutil;
 	use Term::ANSIColor qw(:constants);
