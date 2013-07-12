@@ -26,7 +26,7 @@ subcode: output_main
     $sub set_output
 	$out = shift
 
-    # ---- php has php,  html and js mode ----------
+    # ---- www has php,  html and js mode ----------
     $sub modeswitch
 	my ($mode, $in)=@_;
 	$call @modeswitch
