@@ -1,0 +1,11 @@
+
+## Frames -------------------------------------------------------------
+htmlcode: basic_frame
+    $call @process
+    $html
+	$head
+	    DUMP_STUB meta
+	    $call @meta
+	$body
+	    $call @content
+
