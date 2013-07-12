@@ -1,51 +1,68 @@
+use strict;
+package MyDef::output_php;
 use MyDef::compileutil;
 use Term::ANSIColor qw(:constants);
 my $php;
+my @style_key_list;
 my $style;
 my $style_sheets;
-my $java_scripts;
-my $inphp=0;
-my  $injs=0;
+my $cur_mode;
+my $in_js=0;
 use MyDef::dumpout;
-package MyDef::output_php;
-my $debug;
-my $mode;
-my $out;
+our $debug;
+our $mode;
+our $page;
+our $out;
 sub get_interface {
-    return (\&init_page, \&parsecode, \&modeswitch, \&dumpout);
+    return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
 }
 sub init_page {
-    my ($page)=@_;
+    ($page)=@_;
     my $ext="php";
     if($page->{type}){
         $ext=$page->{type};
     }
     $php={};
     $style={};
+    @style_key_list=();
     $style_sheets=[];
-    $java_scripts=[];
+    $page->{pageext}=$ext;
     return ($ext, "html");
 }
+sub set_output {
+    $out = shift;
+}
 sub modeswitch {
-    my $pmode;
-    ($pmode, $mode, $out)=@_;
-    if($mode eq "js" and $pmode ne "js"){
-        if($pmode ne "html"){
-            push @$out, "PHP_END";
+    my ($mode, $in)=@_;
+    if($mode eq "sub"){
+        $mode="php";
+    }
+    if($mode ne $cur_mode){
+        if($cur_mode eq "php"){
+            if($out->[-1]=~/^<\?php/){
+                pop @$out;
+            }
+            else{
+                push @$out, "?>\n";
+            }
         }
-        push @$out, "JS_START";
-    }
-    elsif($pmode eq "js" and $mode ne "js"){
-        push @$out, "JS_END";
-        if($mode ne "html"){
-            push @$out, "PHP_START";
+        if($in_js and !($mode eq "php" and $in) and ($mode ne "js")){
+            push @$out, "</script>\n";
+            $in_js=0;
         }
-    }
-    elsif($pmode ne "html" and $mode eq "html"){
-        push @$out, "PHP_END";
-    }
-    elsif($pmode eq "html" and $mode ne "html"){
-        push @$out, "PHP_START";
+        if($mode eq "php"){
+            if($out->[-1]=~/^\?>/){
+                pop @$out;
+            }
+            else{
+                push @$out, "<?php\n";
+            }
+        }
+        if(!$in_js and $mode eq "js"){
+            push @$out, "<script type=\"text/javascript\">\n";
+            $in_js=1;
+        }
+        $cur_mode=$mode;
     }
 }
 sub parsecode {
@@ -73,14 +90,7 @@ sub parsecode {
         }
         else{
             $style->{$1}=$2;
-        }
-    }
-    elsif($l=~/^\s*(CSS|JS):\s*(\S+)/){
-        if($1 eq "CSS"){
-            push @$style_sheets, $2;
-        }
-        elsif($1 eq "JS"){
-            push @$java_scripts, $2;
+            push @style_key_list, $1;
         }
     }
     elsif($l=~/^\s*PRINT/){
@@ -92,12 +102,13 @@ sub parsecode {
         $param=~s/^\s+//;
         $param=~s/:?\s*$//;
         if($func eq "php"){
-            push @$out, terminate_php($param);
+            $l=$param;
+            if($l!~/[\{\};]\s*$/){
+                $l.=";";
+            }
+            push @$out, $l;
         }
-        elsif($param =~ /^\s*[\[=+-\.\/\*]/){
-            push @$out, '$'.$func.terminate_php($param);
-        }
-        elsif($func=~/^(img|input)$/)
+        elsif($func=~/^(img)$/){
             my @tt_list=split /,\s*/, $param;
             my $is_empty_tag=0;
             my $t="";
@@ -114,10 +125,10 @@ sub parsecode {
                 elsif($tt=~/^#(\S+)$/){
                     $t.=" id=\"$1\"";
                 }
-                elsif($tt=~/^(\S+):"(.*)"/){
+                elsif($tt=~/^(\S+?):"(.*)"/){
                     $t.=" $1=\"$2\"";
                 }
-                elsif($tt=~/^(\S+):(.*)/){
+                elsif($tt=~/^(\S+?):(.*)/){
                     $t.=" $1=\"$2\"";
                 }
                 elsif($tt=~/^"(.*)"/){
@@ -125,11 +136,19 @@ sub parsecode {
                 }
                 else{
                     $t.=" class=\"$tt\"";
+                }
+            }
+            if($func eq "form"){
+                if($t!~/action=/){
+                    $t.=" action={\$_SERVER['PHP_SELF']}";
+                }
+                if($t!~/method=/){
+                    $t.=" method=\"post\"";
                 }
             }
             push @$out, "PRINTLN <$func$t />";
         }
-        elsif($func =~ /^(tag|div|span|center|ol|ul|li|table|tr|td|th|b|script|style|p|h[1-5]|center|pre|html|head|body|a|form|label)$/){
+        elsif($func =~ /^(tag|div|span|center|ol|ul|li|table|tr|td|th|b|script|style|p|h[1-5]|center|pre|html|head|body|a|form|label|fieldset|button|textarea)$/){
             my @tt_list=split /,\s*/, $param;
             my $is_empty_tag=0;
             my $t="";
@@ -146,10 +165,10 @@ sub parsecode {
                 elsif($tt=~/^#(\S+)$/){
                     $t.=" id=\"$1\"";
                 }
-                elsif($tt=~/^(\S+):"(.*)"/){
+                elsif($tt=~/^(\S+?):"(.*)"/){
                     $t.=" $1=\"$2\"";
                 }
-                elsif($tt=~/^(\S+):(.*)/){
+                elsif($tt=~/^(\S+?):(.*)/){
                     $t.=" $1=\"$2\"";
                 }
                 elsif($tt=~/^"(.*)"/){
@@ -157,41 +176,31 @@ sub parsecode {
                 }
                 else{
                     $t.=" class=\"$tt\"";
+                }
+            }
+            if($func eq "form"){
+                if($t!~/action=/){
+                    $t.=" action={\$_SERVER['PHP_SELF']}";
+                }
+                if($t!~/method=/){
+                    $t.=" method=\"post\"";
                 }
             }
             if($is_empty_tag){
                 push @$out, "PRINTLN <$func$t></$func>";
             }
             else{
-                simple_block("PRINTLN <$func$t>", "PRINTLN </$func>", $out);
+                return single_block("PRINTLN <$func$t>", "PRINTLN </$func>");
             }
         }
-        elsif($func =~ /^cell([az]*)/){
-            my $t=$1;
-            my $attr="";
-            my ($tr_begin, $tr_end);
-            if($param=~/(\d+)/){
-                $attr=" colspan=$&";
+        elsif($func eq 'hidden'){
+            my @p=split /,\s*/, $param;
+            foreach my $n(@p){
+                push @$out, "print \"<input type=\\\"hidden\\\" name=\\\"$n\\\" value=\\\"\$$n\\\" />\";";
             }
-            elsif($param){
-                $attr=" class=\"$param\"";
-            }
-            if($t=~/a/){
-                $tr_begin="<tr valign=\"top\">";
-            }
-            if($t=~/z/){
-                $tr_end="</tr>";
-            }
-            simple_block("PRINTLN $tr_begin<td$attr>", "PRINTLN </td>$tr_end", $out);
         }
-        elsif($func eq 'fieldset'){
-            simple_block("PRINTLN <fieldset><legend>$param</legend>", "PRINTLN </fieldset>", $out);
-        }
-        elsif($func eq 'jssrc'){
-            push @$out, "PRINT <script type=\"text/javascript\" src='$param'></script>";
-        }
-        elsif($func eq 'divbox'){
-            push @$out, "PRINT <div id='$param' ></div>";
+        elsif($func eq 'use_css'){
+            push @$style_sheets, $param;
         }
         elsif($func eq 'include'){
             if(open my $in, $param){
@@ -233,52 +242,10 @@ sub parsecode {
                 print STDERR " Can't open [$param]\n";
             }
         }
-        elsif($func eq 'error'){
-            push @$out, "\$errors[]=$param;";
-        }
-        elsif($func eq 'formhead'){
-            formhead($out, $param);
-        }
-        elsif($func eq 'formtail'){
-            my @p=split /,\s*/, $param;
-            foreach my $n(@p){
-                push @$out, "if(isset(\$$n)){";
-                push @$out, "    print \"<input type=\\\"hidden\\\" name=\\\"$n\\\", value=\\\"\$$n\\\" />\";";
-                push @$out, "}";
-                push @$out, "else{";
-                push @$out, "    print \"<input type=\\\"hidden\\\" name=\\\"$n\\\", value=\\\"\\\" />\";";
-                push @$out, "}";
-            }
-            push @$out, 'print "</form>";';
-        }
         elsif($func eq 'loadoptlist'){
             my @flist=split /,\s*/, $param;
             foreach my $f(@flist){
                 loadoptlist($out, $f);
-            }
-        }
-        elsif($func eq 'forminit'){
-            forminit($out, $param);
-        }
-        elsif($func eq 'formshow'){
-            formshow($out, $param);
-        }
-        elsif($func eq 'hidden'){
-            my @p=split /,\s*/, $param;
-            foreach my $n(@p){
-                push @$out, "print \"<input type=\\\"hidden\\\" name=\\\"$n\\\" value=\\\"\$$n\\\" />\";";
-            }
-        }
-        elsif($func eq 'postloadonly'){
-            foreach my $f (splitlist($param)){
-                if($f=~/(\w+)\((\w+)\)/){$f=$1;};
-                post_load_only($out, $f);
-            }
-        }
-        elsif($func eq 'postload'){
-            foreach my $f (splitlist($param)){
-                if($f=~/(\w+)\((\w+)\)/){$f=$1;};
-                post_load($out, $f);
             }
         }
         elsif($func eq 'redirect'){
@@ -319,43 +286,46 @@ sub parsecode {
             }
         }
         elsif($func eq "if"){
-            simple_block("if($param){", "}", $out);
+            return single_block("if($param){", "}")
         }
         elsif($func eq "ifz"){
             if($param=~/(\$\w+)\[(^[\]]*)\]/){
-                simple_block("if(!(array_key_exists($2, $1) and $param)){", "}", $out);
+                return single_block("if(!(array_key_exists($2, $1) and $param)){", "}")
             }
             else{
-                simple_block("if(empty($param)){", "}", $out);
+                return single_block("if(empty($param)){", "}")
             }
         }
         elsif($func eq "ifnz"){
             if($param=~/(\$\w+)\[(^[\]]*)\]/){
-                simple_block("if((array_key_exists($2, $1) and $param)){", "}", $out);
+                return single_block("if((array_key_exists($2, $1) and $param)){", "}")
             }
             else{
-                simple_block("if(!empty($param)){", "}", $out);
+                return single_block("if(!empty($param)){", "}")
             }
         }
         elsif($func =~ /^(el|els|else)if$/){
-            if($mode eq 'html' or $mode eq 'js'){
-                simple_block("else if($param){", "}", $out);
+            if($cur_mode eq 'html' or $cur_mode eq 'js'){
+                return single_block("else if($param){", "}")
             }
             else{
-                simple_block("elseif($param){", "}", $out);
+                return single_block("elseif($param){", "}")
             }
         }
         elsif($func eq "else"){
-            simple_block("else{", "}", $out);
+            return single_block("else{", "}");
         }
         elsif($func eq "foreach" or $func eq "for" or $func eq "while"){
-            simple_block("$func ($param){", "}", $out);
+            return single_block("$func ($param){", "}");
         }
         elsif($func eq "function"){
-            simple_block("function $param {", "}", $out);
+            return single_block("function $param {", "}");
         }
         elsif($func eq 'input'){
-            input($out, $param);
+            field_input($param);
+        }
+        elsif($func eq 'field_label'){
+            field_label($param);
         }
         elsif($func eq 'button'){
             formbutton($out, $param);
@@ -413,74 +383,93 @@ sub parsecode {
             push @$out, "PRINT </ul>";
         }
         else{
-            if($mode eq "js" and $l=~/\$jq/){
+            if($cur_mode eq "js" and $l=~/\$jq/){
                 $l=~s/\$jq\(/\$\(/g;
                 $MyDef::var->{use_jquery}=1;
             }
-            elsif($mode eq "js" or $mode eq "html"){
+            elsif($cur_mode eq "js" or $cur_mode eq "html"){
                 print STDERR "Function \$$func Not Defined.\n";
             }
             else{
-                $l=terminate_php($l);
+                if($l!~/[\{\};]\s*$/){
+                    $l.=";";
+                }
                 push @$out, $l;
             }
         }
     }
     else{
-        if($mode ne 'html' and $mode ne 'js'){
-            $l=terminate_php($l);
+        if($cur_mode ne 'html' and $cur_mode ne 'js'){
+            if($l!~/[\{\};]\s*$/){
+                $l.=";";
+            }
+        }
+        else{
+            $l=~s/(\$\w+)/<?php echo \1 ?>/g;
         }
         push @$out, $l;
     }
 }
 sub dumpout {
-    my ($f, $out)=@_;
+    my $f;
+    ($f, $out)=@_;
     my $dump={out=>$out,f=>$f};
+    my $cur_mode;
     my $metablock=MyDef::compileutil::get_named_block("meta");
     dumpmeta($metablock);
-    dumpstyle($metablock, $style);
     $dump->{custom}=\&custom_dump;
     MyDef::dumpout::dumpout($dump);
 }
-sub simple_block {
-    my ($pre, $post, $out)=@_;
-    push @$out, "$pre";
+sub single_block {
+    my ($t1, $t2)=@_;
+    push @$out, "$t1";
     push @$out, "INDENT";
     push @$out, "BLOCK";
     push @$out, "DEDENT";
-    push @$out, "$post";
+    push @$out, "$t2";
     return "NEWBLOCK";
 }
-sub terminate_php {
-    my $l=shift;
-    if($l!~/[\{\};]\s*$/){
-        $l=$l.";";
+sub single_block_pre_post {
+    my ($pre, $post)=@_;
+    if($pre){
+        foreach my $l (@$pre){
+            push @$out, $l;
+        }
     }
-    return $l;
+    push @$out, "BLOCK";
+    if($post){
+        foreach my $l (@$post){
+            push @$out, $l;
+        }
+    }
+    return "NEWBLOCK";
 }
 sub dumpstyle {
     my ($f, $style)=@_;
-    my @keys=sort keys %$style;
-    if(@keys){
-        print "Dumping style: $style\n";
-        print "Dump hash $style\n";
-        while(my ($k, $v) = each %$style){
-            print "    ", "$k: $v\n";
-        }
+    if(@style_key_list){
         if($MyDef::page->{type} ne "css"){
             push @$f, "<style>\n";
         }
-        foreach my $k (@keys){
+        foreach my $k (@style_key_list){
             my %attr;
+            my @attr;
             my @tlist=split /;/, $style->{$k};
-            foreach my $t(@tlist){
-                if($t=~/(\S+):\s+(.*)/){
+            foreach my $t (@tlist){
+                if($t=~/([^ :]+):\s*(.*)/){
+                    if(!defined $attr{$1}){
+                        push @attr, $1;
+                    }
                     $attr{$1}=$2;
                 }
             }
             @tlist=();
-            foreach my $a (keys(%attr)){
+            foreach my $a (@attr){
                 push @tlist, "$a: $attr{$a}";
+                if($a eq "background-image" and $attr{$a}=~/linear-gradient\((\w+),\s*(\S+),\s*(\S+)\)/){
+                    foreach my $prefix (("moz", "webkit", "ms", "o")){
+                        push @tlist, "$a: -$prefix-linear-gradient($1, $2, $3)";
+                    }
+                }
             }
             push @$f, "    $k {". join('; ', @tlist)."}\n";
         }
@@ -494,105 +483,13 @@ sub dumpmeta {
     if($MyDef::page->{title}){
         push @$f, "<title>$MyDef::page->{title}</title>\n";
     }
+    dumpstyle($f, $style);
     my %sheet_hash;
     foreach my $s (@$style_sheets){
         if(!$sheet_hash{$s}){
             $sheet_hash{$s}=1;
             push @$f, "<link rel=\"stylesheet\" type=\"text/css\" href=\"$s\" />\n";
         }
-    }
-    my %js_hash;
-    foreach my $s (@$java_scripts){
-        if(!$js_hash{$s}){
-            $js_hash{$s}=1;
-            push @$f, "<script type=\"text/javascript\" src=\"$s\" />\n";
-        }
-    }
-}
-sub post_load_only {
-    my ($out, $f)=@_;
-    my $ff=$MyDef::def->{fields}->{$f};
-    my $type=get_f_type($f);
-    my $name=get_f_name($f);
-    my $isout=0;
-    if($type eq "imagefile"){
-        $isout=1;
-    }
-    elsif($type eq 'date' and !$ff->{optional}){
-        push @$out, "\$$name=\$_POST['year_$name'].'-'.\$_POST['month_$name'].'-'.\$_POST['date_$name'];";
-        $isout=1;
-    }
-    if(!$isout){
-        push @$out, "if(array_key_exists('$name', \$_POST)){";
-        push @$out, "    \$$name= stripslashes (\$_POST['$name']);";
-        push @$out, "}";
-        if($ff->{other}){
-            if(0){
-            }
-            else{
-                push @$out, "if(\$$name=='other'){\$$name=stripslashes(\$_POST['other_$name']);}";
-            }
-        }
-    }
-}
-sub post_load {
-    my ($out, $f)=@_;
-    post_load_only($out, $f);
-    my $ff=$MyDef::def->{fields}->{$f};
-    my $type=get_f_type($f);
-    my $name=get_f_name($f);
-    my $title=get_f_label($f);
-    if(!$ff->{optional}){
-        if($type eq 'boolean'){
-            push @$out, "if(\$$name != '0' and \$$name != '1'){";
-            push @$out, "    \$errors[]=\"Please select $title.\";";
-            push @$out, "    \$error_fields['$name']=1;";
-            push @$out, "}";
-        }
-        elsif($type eq 'image'){
-            push @$out, "if(!is_uploaded_file(\$_FILES['$name']['tmp_name'])){";
-            push @$out, "    \$error_fields['$name']=1;";
-            push @$out, "}";
-        }
-        else{
-            push @$out, "if(!\$$name){";
-            push @$out, "    \$errors[]=\"Please enter $title.\";";
-            push @$out, "    \$error_fields['$name']=1;";
-            push @$out, "}";
-        }
-    }
-    if($type eq 'date'){
-        push @$out, "if(\$$name){";
-            push @$out, "if(!preg_match('/\\d\\d\\/\\d\\d\\/\\d\\d\\d\\d/', \$$name)){";
-            push @$out, "    \$error_fields['$name']=1;";
-            push @$out, "    \$errors[]='Please enter \"$title\" in mm/dd/yyyy format.';";
-            push @$out, "}";
-        push @$out, "}";
-    }
-    if($type eq 'email'){
-        push @$out, "if(\$$name){";
-            push @$out, "if(!preg_match('/\\S+\@\\S+/', \$$name)){";
-            push @$out, "    \$error_fields['$name']=1;";
-            push @$out, "    \$errors[]='Please enter a valid E-Mail address.';";
-            push @$out, "}";
-        push @$out, "}";
-    }
-    if($type eq 'phone'){
-        push @$out, "\$$name=ereg_replace('[^0-9]', '', \$$name);";
-        if(!$ff->{optional}){
-            push @$out, "if(!\$$name){";
-                push @$out, "    \$error_fields['$name']=1;";
-                push @$out, "    \$errors[]='Please enter a valid number.';";
-            push @$out, "}";
-        }
-    }
-}
-sub forminit {
-    my ($out, $name)=@_;
-    my $form=$MyDef::def->{fieldsets}->{$name};
-    my $fields=$form->{fields};
-    foreach my $f (@$fields){
-        push @$out, "\$$f='';";
     }
 }
 sub sql_exec {
@@ -1214,7 +1111,13 @@ sub tablelist {
     }
     push @$out, "    if(\$j$suffix%2){\$tdclass=\"even$suffix\";}";
     push @$out, "    else{\$tdclass=\"odd$suffix\";}";
-    push @$out, "    print \"<tr>\";";
+    my $rlink=$MyDef::compileutil::deflist->[-1]->{rlink};
+    my $attr="class=\\\"\$tdclass\\\"";
+    if($rlink){
+        $rlink=~s/\$\[(.*?)\]/{\$i$suffix\['\1']}/g;
+        $attr.=" onclick=\\\"window.location.href='$rlink'\\\"";
+    }
+    push @$out, "    print \"<tr $attr>\";";
     foreach my $f (@$flist){
         my $ff=$fields->{$f};
         my $align="center";
@@ -1223,7 +1126,7 @@ sub tablelist {
         }
         my $width="";
         if($ff->{width}){$width=" width=\\\"$ff->{width}\\\"";};
-        push @$out, "    print \"<td class=\$tdclass align=$align $width>\";";
+        push @$out, "    print \"<td align=$align $width>\";";
         display_list_field($out, $f, $fields, $suffix);
         push @$out, "    print \"</td>\";";
     }
@@ -1243,42 +1146,6 @@ sub script_selectother {
     push @lines, "    }";
     push @lines, "}";
     $MyDef::def->{scripts}->{"selectother_$name"}=\@lines;
-}
-sub formhead {
-    my ($out, $param)=@_;
-    my @p=split /,\s*/, $param;
-    my $formname=shift @p;
-    my $method="post";
-    my $action="{\$_SERVER['PHP_SELF']}";
-    my $uploadlimit=0;
-    my $onsubmit;
-    foreach my $n(@p){
-        if($n eq 'get' or $n eq 'post'){
-            $method=$n;
-        }
-        elsif($n=~/\//){
-            $action=$n;
-        }
-        elsif($n=~/\.php/){
-            $action=$n;
-        }
-        elsif($n=~/\d+/){
-            $uploadlimit=$n;
-        }
-        elsif($n=~/\(.*\)/){
-            $onsubmit=$n;
-        }
-    }
-    if($onsubmit){
-        $onsubmit="onsubmit=\"return $onsubmit\"";
-    }
-    if($uploadlimit){
-        push @$out, "PRINT <form method=\"$method\" action=\"$action\" name=\"$formname\" enctype=\"multipart/form-data\" $onsubmit>";
-        push @$out, "PRINT <input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"$uploadlimit\" />";
-    }
-    else{
-        push @$out, "PRINT <form method=\"$method\" action=\"$action\" name=\"$formname\" $onsubmit>";
-    }
 }
 sub loadoptlist {
     my ($out, $f)=shift;
@@ -1323,77 +1190,6 @@ sub formpreloadselection {
             push @$out, "\$$listname=array(".join(', ', @list).");";
         }
     }
-}
-sub formshow {
-    my ($out, $formname)=@_;
-    my $fields=$MyDef::def->{fields};
-    my $form=$MyDef::def->{fieldsets}->{$formname};
-    my $flist=$form->{fields};
-    push @$out, "PRINT <div class=\"form\">";
-    if($form->{title}){
-        push @$out, "print '<h1 class=\"formtitle\">".$form->{title}."</h1>';";
-    }
-    push @$out, 'print "<table class=\"formtable\">";';
-    my $labelalign="right";
-    if($form->{align}){$labelalign=$form->{align};};
-    foreach my $f (@$flist){
-        my $ff=$fields->{$f};
-        my $title=$f;
-        if($ff->{title}){$title=$ff->{title};};
-        my $prefix;
-        if($ff->{optional}){
-            push @$out, "if(\$$f){";
-        }
-        push @$out, "print \"<tr><td class=\\\"labelcolumn\\\" valign=\\\"top\\\" align=\\\"$labelalign\\\">\";";
-        push @$out, 'print "<label>'.$title.':</label>";';
-        push @$out, 'print "</td><td class=\"formspacer\"></td>";';
-        push @$out, 'print "<td valign=\"top\" align=\"left\">";';
-        my $listname;
-        if($ff->{listname}){
-            $listname=$ff->{listname};
-        }
-        elsif($ff->{list}){
-            $listname=$f.'_optlist';
-        }
-        if($ff->{type} eq "boolean"){
-            my $y="Yes";
-            my $n="No";
-            if($ff->{list}){
-                my @l=split(/,\s*/, $ff->{list});
-                $y=$l[0];
-                $n=$l[1];
-            }
-            push @$out, "if(\$$f==1){print \"$y\";}";
-            push @$out, "else{print \"$n\";}";
-        }
-        elsif($ff->{type} eq "file"){
-        }
-        elsif($ff->{type} eq "imagefile"){
-        }
-        elsif($ff->{type} eq "password"){
-            print STDERR "    Password should not be displayed.\n";
-        }
-        else{
-            if($listname){
-                push @$out, "if(\$$listname){";
-                push @$out, "    print \$$listname\[\$$f\];";
-                push @$out, "}";
-                push @$out, "else{";
-                push @$out, "    print \$$f;";
-                push @$out, "}";
-            }
-            else{
-                push @$out, "print \$$f;";
-            }
-        }
-        push @$out, "print \"</td></tr>\";";
-        if($ff->{optional}){
-            push @$out, "}";
-        }
-    }
-    push @$out, 'print "</td></tr>";';
-    push @$out, 'print "</table>";';
-    push @$out, "PRINT </div>";
 }
 sub getfieldsize {
     my ($ff, $type) =@_;
@@ -1444,125 +1240,6 @@ sub getfieldlabel {
     if($ff->{title}){$title=$ff->{title};};
     return "$title";
 }
-sub form_twocolumn {
-    my ($out, $fields, $displaylist, $inputlist, $maxsize, $id)=@_;
-    $tlist=$displaylist;
-    my $display=1;
-    my $idstr;
-    if($id){
-        $idstr=" id=\\\"$id\\\"";
-    }
-    push @$out, "print \"<table class=\\\"formtable\\\"$idstr>\";";
-FLIST:
-    foreach my $f (@$tlist){
-        my $ff=$fields->{$f};
-        my $type=getfieldtype($ff, $f);
-        $label=getfieldlabel($ff, $f);
-        if(!$ff->{optional} and !$display){
-            $label.="*";
-        }
-        my $valign="valign=\\\"top\\\"";
-        push @$out, "print '<tr class=\"formrow\">';";
-        push @$out, "print \"<td class=\\\"labelcolumn\\\" $valign align=\\\"$labelalign\\\">\";";
-        push @$out, "print \"<label>$label</label>\";";
-        if($ff->{help}){
-            push @$out, "print \"<div class=\\\"formhelp\\\">$ff->{help}</div>\";";
-        }
-        push @$out, 'print "</td><td class=\"formspacer\"></td>";';
-        push @$out, "print \"<td class=\\\"inputcolumn\\\">\\n\";";
-        if($display){
-            fielddisplay($out, $f, $ff);
-        }
-        else{
-            fieldinput($out, $f, $ff, $maxsize);
-        }
-        push @$out, 'print "\n</td></tr>\n";';
-    }
-    if($display){
-        $display=0;
-        $tlist=$inputlist;
-        goto FLIST;
-    }
-    push @$out, "print \"</table>\";";
-}
-sub form_one {
-    my ($out, $fields, $displaylist, $inputlist, $maxsize)=@_;
-    $tlist=$displaylist;
-FLIST:
-    foreach my $f (@$tlist){
-        my $ff=$fields->{$f};
-        my $type=getfieldtype($ff, $f);
-        $label=getfieldlabel($ff, $f);
-        if(!$ff->{optional} and !$display){
-            $label.="*";
-        }
-        my $valign="valign=\"top\"";
-        push @$out, "PRINT <p>";
-        push @$out, 'print "<label>'.$label.'</label><br />";';
-        if($display){
-            fielddisplay($f, $ff);
-        }
-        else{
-            fieldinput($f, $ff, $maxsize);
-        }
-    }
-    if($display){
-        $display=0;
-        $tlist=$inputlist;
-        goto FLIST;
-    }
-    push @$out, "PRINT </p>";
-}
-sub formbody {
-    my ($out, $formname)=@_;
-    formpreloadselection($out, $formname);
-    my $fields=$MyDef::def->{fields};
-    my $form=$MyDef::def->{fieldsets}->{$formname};
-    my $inputlist=$form->{fields};
-    my @displaylist=();
-    if($form->{display}){
-        @displaylist=split /,\s*/, $form->{display};
-    }
-    if(!$form->{layout}){
-        $form->{layout}="2";
-    }
-    push @$out, "PRINT <div class=\"form\">";
-    if($form->{title}){
-        push @$out, "print '<h2 class=\"formtitle\">".$form->{title}."</h2>';";
-    }
-    if($form->{legend}){
-        push @$out, "print \" <fieldset><legend>$form->{legend}</legend>\";";
-    }
-    my $maxsize=20;
-    if($form->{maxsize}){
-        $maxsize=$form->{maxsize};
-    }
-    if($form->{layout} eq "2"){
-        form_twocolumn($out, $fields, $displaylist, $inputlist, $maxsize);
-    }
-    else{
-        form_one($out, $fields, $displaylist, $inputlist, $maxsize);
-    }
-    my $buttons=$form->{buttons};
-    if($buttons){
-        push @$out, "PRINT <br>";
-        foreach my $b(@$buttons){
-            formbutton($out, $b);
-        }
-    }
-    if($form->{legend}){
-        push @$out, "PRINT </fieldset>";
-    }
-    push @$out, "PRINT </div>";
-}
-sub forminput {
-    my ($out, $param, $id)=@_;
-    @inputlist=split /,\s*/, $param;
-    my $fields=$MyDef::def->{fields};
-    my @displaylist=();
-    my $maxsize=80;
-    form_twocolumn($out, $fields, [], \@inputlist, $maxsize, $id);
-}
 sub formbutton {
     my ($out, $param)=@_;
     my @bb=split /,\s*/, $param;
@@ -1573,12 +1250,6 @@ sub formbutton {
     }
     push @$out, "print \"<input class=\\\"formbutton\\\" type=\\\"submit\\\" value=\\\"$bb[0]\\\" onmouseover=\\\"this.style.borderColor='silver';\\\" onmouseout=\\\"this.style.borderColor='gray';\\\" $MODE>\";";
     push @$out, "PRINT &nbsp;";
-}
-sub input {
-    my ($out, $f)=@_;
-    my $ff=$MyDef::def->{fields}->{$f};
-    my $type=getfieldtype($ff, $f);
-    fieldinput($out, $f, $ff);
 }
 sub get_f_type {
     my $f=shift;
@@ -1689,20 +1360,23 @@ sub get_f_display {
         }
     }
 }
-sub fieldinput {
-    my ($out, $f, $ff, $maxsize) =@_;
+sub field_label {
+    my ($f)=@_;
+    my $ff=$MyDef::def->{fields}->{$f};
+    my $title=ucfirst($f);
+    if($ff->{label}){
+        $title=$ff->{label};
+    }
+    elsif($ff->{title}){
+        $title=$ff->{title};
+    }
+    push @$out, "print \"$title\";";
+}
+sub field_input {
+    my ($f)=@_;
+    my $ff=$MyDef::def->{fields}->{$f};
     my $type=getfieldtype($ff, $f);
     my $size=getfieldsize($ff, $type);
-    if($maxsize and $size>$maxsize){
-        $size=$maxsize;
-    }
-    my $handler="";
-    foreach my $k(keys %$ff){
-        if($k=~/^on(.*)/){
-            print "handler: $f - $k\n";
-            $handler=$handler." $k=\"$ff->{$k}\"";
-        }
-    }
     my $disabled="";
     if($ff->{disabled}){
         $disabled=" disabled";
@@ -1711,12 +1385,6 @@ sub fieldinput {
     my $prefix=$ff->{prefix};
     my $suffix=$ff->{suffix};
     my $isout=0;
-    push @$out, "\$inputclass='input_normal';";
-    push @$out, "if(isset(\$error_fields) and array_key_exists('$f', \$error_fields)){\$inputclass='input_error';}";
-    my $input_style;
-    if(!$ff->{size} and $ff->{width}){
-        $input_style=" style=\"width: $ff->{width};\"";
-    }
     if($type eq "boolean"){
         my $y="Yes";
         my $n="No";
@@ -1754,7 +1422,6 @@ sub fieldinput {
         push @$out, "if(!empty(\$$f)){\$t=' checked';}else{\$t='';}";
         push @$out, "PRINT <input type=\"checkbox\" name=\"$f\" \$t$handler $input_style>";
         push @$out, "PRINT &nbsp;&nbsp;";
-        $isout=1;
     }
     elsif($listname){
         push @$out, "if (\$$listname){";
@@ -1823,93 +1490,19 @@ sub fieldinput {
             push @$out, "else{";
             push @$out, "    $inputdate(\"$f\", \$$f);";
             push @$out, "}";
-            $isout=1;
         }
-    }
-    elsif($type eq "fullname"){
-        push @$out, "    print \"<table>\";";
-        push @$out, "    print \"<tr>\";";
-        push @$out, "    print \"<td>\";";
-        push @$out, "    print \"<input class=\"textinput1\" type=\\\"text\\\" name=\\\"$f\_f\\\" size=\\\"10\\\" value=\\\"\$$f\_f\\\">\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"<td>\";";
-        push @$out, "    print \"<input class=\"textinput2\" type=\\\"text\\\" name=\\\"$f\_m\\\" size=\\\"4\\\" value=\\\"\$$f\_m\\\">\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"<td>\";";
-        push @$out, "    print \"<input class=\"textinput1\" type=\\\"text\\\" name=\\\"$f\_l\\\" size=\\\"10\\\" value=\\\"\$$f\_l\\\">\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"</tr>\";";
-        push @$out, "    print \"<tr>\";";
-        push @$out, "    print \"<td class=\\\"formhelp\\\">\";";
-        push @$out, "    print \"First\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"<td class=\\\"formhelp\\\">\";";
-        push @$out, "    print \"M.\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"<td class=\\\"formhelp\\\">\";";
-        push @$out, "    print \"Last\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"</tr>\";";
-        push @$out, "    print \"</table>\";";
-        $isout=1;
-    }
-    elsif($type eq "usaddress"){
-        $php->{getstatelist_short}=1;
-        $php->{inputoptionlist}=1;
-        push @$out, "    print \"<table><tr><td colspan=3>\";";
-        push @$out, "    print \"<input class=\\\"fullinput\\\" type=\\\"text\\\" name=\\\"address\\\" size=\\\"$size\\\" value=\\\"\$address\\\">\";";
-        push @$out, "    print \"</td></tr>\";";
-        push @$out, "    print \"<tr><td colspan=3 class=\\\"formhelp\\\">\";";
-        push @$out, "    print \"Street\";";
-        push @$out, "    print \"</td></tr>\";";
-        push @$out, "    print \"<tr>\";";
-        push @$out, "    print \"<td>\";";
-        push @$out, "    print \"<input class=\"textinput1\" type=\\\"text\\\" name=\\\"city\\\" size=\\\"15\\\" value=\\\"\$city\\\">\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"<td>\";";
-        push @$out, "    print \"<select name=\\\"state\\\">\";";
-        push @$out, "    if(!\$state){print \"<option value=\\\"\\\" selected></option>\";}";
-        push @$out, "    else{print \"<option value=\\\"\\\"></option>\";}";
-        push @$out, "    inputoptionlist(getstatelist_short(), \$state);";
-        push @$out, "    print \"</select>\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"<td>\";";
-        push @$out, "    print \"<input class=\\\"textinput1\\\" type=\\\"text\\\" name=\\\"zipcode\\\" size=\\\"5\\\" value=\\\"\$zipcode\\\">\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"</tr>\";";
-        push @$out, "    print \"<tr>\";";
-        push @$out, "    print \"<td class=\\\"formhelp\\\">\";";
-        push @$out, "    print \"City\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"<td class=\\\"formhelp\\\">\";";
-        push @$out, "    print \"State\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"<td class=\\\"formhelp\\\">\";";
-        push @$out, "    print \"Zipcode\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"</tr>\";";
-        push @$out, "    print \"</table>\";";
-        $isout=1;
     }
     elsif($type eq "blob" or $type eq "text"){
-        if($size=~/(\d+)x(\d+)/){
-            $sizestr="cols=\\\"$1\\\" rows=\\\"$2\\\"";
-        }
-        push @$out, "print \"<textarea class=\\\"\$inputclass\\\" name=\\\"$f\\\" $sizestr>\$$f</textarea>\";";
-        $isout=1;
+        push @$out, "PRINT <textarea class=\"input\" name=\"$f\" id=\"input-$f\">\$$f</textarea>";
     }
-    elsif($type eq "imagefile" or $type eq 'file'){
-        push @$out, "print \"<input class=\\\"\$inputclass\\\" name=\\\"$f\\\" type=\\\"file\\\" size=\\\"$size\\\"$handler />\";";
-        $isout=1;
-    }
-    if(!$isout){
+    else{
         my $typestr="text";
         if($type eq "password"){
             $typestr="password";
         }
         push @$out, "if(!empty(\$$f)){\$val_clause=\"value=\\\"\$$f\\\"\";}";
         push @$out, "else{\$val_clause='';}";
-        push @$out, "PRINT $prefix<input class=\"$inputclass\" type=\"$typestr\" name=\"$f\" \$val_clause size=\"$size\"$handler $disabled $input_style>$suffix";
+        push @$out, "PRINT $prefix<input type=\"$typestr\" name=\"$f\" id=\"input-$f\" class=\"input\" \$val_clause $disabled >$suffix";
         $isout=1;
     }
     if($ff->{suffix}){
@@ -1960,57 +1553,29 @@ sub fielddisplay {
 1;
 sub custom_dump {
     my ($f, $rl)=@_;
-    if($$rl=~/^\s*PHP_START/){
+    if($$rl=~/^<\?php/){
+        $cur_mode="php";
         push @$f, "<?php\n";
-        $$rl="INDENT";
-        $inphp=1;
-        return 0;
     }
-    elsif($$rl=~/^\s*PHP_END/){
-        if($f->[-1]=~/^<\?php/){
-            pop @$f;
-        }
-        else{
-            push @$f, "?>\n";
-        }
-        $$rl="DEDENT";
-        $inphp=0;
-        return 0;
-    }
-    elsif($$rl=~/^\s*JS_START/){
-        push @$f, "<script type=\"text/javascript\">\n";
-        $$rl="INDENT";
-        $injs=1;
-        return 0;
-    }
-    elsif($$rl=~/^\s*JS_END/){
-        if($f->[-1]=~/^<script type=/){
-            pop @$f;
-        }
-        else{
-            push @$f, "</script>\n";
-        }
-        $$rl="DEDENT";
-        $injs=0;
-        return 0;
+    elsif($$rl=~/^\?>/){
+        $cur_mode="html";
+        push @$f, "?>\n";
     }
     elsif($$rl=~/^\s*HTML_START\s*(.*)/){
-        push @$f, '<!DOCTYPE HTML PUBLIC "-//W3C/DTD HTML 4.0//EN" "http://www.w3.org/TR/html4/strict.dtd">'."\n";
+        push @$f, "<!DOCTYPE html>\n";
         push @$f, "<html><head>\n";
         dumpmeta($f);
-        dumpstyle($f, $style);
         push @$f, "</head>\n";
         push @$f, "<body $1>\n";
         return 1;
     }
     elsif($$rl=~/^\s*HTML_HEAD_START/){
-        push @$f, '<!DOCTYPE HTML PUBLIC "-//W3C/DTD HTML 4.0//EN" "http://www.w3.org/TR/html4/strict.dtd">'."\n";
+        push @$f, "<!DOCTYPE html>\n";
         push @$f, "<html><head>\n";
         return 1;
     }
     elsif($$rl=~/^\s*HTML_HEAD_STUFF/){
         dumpmeta($f);
-        dumpstyle($f, $style);
         return 1;
     }
     elsif($$rl=~/^\s*HTML_STYLE/){
@@ -2034,7 +1599,7 @@ sub custom_dump {
         if($$rl=~/PRINT(LN)? (.*)/){
             my $ln=$1;
             my $t=$2;
-            if($inphp){
+            if($cur_mode eq "php"){
                 $t=~s/\\/\\\\/g;
                 $t=~s/"/\\"/g;
                 if($ln){
@@ -2051,45 +1616,32 @@ sub custom_dump {
         return 0;
     }
 }
-sub simple_block {
-    my ($pre, $post, $out)=@_;
-    push @$out, "$pre";
-    push @$out, "INDENT";
-    push @$out, "BLOCK";
-    push @$out, "DEDENT";
-    push @$out, "$post";
-    return "NEWBLOCK";
-}
-sub terminate_php {
-    my $l=shift;
-    if($l!~/[\{\};]\s*$/){
-        $l=$l.";";
-    }
-    return $l;
-}
 sub dumpstyle {
     my ($f, $style)=@_;
-    my @keys=sort keys %$style;
-    if(@keys){
-        print "Dumping style: $style\n";
-        print "Dump hash $style\n";
-        while(my ($k, $v) = each %$style){
-            print "    ", "$k: $v\n";
-        }
+    if(@style_key_list){
         if($MyDef::page->{type} ne "css"){
             push @$f, "<style>\n";
         }
-        foreach my $k (@keys){
+        foreach my $k (@style_key_list){
             my %attr;
+            my @attr;
             my @tlist=split /;/, $style->{$k};
-            foreach my $t(@tlist){
-                if($t=~/(\S+):\s+(.*)/){
+            foreach my $t (@tlist){
+                if($t=~/([^ :]+):\s*(.*)/){
+                    if(!defined $attr{$1}){
+                        push @attr, $1;
+                    }
                     $attr{$1}=$2;
                 }
             }
             @tlist=();
-            foreach my $a (keys(%attr)){
+            foreach my $a (@attr){
                 push @tlist, "$a: $attr{$a}";
+                if($a eq "background-image" and $attr{$a}=~/linear-gradient\((\w+),\s*(\S+),\s*(\S+)\)/){
+                    foreach my $prefix (("moz", "webkit", "ms", "o")){
+                        push @tlist, "$a: -$prefix-linear-gradient($1, $2, $3)";
+                    }
+                }
             }
             push @$f, "    $k {". join('; ', @tlist)."}\n";
         }
@@ -2103,105 +1655,13 @@ sub dumpmeta {
     if($MyDef::page->{title}){
         push @$f, "<title>$MyDef::page->{title}</title>\n";
     }
+    dumpstyle($f, $style);
     my %sheet_hash;
     foreach my $s (@$style_sheets){
         if(!$sheet_hash{$s}){
             $sheet_hash{$s}=1;
             push @$f, "<link rel=\"stylesheet\" type=\"text/css\" href=\"$s\" />\n";
         }
-    }
-    my %js_hash;
-    foreach my $s (@$java_scripts){
-        if(!$js_hash{$s}){
-            $js_hash{$s}=1;
-            push @$f, "<script type=\"text/javascript\" src=\"$s\" />\n";
-        }
-    }
-}
-sub post_load_only {
-    my ($out, $f)=@_;
-    my $ff=$MyDef::def->{fields}->{$f};
-    my $type=get_f_type($f);
-    my $name=get_f_name($f);
-    my $isout=0;
-    if($type eq "imagefile"){
-        $isout=1;
-    }
-    elsif($type eq 'date' and !$ff->{optional}){
-        push @$out, "\$$name=\$_POST['year_$name'].'-'.\$_POST['month_$name'].'-'.\$_POST['date_$name'];";
-        $isout=1;
-    }
-    if(!$isout){
-        push @$out, "if(array_key_exists('$name', \$_POST)){";
-        push @$out, "    \$$name= stripslashes (\$_POST['$name']);";
-        push @$out, "}";
-        if($ff->{other}){
-            if(0){
-            }
-            else{
-                push @$out, "if(\$$name=='other'){\$$name=stripslashes(\$_POST['other_$name']);}";
-            }
-        }
-    }
-}
-sub post_load {
-    my ($out, $f)=@_;
-    post_load_only($out, $f);
-    my $ff=$MyDef::def->{fields}->{$f};
-    my $type=get_f_type($f);
-    my $name=get_f_name($f);
-    my $title=get_f_label($f);
-    if(!$ff->{optional}){
-        if($type eq 'boolean'){
-            push @$out, "if(\$$name != '0' and \$$name != '1'){";
-            push @$out, "    \$errors[]=\"Please select $title.\";";
-            push @$out, "    \$error_fields['$name']=1;";
-            push @$out, "}";
-        }
-        elsif($type eq 'image'){
-            push @$out, "if(!is_uploaded_file(\$_FILES['$name']['tmp_name'])){";
-            push @$out, "    \$error_fields['$name']=1;";
-            push @$out, "}";
-        }
-        else{
-            push @$out, "if(!\$$name){";
-            push @$out, "    \$errors[]=\"Please enter $title.\";";
-            push @$out, "    \$error_fields['$name']=1;";
-            push @$out, "}";
-        }
-    }
-    if($type eq 'date'){
-        push @$out, "if(\$$name){";
-            push @$out, "if(!preg_match('/\\d\\d\\/\\d\\d\\/\\d\\d\\d\\d/', \$$name)){";
-            push @$out, "    \$error_fields['$name']=1;";
-            push @$out, "    \$errors[]='Please enter \"$title\" in mm/dd/yyyy format.';";
-            push @$out, "}";
-        push @$out, "}";
-    }
-    if($type eq 'email'){
-        push @$out, "if(\$$name){";
-            push @$out, "if(!preg_match('/\\S+\@\\S+/', \$$name)){";
-            push @$out, "    \$error_fields['$name']=1;";
-            push @$out, "    \$errors[]='Please enter a valid E-Mail address.';";
-            push @$out, "}";
-        push @$out, "}";
-    }
-    if($type eq 'phone'){
-        push @$out, "\$$name=ereg_replace('[^0-9]', '', \$$name);";
-        if(!$ff->{optional}){
-            push @$out, "if(!\$$name){";
-                push @$out, "    \$error_fields['$name']=1;";
-                push @$out, "    \$errors[]='Please enter a valid number.';";
-            push @$out, "}";
-        }
-    }
-}
-sub forminit {
-    my ($out, $name)=@_;
-    my $form=$MyDef::def->{fieldsets}->{$name};
-    my $fields=$form->{fields};
-    foreach my $f (@$fields){
-        push @$out, "\$$f='';";
     }
 }
 sub sql_exec {
@@ -2823,7 +2283,13 @@ sub tablelist {
     }
     push @$out, "    if(\$j$suffix%2){\$tdclass=\"even$suffix\";}";
     push @$out, "    else{\$tdclass=\"odd$suffix\";}";
-    push @$out, "    print \"<tr>\";";
+    my $rlink=$MyDef::compileutil::deflist->[-1]->{rlink};
+    my $attr="class=\\\"\$tdclass\\\"";
+    if($rlink){
+        $rlink=~s/\$\[(.*?)\]/{\$i$suffix\['\1']}/g;
+        $attr.=" onclick=\\\"window.location.href='$rlink'\\\"";
+    }
+    push @$out, "    print \"<tr $attr>\";";
     foreach my $f (@$flist){
         my $ff=$fields->{$f};
         my $align="center";
@@ -2832,7 +2298,7 @@ sub tablelist {
         }
         my $width="";
         if($ff->{width}){$width=" width=\\\"$ff->{width}\\\"";};
-        push @$out, "    print \"<td class=\$tdclass align=$align $width>\";";
+        push @$out, "    print \"<td align=$align $width>\";";
         display_list_field($out, $f, $fields, $suffix);
         push @$out, "    print \"</td>\";";
     }
@@ -2852,42 +2318,6 @@ sub script_selectother {
     push @lines, "    }";
     push @lines, "}";
     $MyDef::def->{scripts}->{"selectother_$name"}=\@lines;
-}
-sub formhead {
-    my ($out, $param)=@_;
-    my @p=split /,\s*/, $param;
-    my $formname=shift @p;
-    my $method="post";
-    my $action="{\$_SERVER['PHP_SELF']}";
-    my $uploadlimit=0;
-    my $onsubmit;
-    foreach my $n(@p){
-        if($n eq 'get' or $n eq 'post'){
-            $method=$n;
-        }
-        elsif($n=~/\//){
-            $action=$n;
-        }
-        elsif($n=~/\.php/){
-            $action=$n;
-        }
-        elsif($n=~/\d+/){
-            $uploadlimit=$n;
-        }
-        elsif($n=~/\(.*\)/){
-            $onsubmit=$n;
-        }
-    }
-    if($onsubmit){
-        $onsubmit="onsubmit=\"return $onsubmit\"";
-    }
-    if($uploadlimit){
-        push @$out, "PRINT <form method=\"$method\" action=\"$action\" name=\"$formname\" enctype=\"multipart/form-data\" $onsubmit>";
-        push @$out, "PRINT <input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"$uploadlimit\" />";
-    }
-    else{
-        push @$out, "PRINT <form method=\"$method\" action=\"$action\" name=\"$formname\" $onsubmit>";
-    }
 }
 sub loadoptlist {
     my ($out, $f)=shift;
@@ -2932,77 +2362,6 @@ sub formpreloadselection {
             push @$out, "\$$listname=array(".join(', ', @list).");";
         }
     }
-}
-sub formshow {
-    my ($out, $formname)=@_;
-    my $fields=$MyDef::def->{fields};
-    my $form=$MyDef::def->{fieldsets}->{$formname};
-    my $flist=$form->{fields};
-    push @$out, "PRINT <div class=\"form\">";
-    if($form->{title}){
-        push @$out, "print '<h1 class=\"formtitle\">".$form->{title}."</h1>';";
-    }
-    push @$out, 'print "<table class=\"formtable\">";';
-    my $labelalign="right";
-    if($form->{align}){$labelalign=$form->{align};};
-    foreach my $f (@$flist){
-        my $ff=$fields->{$f};
-        my $title=$f;
-        if($ff->{title}){$title=$ff->{title};};
-        my $prefix;
-        if($ff->{optional}){
-            push @$out, "if(\$$f){";
-        }
-        push @$out, "print \"<tr><td class=\\\"labelcolumn\\\" valign=\\\"top\\\" align=\\\"$labelalign\\\">\";";
-        push @$out, 'print "<label>'.$title.':</label>";';
-        push @$out, 'print "</td><td class=\"formspacer\"></td>";';
-        push @$out, 'print "<td valign=\"top\" align=\"left\">";';
-        my $listname;
-        if($ff->{listname}){
-            $listname=$ff->{listname};
-        }
-        elsif($ff->{list}){
-            $listname=$f.'_optlist';
-        }
-        if($ff->{type} eq "boolean"){
-            my $y="Yes";
-            my $n="No";
-            if($ff->{list}){
-                my @l=split(/,\s*/, $ff->{list});
-                $y=$l[0];
-                $n=$l[1];
-            }
-            push @$out, "if(\$$f==1){print \"$y\";}";
-            push @$out, "else{print \"$n\";}";
-        }
-        elsif($ff->{type} eq "file"){
-        }
-        elsif($ff->{type} eq "imagefile"){
-        }
-        elsif($ff->{type} eq "password"){
-            print STDERR "    Password should not be displayed.\n";
-        }
-        else{
-            if($listname){
-                push @$out, "if(\$$listname){";
-                push @$out, "    print \$$listname\[\$$f\];";
-                push @$out, "}";
-                push @$out, "else{";
-                push @$out, "    print \$$f;";
-                push @$out, "}";
-            }
-            else{
-                push @$out, "print \$$f;";
-            }
-        }
-        push @$out, "print \"</td></tr>\";";
-        if($ff->{optional}){
-            push @$out, "}";
-        }
-    }
-    push @$out, 'print "</td></tr>";';
-    push @$out, 'print "</table>";';
-    push @$out, "PRINT </div>";
 }
 sub getfieldsize {
     my ($ff, $type) =@_;
@@ -3053,125 +2412,6 @@ sub getfieldlabel {
     if($ff->{title}){$title=$ff->{title};};
     return "$title";
 }
-sub form_twocolumn {
-    my ($out, $fields, $displaylist, $inputlist, $maxsize, $id)=@_;
-    $tlist=$displaylist;
-    my $display=1;
-    my $idstr;
-    if($id){
-        $idstr=" id=\\\"$id\\\"";
-    }
-    push @$out, "print \"<table class=\\\"formtable\\\"$idstr>\";";
-FLIST:
-    foreach my $f (@$tlist){
-        my $ff=$fields->{$f};
-        my $type=getfieldtype($ff, $f);
-        $label=getfieldlabel($ff, $f);
-        if(!$ff->{optional} and !$display){
-            $label.="*";
-        }
-        my $valign="valign=\\\"top\\\"";
-        push @$out, "print '<tr class=\"formrow\">';";
-        push @$out, "print \"<td class=\\\"labelcolumn\\\" $valign align=\\\"$labelalign\\\">\";";
-        push @$out, "print \"<label>$label</label>\";";
-        if($ff->{help}){
-            push @$out, "print \"<div class=\\\"formhelp\\\">$ff->{help}</div>\";";
-        }
-        push @$out, 'print "</td><td class=\"formspacer\"></td>";';
-        push @$out, "print \"<td class=\\\"inputcolumn\\\">\\n\";";
-        if($display){
-            fielddisplay($out, $f, $ff);
-        }
-        else{
-            fieldinput($out, $f, $ff, $maxsize);
-        }
-        push @$out, 'print "\n</td></tr>\n";';
-    }
-    if($display){
-        $display=0;
-        $tlist=$inputlist;
-        goto FLIST;
-    }
-    push @$out, "print \"</table>\";";
-}
-sub form_one {
-    my ($out, $fields, $displaylist, $inputlist, $maxsize)=@_;
-    $tlist=$displaylist;
-FLIST:
-    foreach my $f (@$tlist){
-        my $ff=$fields->{$f};
-        my $type=getfieldtype($ff, $f);
-        $label=getfieldlabel($ff, $f);
-        if(!$ff->{optional} and !$display){
-            $label.="*";
-        }
-        my $valign="valign=\"top\"";
-        push @$out, "PRINT <p>";
-        push @$out, 'print "<label>'.$label.'</label><br />";';
-        if($display){
-            fielddisplay($f, $ff);
-        }
-        else{
-            fieldinput($f, $ff, $maxsize);
-        }
-    }
-    if($display){
-        $display=0;
-        $tlist=$inputlist;
-        goto FLIST;
-    }
-    push @$out, "PRINT </p>";
-}
-sub formbody {
-    my ($out, $formname)=@_;
-    formpreloadselection($out, $formname);
-    my $fields=$MyDef::def->{fields};
-    my $form=$MyDef::def->{fieldsets}->{$formname};
-    my $inputlist=$form->{fields};
-    my @displaylist=();
-    if($form->{display}){
-        @displaylist=split /,\s*/, $form->{display};
-    }
-    if(!$form->{layout}){
-        $form->{layout}="2";
-    }
-    push @$out, "PRINT <div class=\"form\">";
-    if($form->{title}){
-        push @$out, "print '<h2 class=\"formtitle\">".$form->{title}."</h2>';";
-    }
-    if($form->{legend}){
-        push @$out, "print \" <fieldset><legend>$form->{legend}</legend>\";";
-    }
-    my $maxsize=20;
-    if($form->{maxsize}){
-        $maxsize=$form->{maxsize};
-    }
-    if($form->{layout} eq "2"){
-        form_twocolumn($out, $fields, $displaylist, $inputlist, $maxsize);
-    }
-    else{
-        form_one($out, $fields, $displaylist, $inputlist, $maxsize);
-    }
-    my $buttons=$form->{buttons};
-    if($buttons){
-        push @$out, "PRINT <br>";
-        foreach my $b(@$buttons){
-            formbutton($out, $b);
-        }
-    }
-    if($form->{legend}){
-        push @$out, "PRINT </fieldset>";
-    }
-    push @$out, "PRINT </div>";
-}
-sub forminput {
-    my ($out, $param, $id)=@_;
-    @inputlist=split /,\s*/, $param;
-    my $fields=$MyDef::def->{fields};
-    my @displaylist=();
-    my $maxsize=80;
-    form_twocolumn($out, $fields, [], \@inputlist, $maxsize, $id);
-}
 sub formbutton {
     my ($out, $param)=@_;
     my @bb=split /,\s*/, $param;
@@ -3182,12 +2422,6 @@ sub formbutton {
     }
     push @$out, "print \"<input class=\\\"formbutton\\\" type=\\\"submit\\\" value=\\\"$bb[0]\\\" onmouseover=\\\"this.style.borderColor='silver';\\\" onmouseout=\\\"this.style.borderColor='gray';\\\" $MODE>\";";
     push @$out, "PRINT &nbsp;";
-}
-sub input {
-    my ($out, $f)=@_;
-    my $ff=$MyDef::def->{fields}->{$f};
-    my $type=getfieldtype($ff, $f);
-    fieldinput($out, $f, $ff);
 }
 sub get_f_type {
     my $f=shift;
@@ -3298,20 +2532,23 @@ sub get_f_display {
         }
     }
 }
-sub fieldinput {
-    my ($out, $f, $ff, $maxsize) =@_;
+sub field_label {
+    my ($f)=@_;
+    my $ff=$MyDef::def->{fields}->{$f};
+    my $title=ucfirst($f);
+    if($ff->{label}){
+        $title=$ff->{label};
+    }
+    elsif($ff->{title}){
+        $title=$ff->{title};
+    }
+    push @$out, "print \"$title\";";
+}
+sub field_input {
+    my ($f)=@_;
+    my $ff=$MyDef::def->{fields}->{$f};
     my $type=getfieldtype($ff, $f);
     my $size=getfieldsize($ff, $type);
-    if($maxsize and $size>$maxsize){
-        $size=$maxsize;
-    }
-    my $handler="";
-    foreach my $k(keys %$ff){
-        if($k=~/^on(.*)/){
-            print "handler: $f - $k\n";
-            $handler=$handler." $k=\"$ff->{$k}\"";
-        }
-    }
     my $disabled="";
     if($ff->{disabled}){
         $disabled=" disabled";
@@ -3320,12 +2557,6 @@ sub fieldinput {
     my $prefix=$ff->{prefix};
     my $suffix=$ff->{suffix};
     my $isout=0;
-    push @$out, "\$inputclass='input_normal';";
-    push @$out, "if(isset(\$error_fields) and array_key_exists('$f', \$error_fields)){\$inputclass='input_error';}";
-    my $input_style;
-    if(!$ff->{size} and $ff->{width}){
-        $input_style=" style=\"width: $ff->{width};\"";
-    }
     if($type eq "boolean"){
         my $y="Yes";
         my $n="No";
@@ -3363,7 +2594,6 @@ sub fieldinput {
         push @$out, "if(!empty(\$$f)){\$t=' checked';}else{\$t='';}";
         push @$out, "PRINT <input type=\"checkbox\" name=\"$f\" \$t$handler $input_style>";
         push @$out, "PRINT &nbsp;&nbsp;";
-        $isout=1;
     }
     elsif($listname){
         push @$out, "if (\$$listname){";
@@ -3432,93 +2662,19 @@ sub fieldinput {
             push @$out, "else{";
             push @$out, "    $inputdate(\"$f\", \$$f);";
             push @$out, "}";
-            $isout=1;
         }
-    }
-    elsif($type eq "fullname"){
-        push @$out, "    print \"<table>\";";
-        push @$out, "    print \"<tr>\";";
-        push @$out, "    print \"<td>\";";
-        push @$out, "    print \"<input class=\"textinput1\" type=\\\"text\\\" name=\\\"$f\_f\\\" size=\\\"10\\\" value=\\\"\$$f\_f\\\">\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"<td>\";";
-        push @$out, "    print \"<input class=\"textinput2\" type=\\\"text\\\" name=\\\"$f\_m\\\" size=\\\"4\\\" value=\\\"\$$f\_m\\\">\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"<td>\";";
-        push @$out, "    print \"<input class=\"textinput1\" type=\\\"text\\\" name=\\\"$f\_l\\\" size=\\\"10\\\" value=\\\"\$$f\_l\\\">\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"</tr>\";";
-        push @$out, "    print \"<tr>\";";
-        push @$out, "    print \"<td class=\\\"formhelp\\\">\";";
-        push @$out, "    print \"First\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"<td class=\\\"formhelp\\\">\";";
-        push @$out, "    print \"M.\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"<td class=\\\"formhelp\\\">\";";
-        push @$out, "    print \"Last\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"</tr>\";";
-        push @$out, "    print \"</table>\";";
-        $isout=1;
-    }
-    elsif($type eq "usaddress"){
-        $php->{getstatelist_short}=1;
-        $php->{inputoptionlist}=1;
-        push @$out, "    print \"<table><tr><td colspan=3>\";";
-        push @$out, "    print \"<input class=\\\"fullinput\\\" type=\\\"text\\\" name=\\\"address\\\" size=\\\"$size\\\" value=\\\"\$address\\\">\";";
-        push @$out, "    print \"</td></tr>\";";
-        push @$out, "    print \"<tr><td colspan=3 class=\\\"formhelp\\\">\";";
-        push @$out, "    print \"Street\";";
-        push @$out, "    print \"</td></tr>\";";
-        push @$out, "    print \"<tr>\";";
-        push @$out, "    print \"<td>\";";
-        push @$out, "    print \"<input class=\"textinput1\" type=\\\"text\\\" name=\\\"city\\\" size=\\\"15\\\" value=\\\"\$city\\\">\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"<td>\";";
-        push @$out, "    print \"<select name=\\\"state\\\">\";";
-        push @$out, "    if(!\$state){print \"<option value=\\\"\\\" selected></option>\";}";
-        push @$out, "    else{print \"<option value=\\\"\\\"></option>\";}";
-        push @$out, "    inputoptionlist(getstatelist_short(), \$state);";
-        push @$out, "    print \"</select>\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"<td>\";";
-        push @$out, "    print \"<input class=\\\"textinput1\\\" type=\\\"text\\\" name=\\\"zipcode\\\" size=\\\"5\\\" value=\\\"\$zipcode\\\">\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"</tr>\";";
-        push @$out, "    print \"<tr>\";";
-        push @$out, "    print \"<td class=\\\"formhelp\\\">\";";
-        push @$out, "    print \"City\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"<td class=\\\"formhelp\\\">\";";
-        push @$out, "    print \"State\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"<td class=\\\"formhelp\\\">\";";
-        push @$out, "    print \"Zipcode\";";
-        push @$out, "    print \"</td>\";";
-        push @$out, "    print \"</tr>\";";
-        push @$out, "    print \"</table>\";";
-        $isout=1;
     }
     elsif($type eq "blob" or $type eq "text"){
-        if($size=~/(\d+)x(\d+)/){
-            $sizestr="cols=\\\"$1\\\" rows=\\\"$2\\\"";
-        }
-        push @$out, "print \"<textarea class=\\\"\$inputclass\\\" name=\\\"$f\\\" $sizestr>\$$f</textarea>\";";
-        $isout=1;
+        push @$out, "PRINT <textarea class=\"input\" name=\"$f\" id=\"input-$f\">\$$f</textarea>";
     }
-    elsif($type eq "imagefile" or $type eq 'file'){
-        push @$out, "print \"<input class=\\\"\$inputclass\\\" name=\\\"$f\\\" type=\\\"file\\\" size=\\\"$size\\\"$handler />\";";
-        $isout=1;
-    }
-    if(!$isout){
+    else{
         my $typestr="text";
         if($type eq "password"){
             $typestr="password";
         }
         push @$out, "if(!empty(\$$f)){\$val_clause=\"value=\\\"\$$f\\\"\";}";
         push @$out, "else{\$val_clause='';}";
-        push @$out, "PRINT $prefix<input class=\"$inputclass\" type=\"$typestr\" name=\"$f\" \$val_clause size=\"$size\"$handler $disabled $input_style>$suffix";
+        push @$out, "PRINT $prefix<input type=\"$typestr\" name=\"$f\" id=\"input-$f\" class=\"input\" \$val_clause $disabled >$suffix";
         $isout=1;
     }
     if($ff->{suffix}){

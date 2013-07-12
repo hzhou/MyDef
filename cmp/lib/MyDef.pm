@@ -1,3 +1,4 @@
+use strict;
 package MyDef;
 our $def;
 our $page;
@@ -17,9 +18,9 @@ sub init {
     if(!$module){
         die "Module type not defined in config!\n";
     }
-    elsif($module eq "php"){
-        require MyDef::output_php;
-        MyDef::compileutil::set_interface(MyDef::output_php::get_interface());
+    elsif($module eq "www"){
+        require MyDef::output_www;
+        MyDef::compileutil::set_interface(MyDef::output_www::get_interface());
     }
     elsif($module eq "c"){
         require MyDef::output_c;
@@ -37,6 +38,10 @@ sub init {
         require MyDef::output_win32;
         MyDef::compileutil::set_interface(MyDef::output_win32::get_interface());
     }
+    elsif($module eq "win32rc"){
+        require MyDef::output_win32rc;
+        MyDef::compileutil::set_interface(MyDef::output_win32rc::get_interface());
+    }
     elsif($module eq "perl"){
         require MyDef::output_perl;
         MyDef::compileutil::set_interface(MyDef::output_perl::get_interface());
@@ -49,6 +54,10 @@ sub init {
         require MyDef::output_general;
         MyDef::compileutil::set_interface(MyDef::output_general::get_interface());
     }
+    elsif($module eq "glsl"){
+        require MyDef::output_glsl;
+        MyDef::compileutil::set_interface(MyDef::output_glsl::get_interface());
+    }
     else{
         die "Undefined module type $module\n";
     }
@@ -60,23 +69,22 @@ sub addpath {
 sub createpage_lines {
     my ($pagename)=@_;
     $page=$def->{pages}->{$pagename};
-    my ($plines, $ext)=MyDef::compileutil::compile($pagename);
+    my ($plines, $ext)=MyDef::compileutil::compile;
     return $plines;
 }
 sub createpage {
     my ($pagename)=@_;
     $page=$def->{pages}->{$pagename};
-    my ($plines, $ext)=MyDef::compileutil::compile($pagename);
-    MyDef::compileutil::output($pagename, $plines, $ext);
+    my ($plines, $ext)=MyDef::compileutil::compile;
+    MyDef::compileutil::output($plines, $ext);
 }
 sub import_data_lines {
     my $plines=shift;
-    $def= MyDef::parseutil::import_data($plines, $var);
+    $def= MyDef::parseutil::import_data_lines($plines, $var);
 }
 sub import_data {
     my $file=shift;
-    my $plines=MyDef::parseutil::get_lines($file, $var);
-    $def= MyDef::parseutil::import_data($plines, $var);
+    $def= MyDef::parseutil::import_data($file, $var);
 }
 sub is_sub {
     my $subname=shift;
