@@ -1,0 +1,17 @@
+
+subcode: enter_php
+    push @$out, "<?php\n"
+
+subcode: exit_php
+    push @$out, "?>\n";
+
+subcode:: support_subs
+    $sub echo_php($t, $ln)
+	$t=~s/\\/\\\\/g
+	$t=~s/"/\\"/g
+	$if $ln
+	    return "echo \"$t\\n\";";
+	$else
+	    return "echo \"$t\";";
+
+subcode: parsecode_php
