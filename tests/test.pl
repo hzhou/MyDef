@@ -76,6 +76,10 @@ if($f=~/([a-z0-9]+)_.*\.def$/){
         print "$yellow*** perl test.pl ***$normal\n";
         system "perl test.pl";
     }
+    elsif($module eq "www"){
+        print "$yellow*** Dumping test.html ***$normal\n";
+        system "cat test.html";
+    }
     else{
         print "Unhandled module type: [$module]\n";
     }

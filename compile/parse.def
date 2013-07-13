@@ -3,9 +3,10 @@ subcode:: support_subs
 	my ($code)=@_;
 	my $block=$code->{source}
 
+	my $indent=0
 	$call parse_stack_push
 
-	my $indent=0;
+	my @last_line
 	my $context;
 	my $lindex=0;
 
@@ -66,7 +67,8 @@ subcode:: package_global
 subcode: parse_stack_push
     # ---- protect $out context
     $block_index++
-    push @block_stack, {out=>$out, index=>$block_index, eindex=>$block_index, file=>$cur_file, line=>$cur_line, code=>$code};
+    my $blk= {out=>$out, index=>$block_index, eindex=>$block_index, file=>$cur_file, line=>$cur_line, code=>$code}
+    push @block_stack, $blk
     # SUBBLOCK messages to enable block scopes ------
     $f_parse->("SUBBLOCK BEGIN $block_index")
 

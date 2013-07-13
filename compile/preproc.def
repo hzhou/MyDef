@@ -76,7 +76,7 @@ subcode: parse_preproc
 	$else
 	    $code->{allow_recurse}=$1
 	    $deflist->[-1]->{recurse}=0
-    $elsif $preproc=~/^block:(\w+)/
+    $elsif $preproc=~/^block:\s*(\w+)/
 	my $name=$1;
 	my $subblock=grabblock($block, \$lindex);
 	&call with_named_block, $name

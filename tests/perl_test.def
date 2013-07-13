@@ -1,9 +1,10 @@
 page: test
     type: pl
     subcode: main
-	$call test_read_file
+	# $call test_read_file
 	$call test_sub
 	$call test_for
+	$call test_elif
 
     subcode: test_read_file
 	my $count=0
@@ -32,3 +33,17 @@ page: test
 	$for $i=10:0
 	    print $i, " "
 	print "\n"
+
+    subcode: test_elif
+	my $t=10
+	$elif $t<0
+	    print "$t < 0\n"
+	$elif $t<5
+	    print "0 <= $t < 5\n"
+	$call othercase
+	$else
+	    print "10 <= $t\n"
+
+subcode: othercase
+    $elif $t<10
+	print "5 <= $t < 10\n"

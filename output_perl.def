@@ -19,6 +19,7 @@ subcode:: package_globals
     our %globals
 
 subcode: parsecode
+    $global @elifstack
     $if $l=~/^\s*\$(\w+)\s*(.*)$/
 	my $func=$1;
 	my $param=$2;

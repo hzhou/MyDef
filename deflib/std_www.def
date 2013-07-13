@@ -2,8 +2,10 @@
 ## Frames -------------------------------------------------------------
 htmlcode: basic_frame
     $call @process
+    <!doctype html>
     $html
 	$head
+	    <meta charset="utf-8">
 	    DUMP_STUB meta
 	    $call @meta
 	$body

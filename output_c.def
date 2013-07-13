@@ -35,8 +35,7 @@ page: output_c, output_main
 	MyDef::dumpout::init_funclist();
 	$call @c_init
     subcode: parsecode
-	$call check_text_includes
-	$call c_parsecode
+	$call parsecode_common
     subcode: dumpout
 	# ----  Main Function -------------------
 	my $mainfunc=$functions{"main"};

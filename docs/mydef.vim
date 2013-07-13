@@ -3,10 +3,8 @@
 :syntax match xKey /^\s*&call/
 :syntax match xKey /\$([^)]*)/
 :syntax match xCode /^\s*\$\(subclass\|method\)\s/
-:syntax match xCSS /CSS: .*/
 :syntax match xHTML /HTML_\I\+/
 :syntax match xCode /^\s*\(sub\|fn\|js\|perl\|php\)code:/
-:syntax match xInclude /^include.*/
 :syntax match xStage /^\(subpage\|page\|form\|table\|fields\|macros\|resource\):/
 " Comments with #. Caution with cases CSS color, Perl $#
 :syntax match xComment /^\s*#.*/ " Leading # 
@@ -16,7 +14,10 @@
 :syntax region sString start=/'/ skip=/\\'/ end=/'/  oneline
 
 :syntax match perlKey /^\s*\(push\|shift\|unshift\|pop\|print\|return\|goto\|last\|next\|break\|continue\)\>/
+
 :syntax match perlKey /^\s*\i\+:/
+:syntax match xInclude /^include.*/
+:syntax match xCSS /CSS: .*/
 
 :syntax match perlVar /\(\$\|@\|%\)\i\+/
 :syntax match perlKey /^\s*\(our\|my\|package\|use\|require\|sub\)\s/
