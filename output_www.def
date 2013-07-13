@@ -83,8 +83,8 @@ subcode: parsecode_special
 	$else
 	    $style->{$1}=$2;
 	    push @style_key_list, $1;
-    $elif $l=~/^\s*\$title\s+(.*)/
-	$page->{title}=$1
+    $elif $l=~/^\s*\$(title|charset)\s+(.*)/
+	$page->{$1}=$2
     $elsif $l=~/^\s*PRINT\s+(.*)/
 	$if $cur_mode eq "html"
 	    push @$out, $1
@@ -431,10 +431,14 @@ subcode:: support_subs
 		push @$f, "</style>\n";
 
     $sub dumpmeta($f)
+	my $charset=$page->{charset}
+	$if !$charset
+	    $charset="utf-8"
 	my $title=$page->{title}
 	$if !$title
 	    $title=$page->{pagename}
-	push @$f, "<title>$title</title>\n";
+	push @$f, "<meta charset=\"$charset\">"
+	push @$f, "<title>$title</title>\n"
 	dumpstyle($f, $style);
 	my %sheet_hash;
 	$foreach $s in @$style_sheets
