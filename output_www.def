@@ -138,10 +138,10 @@ subcode: parse_tag_attributes
 	$elsif $tt=~/^#(\S+)$/
 	    # ---- ID ------------
 	    $t.=" id=\"$1\"";
-	$elif $tt=~/^(\S+?):"(.*)"/
+	$elif $tt=~/^(\S+?)[:=]"(.*)"/
 	    # ---- Named Attribute ----
 	    $t.=" $1=\"$2\""
-	$elif $tt=~/^(\S+?):(.*)/
+	$elif $tt=~/^(\S+?)[:=](.*)/
 	    $t.=" $1=\"$2\""
 	$elif $tt=~/^"(.*)"/
 	    # ---- Quick Content ----
