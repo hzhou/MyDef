@@ -1,0 +1,140 @@
+subcode: parsecode_html_tag
+    $(set:html=html|head|body)
+    $(set:basic=h[1-5]|p|pre)
+    $(set:block=div|span)
+    $(set:form=form|label|fieldset|button|input|textarea)
+    $(set:table=table|tr|td|th)
+    $(set:list=ol|ul|li)
+    $(set:misc=img|a|center|b|style)
+    $if $func =~ /^(tag|$(block)|$(list)|$(table)|$(basic)|$(html)|$(form)|$(misc))$/
+	my @tt_list=split /,\s*/, $param
+	my $is_empty_tag=0
+
+	$if $func eq "tag" and @tt_list
+	    $func=shift @tt_list;
+
+	$call parse_tag_attributes
+	$call tag_input
+
+	my $P="PRINT-$cur_mode"
+	$if $func=~ /img|input/
+	    push @$out, "$P <$func$t>"
+	$elif $is_empty_tag or defined $quick_content
+	    push @$out, "$P <$func$t>$quick_content</$func>"
+	$elif $func eq "pre"
+	    my @pre=("$P <$func$t>", "PUSHDENT")
+	    my @post=("POPDENT", "$P </$func>")
+	    return single_block_pre_post(\@pre, \@post)
+	$else
+	    return single_block("$P <$func$t>", "$P </$func>")
+	return 0
+
+subcode: tag_input
+    $if $func eq "input"
+	$if $t !~ /type=/
+	    $t.=" type=\"text\""
+	$if $quick_content
+	    $t.=" placeholder=\"$quick_content\""
+
+subcode: parse_tag_attributes
+    my $t=""
+    my $quick_content
+    $foreach my $tt in @tt_list
+	$if $tt eq "/"
+	    $is_empty_tag=1
+	$elsif $tt=~/^#(\S+)$/
+	    # ---- ID ------------
+	    $t.=" id=\"$1\"";
+	$elif $tt=~/^(\S+?)[:=]"(.*)"/
+	    # ---- Named Attribute ----
+	    $t.=" $1=\"$2\""
+	$elif $tt=~/^(\S+?)[:=](.*)/
+	    $t.=" $1=\"$2\""
+	$elif $tt=~/^"(.*)"/
+	    # ---- Quick Content ----
+	    $quick_content=$1
+	$else
+	    # ---- Classes ----
+	    $t.=" class=\"$tt\"";
+
+# ------------------------------------------------------------
+subcode:: init_page
+    $global $style, @style_key_list
+    $style={};
+    @style_key_list=()
+
+subcode:: dumpout
+    my $metablock=MyDef::compileutil::get_named_block("meta")
+    $call dumpmeta, $metablock
+
+subcode: dumpmeta(block)
+    my $charset=$page->{charset}
+    $if !$charset
+	$charset="utf-8"
+    my $title=$page->{title}
+    $if !$title
+	$title=$page->{pagename}
+    push @$(block), "<meta charset=\"$charset\">"
+    push @$(block), "<title>$title</title>\n"
+    $call dump_styles, $(block)
+    my %sheet_hash;
+    $foreach $s in @$style_sheets
+	$if !$sheet_hash{$s}
+	    $sheet_hash{$s}=1;
+	    push @$(block), "<link rel=\"stylesheet\" type=\"text/css\" href=\"$s\" />\n";
+
+subcode: dump_styles(block)
+    $if @style_key_list
+	#$call dump_hash, $style
+	$if $MyDef::page->{type} ne "css"
+	    push @$(block), "<style>\n";
+	$foreach $k in @style_key_list
+	    my %attr;
+	    my @attr;
+	    my @tlist=split /;/, $style->{$k};
+	    $foreach $t in @tlist
+		$if $t=~/([^ :]+):\s*(.*)/
+		    $if !defined $attr{$1}
+			push @attr, $1;
+		    $attr{$1}=$2;
+	    @tlist=();
+	    $foreach $a in @attr
+		push @tlist, "$a: $attr{$a}";
+		# border-radius|box-shadow
+		$if $a=~/(transition|user-select)/
+		    $foreach $prefix in ("moz", "webkit", "ms", "o")
+			push @tlist, "-$prefix-$a: $attr{$a}"
+		$if $attr{$a}=~/^\s*(linear-gradient)/
+		    $foreach $prefix in ("moz", "webkit", "ms", "o")
+			push @tlist, "$a: -$prefix-$attr{$a}"
+	    push @$(block), "    $k {". join('; ', @tlist)."}\n";
+	$if $MyDef::page->{type} ne "css"
+	    push @$(block), "</style>\n";
+
+# ------------------------------------------------------------
+subcode: global_pattern(name, p)
+    $if $t=~/$(p)/
+	my @plist=split /($(p))/, $t
+	my @tlist
+	$foreach $p in @plist
+	    $if $p=~/^$(p)$/
+		push @tlist, "<span class=\"mydef-$(name)\">$p</span>" 
+	    $else
+		push @tlist, $p
+	$t=join('', @tlist)
+
+subcode: mydef_print
+    #print "mydef_print [$t]\n"
+    $if $t!~/</ 
+	$call global_pattern, quote, ".*?"
+	$call global_pattern, macro, \$\(.*?\) 
+
+    $if $t=~/^(\s*)((#|&#35;).*)/
+	$t="$1<span class=\"mydef-comment\">$2</span>"
+    $elif $t=~/^(\s*)(page|CSS|\w+code):(.*)/
+	$t="$1<span class=\"mydef-label\">$2</span>:$3"
+    $elif $t=~/^(\s*)\$(call|map|if|while|switch|for|elif|elsif|else|function|setf)(\s.*)/
+	$t="$1<span class=\"mydef-keyword\">\$$2</span>$3"
+    $elif $t=~/^(\s*)\&(call)(.*)/
+	$t="$1<span class=\"mydef-keyword\">\&$2</span>$3"
+
