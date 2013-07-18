@@ -53,7 +53,9 @@ subcode: dump_main
 subcode: dumpout
     my @source_stack;
 
-    my $indentation=0;
+    my $indentation=0
+    my @indentation_stack
+
     my @openblock;
     my @closeblock;
     my @preblock;
@@ -81,11 +83,17 @@ subcode: dumpout
 	    $if $source
 		push @source_stack, $out;
 		$out=$source;
-	$elif $l=~/^\s*(INDENT|DEDENT)\b(.*)/
+	$elif $l=~/^\s*(INDENT|DEDENT|PUSHDENT|POPDENT)\b(.*)/
 	    $if $1 eq "INDENT"
 		$indentation++;
 	    $elif $1 eq "DEDENT"
 		$indentation-- if $indentation;
+	    $elif $1 eq "PUSHDENT"
+		push @indentation_stack, $indentation
+		$indentation=0
+	    $elif $1 eq "POPDENT"
+		$indentation=pop @indentation_stack
+
 	    $l=$2;
 	    $if $l=~/^\s*;?$/
 		next;
@@ -152,6 +160,9 @@ subcode: print_line
 	push @$f, "\n"
     $elif $l=~/^\s*NEWLINE\b/
 	push @$f, "\n"
+    $elif $l =~/^PRINT (.*)/
+	push @$f, "    "x$indentation;
+	push @$f, "$1\n"
     $else
 	push @$f, "    "x$indentation;
 	push @$f, $l

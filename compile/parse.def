@@ -25,27 +25,34 @@ subcode:: support_subs
 	    $call parse_catch_meta
 	    # -- such as indentation and BLOCK_n
 	    $call parse_filter_meta
-	    # -- handle preproc and out-of-switch
-	    $if $l=~/^\$\((.*)\)/
-		my $preproc=$1
-		$call parse_preproc
-	    $elif $l=~/^\$:\s+(.*)/
-		# Literal by-pass
-		push @$out, $1
+
+	    $if $cur_mode eq "PRINT"
+		$call parse_line
 	    $else
-		NormalParse:
-		undef $context;
-		expand_macro_recurse(\$l);
-		$while 1
-		    # -- parse_line could return a new $l
-		    # -- otherwise, last in the end breaks the loop
-		    $if $l=~/^(&call|\$call|\$map)\s+(.*)$/
-			my ($func, $param)=($1, $2);
-			$call parse_call_sub
-		    $else
-			$call parse_line
-		    last
+		$call compile_line
 	$call parse_stack_pop
+
+subcode: compile_line
+    # -- handle preproc and out-of-switch
+    $if $l=~/^\$\((.*)\)/
+	my $preproc=$1
+	$call parse_preproc
+    $elif $l=~/^\$:\s+(.*)/
+	# Literal by-pass
+	push @$out, $1
+    $else
+	NormalParse:
+	undef $context;
+	expand_macro_recurse(\$l);
+	$while 1
+	    # -- parse_line could return a new $l
+	    # -- otherwise, last in the end breaks the loop
+	    $if $l=~/^(&call|\$call|\$map|\$call-PRINT)\s+(.*)$/
+		my ($func, $param)=($1, $2);
+		$call parse_call_sub
+	    $else
+		$call parse_line
+	    last
 
 subcode:: support_subs
     $sub curfile_curline

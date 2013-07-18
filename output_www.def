@@ -1,80 +1,90 @@
 include: output.def
 include: macros_www/common.def
+include: macros_www/html.def
 include: macros_www/php.def
 include: macros_www/js.def
 
 # Many Legacy/Ugly code here. Wish I will have to time/interest to clean it up.
 
-page: output_www
+page: output_www, output_main
     type: pm
     output_dir: lib/MyDef
     ext: html
     init_mode: html
     package: MyDef::output_www
 
-    subcode: main
-	use MyDef::compileutil;
-	use Term::ANSIColor qw(:constants);
-	# ------ global variables
-	my $php;
-	my @style_key_list;
-	my $style;
-	my $style_sheets
-	# ------ custom dump states
-	# ------ main
-	$call output_main
-	$call custom_dump
-	$call support_subs
-    subcode: init_page
-	$php={};
-	$style={};
-	@style_key_list=()
-	$style_sheets=[]
+subcode:: package_globals
+    use MyDef::compileutil;
+    use Term::ANSIColor qw(:constants);
+    # ------ global variables
+    my $php;
+    my $style_sheets
 
-    subcode: modeswitch
-	# stackable mode : html -> js -> php
-	$global @mode_stack
-	$global $cur_mode="html"
+subcode:: init_page
+    $php={};
+    $style_sheets=[]
 
-	$if $mode eq $cur_mode or $mode eq "sub"
-	    goto modeswitch_done
+subcode: modeswitch
+    # stackable mode : html -> js -> php
+    $global @mode_stack
+    $global $cur_mode="html"
 
-	$if $cur_mode eq "php"
-	    $call exit_php
-	    $cur_mode=pop @mode_stack
-	    $if $mode eq $cur_mode
-		goto modeswitch_done
+    #print "modeswitch $cur_mode-> $mode\n"
 
-	$if $mode eq "php"
-	    $call enter_php
-	    push @mode_stack, $cur_mode
-	    $cur_mode=$mode
-	    goto modeswitch_done
+    $if $mode eq $cur_mode or $mode eq "sub"
+	goto modeswitch_done
 
-	$if $cur_mode eq "js"
-	    $call exit_js
-	    $cur_mode=pop @mode_stack
-	    $if $mode eq $cur_mode
-		goto modeswitch_done
+    $if $cur_mode eq "PRINT"
+	$call popmode
 
-	$if $mode eq "js"
-	    $call enter_js
-	    push @mode_stack, $cur_mode
-	    $cur_mode=$mode
-	    goto modeswitch_done
+    $if $mode eq "PRINT"
+	$call pushmode
 
-	# --
-	modeswitch_done:
+    $if $cur_mode eq "php"
+	$call exit_php
+	$call popmode
 
-    subcode: dumpout
-	my $cur_mode;
-	my $metablock=MyDef::compileutil::get_named_block("meta")
-	dumpmeta($metablock)
-	$dump->{custom}=\&custom_dump
+    $if $mode eq "php"
+	$call enter_php
+	$call pushmode
 
-    subcode: parsecode
-	$call parsecode_common
-	push @$out, $l
+    $if $cur_mode eq "js"
+	$call exit_js
+	$call popmode
+
+    $if $mode eq "js"
+	$call enter_js
+	$call pushmode
+
+    modeswitch_done:
+
+# --
+subcode: pushmode
+    push @mode_stack, $cur_mode
+    $cur_mode=$mode
+    goto modeswitch_done
+
+subcode: popmode
+    $cur_mode=pop @mode_stack
+    $if $mode eq $cur_mode
+	goto modeswitch_done
+# ------------------------
+subcode:: dumpout
+    $dump->{custom}=\&custom_dump
+
+subcode: parsecode
+    $if $cur_mode eq "PRINT"
+	$if $l=~/^(SUBBLOCK|SOURCE)/
+	    push @$out, $l
+	$else
+	    my $P="PRINT-".$mode_stack[-1]
+	    $if $P eq "PRINT-html"
+		$l=~s/</&lt;/g
+		$l=~s/>/&gt;/g
+	    push @$out, "$P $l"
+	return 0
+    $call parsecode_common
+    push @$out, $l
 
 subcode: parsecode_special
     $if $l=~/^\s*CSS: (.*)\s*\{(.*)\}/
@@ -85,13 +95,11 @@ subcode: parsecode_special
 	    push @style_key_list, $1;
     $elif $l=~/^\s*\$(title|charset)\s+(.*)/
 	$page->{$1}=$2
-    $elsif $l=~/^\s*PRINT\s+(.*)/
-	$if $cur_mode eq "html"
-	    push @$out, $1
-	$elif $cur_mode eq "php"
-	    push @$out, echo_php($1)
-	$elif $cur_mode eq "js"
-	    push @$out, $1
+    $elif $l=~/^\s*PRINT\s+(.*)/
+	my $P="PRINT-$cur_mode"
+	push @$out, "$P $1"
+    $elif $cur_mode eq "js" && $l=~/^(\S+)\s*=\s*"(.*\$\w+.*)"\s*$/
+	push @$out, "$1=". js_string($2)
 
 subcode: parsecode_func_param
     $if $cur_mode eq "js"
@@ -100,57 +108,22 @@ subcode: parsecode_func_param
 	$call @php_parse_func_param
 
 subcode: parsecode_func
-    $(set:html=html|head|body)
-    $(set:basic=h[1-5]|p|pre)
-    $(set:block=div|span)
-    $(set:form=form|label|fieldset|button|textarea)
-    $(set:table=table|tr|td|th)
-    $(set:list=ol|ul|li)
-    $(set:misc=img|a|center|b|style)
-    $if $func =~ /^(tag|$(block)|$(list)|$(table)|$(basic)|$(html)|$(form)|$(misc))$/
-	my @tt_list=split /,\s*/, $param
-	my $is_empty_tag=0
-
-	$if $func eq "tag" and @tt_list
-	    $func=shift @tt_list;
-
-	$call parse_tag_attributes
-
-	my $P="PRINT-$cur_mode"
-	$if $func=~ /img/
-	    push @$out, "$P <$func$t />"
-	$elif $is_empty_tag or defined $quick_content
-	    push @$out, "$P <$func$t>$quick_content</$func>"
-	$else
-	    return single_block("$P <$func$t>", "$P </$func>")
+    $call parsecode_html_tag
+    $if $func eq "script"
+	MyDef::compileutil::modepush("js")
+	push @$out, "SOURCE_INDENT";
+	push @$out, "BLOCK";
+	push @$out, "SOURCE_DEDENT";
+	return "NEWBLOCK-\$script_end"
+    $elif $func eq "script_end"
+	MyDef::compileutil::modepop()
     $elif $cur_mode eq "js"
 	$call @js_parse_func
     $elif $cur_mode eq "php"
 	$call @php_parse_func
+    $else
+	$should_return=0
 
-
-subcode: parse_tag_attributes
-    my $t=""
-    my $quick_content
-    $foreach my $tt in @tt_list
-	$if $tt eq "/"
-	    $is_empty_tag=1
-	$elsif $tt=~/^#(\S+)$/
-	    # ---- ID ------------
-	    $t.=" id=\"$1\"";
-	$elif $tt=~/^(\S+?)[:=]"(.*)"/
-	    # ---- Named Attribute ----
-	    $t.=" $1=\"$2\""
-	$elif $tt=~/^(\S+?)[:=](.*)/
-	    $t.=" $1=\"$2\""
-	$elif $tt=~/^"(.*)"/
-	    # ---- Quick Content ----
-	    $quick_content=$1
-	$else
-	    # ---- Classes ----
-	    $t.=" class=\"$tt\"";
-
-subcode: parsecode_html
 subcode: old_parse
     $elsif $func eq 'hidden'
 	my @p=split /,\s*/, $param;
@@ -349,101 +322,22 @@ subcode: parse_function
 	    push @$out, "PRINT </li>";
 	}
 	push @$out, "PRINT </ul>";
-subcode: custom_dump
-    $sub custom_dump
-	my ($f, $rl)=@_;
-	$if $$rl=~/^<\?php/
-	    $cur_mode="php"
-	    push @$f, "<?php\n"
-	$elif $$rl=~/^\?>/
-	    $cur_mode="html"
-	    push @$f, "?>\n"
-	# deprecated --------------------------------
-	elsif($$rl=~/^\s*HTML_START\s*(.*)/){
-	    push @$f, "<!DOCTYPE html>\n";
-	    push @$f, "<html><head>\n";
-	    dumpmeta($f);
-	    push @$f, "</head>\n";
-	    push @$f, "<body $1>\n";
-	    return 1;
-	}
-	elsif($$rl=~/^\s*HTML_HEAD_START/){
-	    push @$f, "<!DOCTYPE html>\n";
-	    push @$f, "<html><head>\n";
-	    return 1;
-	}
-	elsif($$rl=~/^\s*HTML_HEAD_STUFF/){
-	    dumpmeta($f);
-	    return 1;
-	}
-	elsif($$rl=~/^\s*HTML_STYLE/){
-	    dumpstyle($f, $style);
-	    return 1;
-	}
-	elsif($$rl=~/^\s*HTML_BODY_START\s*(.*)/){
-	    push @$f, "</head>\n";
-	    push @$f, "<body $1>\n";
-	    return 1;
-	}
-	elsif($$rl=~/^\s*HTML_END/){
-	    push @$f, "</body></html>\n";
-	    return 1;
-	}
-	# ------------------------------------------------
-	else{
-	    $if $$rl=~/\\span_(\w+)\{([^}]*)\}/
-		my $t="<span class=\"$1\">$2</span>";
-		$$rl=$`.$t.$';
-	    $if $$rl=~/PRINT-(\w+) (.*)/
-		my $mode=$1;
-		my $t=$2;
-		$if $mode eq "php"
-		    $$rl=echo_php($t)
-		$else
-		    $$rl=$t
-	    return 0
-	}
-	
 
 subcode:: support_subs
-    $sub dumpstyle($f, $style)
-	$if @style_key_list
-	    #$call dump_hash, $style
-	    $if $MyDef::page->{type} ne "css"
-		push @$f, "<style>\n";
-	    $foreach $k in @style_key_list
-		my %attr;
-		my @attr;
-		my @tlist=split /;/, $style->{$k};
-		$foreach $t in @tlist
-		    $if $t=~/([^ :]+):\s*(.*)/
-			$if !defined $attr{$1}
-			    push @attr, $1;
-			$attr{$1}=$2;
-		@tlist=();
-		$foreach $a in @attr
-		    push @tlist, "$a: $attr{$a}";
-		    $if $a eq "background-image" and $attr{$a}=~/linear-gradient\((\w+),\s*(\S+),\s*(\S+)\)/
-			$foreach $prefix in ("moz", "webkit", "ms", "o")
-			    push @tlist, "$a: -$prefix-linear-gradient($1, $2, $3)"
-		push @$f, "    $k {". join('; ', @tlist)."}\n";
-	    $if $MyDef::page->{type} ne "css"
-		push @$f, "</style>\n";
+    $sub custom_dump
+	my ($f, $rl)=@_;
+	$if $$rl=~/\\span_(\w+)\{([^}]*)\}/
+	    my $t="<span class=\"$1\">$2</span>";
+	    $$rl=$`.$t.$';
+	$if $$rl=~/PRINT-(\w+) (.*)/
+	    my $mode=$1;
+	    my $t=$2;
+	    $if $mode eq "php"
+		$$rl=echo_php($t)
+	    $elif $mode eq "js"
+		$$rl="PRINT $t"
+	    $else
+		$call mydef_print
+		$$rl="PRINT $t"
+	return 0
 
-    $sub dumpmeta($f)
-	my $charset=$page->{charset}
-	$if !$charset
-	    $charset="utf-8"
-	my $title=$page->{title}
-	$if !$title
-	    $title=$page->{pagename}
-	push @$f, "<meta charset=\"$charset\">"
-	push @$f, "<title>$title</title>\n"
-	dumpstyle($f, $style);
-	my %sheet_hash;
-	$foreach $s in @$style_sheets
-	    $if !$sheet_hash{$s}
-		$sheet_hash{$s}=1;
-		push @$f, "<link rel=\"stylesheet\" type=\"text/css\" href=\"$s\" />\n";
-
-################################################

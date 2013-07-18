@@ -1,5 +1,5 @@
 
-## Frames -------------------------------------------------------------
+## Frames ---------------------------------------------------------
 htmlcode: basic_frame
     $call @process
     <!doctype html>
@@ -11,3 +11,35 @@ htmlcode: basic_frame
 	$body
 	    $call @content
 
+htmlcode: js_frame
+    $call @css_global
+    $html
+	$head
+	    DUMP_STUB meta
+	    $call @meta
+	    $script
+		DUMP_STUB js_init
+		$call @js_global
+		&call setf, window.onload
+		    $call @js_onload
+	$body
+	    $call @content
+
+## JavaScript -----------------------------------------------------
+jscode: setf(target)
+    $(target) = function(){
+	BLOCK
+    };
+
+jscode: listen(obj, event)
+    $(obj).addEventListener("$(event)", function(event){
+	BLOCK
+    }, false);
+
+jscode: setInterval(name, time)
+    $global $(name)
+    $(name)=window.setInterval(function(){
+	BLOCK
+    }, $(time));
+
+# ------------------------------------------
