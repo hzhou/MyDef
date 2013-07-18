@@ -42,4 +42,8 @@ jscode: setInterval(name, time)
 	BLOCK
     }, $(time));
 
+jscode: auto
+    (function() {
+	BLOCK
+    }());
 # ------------------------------------------

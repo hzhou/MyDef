@@ -133,7 +133,7 @@ subcode: mydef_print
 	$t="$1<span class=\"mydef-comment\">$2</span>"
     $elif $t=~/^(\s*)(page|CSS|\w+code):(.*)/
 	$t="$1<span class=\"mydef-label\">$2</span>:$3"
-    $elif $t=~/^(\s*)\$(call|map|if|while|switch|for|elif|elsif|else|function|setf)(\s.*)/
+    $elif $t=~/^(\s*)\$(call|map|if|while|switch|for|elif|elsif|else|function)\b(.*)/
 	$t="$1<span class=\"mydef-keyword\">\$$2</span>$3"
     $elif $t=~/^(\s*)\&(call)(.*)/
 	$t="$1<span class=\"mydef-keyword\">\&$2</span>$3"
