@@ -132,7 +132,7 @@ sub parsecode {
         create_controller($1);
         return;
     }
-    elsif($l=~/^\s*\$prop\s+(.*)/){
+    if($l=~/^\s*\$prop\s+(.*)/){
         my ($t, $attr)=($1, undef);
         my @plist=split /,\s*/, $t;
         foreach my $p (@plist){
@@ -188,7 +188,7 @@ sub parsecode {
         }
         return;
     }
-    elsif($l=~/^\s*@(\w+)\s*=\s*(.*)/){
+    if($l=~/^\s*@(\w+)\s*=\s*(.*)/){
         my $type=get_c_type($1);
         if($cur_class){
             $cur_class->{properties}->{$1}=$type;
@@ -196,7 +196,7 @@ sub parsecode {
         }
         $l="$1 = $2";
     }
-    elsif($l=~/^\s*@(.*)\s+(\w+)\s*=\s*(.*)/){
+    if($l=~/^\s*@(.*)\s+(\w+)\s*=\s*(.*)/){
         my $type=$1;
         if($cur_class){
             $cur_class->{properties}->{$2}=$type;
@@ -204,7 +204,7 @@ sub parsecode {
         }
         $l="$2 = $3";
     }
-    elsif($l=~/^(\S+)\s*=\s*new (\w+)(.*)/){
+    if($l=~/^(\S+)\s*=\s*new (\w+)(.*)/){
         my ($v, $name, $spec)=($1, $2, $3);
         $spec=~s/^,?\s*//;
         my $class_field;
@@ -261,11 +261,11 @@ sub parsecode {
         }
         return;
     }
-    elsif($l=~/^\s*\$foreach\s+(\w+)\s+in\s+(\w+)/){
+    if($l=~/^\s*\$foreach\s+(\w+)\s+in\s+(\w+)/){
         func_add_var($1);
         return single_block("for($1 in $2){", "}")
     }
-    elsif($l=~/^\s*([a-zA-Z0-9._]+)->(\w+)(\s*)(.*)/){
+    if($l=~/^\s*([a-zA-Z0-9._]+)->(\w+)(\s*)(.*)/){
         my ($obj, $mtd, $s, $t)=($1, $2, $3, $4);
         if(!$4){
             push @$MyDef::output_c::out, "[$1 $2];";

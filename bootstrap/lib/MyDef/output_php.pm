@@ -108,7 +108,7 @@ sub parsecode {
             }
             push @$out, $l;
         }
-        elsif($func=~/^(img)$/){
+        if($func=~/^(img)$/){
             my @tt_list=split /,\s*/, $param;
             my $is_empty_tag=0;
             my $t="";
@@ -202,7 +202,7 @@ sub parsecode {
         elsif($func eq 'use_css'){
             push @$style_sheets, $param;
         }
-        elsif($func eq 'include'){
+        if($func eq 'include'){
             if(open my $in, $param){
                 MyDef::compileutil::modepush("html");
                 my $omit=0;
@@ -285,7 +285,7 @@ sub parsecode {
                 push @$out, "\$$p=$group\['$p'\];";
             }
         }
-        elsif($func eq "if"){
+        if($func eq "if"){
             return single_block("if($param){", "}")
         }
         elsif($func eq "ifz"){

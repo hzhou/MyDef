@@ -181,43 +181,6 @@ sub parsecode {
     elsif($l=~/^NOOP/){
         return;
     }
-    while(my ($k, $v)=each %text_include){
-        if($l=~/$k/){
-            my @flist=split /,\s*/, $v;
-            my $autoload;
-            my $autoload_h=0;
-            if($page->{_autoload}){
-                if($page->{autoload} eq "write_h"){
-                    if(!$h_hash{"autoload"}){
-                        $autoload=[];
-                        $h_hash{"autoload"}=$autoload;
-                    }
-                    else{
-                        $autoload=$h_hash{"autoload"};
-                    }
-                }
-                elsif($page->{autoload} eq "h"){
-                    $autoload_h=1;
-                }
-            }
-            foreach my $f (@flist){
-                my $key;
-                if($f=~/\.\w+$/){
-                    $key="\"$f\"";
-                }
-                elsif($f=~/^".*"$/){
-                    $key=$f;
-                }
-                else{
-                    $key="<$f.h>";
-                }
-                $includes{$key}=1;
-                if($autoload){
-                    push @$autoload, "include-$key";
-                }
-            }
-        }
-    }
     my $should_return=1;
     if($l=~/^SUBBLOCK BEGIN (\d+)/){
         push @$out, "DUMP_STUB SUBBLOCK_$1";
@@ -251,7 +214,7 @@ sub parsecode {
             MyDef::compileutil::call_sub("$print_type, $t");
         }
     }
-    elsif($l=~/^\s*\$(\w+)\((.*)\)\s+(.*)$/){
+    if($l=~/^\s*\$(\w+)\((.*)\)\s+(.*)$/){
         my ($func, $param1, $param2)=($1, $2, $3);
         if($func eq "allocate"){
             allocate($param1, $param2);
@@ -757,45 +720,6 @@ sub parsecode {
     }
     if($should_return){
         return;
-    }
-    if($l=~/^return\b/){
-        func_return($l, $out);
-    }
-    elsif($l=~/^SOURCE_INDENT/){
-        $cur_indent++;
-    }
-    elsif($l=~/^SOURCE_DEDENT/){
-        $cur_indent--;
-    }
-    while($l=~/\^([234])/){
-        my $t_p=$1;
-        my $t_tail=$';
-        my ($t_head, $t_exp)=last_exp($`);
-        my $t_trunk="$t_exp*" x ($t_p-1);
-        $t_trunk.=$t_exp;
-        $l="$t_head($t_trunk)$t_tail";
-    }
-    if($l=~/^(\w+)\s+(.*)$/){
-        if($functions{$1} or $stock_functions{$1}){
-            my $fn=$1;
-            my $t=$2;
-            $t=~s/;\s*$//;
-            $t=~s/\s+$//;
-            $l="$fn($t);";
-        }
-    }
-    if($l=~/^\s*$/){
-    }
-    elsif($l=~/(for|while|if|else if)\s*\(.*\)\s*$/){
-    }
-    elsif($l!~/[:\{\};]\s*$/){
-        $l.=";";
-    }
-    if($l=~/^[^'"]*=/){
-        check_assignment(\$l, $out);
-    }
-    if($l){
-        push @$out, $l;
     }
 }
 sub dumpout {

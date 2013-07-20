@@ -196,7 +196,7 @@ subcode: collect_files
 	    # ---- folder ----
 	    $if -e "$f/skipmake"
 		print "    Skip folder $f\n"
-	    $elif $f =~ /^(cmp|old|tests|macros_.*)$/
+	    $elif $f =~ /^(cmp|bootstrap|old|tests|macros_.*)$/
 		print "    Skip folder $f\n"
 	    $elif $f eq $config_outputdir and -f "$f/Makefile"
 		$config_outputdir_make = 1

@@ -1,5 +1,6 @@
 use strict;
 package MyDef::output_perl;
+our @elifstack;
 use MyDef::dumpout;
 our $debug;
 our $mode;

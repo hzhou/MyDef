@@ -36,6 +36,7 @@ sub dumpout {
     }
     my @source_stack;
     my $indentation=0;
+    my @indentation_stack;
     my @openblock;
     my @closeblock;
     my @preblock;
@@ -68,12 +69,19 @@ sub dumpout {
                 $out=$source;
             }
         }
-        elsif($l=~/^\s*(INDENT|DEDENT)\b(.*)/){
+        elsif($l=~/^\s*(INDENT|DEDENT|PUSHDENT|POPDENT)\b(.*)/){
             if($1 eq "INDENT"){
                 $indentation++;
             }
             elsif($1 eq "DEDENT"){
                 $indentation-- if $indentation;
+            }
+            elsif($1 eq "PUSHDENT"){
+                push @indentation_stack, $indentation;
+                $indentation=0;
+            }
+            elsif($1 eq "POPDENT"){
+                $indentation=pop @indentation_stack;
             }
             $l=$2;
             if($l=~/^\s*;?$/){
@@ -148,6 +156,10 @@ sub dumpout {
             }
             elsif($l=~/^\s*NEWLINE\b/){
                 push @$f, "\n";
+            }
+            elsif($l =~/^PRINT (.*)/){
+                push @$f, "    "x$indentation;
+                push @$f, "$1\n";
             }
             else{
                 push @$f, "    "x$indentation;
