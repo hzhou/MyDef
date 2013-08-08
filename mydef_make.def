@@ -53,7 +53,7 @@ page: mydef_make
 subcode:: package_global
     my @master_config;
     my $module="www";
-    my %module_type=(perl=>"pl", www=>"html", xs=>"xs", win32=>"c", c=>"c", apple=>"m", js=>"js", general=>"txt", glsl=>"glsl");
+    my %module_type=(php=>"php", perl=>"pl", www=>"html", xs=>"xs", win32=>"c", c=>"c", apple=>"m", js=>"js", general=>"txt", glsl=>"glsl");
     my %macros;
     my @include_folders;
     my $config_outputdir;

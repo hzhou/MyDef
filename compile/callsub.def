@@ -5,10 +5,7 @@ subcode: parse_call_sub
     $elif $func =~ /^\$call/
 	call_sub($param, $func);
     $elif $func eq "\&call"
-	my @callback_list=callback_sub($param, $func);
-	$foreach $n in @callback_list
-	    $call parse_handle_block, $n
-	modepop()
+	$call callback_sub
 
 subcode:: package_global
     my @callsub_stack;
@@ -75,7 +72,8 @@ subcode: call_sub_normal_setup_macro
 		$pline=~s/^[^,]*,//
 	    $pline=~s/^\s*//
 	    $plist[$n0]=$pline
-	warn "    [$cur_file:$cur_line] Code $codename parameter mismatch ($np + $n2) != $n3. [pline:$pline]\n";
+	$else
+	    warn "    [$cur_file:$cur_line] Code $codename parameter mismatch ($np + $n2) != $n3. [pline:$pline]\n";
     my $macro={};
     $for $i=0:$np
 	$macro->{$params->[$i]}=$pre_plist[$i];
@@ -108,15 +106,29 @@ subcode: call_sub_block
 	#     $call @othercode
 	set_current_macro("notfound", 1)
 
+subcode: callback_sub
+    $call call_sub_param
+    my $codelib=get_subcode($codename)
+    $if $codelib
+	modepush($codelib->{type});
+
+    $if $codelib
+	push @callsub_stack, $codename
+	my $params=$codelib->{params};
+	my $np=@pre_plist;
+	$call call_sub_normal_setup_macro
+	push @$deflist, $macro;
+	parseblock($codelib);
+	pop @$deflist;
+	pop @callsub_stack
+
+
+    $call parse_handle_block, $n
+
+    $if $codelib
+	modepop()
 
 subcode:: support_subs
-    $sub get_sub_param_list($codename)
-	$codename=~s/^@//
-	my $codelib=get_def_attr("codes", $codename);
-	$if !$codelib
-	    return undef
-	return $codelib->{params}
-
     $sub call_sub($param, $calltype)
 	$call call_sub_param
 	&call call_sub_block
@@ -127,33 +139,6 @@ subcode:: support_subs
 		$call call_sub_map
 	    $else
 		$call call_sub_normal
-
-    $sub callback_sub
-	my ($param)=@_;
-	$call call_sub_param
-	my $codelib=get_subcode($codename)
-	$if $codelib
-	    push @callsub_stack, $codename
-	    modepush($codelib->{type});
-
-	    my $params=$codelib->{params};
-	    my $np=@pre_plist;
-	    $call call_sub_normal_setup_macro
-
-	    push @$deflist, $macro;
-	    my $source=$codelib->{source};
-	    my @callback_list
-	    extract_callback_block($source, \@callback_list)
-	    parseblock($codelib);
-	    pop @$deflist;
-
-	    pop @callsub_stack
-
-	    my @tlist;
-	    $foreach $b in @callback_list
-		$b->{source}->[$b->{line}]="BLOCK"
-		push @tlist, $b->{block}
-	    return @tlist
 
     $sub get_subcode($codename, $attr)
 	# ---- Grab Code Block ------------------
@@ -173,21 +158,6 @@ subcode:: support_subs
 			die "Recursive subcode: $codename [$recurse]\n"
 	    $codelib->{recurse}=$recurse
 	    return $codelib
-
-    $sub extract_callback_block($source, $callback_list)
-	$for $i=0:$#$source+1
-	    $if $source->[$i]=~/^BLOCK$/
-		my $n=new_output()
-		$source->[$i]="BLOCK_$n"
-		push @$callback_list, {block=>$n, source=>$source, line=>$i}
-	    $elif $source->[$i]=~/^\$call\s+(.*)/
-		my $t=$1
-		# problemetic, because we have not updated macros within the block
-		expand_macro_recurse(\$t, 1)
-		$if $t=~/(\w+)/
-		my $codelib=get_subcode($1, '@')
-		$if $codelib
-		    extract_callback_block($codelib->{source}, $callback_list)
 
 subcode:: support_subs
     $sub eval_sub($codename)
