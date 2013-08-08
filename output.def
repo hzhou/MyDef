@@ -15,13 +15,13 @@ subcode: output_main
     $sub init_page
 	($page)=@_;
 	# ---- Set output file extension
-	my $ext="$(ext)"
+	my $ext=$page->{ext}
 	$if $page->{type}
 	    $ext=$page->{type};
 	$call @init_page
-	# !!! $page->{ext}=$ext will overwrite $(ext)
 	$page->{pageext}=$ext 
-	return ($ext, "$(init_mode)");
+	my $init_mode=$page->{init_mode}
+	return ($ext, $init_mode)
 
     $sub set_output
 	$out = shift

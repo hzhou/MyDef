@@ -112,6 +112,10 @@ subcode: callback_sub
     $if $codelib
 	modepush($codelib->{type});
 
+    $global @callback_block_index_stack
+    $call parse_handle_block
+    push @callback_block_index_stack, $n
+
     $if $codelib
 	push @callsub_stack, $codename
 	my $params=$codelib->{params};
@@ -122,8 +126,7 @@ subcode: callback_sub
 	pop @$deflist;
 	pop @callsub_stack
 
-
-    $call parse_handle_block, $n
+    pop @callback_block_index_stack
 
     $if $codelib
 	modepop()

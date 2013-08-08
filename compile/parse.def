@@ -41,8 +41,11 @@ subcode: compile_line
 	# Literal by-pass
 	push @$out, $1
     $elif $l=~/^BLOCK\s*$/
-	my $n=$callback_block_index
-	push @$out, "BLOCK_$n"
+	$if $#callback_block_index_stack <0
+	    warn "BLOCK called out of context!\n"
+	$else
+	    my $n=$callback_block_index_stack[-1]
+	    push @$out, "BLOCK_$n"
     $else
 	NormalParse:
 	undef $context;
@@ -187,17 +190,13 @@ subcode: parse_line
 		$f_parse->($t)
 
 subcode: check_callback
+    $call parse_handle_block
     $for $i=$idx:$#$callback_output+1
 	$if $callback_output->[$i]=~/^BLOCK$/
-	    my $n=new_output();
 	    $callback_output->[$i]="BLOCK_$n"
-	    $call parse_handle_block, $n
 
 subcode: parse_handle_block
-    $global $callback_block_index
     my $n=new_output()
-    $callback_block_index=$n
-
     my $subblock=grabblock($block, \$lindex)
     #$call debug_block, subblock, 0
     my $temp=$out;

@@ -4,11 +4,28 @@ page: output_general, output_main
     type: pm
     output_dir: lib/MyDef
     ext: txt
-    init_mode: sub
 
-page: output_js, output_main
+page: output_make, output_main
     type: pm
     output_dir: lib/MyDef
-    ext: js
-    init_mode: sub
+    subcode: parsecode
+	$if $l=~/^\s*\$(\w+)\s*(.*)$/
+	    my ($func, $param)=($1, $2)
+	    $if $func=~/^(ifeq|ifneq|ifdef|ifndef|elsif)$/
+		push @$out, "$1 $param"
+		push @$out, "BLOCK"
+		return "NEWBLOCK"
+	    $elif $func=~/^(ifeq|ifneq|ifdef|ifndef|elsif)_$/
+		push @$out, "$1 $param"
+		push @$out, "BLOCK"
+		push @$out, "endif"
+		return "NEWBLOCK";
+	    $elif $func=~/^else$/
+		push @$out, "else"
+		push @$out, "BLOCK"
+		push @$out, "endif"
+		return "NEWBLOCK"
+	push @$out, $l
+	return 0
+
 

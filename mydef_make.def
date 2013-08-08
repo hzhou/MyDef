@@ -297,8 +297,6 @@ subcode: check_eachpage
 	    $if $h->{module}
 		$t_module=$h->{module}
 	    $h->{type}=$module_type{$t_module}
-	    $if !$h->{type}
-		$h->{type}=$t_module
 	$if !$h->{in_var}
 	    $h->{in_var}="toproot";
 	    $if $folder{toproot}
@@ -311,6 +309,8 @@ subcode: check_eachpage
 	    $h->{path}=$h->{output_dir}."/".$h->{path};
 	$if $config_outputdir and $h->{path}!~/^\//
 	    $h->{path}=$config_outputdir."/".$h->{path};
+	$if $h->{type}
+	    $h->{path}.=".$h->{type}"
 
 subcode: expand_dependency
     $while my ($f, $l) = each %h_def
@@ -371,7 +371,7 @@ subcode: write_var_folder
 	push @tlist, "\${$name}";
 	print Out "$name=";
 	$foreach my $p in @$l
-	    print Out $h_page{$p}->{path}, ".", $h_page{$p}->{type}, " ";
+	    print Out $h_page{$p}->{path}, " ";
 	print Out "\n";
 
 subcode: write_rule_pages
@@ -386,7 +386,7 @@ subcode: write_rule_pages
 	    $foreach $tt in @$l
 		$if -f $tt
 		    push @t, $tt;
-	    print Out $h->{path}, ".", $h->{type}, ": ", $def, " ", join(" ", @t), " $inc_dep $extra_dep\n";
+	    print Out $h->{path}, ": ", $def, " ", join(" ", @t), " $inc_dep $extra_dep\n";
 	    $if $h->{module} and ($h->{module}ne $module)
 		print Out "\t\${MakePage} -m$h->{module} \$< \$\@\n";
 	    $else
@@ -415,10 +415,9 @@ subcode: module_specific
 		$if $folder{toproot}
 		    my $tlist=$folder{toproot};
 		    my $page=$h_page{$tlist->[0]};
-		    my $name=$page->{path};
-		    if($name=~/.*\/(.*)/){
+		    my $name=$page->{path}
+		    $if $page->{path}=~/.*\/(.*)\.c/
 			$name=$1;
-		    }
 		    #print Out "gcc -Wl,-subsystem,windows -o $name.exe $name.c\r\n";
 		    print Out "cl $name.c user32.lib\r\n";
 		close Out;

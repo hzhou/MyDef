@@ -36,6 +36,6 @@ page: Makefile
 		    $t.="\tinstall  deflib/$1.def \$(INSTALL_BASE)/lib/MyDef/$1.def\n\n";
 		}
 	    }
-	    $t.="def_install :: ".join(" ", @deflist)."\n\t\$(NOECHO) \$(NOOP)\n\n";
+	    $t.="def_install :: ".join(" ", @deflist)."\n\t\$(NOECHO) \$"."(NOOP)\n\n";
 	    return $t;
 	}
