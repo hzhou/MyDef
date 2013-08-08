@@ -4,10 +4,12 @@ page: output_general, output_main
     type: pm
     output_dir: lib/MyDef
     ext: txt
+    package: MyDef::output_general
 
 page: output_make, output_main
     type: pm
     output_dir: lib/MyDef
+    package: MyDef::output_make
     subcode: parsecode
 	$if $l=~/^\s*\$(\w+)\s*(.*)$/
 	    my ($func, $param)=($1, $2)
