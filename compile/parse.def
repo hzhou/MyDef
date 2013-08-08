@@ -40,6 +40,9 @@ subcode: compile_line
     $elif $l=~/^\$:\s+(.*)/
 	# Literal by-pass
 	push @$out, $1
+    $elif $l=~/^BLOCK\s*$/
+	my $n=$callback_block_index
+	push @$out, "BLOCK_$n"
     $else
 	NormalParse:
 	undef $context;
@@ -190,13 +193,17 @@ subcode: check_callback
 	    $callback_output->[$i]="BLOCK_$n"
 	    $call parse_handle_block, $n
 
-subcode: parse_handle_block(n)
+subcode: parse_handle_block
+    $global $callback_block_index
+    my $n=new_output()
+    $callback_block_index=$n
+
     my $subblock=grabblock($block, \$lindex)
     #$call debug_block, subblock, 0
     my $temp=$out;
-    set_output($output_list[$(n)])
+    set_output($output_list[$n])
     #$f_parse->("SCOPE: CALLBACK");
-    parseblock({source=>$subblock, name=>"BLOCK_$(n)"})
+    parseblock({source=>$subblock, name=>"BLOCK_$n"})
     #$f_parse->("SCOPE: NONE");
     set_output($temp)
 
