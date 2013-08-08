@@ -3,13 +3,12 @@ include: macros_util/debug.def
 page: dumpout
     type: pm
     output_dir: lib/MyDef
+    package: MyDef::dumpout
     subcode: main
 	$call dump_main
 
 subcode: dump_main
     use MyDef::compileutil;
-
-    package MyDef::dumpout;
 
     ################################
     # Function list
@@ -17,28 +16,26 @@ subcode: dump_main
     my @func_list;
     my $func_index=-1;
 
-    sub init_funclist {
+    $sub init_funclist
 	@func_list=();
 	$func_index=-1;
-    }
-    sub add_function {
-	my $func=shift;
+
+    $sub add_function($func)
 	$func_index++;
 	$func_list[$func_index]=$func;
 	return $func_index;
-    }
 
-    sub get_func_list {
+    $sub get_function($fidx)
+	return $func_list[$fidx]
+
+    $sub get_func_list
 	return \@func_list;
-    }
 
-    sub get_func_index {
+    $sub get_func_index
 	return $func_index;
-    }
 
-    sub get_cur_func {
+    $sub get_cur_func
 	return $func_list[$func_index];
-    }
 
     ################################
     $sub dumpout
@@ -56,7 +53,9 @@ subcode: dump_main
 subcode: dumpout
     my @source_stack;
 
-    my $indentation=0;
+    my $indentation=0
+    my @indentation_stack
+
     my @openblock;
     my @closeblock;
     my @preblock;
@@ -73,22 +72,28 @@ subcode: dumpout
 		last;
 	    $else
 		next;
-	#print "dumpout: [$l]\n";
 	$if $custom and $custom->($f, \$l)
 	    # custom dump -- used in output_php.def
-	$elif $l =~/^INCLUDE_BLOCK (\w+)/
+	$elif $l =~/^INCLUDE_BLOCK (\S+)/
 	    push @source_stack, $out
 	    $out=$dump->{$1}
-	$elif $l =~ /^DUMP_STUB\s+(\w+)/
+	$elif $l =~ /^DUMP_STUB\s+(\S+)/
 	    my $source=$MyDef::compileutil::named_blocks{$1};
+	    # print "DUMP_STUB $1 : $source\n"
 	    $if $source
 		push @source_stack, $out;
 		$out=$source;
-	$elif $l=~/^\s*(INDENT|DEDENT)\b(.*)/
+	$elif $l=~/^\s*(INDENT|DEDENT|PUSHDENT|POPDENT)\b(.*)/
 	    $if $1 eq "INDENT"
 		$indentation++;
 	    $elif $1 eq "DEDENT"
 		$indentation-- if $indentation;
+	    $elif $1 eq "PUSHDENT"
+		push @indentation_stack, $indentation
+		$indentation=0
+	    $elif $1 eq "POPDENT"
+		$indentation=pop @indentation_stack
+
 	    $l=$2;
 	    $if $l=~/^\s*;?$/
 		next;
@@ -141,7 +146,7 @@ subcode: dumpout
 	    $blockstack=1;
 	#$elif $l=~/^SCOPE:/
 	$elif $l=~/^SUBBLOCK (BEGIN|END)/
-	    # messages from compilutil.pm
+	    # messages from compileutil.pm
 	$else
 	    $call print_line
 
@@ -155,6 +160,9 @@ subcode: print_line
 	push @$f, "\n"
     $elif $l=~/^\s*NEWLINE\b/
 	push @$f, "\n"
+    $elif $l =~/^PRINT (.*)/
+	push @$f, "    "x$indentation;
+	push @$f, "$1\n"
     $else
 	push @$f, "    "x$indentation;
 	push @$f, $l

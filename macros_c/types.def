@@ -1,6 +1,7 @@
 subcode:: package_globals
-    our %fntype;
-    our %type_name=(
+    $global %type_name, %type_prefix
+    $global %fntype
+    %type_name=(
 	c=>"unsigned char",
 	i=>"int",
 	j=>"int",
@@ -12,7 +13,7 @@ subcode:: package_globals
 	d=>"double",
 	count=>"int",
     );
-    our %type_prefix=(
+    %type_prefix=(
 	n=>"int",
 	n1=>"int8_t",
 	n2=>"int16_t",
@@ -38,39 +39,38 @@ subcode:: package_globals
 	"is"=>"int",
     );
 
-    our %stock_functions=(
+    $global %stock_functions
+    %stock_functions=(
 	"printf"=>1,
     );
 
-    my %lib_include=(
-	glib=>"glib.h",
+    $global %lib_include, %type_include, %text_include
+    %lib_include=(
+	glib=>"glib",
     );
 
-    my %type_include=(
-	time_t=>"time.h",
-	int8_t=>"stdlib.h",
-	int16_t=>"stdlib.h",
-	int32_t=>"stdlib.h",
-	int64_t=>"stdlib.h",
-	uint8_t=>"stdlib.h",
-	uint16_t=>"stdlib.h",
-	uint32_t=>"stdlib.h",
-	uint64_t=>"stdlib.h",
+    %type_include=(
+	time_t=>"time",
+	int8_t=>"stdlib",
+	int16_t=>"stdlib",
+	int32_t=>"stdlib",
+	int64_t=>"stdlib",
+	uint8_t=>"stdlib",
+	uint16_t=>"stdlib",
+	uint32_t=>"stdlib",
+	uint64_t=>"stdlib",
     );
 
-    my %text_include=(
-	"printf|perror"=>"stdio.h",
-	"malloc"=>"stdlib.h",
-	"str(len|dup|cpy)|memcpy"=>"string.h",
-	"\\bopen\\("=>"fcntl.h",
-	"sin|cos|sqrt|pow"=>"math.h",
-	"fstat"=>"sys/stat.h",
+    # TODO: limit to function call?
+    %text_include=(
+	"printf|perror"=>"stdio",
+	"malloc"=>"stdlib",
+	"str(len|dup|cpy)|memcpy"=>"string",
+	"\\bopen\\("=>"fcntl",
+	"sin|cos|sqrt|pow"=>"math",
+	"fstat"=>"sys/stat",
+	"assert"=>"assert",
     );
-
-    sub register_type_prefix {
-	my ($k, $v)=@_;
-	$type_prefix{$k}=$v;
-    }
 
 subcode:: c_support_subs
     $sub infer_c_type
@@ -91,28 +91,7 @@ subcode:: c_support_subs
 	    my $func=$functions{$1}
 	    return $func->{ret_type}
 	$elif $val=~/(\w+)(.*)/
-	    my $tail=$2;
-	    my $type=get_var_type_complex($val)
-	    $if !$type
-		$type=get_c_type($1)
-	    # --
-	    my $check_tail=1
-	    $while $check_tail
-		$check_tail=0
-		$if $type=~/struct (\w+)/
-		    $if $structs{$1}
-			my $s_hash=$structs{$1}->{hash}
-			$if $tail=~/^(->|\.)(\w+)/
-			    $tail=$';
-			    $type=$s_hash->{$2}
-			    $check_tail=1
-		    $else
-			return;
-		$if $type=~/\*\s*$/
-		    $if $tail=~/^\[.*?\]/
-			$tail=$';
-			$type=~s/\s*\*\s*$//;
-			$check_tail=1
+	    my $type=get_var_type($val)
 	    return $type
 
     $sub get_c_type_word
@@ -129,7 +108,7 @@ subcode:: c_support_subs
 	$elsif $name=~/^st(\w+)/
 	    return "struct $1";
 	$elif $name=~/^([a-z0-9]+)/
-	    $prefix=$1;
+	    my $prefix=$1;
 	    $if $type_prefix{$prefix}
 		return $type_prefix{$prefix};
 	    $elif $prefix=~/^(.*?)\d+$/ and $type_prefix{$1}
@@ -164,7 +143,7 @@ subcode:: c_support_subs
 	    $type="void";
 	# --
 	$if $type_include{$type}
-	    add_include($type_include{$type});
+	    $call add_include, $type_include{$type}
 	# --
 	$while $name=~/\[.*?\]/g
 	    $type=pointer_type($type);
@@ -184,20 +163,11 @@ subcode:: c_support_subs
 	    return ($1, $2)
 	$else
 	    return (get_c_type($t), $t)
-    # --------------------------------------------
-    $sub get_c_fmt 
-	my $name=shift;
-	my $type=get_var_type($name);
-	$if $type =~/(int|long)$/
-	    return "%d";
-	$elsif $type eq "char"
-	    return "%c";
-	$elsif $type eq "char *"
-	    return "%s";
 
+    # --------------------------------------------
     $sub get_var_fmt($v)
-	my $type=get_compound_type($v)
-	$if !$type
+	my $type=get_var_type($v)
+	$if !$type or $type eq "void"
 	    $type=get_c_type($v);
 	$if $type=~/^char \*/
 	    return "\%s";
@@ -214,4 +184,52 @@ subcode:: c_support_subs
 	$else
 	    print "get_var_fmt: unhandled $v - $type\n";
 	    return $v
+
+# -------------------------------------
+subcode:: c_support_subs
+    $sub fmt_string($str)
+	$if $str=~/^\w+$/
+	    return (0, $str)
+	$if $str=~/^\s*\"(.*)\"\s*$/
+	    $str=$1
+	my @segs=split /(\$\w+)/, $str
+	my @vlist;
+	my $vcnt=0;
+	$for $j=0:@segs
+	    $if $segs[$j]=~/^\$(\w+)/
+		my $v=$1
+		$call fmt_string_check_escape
+		$call fmt_string_check_trailing
+		$vcnt++
+		push @vlist, $v
+		$segs[$j]=get_var_fmt($v)
+	$if $vcnt>0
+	    return ($vcnt, '"'.join('',@segs).'", '.join(', ', @vlist))
+	$else
+	    return (0, '"'. join('', @segs).'"')
+
+subcode: fmt_string_check_escape
+    $if $j>0 and $segs[$j-1]=~/(\\+)$/
+	$if length($1)%2==1
+	    $segs[$j-1]=~s/\\$//
+	    next
+
+subcode: fmt_string_check_trailing
+    $if $segs[$j+1]=~/^\\-\w/
+	$segs[$j+1]=~s/^\\-//
+
+# -------------------------------------
+subcode:: c_support_subs
+    $sub debug_dump($param, $prefix, $out)
+	my @vlist=split /,\s+/, $param;
+	my @a1;
+	my @a2;
+	$foreach my $v in @vlist
+	    push @a2, $v;
+	    push @a1, "$v=".get_var_fmt($v)
+	$if $prefix
+	    push @$out, "fprintf(stdout, \"    :[$prefix] ".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
+	$else
+	    push @$out, "fprintf(stdout, \"    :".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
+	$includes{"<stdio.h>"}=1;
 

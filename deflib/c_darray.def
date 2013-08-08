@@ -10,10 +10,12 @@ subcode: global_darray(type, var)
     $global $(type) * $(var)=NULL
     $global n_da_len_$(var)=0
     $global n_da_size_$(var)=0
+    $(block:main_init)
+	$call darray_init, $(var)
 
 subcode: use_darray(var)
-    $(export: da_len=n_da_len_$(var))
-    $(export: da_size=n_da_size_$(var))
+    $(export:da_len=n_da_len_$(var))
+    $(export:da_size=n_da_size_$(var))
 
 # ----------------------------------------------------
 subcode: darray_init(var)

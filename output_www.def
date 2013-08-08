@@ -1,0 +1,343 @@
+include: output.def
+include: macros_www/common.def
+include: macros_www/html.def
+include: macros_www/php.def
+include: macros_www/js.def
+
+# Many Legacy/Ugly code here. Wish I will have to time/interest to clean it up.
+
+page: output_www, output_main
+    type: pm
+    output_dir: lib/MyDef
+    ext: html
+    init_mode: html
+    package: MyDef::output_www
+
+subcode:: package_globals
+    use MyDef::compileutil;
+    use Term::ANSIColor qw(:constants);
+    # ------ global variables
+    my $php;
+    my $style_sheets
+
+subcode:: init_page
+    $php={};
+    $style_sheets=[]
+
+subcode: modeswitch
+    # stackable mode : html -> js -> php
+    $global @mode_stack
+    $global $cur_mode="html"
+
+    #print "modeswitch $cur_mode-> $mode\n"
+
+    $if $mode eq $cur_mode or $mode eq "sub"
+	goto modeswitch_done
+
+    $if $cur_mode eq "PRINT"
+	$call popmode
+
+    $if $mode eq "PRINT"
+	$call pushmode
+
+    $if $cur_mode eq "php"
+	$call exit_php
+	$call popmode
+
+    $if $mode eq "php"
+	$call enter_php
+	$call pushmode
+
+    $if $cur_mode eq "js"
+	$call exit_js
+	$call popmode
+
+    $if $mode eq "js"
+	$call enter_js
+	$call pushmode
+
+    modeswitch_done:
+
+# --
+subcode: pushmode
+    push @mode_stack, $cur_mode
+    $cur_mode=$mode
+    goto modeswitch_done
+
+subcode: popmode
+    $cur_mode=pop @mode_stack
+    $if $mode eq $cur_mode
+	goto modeswitch_done
+# ------------------------
+subcode:: dumpout
+    $dump->{custom}=\&custom_dump
+
+subcode: parsecode
+    $if $cur_mode eq "PRINT"
+	$if $l=~/^(SUBBLOCK|SOURCE)/
+	    push @$out, $l
+	$else
+	    my $P="PRINT-".$mode_stack[-1]
+	    $if $P eq "PRINT-html"
+		$l=~s/</&lt;/g
+		$l=~s/>/&gt;/g
+	    push @$out, "$P $l"
+	return 0
+    $call parsecode_common
+    push @$out, $l
+
+subcode: parsecode_special
+    $if $l=~/^\s*CSS: (.*)\s*\{(.*)\}/
+	$if $style->{$1}
+	    $style->{$1}.=";$2";
+	$else
+	    $style->{$1}=$2;
+	    push @style_key_list, $1;
+    $elif $l=~/^\s*\$(title|charset)\s+(.*)/
+	$page->{$1}=$2
+    $elif $l=~/^\s*PRINT\s+(.*)/
+	my $P="PRINT-$cur_mode"
+	push @$out, "$P $1"
+    $elif $cur_mode eq "js" && $l=~/^(\S+)\s*=\s*"(.*\$\w+.*)"\s*$/
+	push @$out, "$1=". js_string($2)
+
+subcode: parsecode_func_param
+    $if $cur_mode eq "js"
+	$call @js_parse_func_param
+    $elif $cur_mode eq "php"
+	$call @php_parse_func_param
+
+subcode: parsecode_func
+    $call parsecode_html_tag
+    $if $func eq "script"
+	MyDef::compileutil::modepush("js")
+	push @$out, "SOURCE_INDENT";
+	push @$out, "BLOCK";
+	push @$out, "SOURCE_DEDENT";
+	return "NEWBLOCK-\$script_end"
+    $elif $func eq "script_end"
+	MyDef::compileutil::modepop()
+    $elif $cur_mode eq "js"
+	$call @js_parse_func
+    $elif $cur_mode eq "php"
+	$call @php_parse_func
+    $else
+	$should_return=0
+
+subcode: old_parse
+    $elsif $func eq 'hidden'
+	my @p=split /,\s*/, $param;
+	foreach my $n(@p){
+	    push @$out, "print \"<input type=\\\"hidden\\\" name=\\\"$n\\\" value=\\\"\$$n\\\" />\";";
+	}
+    $elsif $l=~/^\s*\$(\w+)(.*)$/
+	my $func=$1;
+	my $param=$2;
+	$param=~s/^\s+//;
+	$param=~s/:?\s*$//;
+	
+	# --------------- php pass through
+	$if $func eq "php"
+	    $l=$param
+	    $call terminate_php
+	    push @$out, $l
+	$call parse_function
+	$else
+	    $if $cur_mode eq "js" and $l=~/\$jq/
+		$l=~s/\$jq\(/\$\(/g;
+		$MyDef::var->{use_jquery}=1;
+	    $elif $cur_mode eq "js" or $cur_mode eq "html"
+		print STDERR "Function \$$func Not Defined.\n";
+	    $else
+		$call terminate_php
+		push @$out, $l;
+    $else
+	# -- Dump everything else out
+	$if $cur_mode ne 'html' and $cur_mode ne 'js'
+	    $call terminate_php
+	$else
+	    $call check_inline_php
+	push @$out, $l;
+
+
+subcode: terminate_php
+    $if $l!~/[\{\};]\s*$/
+	$l.=";";
+
+subcode: check_inline_php
+    #print "check_inline_php $l\n";
+    $l=~s/(\$\w+)/<?php echo \1 ?>/g
+
+subcode: parse_function
+    $elsif $func eq 'use_css'
+	push @$style_sheets, $param
+    # ----------- End HTML handy notions 
+    $elsif $func eq 'include'
+	if(open my $in, $param){
+	    MyDef::compileutil::modepush("html");
+	    my $omit=0;
+	    while(<$in>){
+		if(/<!-- start omit -->/){
+		    $omit=1;
+		}
+		elsif(/<!-- end omit -->/){
+		    $omit=0;
+		}
+		elsif($omit){
+		    next;
+		}
+		elsif(/(.*)<call>(\w+)<\/call>(.*)/){
+		    my ($a, $b, $c)=($1, $2, $3);
+		    push @$out, $a;
+		    print "    call $b\n";
+		    MyDef::compileutil::call_sub($b);
+		    push @$out, $c;
+		}
+		elsif(/^\s*<\/HEAD>/i){
+		    push @$out, "HTML_HEAD_STUFF";
+		    push @$out, $_;
+		}
+		elsif(/<\/body>/i){
+		    MyDef::compileutil::call_sub("js_ga");
+		    push @$out, $_;
+		}
+		else{
+		    push @$out, $_;
+		}
+	    }
+	    close $in;
+	    MyDef::compileutil::modepop();
+	}
+	else{
+	    print STDERR " Can't open [$param]\n";
+	}
+    $elsif $func eq 'loadoptlist'
+	my @flist=split /,\s*/, $param;
+	foreach my $f(@flist){
+	    loadoptlist($out, $f);
+	}
+    $elsif $func eq 'redirect'
+	push @$out, "header('Location: $param.php');";
+	push @$out, "exit();";
+    $elsif $func eq 'setvar'
+	if($param=~/(.*), (.*)/){
+	    push @$out, "\$$1 = '$2';";
+	}
+    $elsif $func eq 'sqlruncache'
+	sqlrun($out, $param, 1);
+    $elsif $func eq 'sqlrunusedb'
+	$MyDef::var->{usedb}=$param;
+    $elsif $func eq 'sqlrun'
+	sqlrun($out, $param);
+    $elsif $func =~ /tablelistfull(.*)/
+	tablelist($out, $param, 'full', $1);
+    $elsif $func =~ /tablelist(.*)/
+	tablelist($out, $param, "", $1);
+    $elsif $func =~ /csvlistfull(.*)/
+	csvlist($out, $param, 'full', $1);
+    $elsif $func =~ /csvlist(.*)/
+	csvlist($out, $param, "", $1);
+    $elsif $func=~/^(post|get|cookie)var$/
+	my $group='$_'.uc($1);
+	my @tlist=split /,\s*/, $param;
+	$foreach $p in @tlist
+	    push @$out, "\$$p=$group\['$p'\];";
+    # ---- block statements
+    $elsif $func eq "if"
+	return single_block("if($param){", "}")
+    $elsif $func eq "ifz"
+	$if $param=~/(\$\w+)\[(^[\]]*)\]/
+	    return single_block("if(!(array_key_exists($2, $1) and $param)){", "}")
+	$else
+	    return single_block("if(empty($param)){", "}")
+    $elsif $func eq "ifnz"
+	$if $param=~/(\$\w+)\[(^[\]]*)\]/
+	    return single_block("if((array_key_exists($2, $1) and $param)){", "}")
+	$else
+	    return single_block("if(!empty($param)){", "}")
+    $elsif $func =~ /^(el|els|else)if$/
+	$if $cur_mode eq 'html' or $cur_mode eq 'js' # JavaScript
+	    return single_block("else if($param){", "}")
+	$else
+	    return single_block("elseif($param){", "}")
+    $elsif $func eq "else"
+	return single_block("else{", "}")
+    $elsif $func eq "foreach" or $func eq "for" or $func eq "while"
+	return single_block("$func ($param){", "}")
+    $elsif $func eq "function"
+	return single_block("function $param {", "}")
+    $elsif $func eq 'input'
+	field_input($param);
+    $elsif $func eq 'field_label'
+	field_label($param);
+    $elsif $func eq 'button'
+	formbutton($out, $param);
+    $elsif $func eq 'makeiconmenu'
+	my @items=split /,\s*/, $param;
+	push @$out, "PRINT <table class=\"menutable\">";
+	my $j=0;
+	my $col=6;
+	foreach my $i(@items){
+	    if($i eq '|'){
+		if($j>0){push @$out, "PRINT </tr>"; $j=0;}
+		push @$out, "PRINT <tr><td colspan=$col><hr /></td></tr>";
+		$j=0;
+	    }
+	    else{
+		my $ii=$MyDef::def->{menuitems}->{$i};
+		my $l=$ii->{href};
+		if($l!~/\.(php|html)$/){
+		    $l=$l.".php";
+		}
+		my $icon=$ii->{icon};
+		my $label=$ii->{label};
+		if($j==0){push @$out, "PRINT <tr>";}
+		push @$out, "PRINT <td align=center>";
+		push @$out, "PRINT <a href=\"$l\"><img src=\"$icon\" width=100 height=100></a><br />";
+		push @$out, "PRINT <a href=\"$l\">$label</a>";
+		push @$out, "PRINT </td>";
+		$j++;
+		if($j==$col){push @$out, "PRINT </tr>"; $j=0;}
+	    }
+	}
+	push @$out, "PRINT </table>";
+    $elsif $func eq 'makelistmenu'
+	my @items=split /,\s*/, $param;
+	push @$out, "PRINT <ul class=\"menulist\">";
+	foreach my $i(@items){
+	    push @$out, "PRINT <li>";
+	    if($i eq '|'){
+		push @$out, "PRINT <hr>";
+	    }
+	    else{
+		my $ii=$MyDef::def->{menuitems}->{$i};
+		my $l=$ii->{href};
+		if($l!~/\.(php|html)$/){
+		    $l=$l.".php";
+		}
+		my $icon=$ii->{icon};
+		my $label=$ii->{label};
+		push @$out, "PRINT <a href=\"$l\">$label</a>";
+	    }
+	    push @$out, "PRINT </li>";
+	}
+	push @$out, "PRINT </ul>";
+
+subcode:: support_subs
+    $sub custom_dump
+	my ($f, $rl)=@_;
+	$if $$rl=~/\\span_(\w+)\{([^}]*)\}/
+	    my $t="<span class=\"$1\">$2</span>";
+	    $$rl=$`.$t.$';
+	$if $$rl=~/PRINT-(\w+) (.*)/
+	    my $mode=$1;
+	    my $t=$2;
+	    $if $mode eq "php"
+		$$rl=echo_php($t)
+	    $elif $mode eq "js"
+		$$rl="PRINT $t"
+	    $else
+		$call mydef_print
+		$$rl="PRINT $t"
+	return 0
+

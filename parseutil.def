@@ -4,8 +4,9 @@ include: macros_util/debug.def
 page: parseutil
     type: pm
     output_dir: lib/MyDef
+    package: MyDef::parseutil
     subcode: main
-	package MyDef::parseutil;
+	my $debug=0
 	$call parse_main
 	$call support_subs
 	$call support_eachfile
@@ -16,13 +17,13 @@ subcode: parse_main
     my $defname="default";
 
     $sub import_data
-	my ($file, $var)=@_
+	my ($file)=@_
 	$if $file=~/([^\/]+)\.def/
 	    $defname=$1
-	import_data_lines($file, undef, $var)
+	import_data_lines($file, undef)
 
     $sub import_data_lines
-	my ($file, $plines, $var)=@_;
+	my ($file, $plines)=@_;
 	my $def={"resource"=>{}, 
 		"pages"=>{}, 
 		"pagelist"=>[],
@@ -32,7 +33,7 @@ subcode: parse_main
 		};
 
 	# -------- global macros from config ---------
-	$while my ($k, $v)=each %$var
+	$while my ($k, $v)=each %$MyDef::var
 	    $if $k=~/macro_(\w+)/
 		$def->{macros}->{$1}=$v;
 	# -------- include files ---------
@@ -41,24 +42,24 @@ subcode: parse_main
 	$call load_standard_includes
 
 	# -----------------------------------------------
-	import_file($file, $plines, $var, $def, \@includes,\%includes)
+	import_file($file, $plines, $def, \@includes,\%includes)
 	$while 1
 	    $if my $file=shift(@includes)
-		import_file($file, undef, $var, $def, \@includes,\%includes)
+		import_file($file, undef, $def, \@includes,\%includes)
 	    $elif my $file=shift(@standard_includes)
-		import_file($file, undef, $var, $def, \@includes,\%includes)
+		import_file($file, undef, $def, \@includes,\%includes)
 	    $else
 		last
 
 	# ---- End of Parsing ---------------------------
 	post_foreachfile($def);
 	post_matchblock($def);
-	$call compile_perlcode
+	#$call compile_perlcode
 	#$call dump_hash, $def
 	return $def;
 
     $sub import_file
-	my ($f, $plines, $var, $def, $include_list, $include_hash)=@_
+	my ($f, $plines, $def, $include_list, $include_hash)=@_
 	my $pages=$def->{pages}
 	my $pagelist=$def->{pagelist}
 	my $codes=$def->{codes}
@@ -66,7 +67,7 @@ subcode: parse_main
 	# ---------------------
 	$call perfile_variables
 	$if !$plines
-	    $plines=get_lines($f, $var);
+	    $plines=get_lines($f);
 	# Insert an END to flush all the indentations
 	# Empty "END" stage gets ignored by default
 	push @$plines, "END"
@@ -76,7 +77,8 @@ subcode: parse_main
 	    $cur_line++
 	    $call get_multiline_comment
 	    $call get_indentation  # and skip comments, trim leading and tailing spaces
-	    $call grab_block
+	    $if $grab
+		$call grab_block
 
 	    $if $curindent==0
 		$if $stage eq "code"
@@ -94,6 +96,8 @@ subcode: parse_main
 		push @$source, $line;
 	    $elif $line=~/^(\w+)code:([:-@]?)\s*(\w+)(.*)/
 		my ($type, $dblcolon, $name, $t)=($1, $2, $3, $4)
+		$if $name eq "_autoload"
+		    $dblcolon=":"
 		$call start_subcode
 	    $elif $curindent==0
 		$if $line=~/^include:? (.*)/
@@ -178,16 +182,15 @@ subcode: get_indentation
 	$curindent=$indent
 
 subcode: grab_block
-    $if $grab
-	$if $curindent>$grab_indent
-	    my $i=$curindent-$grab_indent-1;
-	    push @grab, "$i:$line";
-	    next;
-	$else
-	    grab_ogdl($grab, \@grab)
-	    #print_ogdl($grab, 0)
-	    $grab=undef
-	    @grab=()
+    $if $curindent>$grab_indent
+	my $i=$curindent-$grab_indent-1;
+	push @grab, "$i:$line";
+	next;
+    $else
+	grab_ogdl($grab, \@grab)
+	#print_ogdl($grab, 0)
+	$grab=undef
+	@grab=()
 
 subcode: get_source_indent(curindent)
     $while $$(curindent)>$lastindent
@@ -217,7 +220,7 @@ subcode: start_subcode
 	undef $code_prepend
 
     $if $curindent==0 and $codes->{$name} and $codes->{$name}->{attr} ne "default"
-	# ---- skip or append -------------
+	# Subcode Already Exist --
 	$if $dblcolon eq "@"
 	    # -- skip the default subcode
 	$elif $dblcolon eq ":"
@@ -254,6 +257,9 @@ subcode: start_subcode
 		$page->{codes}->{'main2'}=$t_code;
 	    $else
 		$page->{codes}->{$name}=$t_code;
+
+    # prevent starting empty line triger dedent
+    $curindent=$codeindent
 
 subcode: end_subcode
     $if $code_prepend
@@ -322,15 +328,16 @@ subcode: process_fields
 	    $item->{$k}=$v;
 
 subcode: process_macros
-    $if $line=~/^(\w+): (.*\S)/
-	my $k=$1;
-	my $v=$2;
+    $if $line=~/^(\w+):(:)? (.*\S)/
+	my ($k,$dblcolon, $v)=($1, $2, $3)
+	expand_macro(\$v, $macros);
 	$if $macros->{$k}
-	    print STDERR " Overriden macro $k\n" if $debug>1;
+	    $if $dblcolon
+		$macros->{$k}.=", ", $v
+	    $else
+		print STDERR " Overriden macro $k\n" if $debug>1;
 	$else
-	    my $t=$v;
-	    expand_macro(\$t, $macros);
-	    $macros->{$k}=$t;
+	    $macros->{$k}=$v
 
 subcode: process_page_macros
     $if $line=~/^source: (.*)/
@@ -381,20 +388,21 @@ subcode: support_subs
 	    $else
 		last;
 
+    $sub get_path($file)
     $sub get_lines
-	my ($file, $var)=@_;
+	my ($file)=@_;
 
 	my $filename="";
 	$if -f $file
 	    $filename=$file;
-	$if !$filename and $var->{'include_path'}
-	    my @dirs=split /:/, $var->{'include_path'};
+	$if !$filename and $MyDef::var->{'include_path'}
+	    my @dirs=split /:/, $MyDef::var->{'include_path'};
 	    $foreach my $dir in @dirs
 		$if -f "$dir/$file"
 		    $filename="$dir/$file";
 		    last;
 	$if !-f $filename
-	    print "include_path: $var->{include_path}\n";
+	    print "include_path: $MyDef::var->{include_path}\n";
 	    die "$file not found\n";
 	#print STDERR "Parsing Definition File: $filename\n";
 	open In, $filename or die "Can't open $file.\n";
@@ -404,19 +412,8 @@ subcode: support_subs
 
 subcode: load_standard_includes
     my @standard_includes;
-    $if $var->{module} eq "php"
-	push @standard_includes, "std_php.def";
-    $elif $var->{module} eq "perl"
-	push @standard_includes, "std_perl.def";
-    $elsif $var->{module} eq "c"
-	push @standard_includes, "std_c.def";
-    $elsif $var->{module} eq "xs"
-	push @standard_includes, "std_c.def";
-    $elsif $var->{module} eq "apple"
-	push @standard_includes, "std_c.def";
-    $elsif $var->{module} eq "win32"
-	push @standard_includes, "std_c.def";
-	push @standard_includes, "std_win32.def";
+    my $stdinc="std_".$MyDef::var->{module}.".def"
+    push @standard_includes, $stdinc
 
 subcode: support_eachfile
     # Hack for the following work:
@@ -493,7 +490,7 @@ subcode: support_eachfile
     $sub dupe_line
 	my ($l, $n, @pat_list)=@_;
 	$for my $i=1; $i<=$n; $i++
-	    $rep=$pat_list[$i-1];
+	    my $rep=$pat_list[$i-1];
 	    $l=~s/\$$i/$rep/g;
 	return $l;
 

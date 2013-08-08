@@ -1,15 +1,20 @@
 subcode:: preproc_elifs
     $elsif $preproc=~/^reset:\s*(\w+)([+])?=(.*)/
-	my ($v, $op, $d)=($1, $2, $3)
+	my ($v, $op, $d)=($1, $2, $3, $4)
 	expand_macro_recurse(\$d)
-	my $i=@$deflist;
+	my $i=$#$deflist;
 	$while $i>0 and !defined $deflist->[$i]->{$v}
 	    $i--;
 	$if $op
-	    $if $op eq '+'
-		$deflist->[$i]->{$v}+=$d;
+	    $deflist->[$i]->{$v}=calc_op($deflist->[$i]->{$v}, $op, $d)
 	$else
 	    $deflist->[$i]->{$v}=$d;
+    $elsif $preproc=~/^unset:\s*(\w+)/
+	my $v=$1
+	my $i=$#$deflist;
+	$while $i>0 and !defined $deflist->[$i]->{$v}
+	    $i--;
+	delete $deflist->[$i]->{$v}
     $elsif $preproc=~/^eval:\s*(\w+)=(.*)/
 	my ($t1,$t2)=($1,$2)
 	expand_macro_recurse(\$t2)
@@ -40,6 +45,24 @@ subcode:: preproc_elifs
 	}
 
 subcode:: support_subs
+    $sub calc_op($v, $op, $d)
+	my $ret=get_numeric($v)
+	$if $op eq "+"
+	    $ret+=get_numeric($d)
+	$elif $op eq "-"
+	    $ret-=get_numeric($d)
+	$if $v=~/^0x/
+	    return sprintf("0x%lx", $ret)
+	$else
+	    return $ret
+
+    $sub get_numeric($v)
+	$if $v=~/0x(.*)/
+	    return hex($v)
+	$else
+	    return $v
+
+
     $sub set_macro($m, $p)
 	$if $debug eq "macro"
 	    print "set_macro: [$p]\n";
@@ -57,6 +80,9 @@ subcode:: support_subs
 
     $sub set_current_macro($name, $val)
 	$deflist->[-1]->{$name}=$val
+
+    $sub get_current_macro($name)
+	return $deflist->[-1]->{$name}
 
 # ------------------------------------------------------
 subcode: expand_macro_seg
@@ -118,6 +144,15 @@ subcode: expand_macro_seg
 	    $elif $p eq "len"
 		# $(macro:len)
 		$segs[$j]=length($t)
+	    $elif $p=~/list:(.*)/
+		my $pattern=$1
+		my @tlist=split /,\s*/, $t
+		my @rlist
+		$foreach $t2 in @tlist
+		    my $t3=$pattern
+		    $t3=~s/\$1/$t2/g
+		    push @rlist, $t3
+		$segs[$j]=join(', ', @rlist)
 	    $else
 		# INLINE macro -- $(macro:p1,p2,p3)
 		my @plist=split /,/, $p;

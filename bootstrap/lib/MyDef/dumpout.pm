@@ -1,5 +1,6 @@
-use MyDef::compileutil;
+use strict;
 package MyDef::dumpout;
+use MyDef::compileutil;
 my @func_list;
 my $func_index=-1;
 sub init_funclist {
@@ -7,10 +8,14 @@ sub init_funclist {
     $func_index=-1;
 }
 sub add_function {
-    my $func=shift;
+    my ($func)=@_;
     $func_index++;
     $func_list[$func_index]=$func;
     return $func_index;
+}
+sub get_function {
+    my ($fidx)=@_;
+    return $func_list[$fidx];
 }
 sub get_func_list {
     return \@func_list;
@@ -31,6 +36,7 @@ sub dumpout {
     }
     my @source_stack;
     my $indentation=0;
+    my @indentation_stack;
     my @openblock;
     my @closeblock;
     my @preblock;
@@ -52,23 +58,30 @@ sub dumpout {
         }
         if($custom and $custom->($f, \$l)){
         }
-        elsif($l =~/^INCLUDE_BLOCK (\w+)/){
+        elsif($l =~/^INCLUDE_BLOCK (\S+)/){
             push @source_stack, $out;
             $out=$dump->{$1};
         }
-        elsif($l =~ /^DUMP_STUB\s+(\w+)/){
+        elsif($l =~ /^DUMP_STUB\s+(\S+)/){
             my $source=$MyDef::compileutil::named_blocks{$1};
             if($source){
                 push @source_stack, $out;
                 $out=$source;
             }
         }
-        elsif($l=~/^\s*(INDENT|DEDENT)\b(.*)/){
+        elsif($l=~/^\s*(INDENT|DEDENT|PUSHDENT|POPDENT)\b(.*)/){
             if($1 eq "INDENT"){
                 $indentation++;
             }
             elsif($1 eq "DEDENT"){
                 $indentation-- if $indentation;
+            }
+            elsif($1 eq "PUSHDENT"){
+                push @indentation_stack, $indentation;
+                $indentation=0;
+            }
+            elsif($1 eq "POPDENT"){
+                $indentation=pop @indentation_stack;
             }
             $l=$2;
             if($l=~/^\s*;?$/){
@@ -135,7 +148,7 @@ sub dumpout {
             push @postblock, $func->{postblock};
             $blockstack=1;
         }
-        elsif($l=~/^SCOPE:/){
+        elsif($l=~/^SUBBLOCK (BEGIN|END)/){
         }
         else{
             if($l=~/^\s*$/){
@@ -143,6 +156,10 @@ sub dumpout {
             }
             elsif($l=~/^\s*NEWLINE\b/){
                 push @$f, "\n";
+            }
+            elsif($l =~/^PRINT (.*)/){
+                push @$f, "    "x$indentation;
+                push @$f, "$1\n";
             }
             else{
                 push @$f, "    "x$indentation;

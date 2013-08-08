@@ -2,8 +2,8 @@ subcode: parse_call_sub
     $param=~s/\s*$//;
     $if $func eq "\$map"
 	call_sub($param, $func);
-    $elif $func eq "\$call"
-	call_sub($param);
+    $elif $func =~ /^\$call/
+	call_sub($param, $func);
     $elif $func eq "\&call"
 	my @callback_list=callback_sub($param, $func);
 	$foreach $n in @callback_list
@@ -55,8 +55,11 @@ subcode: call_sub_map
 	pop @$deflist;
 
 subcode: call_sub_normal
-    $call call_sub_normal_setup_macro
-    push @$deflist, $macro;
+    $if $calltype eq "\$call-PRINT"
+	push @$deflist, {}
+    $else
+	$call call_sub_normal_setup_macro
+	push @$deflist, $macro;
     parseblock($codelib);
     pop @$deflist;
 
@@ -72,8 +75,7 @@ subcode: call_sub_normal_setup_macro
 		$pline=~s/^[^,]*,//
 	    $pline=~s/^\s*//
 	    $plist[$n0]=$pline
-	$else
-	    warn "    [$cur_file:$cur_line] Code $codename parameter mismatch ($np + $n2) != $n3. [pline:$pline]\n";
+	warn "    [$cur_file:$cur_line] Code $codename parameter mismatch ($np + $n2) != $n3. [pline:$pline]\n";
     my $macro={};
     $for $i=0:$np
 	$macro->{$params->[$i]}=$pre_plist[$i];
@@ -91,17 +93,28 @@ subcode: call_sub_block
     my $codelib=get_subcode($codename, $attr)
     $if $codelib
 	push @callsub_stack, $codename
-	modepush($codelib->{type});
+	$if $calltype=~/\$call-(\w+)/
+	    modepush($1)
+	$else
+	    modepush($codelib->{type})
 	my $params=$codelib->{params};
 	BLOCK
 	modepop()
 	pop @callsub_stack
+	set_current_macro("notfound", 0)
+    $else
+	# $call @somecode
+	# $(if:notfound=1)
+	#     $call @othercode
+	set_current_macro("notfound", 1)
+
 
 subcode:: support_subs
     $sub get_sub_param_list($codename)
+	$codename=~s/^@//
 	my $codelib=get_def_attr("codes", $codename);
 	$if !$codelib
-	    die "    Code $codename not found\n"
+	    return undef
 	return $codelib->{params}
 
     $sub call_sub($param, $calltype)

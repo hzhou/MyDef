@@ -1,12 +1,24 @@
+use strict;
 package MyDef::parseutil;
+my $debug=0;
+my $defname="default";
 sub import_data {
-    my ($plines, $var)=@_;
+    my ($file)=@_;
+    if($file=~/([^\/]+)\.def/){
+        $defname=$1;
+    }
+    import_data_lines($file, undef);
+}
+sub import_data_lines {
+    my ($file, $plines)=@_;
     my $def={"resource"=>{},
         "pages"=>{},
+        "pagelist"=>[],
         "codes"=>{},
         "macros"=>{},
+        "defname"=>$defname,
         };
-    while(my ($k, $v)=each %$var){
+    while(my ($k, $v)=each %$MyDef::var){
         if($k=~/macro_(\w+)/){
             $def->{macros}->{$1}=$v;
         }
@@ -14,31 +26,15 @@ sub import_data {
     my @includes;
     my %includes;
     my @standard_includes;
-    if($var->{module} eq "php"){
-        push @standard_includes, "std_php.def";
-    }
-    elsif($var->{module} eq "c"){
-        push @standard_includes, "std_c.def";
-    }
-    elsif($var->{module} eq "xs"){
-        push @standard_includes, "std_c.def";
-    }
-    elsif($var->{module} eq "apple"){
-        push @standard_includes, "std_c.def";
-    }
-    elsif($var->{module} eq "win32"){
-        push @standard_includes, "std_c.def";
-        push @standard_includes, "std_win32.def";
-    }
-    import_file($plines, $var, $def, \@includes,\%includes);
+    my $stdinc="std_".$MyDef::var->{module}.".def";
+    push @standard_includes, $stdinc;
+    import_file($file, $plines, $def, \@includes,\%includes);
     while(1){
         if(my $file=shift(@includes)){
-            $plines=get_lines($file, $var);
-            import_file($plines, $var, $def, \@includes,\%includes);
+            import_file($file, undef, $def, \@includes,\%includes);
         }
         elsif(my $file=shift(@standard_includes)){
-            $plines=get_lines($file, $var);
-            import_file($plines, $var, $def, \@includes,\%includes);
+            import_file($file, undef, $def, \@includes,\%includes);
         }
         else{
             last;
@@ -49,37 +45,53 @@ sub import_data {
     return $def;
 }
 sub import_file {
-    my ($plines, $var, $def, $include_list, $include_hash)=@_;
+    my ($f, $plines, $def, $include_list, $include_hash)=@_;
     my $pages=$def->{pages};
+    my $pagelist=$def->{pagelist};
     my $codes=$def->{codes};
     my $macros=$def->{macros};
     my $stage="";
     my $item;
     my $page;
-    my $source;
     my $curindent;
     my $codeindent = 0;
     my $lastindent;
     my $grab=undef;
-    my $grab_hash;
-    my $grab_key;
     my $grab_indent;
     my @grab;
+    my $multi_line_comment_on;
+    my $source;
+    my $cur_codename;
+    my $code_prepend;
+    if(!$plines){
+        $plines=get_lines($f);
+    }
     push @$plines, "END";
+    my $cur_file=$f;
+    my $cur_line=0;
     foreach my $line (@$plines){
-        if($line=~/^\s*$/){
+        $cur_line++;
+        if($multi_line_comment_on){
+            if($line=~/\*\/\s*$/){
+                $multi_line_comment_on=0;
+            }
             next;
+        }
+        elsif($line=~/^\s*\/\*/){
+            $multi_line_comment_on=1;
+            if($line=~/\*\/\s*$/){
+                $multi_line_comment_on=0;
+            }
+            next;
+        }
+        if($line=~/^\s*$/){
+            $line="NOOP";
         }
         elsif($line=~/^(\s*)(.*)/){
             my $indent=getindent($1);
             $line=$2;
             if($line=~/^#/){
-                if($codeindent>0 and $indent>$lastindent){
-                    $line="NOOP";
-                }
-                else{
-                    next;
-                }
+                $line="NOOP";
             }
             else{
                 $line=~s/\s+$//;
@@ -94,22 +106,18 @@ sub import_file {
                 next;
             }
             else{
-                if($grab eq "ogdl"){
-                    my $ogdl=grab_ogdl($grab_key, \@grab);
-                    if(!$grab_hash->{$grab_key}){
-                        $grab_hash->{$grab_key}=$ogdl;
-                    }
-                    else{
-                        my $t=$grab_hash->{$grab_key};
-                        while(my ($k, $v)=each %$ogdl){
-                            if(!defined $t->{$k}){
-                                $t->{$k}=$v;
-                            }
-                        }
-                    }
-                }
-                undef $grab;
+                grab_ogdl($grab, \@grab);
+                $grab=undef;
                 @grab=();
+            }
+        }
+        if($curindent==0){
+            if($stage eq "code"){
+                if($code_prepend){
+                    my $orig_source=$codes->{$cur_codename}->{source};
+                    push @$source, @$orig_source;
+                    $codes->{$cur_codename}->{source}=$source;
+                }
             }
         }
         if($curindent < $codeindent){
@@ -130,14 +138,34 @@ sub import_file {
             }
             push @$source, $line;
         }
-        elsif($line=~/^(\w+)code:(:?)\s+(\w+)(.*)/){
+        elsif($line=~/^(\w+)code:([:-@]?)\s*(\w+)(.*)/){
             my ($type, $dblcolon, $name, $t)=($1, $2, $3, $4);
-            $source=[];
+            if($name eq "_autoload"){
+                $dblcolon=":";
+            }
+            my $src_location="SOURCE: $cur_file - $cur_line";
+            $source=[$src_location];
             $codeindent=$curindent+1;
             $lastindent=$codeindent;
-            if($curindent==0 and $codes->{$name}){
-                if($dblcolon){
+            if($curindent == 0){
+                $stage='code';
+                $cur_codename=$name;
+                undef $code_prepend;
+            }
+            if($curindent==0 and $codes->{$name} and $codes->{$name}->{attr} ne "default"){
+                if($dblcolon eq "@"){
+                }
+                elsif($dblcolon eq ":"){
                     $source=$codes->{$name}->{source};
+                    push @$source, $src_location;
+                }
+                elsif($dblcolon eq "-"){
+                    $code_prepend=1;
+                }
+                elsif($codes->{$name}->{attr} eq "optional"){
+                    $codes->{$name}->{attr}=undef;
+                    $source=$codes->{$name}->{source};
+                    push @$source, $src_location;
                 }
                 elsif($debug>1){
                     print STDERR "overwiritten $type code: $name\n";
@@ -149,15 +177,26 @@ sub import_file {
                     $t=$1;
                     @params=split /,\s*/, $t;
                 }
-                my $t_code={'type'=>$type, 'source'=>$source, 'params'=>\@params};
+                my $t_code={'type'=>$type, 'source'=>$source, 'params'=>\@params, 'name'=>$name};
+                if($dblcolon eq "@"){
+                    $t_code->{attr}="default";
+                }
+                elsif($dblcolon eq ":" or $dblcolon eq "-"){
+                    $t_code->{attr}="optional";
+                }
                 if($curindent == 0){
                     $codes->{$name}=$t_code;
-                    $stage='code';
                 }
                 elsif($stage eq 'page'){
-                    $page->{codes}->{$name}=$t_code;
+                    if($page->{codes}->{$name} and ($name eq "main")){
+                        $page->{codes}->{'main2'}=$t_code;
+                    }
+                    else{
+                        $page->{codes}->{$name}=$t_code;
+                    }
                 }
             }
+            $curindent=$codeindent;
         }
         elsif($curindent==0){
             if($line=~/^include:? (.*)/){
@@ -193,13 +232,23 @@ sub import_file {
                     }
                 }
                 $pages->{$pagename}=$page;
+                push @$pagelist, $pagename;
                 $stage='page';
             }
-            elsif($line=~/^resource:\s+(\w+)/){
-                $grab="ogdl";
+            elsif($line=~/^resource:\s+(\w+)(.*)/){
                 $grab_indent=$curindent;
-                $grab_key=$1;
-                $grab_hash=$def->{resource};
+                if($def->{resource}->{$1}){
+                    $grab=$def->{resource}->{$1};
+                }
+                else{
+                    $grab={"_list"=>[], "_name"=>$1};
+                    $def->{resource}->{$1}=$grab;
+                }
+                my $t=$2;
+                if($t=~/^\s*,\s*(.*)/){
+                    my @tlist=split /,\s*/, $1;
+                    $grab->{"_parents"}=\@tlist;
+                }
             }
             elsif($line=~/^(\w+)/){
                 $stage=$1;
@@ -252,16 +301,19 @@ sub import_file {
                 }
             }
             elsif($stage =~/^macros$/){
-                if($line=~/^(\w+): (.*\S)/){
-                    my $k=$1;
-                    my $v=$2;
+                if($line=~/^(\w+):(:)? (.*\S)/){
+                    my ($k,$dblcolon, $v)=($1, $2, $3);
+                    expand_macro(\$v, $macros);
                     if($macros->{$k}){
-                        print STDERR " Overriden macro $k\n" if $debug>1;
+                        if($dblcolon){
+                            $macros->{$k}.=", ", $v;
+                        }
+                        else{
+                            print STDERR " Overriden macro $k\n" if $debug>1;
+                        }
                     }
                     else{
-                        my $t=$v;
-                        expand_macro(\$t, $macros);
-                        $macros->{$k}=$t;
+                        $macros->{$k}=$v;
                     }
                 }
             }
@@ -324,14 +376,17 @@ sub expand_macro {
         }
     }
 }
+sub get_path {
+    my ($file)=@_;
+}
 sub get_lines {
-    my ($file, $var)=@_;
+    my ($file)=@_;
     my $filename="";
     if(-f $file){
         $filename=$file;
     }
-    if(!$filename and $var->{'include_path'}){
-        my @dirs=split /:/, $var->{'include_path'};
+    if(!$filename and $MyDef::var->{'include_path'}){
+        my @dirs=split /:/, $MyDef::var->{'include_path'};
         foreach my $dir (@dirs){
             if(-f "$dir/$file"){
                 $filename="$dir/$file";
@@ -340,7 +395,7 @@ sub get_lines {
         }
     }
     if(!-f $filename){
-        print "include_path: $var->{include_path}\n";
+        print "include_path: $MyDef::var->{include_path}\n";
         die "$file not found\n";
     }
     open In, $filename or die "Can't open $file.\n";
@@ -351,15 +406,16 @@ sub get_lines {
 sub post_foreachfile {
     my $def=shift;
     my $pages=$def->{pages};
+    my $pagelist=$def->{pagelist};
     while(my ($name, $p)=each(%$pages)){
-        if ($p->{foreachfile}){
+        if($p->{foreachfile}){
             my $pat_glob=$p->{foreachfile};
             my $pat_regex=$p->{foreachfile};
             my $n;
             $n=$pat_glob=~s/\(\*\)/\*/g;
             $pat_regex=~s/\(\*\)/\(\.\*\)/g;
             my @files=glob($pat_glob);
-            foreach my $f(@files){
+            foreach my $f (@files){
                 my @pat_list=($f=~/$pat_regex/);
                 dupe_page($def, $p, $n, @pat_list);
             }
@@ -371,7 +427,7 @@ sub post_matchblock {
     my $def=shift;
     my $codes=$def->{codes};
     my @codelist=keys(%$codes);
-    foreach $name (@codelist){
+    foreach my $name (@codelist){
         if($name=~/^pre_(\w+)/ and !$codes->{"post_$1"}){
             my $loopname=$1;
             my $params=$codes->{$name}->{params};
@@ -379,7 +435,7 @@ sub post_matchblock {
             my $presource=$codes->{$name}->{source};
             my $source=[];
             my $t_code={'type'=>$type, 'source'=>$source, 'params'=>$params};
-            foreach my $l(@$presource){
+            foreach my $l (@$presource){
                 if($l=~/\$openfor/){
                     push @$source, "DEDENT }";
                 }
@@ -389,13 +445,13 @@ sub post_matchblock {
     }
 }
 sub dupe_page {
-    my ($def, $page, $n, @pat_list)=@_;
-    my $pagename=dupe_line($page->{pagename}, $n, @pat_list);
+    my ($def, $orig, $n, @pat_list)=@_;
+    my $pagename=dupe_line($orig->{pagename}, $n, @pat_list);
     print "    foreach file $pagename $n: ", join(",", @pat_list), "\n";
-    my $p={};
-    while(my ($k, $v)=each(%$page)){
+    my $page={};
+    while(my ($k, $v)=each(%$orig)){
         if($k eq "pagename"){
-            $p->{pagename}=$pagename;
+            $page->{pagename}=$pagename;
         }
         elsif($k eq "codes"){
             my $codes={};
@@ -411,54 +467,56 @@ sub dupe_page {
                 $tcode->{source}=\@source;
                 $codes->{$tk}=$tcode;
             }
-            $p->{codes}=$codes;
+            $page->{codes}=$codes;
         }
-        elsif($k eq "foreachfile"){
-        }
-        else{
-            $p->{$k}=dupe_line($v);
+        elsif($k ne "foreachfile"){
+            $page->{$k}=dupe_line($v);
         }
     }
     my $pages=$def->{pages};
+    my $pagelist=$def->{pagelist};
     if($pages->{$pagename}){
         my $t=$pagename;
         my $j=0;
         while($pages->{$pagename}){
             $j++;
-            $pagename=$t."_$j";
+            $pagename=$t.$j;
         }
     }
-    $pages->{$pagename}=$p;
+    $pages->{$pagename}=$page;
+    push @$pagelist, $pagename;
 }
 sub dupe_line {
     my ($l, $n, @pat_list)=@_;
-    for (my $i=1; $i<=$n; $i++){
-        $rep=$pat_list[$i-1];
+    for(my $i=1; $i<=$n; $i++){
+        my $rep=$pat_list[$i-1];
         $l=~s/\$$i/$rep/g;
     }
     return $l;
 }
 sub grab_ogdl {
-    my ($name, $llist)=@_;
-    my @ogdl_stack;
+    my ($ogdl, $llist)=@_;
     my $cur_i=0;
-    my $cur_item={"_list"=>[], "_name"=>$name};
+    my $cur_item=$ogdl;
     my $last_item;
     my $last_item_type;
     my $last_item_key;
-    my $ogdl=$cur_item;
+    my @ogdl_stack;
     foreach my $l (@$llist){
         if($l=~/^(\d)+:(.*)/){
             my ($i, $l)=($1, $2);
+            if($l=~/^NOOP/){
+                next;
+            }
             if($i>$cur_i){
                 push @ogdl_stack, $cur_item;
                 $cur_item={"_list"=>[]};
                 if($last_item_type eq "array"){
-                    $cur_item->{_name}=$last_item->[-1];
+                    $cur_item->{"_name"}=$last_item->[-1];
                     $last_item->[-1]=$cur_item;
                 }
                 elsif($last_item_type eq "hash"){
-                    $cur_item->{_name}=$last_item->{$last_item_key};
+                    $cur_item->{"_name"}=$last_item->{$last_item_key};
                     $last_item->{$last_item_key}=$cur_item;
                 }
                 $cur_i=$i;

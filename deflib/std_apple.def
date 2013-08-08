@@ -1,4 +1,4 @@
-subcode: ios_autoload
+subcode: _autoload
     $register_prefix(id) id
     $register_prefix(obj) id
     $register_prefix(rct) CGRect
@@ -13,12 +13,12 @@ subcode: ios_autoload
 #### Basic Frame
 subcode: basic_frame
     $call @appmain
-    $subclass AppDelegate
+    $class AppDelegate
 	$prop(strong,nonatomic) UIWindow * window
 	$method on_start
 	    self.window=new UIWindow
 	    self.window.backgroundColor = [UIColor whiteColor]
-	    $call on_start
+	    $call @on_start
 	    self.window->makeKeyAndVisible
 	    return YES
 	$method on_finish
@@ -104,15 +104,24 @@ subcode: tableview_on_cell
 #### Fields and Macroes
 resource: class_default
     Default:
+	create_spec: [[$0 alloc] init]
 	dealloc_post: [super dealloc]
-    ## Basics
-    Hash:
-	class: NSMutableDictionary
-	init_spec: initWithCapacity:$1
+    ## Basics ------------------------
     Array:
 	class: NSMutableArray
-	init_spec: initWithCapacity:$1
-    ## Delegates
+	create_spec: [[$0 alloc] initWithCapacity:$1]
+    Hash:
+	class: NSMutableDictionary
+	create_spec: [[$0 alloc] initWithCapacity:$1]
+
+    CArray:
+	class: NSArray
+	create_spec: [$0 arrayWithObjects:$@, nil]
+    CHash:
+	class: NSDictionary
+	create_spec: [$0 dictionaryWithObjectsAndKeys:$@, nil]
+
+    ## Delegates 
     AppDelegate:
 	class: UIResponder
 	protocol: UIApplicationDelegate
@@ -120,10 +129,10 @@ resource: class_default
 	on_finish: - (void) applicationWillTerminate: (UIApplication *)app
     ## NSTimer
     NSTimer:
-	create_spec: scheduledTimerWithTimeInterval:$1 target:self selector:@selector($2) userInfo:nil repeats:YES
+	create_spec: [$0 scheduledTimerWithTimeInterval:$1 target:self selector:@selector($2) userInfo:nil repeats:YES]
     NSTimerOnce:
 	class: NSTimer
-	create_spec: scheduledTimerWithTimeInterval:$1 target:self selector:@selector($2) userInfo:nil repeats:NO
+	create_spec: [$0 scheduledTimerWithTimeInterval:$1 target:self selector:@selector($2) userInfo:nil repeats:NO]
 
     ## Dialogs and Buttons
     UIPopoverControllerDelegate:
@@ -131,21 +140,22 @@ resource: class_default
 	after_dismiss: - (void) popoverControllerDidDismissPopover: (UIPopoverController *)uipop
     UIPop:
 	class: UIPopoverController
-	init_spec: initWithContentViewController:$1
+	create_spec: [[$0 alloc] initWithContentViewController:$1]
     UIBarSystem:
 	class: UIBarButtonItem
-	init_spec: initWithBarButtonSystemItem:UIBarButtonSystemItem$1 target:$2 action:@selector($3)
+	create_spec: [[$0 alloc] initWithBarButtonSystemItem:UIBarButtonSystemItem$1 target:$2 action:@selector($3)]
     UIBarTitle:
 	class: UIBarButtonItem
-	init_spec: initWithTitle:@"$1" style:UIBarButtonItemStylePlain target:$2 action:@selector($3)
+	create_spec: [[$0 alloc] initWithTitle:@"$1" style:UIBarButtonItemStylePlain target:$2 action:@selector($3)]
 
     ## UIViewController
     UINavigationController:
 	super: UIViewController
-	init_spec: initWithRootViewController:[[$1 alloc] init]
+	create_spec: [[$0 alloc] initWithRootViewController:[[$1 alloc] init]]
     UITableViewController:
 	super: UIViewController
-	init_spec: initWithStyle:UITableViewStyle$1 #Plain or Grouped
+	# Plain or Grouped
+	create_spec: [[$0 alloc] initWithStyle:UITableViewStyle$1 ]
 	on_init: - (id)init
 	num_sections: - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
 	num_rows: - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
@@ -155,14 +165,14 @@ resource: class_default
 	shouldAutorotate: - (BOOL)shouldAutorotateToInterfaceOrientation: (UIInterfaceOrientation)interfaceOrientation
     ## Acessory
     UITableViewCell:
-	init_spec: initWithFrame:CGRectZero reuseIdentifier:$1
+	create_spec: [[$0 alloc] initWithFrame:CGRectZero reuseIdentifier:$1]
 
     ## UIView
     UIWindow:
-	init_default: initWithFrame:[[UIScreen mainScreen] bounds]
+	create_default: [[$0 alloc] initWithFrame:[[UIScreen mainScreen] bounds]]
 
     UIView:
-	init_spec: initWithFrame:$1
+	create_spec: [[$0 alloc] initWithFrame:$1]
 	layerClass: + (Class) layerClass
 	on_init: - (id)initWithFrame:(CGRect)aRect
 	    pre: self = [super initWithFrame:aRect]
@@ -176,11 +186,18 @@ resource: class_default
 
     ## Multimedia
     AVAudioPlayer:
-	init_spec: initWithContentsOfURL:[NSURL fileURLWithPath:$1] error: nil
+	create_spec: [[$0 alloc] initWithContentsOfURL:[NSURL fileURLWithPath:$1] error: nil]
     ## OpenGL
+    OpenGL:
+	imports: QuartzCore/QuartzCore.h, OpenGLES/EAGL.h, 
     EAGLContext:
-	init_default: initWithAPI:kEAGLRenderingAPIOpenGLES1
-	init_spec: initWithAPI:kEAGLRenderingAPIOpenGLES$1
+	super: OpenGL
+	create_spec: [[$0 alloc] initWithAPI:kEAGLRenderingAPIOpenGLES1]
+	imports: OpenGLES/ES1/gl.h, OpenGLES/ES1/glext.h
+    EAGLContext2:
+	super: OpenGL
+	create_spec: [[$0 alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2]
+	imports: OpenGLES/ES2/gl.h, OpenGLES/ES2/glext.h
 
 macros:
     MainScreen: [UIScreen mainScreen]

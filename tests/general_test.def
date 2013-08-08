@@ -2,3 +2,10 @@ page: test
     subcode: main
 	line 1
 	line 2
+	$call more
+
+subcode: more
+
+    oh, there are more lines
+    line 3
+    line 4

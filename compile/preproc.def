@@ -9,6 +9,7 @@ subcode: parse_preproc
 		push @tlist, $i
 	    }
 	$else
+	    expand_macro_recurse(\$vparam)
 	    @tlist=split /,\s*/, $vparam;
 
 	my $subblock=grabblock($block, \$lindex);
@@ -75,7 +76,7 @@ subcode: parse_preproc
 	$else
 	    $code->{allow_recurse}=$1
 	    $deflist->[-1]->{recurse}=0
-    $elsif $preproc=~/^block:(\w+)/
+    $elsif $preproc=~/^block:\s*(\w+)/
 	my $name=$1;
 	my $subblock=grabblock($block, \$lindex);
 	&call with_named_block, $name
@@ -111,6 +112,8 @@ subcode:: support_subs
 	$if !$cond
 	    return 0;
 	$call @testcondition_elifs
+	$elif $cond=~/^\s*!(.*)/
+	    return !testcondition($1)
 	$elsif $cond=~/ or /
 	    my @nlist=split / or /, $cond
 	    $foreach $n in @nlist
@@ -123,7 +126,7 @@ subcode:: support_subs
 		$if !testcondition($n)
 		    return 0;
 	    return 1;
-	$elsif $cond=~/(\w+)\.(\w+)/
+	$elsif $cond=~/^\s*(\w+)\.(\w+)/
 	    $if $1 eq "fields"
 		$if $MyDef::def->{fields}->{$2}
 		    return 1;
@@ -132,7 +135,7 @@ subcode:: support_subs
 		$if $t
 		    $if $MyDef::def->{fields}->{$t}->{$2}
 			return 1;
-	$elsif $cond=~/(\w+)(.*)/
+	$elsif $cond=~/^\s*(\w+)(.*)/
 	    my $t=get_def($1);
 	    return test_op($t, $2)
 	$else

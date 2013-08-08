@@ -53,15 +53,18 @@ subcode: dump_deflist
 
 ###########################################################
 subcode:: support_subs
+    $global @mode_stack, $cur_mode
+
     # MODES
     $sub modepush($mode)
-	push @$modelist, $mode;
+	$cur_mode=$mode
+	push @mode_stack, $mode;
 	$f_modeswitch->($mode, 1);
 
     $sub modepop
-	pop @$modelist
-	my $mode=$modelist->[-1];
-	$f_modeswitch->($mode, 0);
+	pop @mode_stack
+	$cur_mode=$mode_stack[-1]
+	$f_modeswitch->($cur_mode, 0);
 
     $sub grabblock($block, $index_ref)
 	my @sub;

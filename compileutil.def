@@ -10,11 +10,12 @@ include: compile/util.def
 page: compileutil
     type: pm
     output_dir: lib/MyDef
+    package: MyDef::compileutil
+
     subcode: main
 	$call compile_main
 
 subcode: compile_main
-    package MyDef::compileutil;
     my ($cur_file, $cur_line);
     $call package_global
     $call manage_output
@@ -72,7 +73,6 @@ subcode:: package_global
 
     # ---------------------------------------------------
     our $deflist;
-    our $modelist;
 
     my $debug;
 
@@ -80,8 +80,9 @@ subcode:: package_global
 
 
 subcode: manage_output
-    our $out;
-    our @output_list;
+    $global $out
+    $global @output_list
+
     $sub init_output
 	@output_list=([]);
 	set_output($output_list[0])
@@ -98,7 +99,8 @@ subcode: manage_output
 
 subcode: compile
     my ($ext, $mode)=$f_init->($page);
-    $modelist=[$mode];
+    @mode_stack=($mode)
+    $cur_mode=$mode
     $f_modeswitch->($mode)
     init_output();
     print STDERR "PAGE: $pagename\n";

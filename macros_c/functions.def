@@ -1,28 +1,17 @@
-subcode:: package_globals
-    our %functions
-    our @function_stack
-    our $cur_function
-    # ----
-    my @scope_stack
-
-    # ----
-    #   used in output_xs.def for parsing xs_mode and skip_declare
-    my %function_flags;
-    sub set_function_flag {
-	my ($k, $v)=@_;
-	$function_flags{$k}=$v;
-    }
-    # ----
-    our @func_var_hooks;
-
 subcode:: c_init
+    $global %functions, @function_stack, $cur_function
     %functions=()
     @function_stack=()
     undef $cur_function
 
+    #   used in output_xs.def for parsing xs_mode and skip_declare
+    $global %function_flags
     %function_flags=()
+
+    $global @func_var_hooks
     @func_var_hooks=()
 
+    $global @scope_stack
     @scope_stack=()
 
 # -----------------------------------------------------------------
@@ -32,9 +21,7 @@ subcode: check_pointer_type_name
 	$name=$2
 
 subcode:: c_support_subs
-    $sub open_function
-	my ($fname, $t)=@_;
-	my @plist=split /,/, $t;
+    $sub open_function($fname, $param)
 	# -- var_list: list of local variables
 	# -- var_type: types of local variables
 	# -- var_flag: flags
@@ -42,31 +29,17 @@ subcode:: c_support_subs
 	MyDef::compileutil::set_named_block("fn_init", $func->{init})
 	MyDef::compileutil::set_named_block("fn_finish", $func->{finish})
 
-	while(my ($k, $v)=each %function_flags){
+	$while my ($k, $v)=each %function_flags
 	    $func->{$k}=$v;
-	}
+
 	$func->{name}=$fname;
-	my $pbuf=$func->{param_list};
+	my $param_list=$func->{param_list};
 	my $var_type=$func->{var_type};
 	# -- parsing param list
-	my $i=0
-	$foreach my $p in @plist
-	    $i++
-	    $if $p=~/(\S.*)\s+(\S+)\s*$/
-		my ($type, $name)=($1, $2)
-		$call check_pointer_type_name
-		push @$pbuf, "$type $name"
-		$var_type->{$name}=$type
-	    $elif $p eq "fmt" and $i==@plist
-		push @$pbuf, "char * fmt, ..."
-	    $else
-		$if $fntype{$p}
-		    push @$pbuf, $fntype{$p};
-		    $var_type->{$p}="function";
-		$else
-		    my $t= get_c_type($p);
-		    push @$pbuf, "$t $p";
-		    $var_type->{$p}=$t;
+	$if $param eq "api"
+	    $call open_function_api
+	$if $param
+	    $call open_function_params
 	# --
 	$if $func->{name}
 	    my $name=$func->{name};
@@ -78,6 +51,34 @@ subcode:: c_support_subs
 	my $fidx=MyDef::dumpout::add_function($func);
 	return $fidx;
 
+subcode: open_function_params
+    my @plist=split /,/, $param
+    my $i=0
+    $foreach my $p in @plist
+	$i++
+	$if $p=~/(\S.*)\s+(\S+)\s*$/
+	    my ($type, $name)=($1, $2)
+	    $call check_pointer_type_name
+	    push @$param_list, "$type $name"
+	    $var_type->{$name}=$type
+	$elif $p eq "fmt" and $i==@plist
+	    push @$param_list, "char * fmt, ..."
+	$else
+	    $if $fntype{$p}
+		push @$param_list, $fntype{$p};
+		$var_type->{$p}="function";
+	    $else
+		my $t= get_c_type($p);
+		push @$param_list, "$t $p";
+		$var_type->{$p}=$t;
+
+subcode: open_function_api
+    $if $fname=~/^([a-zA-Z0-9]+)_(\w+)/
+	$if $fntype{$2}
+	    my $t=$fntype{$2}
+	    $if $t=~/^(.*?)\s*\(\s*\*\s*(\w+)\s*\)\s*\(\s*(.*)\)/
+		$func->{ret_type}=$1
+		$param=$3
 # -----------------------------------------------------------------
 subcode:: c_support_subs
     my $cur_scope
@@ -98,36 +99,13 @@ subcode:: c_support_subs
 	$cur_scope=pop @scope_stack
 # -----------------------------------------------------------------
 subcode:: c_support_subs
-    $sub get_var_type_complex
-	my $name=shift
-	my ($type, $tail)
-	$if $debug eq "type"
-	    print "get_var_type_complex [$name]\n"
-	$if $name=~/^(\w+)(.*)/
-	    $tail=$2
-	    $type=get_var_type($1)
-	$if $debug eq "type"
-	    print " ->type:$type, tail:[$tail]\n"
-	$while 1
-	    $if $tail=~/^\[.*?](.*)/
-		$tail=$1
-		$type=pointer_type($type)
-	    $elif $tail=~/^\.(\w+)(.*)/
-		$tail=$2
-		$type=get_struct_element_type($type, $1)
-	    $elif $tail=~/^->(\w+)(.*)/
-		$tail=$2
-		$type=pointer_type($type)
-		$type=get_struct_element_type($type, $1)
-	    $else
-		last
-	return $type
-
-    $sub get_var_type
+    $sub get_var_type_direct
 	my $name=shift;
+	$if $debug eq "type"
+	    print "get_var_type_direct: [$name]\n"
 	$if $cur_scope->{var_type}->{$name}
 	    return $cur_scope->{var_type}->{$name}
-	$for $i=$#scope_stack;$i>=0;$i--
+	$for my $i=$#scope_stack;$i>=0;$i--
 	    $if $scope_stack[$i]->{var_type}->{$name}
 		return $scope_stack[$i]->{var_type}->{$name}
 
@@ -135,20 +113,24 @@ subcode:: c_support_subs
 	    return $cur_function->{var_type}->{$name};
 	$else
 	    return $global_type->{$name};
+
     $sub get_var_flag
 	my $name=shift;
 	$if $cur_function->{var_flag}->{$name}
 	    return $cur_function->{var_flag}->{$name};
 	$else
 	    return $global_flag->{$name};
-    $sub get_compound_type
+
+    $sub get_var_type
 	my $name=shift
 	$if $name=~/^(\w+)(.*)/
-	    return get_sub_type(get_var_type($1), $2)
+	    return get_sub_type(get_var_type_direct($1), $2)
 	return "void";
 
     $sub get_sub_type
 	my ($type0, $tail)=@_
+	$if !$type0
+	    return "void"
 	$if $debug eq "type"
 	    print "get_sub_type: $type0 - $tail\n"
 
@@ -161,7 +143,9 @@ subcode:: c_support_subs
 	    $if $type0=~/(.*)\s*\*\s*$/
 		return get_sub_type($1, $tail)
 	    $else
-		die "error in derefencing pointer type $type\n"
+		my $curfile=MyDef::compileutil::curfile_curline()
+		warn "[$curfile] error in dereferencing pointer type $type0\n"
+		return "void"
 	$else
 	    return $type0
 
@@ -208,21 +192,24 @@ subcode: add_var(scope)
 	$if $scope eq "local"
 	    $if $var_type->{$name}
 		return $name
-	$elif get_var_type($name)
+	$elif get_var_type_direct($name)
 	    return $name
 
     $if $debug eq "type"
-	print "\033[33m", "$(scope) - ($attr) $type - $name ($array) - $tail ($value)\n", "\033[m"
+	my $curfile=MyDef::compileutil::curfile_curline()
+	print "[$curfile]", "\033[33m", "$(scope) - $type - $name ($array) - $tail ($value)\n", "\033[m"
 
     $call infer_type
     my ($vtype, $vinit)
     $call var_array_type
     $call var_init_line
 
+    $if $debug eq "type"
+	print "    vtype: $vtype\n"
+
     $(if:scope=global)
 	$global_type->{$name}=$vtype
-	$if !($page->{_autoload} and $page->{autoload} eq "h")
-	    push @global_list, $vinit
+	push @global_list, $vinit
     $(elif:scope=symbol)
 	$global_type->{$name}=$vtype
     $(else)
@@ -248,7 +235,7 @@ subcode: c_var_init
 
 subcode: c_struct_init
     my $s_init=$structs{$1}->{hash}->{"-init"}
-    $if @$s_init
+    $if $s_init and @$s_init
 	$if $array=~/^\[([^\[\]]+)\]/
 	    func_add_var("i", "int");
 	    push @{$cur_function->{init}}, "for(i=0;i<$1;i++){$1_constructor(&$name\[i]);}";
@@ -319,13 +306,12 @@ subcode: var_init_line
 
 subcode:: package_globals
     use File::stat
-    our @extern_binary;
-
     $sub get_mtime($fname)
 	my $st=stat($fname)
 	return $st->[9]
 
 subcode:: c_init
+    $global @extern_binary
     @extern_binary=()
 
 subcode: value_from_file
@@ -437,115 +423,52 @@ subcode:: c_support_subs
 	    push @$out, "$name=$val;";
 
 # -----------------------------------------------------------------
-subcode: process_function_std
-    my $name=$func->{name};
+subcode:: support_subs
+    $sub process_function_std($func)
+	my $name=$func->{name};
 
-    # ---- open block ------------------
-    $if !$func->{openblock}
-	my @t
-	my $ret_type=$func->{ret_type};
-	if(!$ret_type){$ret_type="void";}
-	my $paramlist=$func->{'param_list'};
-	my $param=join(', ', @$paramlist);
-	push @t,  "$ret_type $name($param){"
-	$func->{openblock}=\@t
+	# ---- open block ------------------
+	$if !$func->{openblock}
+	    my $declare=$func->{declare}
+	    $if !$declare
+		my $ret_type=$func->{ret_type};
+		if(!$ret_type){$ret_type="void";}
+		my $param_list=$func->{"param_list"};
+		my $param=join(', ', @$param_list);
+		$declare="$ret_type $name($param)"
+		$func->{declare}=$declare
+	    $func->{openblock}=[$declare."{"]
 
-    # ---- close block ----------------------
-    $if !$func->{closeblock}
-	my @t
-	push @t, "}";
-	push @t, "NEWLINE";
-	$func->{closeblock}=\@t
+	# ---- close block ----------------------
+	$if !$func->{closeblock}
+	    my @t
+	    push @t, "}";
+	    push @t, "NEWLINE";
+	    $func->{closeblock}=\@t
 
-    my (@pre, @post);
-    $func->{preblock}=\@pre;
-    $func->{postblock}=\@post;
+	my (@pre, @post);
+	$func->{preblock}=\@pre;
+	$func->{postblock}=\@post;
 
-    # ---- pre block -----------------------
-    my $var_decl=$func->{var_decl};
-    my $var_list=$func->{var_list};
-    $if @$var_list
-	$foreach my $v in @$var_list
-	    $if $global_type->{$v}
-		print "  [warning] In $name: local variable $v with exisiting global\n"
-	    push @pre, "$var_decl->{$v};";
-	push @pre, "NEWLINE";
+	# ---- pre block -----------------------
+	my $var_decl=$func->{var_decl};
+	my $var_list=$func->{var_list};
+	$if @$var_list
+	    $foreach my $v in @$var_list
+		$if $global_type->{$v}
+		    print "  [warning] In $name: local variable $v with exisiting global\n"
+		push @pre, "$var_decl->{$v};";
+	    push @pre, "NEWLINE";
 
-    $foreach my $tl in @{$func->{init}}
-	push @pre, $tl;
+	$foreach my $tl in @{$func->{init}}
+	    push @pre, $tl;
 
-    # ---- post block ----------------------- 
-    $if !$func->{has_return}
-	$cur_function=$func
-	func_var_release(\@post);
+	# ---- post block ----------------------- 
+	$if !$func->{has_return}
+	    $cur_function=$func
+	    func_var_release(\@post);
 
-    $foreach my $tl in @{$func->{finish}}
-	push @post, $tl;
+	$foreach my $tl in @{$func->{finish}}
+	    push @post, $tl;
 
 
-############################################################################
-subcode:: c_support_subs
-    sub mu_enable {
-	$misc_vars{mu_enable}=1;
-	push @func_var_hooks, {var_check=>\&mu_var_check, var_init=>\&mu_var_init, var_pre_assign=>\&mu_pre_assign, var_post_assign=>\&mu_post_assign, var_release=>\&mu_release};
-    }
-
-    $sub mu_var_check
-	my ($type)=@_;
-	$if $type=~/\*$/
-	    return 1;
-	$else
-	    return 0;
-
-    $sub mu_var_init
-	return "NULL";
-
-    $sub mu_pre_assign
-	my ($type, $name, $val, $out)=@_;
-	$if $var_flag->{$name} eq "retained"
-	    my $var_flag=$cur_function->{var_flag};
-	    push @$out, "if($name){mu_release($name);}";
-	    $var_flag->{$name}=0;
-
-    $sub mu_post_assign
-	my ($type, $name, $val, $out)=@_;
-	#print "mu_post_assign: $type $name = $val\n";
-	my $var_flag=$cur_function->{var_flag};
-	$if $val=~/^\s*(NULL|0)\s*$/i
-	    NOOP
-	$elsif $val=~/^\s*(\w+)(.*)/
-	    my $v_name=$1;
-	    my $v_tail=$2;
-	    $if $v_tail=~/^\s*\(/ and MyDef::is_sub($v_name)
-		$var_flag->{$name}="retained";
-		#print "retain $name\n";
-	    $else
-		NOOP
-		#push @$out, "mu_retain($name);";
-
-    $sub mu_release
-	my ($type, $name, $skipcheck)=@_;
-	$if $skipcheck
-	    return mu_release_0($type, $name, $out)
-	$else
-	    my $var_flag=$cur_function->{var_flag};
-	    #print "$cur_function->{name} mu_release($name): flag: $var_flag->{$name}\n";
-	    $if $func->{mu_skip}->{$name}
-	    $elsif $var_flag->{$name} eq "retained"
-		return mu_release_0($type, $name, $out)
-
-    $sub mu_release_0
-	my ($type, $name)=@_;
-	my @out;
-	push @out, "if($name){";
-	push @out, "INDENT";
-	if($type=~/^struct\s+(\w+)\s*$/){
-	    my $t=$structs{$1}->[0];
-	    if($t->{destructor}){
-		push @out, "$1_destructor($name);";
-	    }
-	}
-	push @out, "mu_release($name);";
-	push @out, "DEDENT";
-	push @out, "}";
-	return \@out

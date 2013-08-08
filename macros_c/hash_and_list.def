@@ -26,9 +26,9 @@ subcode:: c_support_subs
     # --
     $sub get_list_type
 	my ($var)=@_;
-	$if my $type = get_var_type($var)
-	    $if $type=~/struct (\w+)/
-		return $1
+	my $type = get_var_type($var)
+	$if $type=~/struct (\w+)/
+	    return $1
 	print "Warning: $var not a list type\n"
 	return undef
 
