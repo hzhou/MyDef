@@ -12,6 +12,7 @@ page: mydef_make
 	    shift @ARGV;
 	    $nosub=1;
 
+	my @master_config;
 	$if -d $ARGV[0]
 	    my $d=$ARGV[0];
 	    open In, "config";
@@ -20,7 +21,6 @@ page: mydef_make
 	    chdir $d or die "can't chdir $d\n";
 
 	# ---- in current directory ------------------------
-	my @master_config;
 	my $module="php";
 	my %module_type=(perl=>"pl", php=>"php", xs=>"xs", win32=>"c", c=>"c", apple=>"m", js=>"js", general=>"txt", glsl=>"glsl");
 	my %macros;
