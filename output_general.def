@@ -11,7 +11,10 @@ page: output_make, output_main
     output_dir: lib/MyDef
     package: MyDef::output_make
     subcode: parsecode
-	$if $l=~/^\s*\$(\w+)\s*(.*)$/
+	$if $l=~/^\s*PRINT (.*)/
+	    push @$out, $1
+	    return 0
+	$elif $l=~/^\s*\$(\w+)\s*(.*)$/
 	    my ($func, $param)=($1, $2)
 	    $if $func=~/^(ifeq|ifneq|ifdef|ifndef|elsif)$/
 		push @$out, "$1 $param"
