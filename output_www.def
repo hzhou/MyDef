@@ -73,18 +73,18 @@ subcode:: dumpout
     $dump->{custom}=\&custom_dump
 
 subcode: parsecode
-    $if $cur_mode eq "PRINT"
-	$if $l=~/^(SUBBLOCK|SOURCE)/
-	    push @$out, $l
-	$else
-	    my $P="PRINT-".$mode_stack[-1]
-	    $if $P eq "PRINT-html"
-		$l=~s/</&lt;/g
-		$l=~s/>/&gt;/g
-	    push @$out, "$P $l"
-	return 0
     $call parsecode_common
-    push @$out, $l
+
+subcode: parsecode_PRINT
+    $if $l=~/^(SUBBLOCK|SOURCE)/
+	push @$out, $l
+    $else
+	my $P="PRINT-".$mode_stack[-1]
+	$if $P eq "PRINT-html"
+	    $l=~s/</&lt;/g
+	    $l=~s/>/&gt;/g
+	push @$out, "$P $l"
+    return 0
 
 subcode: parsecode_special
     $if $l=~/^\s*CSS: (.*)\s*\{(.*)\}/

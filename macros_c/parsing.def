@@ -11,13 +11,6 @@ subcode: debug_plugin
     $while my ($funcname, $codename)=each %plugin_condition
 	print " plugin condition:  $funcname => $codename\n"
 
-
-subcode: c_parsecode
-    $call check_text_includes
-    $call parsecode_common
-    $call @custom_parse
-    $call parsecode_other
-
 subcode: check_text_includes
     $while my ($k, $v)=each %text_include
 	$if $l=~/$k/
@@ -36,16 +29,19 @@ subcode: parsecode_special
 	my $t=$1
 	$if $t=~/usesub:\s*(\w+)/
 	    $print_type=$1
-	$elif $print_type==1
-	    $if $t=~/^".*",/
-		push @$out, "printf($t);"
-	    $else
-		my ($n, $fmt)=fmt_string($t)
+	$else
+	    my $fmt=$t
+	    $if $t!~/^".*"/
+		my $n
+		($n, $fmt)=fmt_string($t)
+	    $if $fmt=~/^"(.*?[^\\])"(.*)/
+		my ($t1, $t2)=($1, $2)
+		$if $t1!~/\\n$/
+		    $fmt="\"$t1\\n\"$t2"
+	    $if $print_type==1
 		push @$out, "printf($fmt);"
-		$if $fmt!~/\\n/
-		    push @$out, "printf(\"\\n\");"
-	$elif $print_type
-	    MyDef::compileutil::call_sub("$print_type, $t")
+	    $elif $print_type
+		MyDef::compileutil::call_sub("$print_type, $fmt")
 
 subcode: parsecode_func_param
     $if $func eq "allocate"
@@ -265,7 +261,6 @@ subcode: parsecode_func
 		last
 
 subcode: parsecode_other
-    #print "parsecode residue: [$l]\n";
     $if $l=~/^return\b/
 	func_return($l, $out);
     $elsif $l=~/^SOURCE_INDENT/
@@ -273,14 +268,13 @@ subcode: parsecode_other
     $elsif $l=~/^SOURCE_DEDENT/
 	$cur_indent--;
 
+    $call check_text_includes
     $call check_exponential
     $call check_functioncall
     $call check_termination
 
     $if $l=~/^[^'"]*=/
 	check_assignment(\$l, $out);
-    $if $l
-	push @$out, $l;
 
 # ----------------------------------------------
 subcode: c_parse_for

@@ -52,7 +52,7 @@ subcode:: c_support_subs
 	return $fidx;
 
 subcode: open_function_params
-    my @plist=split /,/, $param
+    my @plist=split /,\s*/, $param
     my $i=0
     $foreach my $p in @plist
 	$i++
@@ -64,6 +64,8 @@ subcode: open_function_params
 	$elif $p eq "fmt" and $i==@plist
 	    push @$param_list, "char * fmt, ..."
 	$else
+	    $if $debug
+		print "fntype {$p} = $fntype{$p}\n"
 	    $if $fntype{$p}
 		push @$param_list, $fntype{$p};
 		$var_type->{$p}="function";
@@ -206,9 +208,11 @@ subcode: add_var(scope)
 
     $if $debug eq "type"
 	print "    vtype: $vtype\n"
+	print "    vinit: $vinit\n"
 
     $(if:scope=global)
 	$global_type->{$name}=$vtype
+	$global_flag->{$name}=$vinit
 	push @global_list, $vinit
     $(elif:scope=symbol)
 	$global_type->{$name}=$vtype

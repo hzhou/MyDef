@@ -69,6 +69,13 @@ subcode: parse_preproc
 	$if !$context
 	    $context="switch_on";
     $call @preproc_elifs
+    $elif $preproc=~/^index_name:(\w+)/
+	$global %index_name_hash
+	$if !$index_name_hash{$1}
+	    $index_name_hash{$1}=1
+	$else
+	    $index_name_hash{$1}+=1
+	$deflist->[-1]->{index_name}="$1_$index_name_hash{$1}"
     $elsif $preproc=~/^allow_recurse:(\d+)/
 	my $code=$block_stack[-1]->{code}
 	$if $code->{allow_recurse}

@@ -42,12 +42,12 @@ subcode: parse_main
 	$call load_standard_includes
 
 	# -----------------------------------------------
-	import_file($file, $plines, $def, \@includes,\%includes)
+	import_file($file, $plines, $def, \@includes,\%includes, "main")
 	$while 1
 	    $if my $file=shift(@includes)
-		import_file($file, undef, $def, \@includes,\%includes)
+		import_file($file, undef, $def, \@includes,\%includes, "include")
 	    $elif my $file=shift(@standard_includes)
-		import_file($file, undef, $def, \@includes,\%includes)
+		import_file($file, undef, $def, \@includes,\%includes, "standard_include")
 	    $else
 		last
 
@@ -59,7 +59,7 @@ subcode: parse_main
 	return $def;
 
     $sub import_file
-	my ($f, $plines, $def, $include_list, $include_hash)=@_
+	my ($f, $plines, $def, $include_list, $include_hash, $file_type)=@_
 	my $pages=$def->{pages}
 	my $pagelist=$def->{pagelist}
 	my $codes=$def->{codes}
@@ -284,7 +284,8 @@ subcode: start_page
     $page={pagename=>$pagename, codes=>$code};
     $if $subpage
 	$page->{subpage}=1;
-    $call add_page
+    $if $file_type eq "main"
+	$call add_page
     $stage='page';
 
 subcode: add_page

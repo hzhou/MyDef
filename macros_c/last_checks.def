@@ -66,6 +66,8 @@ subcode:: c_support_subs
 	return @t
     $sub check_assignment
 	my ($l, $out)=@_;
+	$if $debug eq "type"
+	    print "check_assignment: $l\n"
 	$if $cur_function and $$l=~/^[^'"\(]*=/
 	    my $tl=$$l;
 	    $tl=~s/;+\s*$//;

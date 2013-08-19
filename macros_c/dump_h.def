@@ -36,7 +36,13 @@ subcode: dump_h_files
 	    $call dump_function_declare, $k
 	push @buf, "\n"
 	$foreach $k in @{$ghash{"global"}}
-	    push @buf, "extern $global_type->{$k} $k;\n"
+	    my $type=$global_type->{$k}
+	    my $flag=$global_flag->{$k}
+	    $if $type=~/\*$/ and $flag=~/$k\[(.*)\]/
+		$type=~s/\s*\*$//
+		push @buf, "extern $type $k\[];\n"
+	    $else
+		push @buf, "extern $type $k;\n"
 
 	my $out_h="$outdir/$name.h"
 	print "  ---> $out_h\n"

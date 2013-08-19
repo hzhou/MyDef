@@ -13,6 +13,7 @@ perlcode: push_open_function
     push @$out, "SOURCE_DEDENT"
 
 perlcode: push_indent_block
+    $(allow_recurse:10)
     push @$out, "INDENT"
     BLOCK
     push @$out, "DEDENT"

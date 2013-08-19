@@ -41,11 +41,16 @@ subcode: compile_line
 	# Literal by-pass
 	push @$out, $1
     $elif $l=~/^BLOCK\s*$/
-	$if $#callback_block_index_stack <0
+	$if $#callback_block_stack <0
 	    warn "BLOCK called out of context!\n"
+	    push @$out, $1
 	$else
-	    my $n=$callback_block_index_stack[-1]
-	    push @$out, "BLOCK_$n"
+	    my $block=pop @callback_block_stack
+	    my $depth=$#callback_block_stack+1
+	    $if $debug
+		print "BLOCK [$cur_file:$cur_line] -> [$block->{cur_file}: $block->{cur_line}] depth=$depth\n"
+	    parseblock($block)
+	    push @callback_block_stack, $block
     $else
 	NormalParse:
 	undef $context;
@@ -190,19 +195,18 @@ subcode: parse_line
 		$f_parse->($t)
 
 subcode: check_callback
-    $call parse_handle_block
+    my $n=new_output()
+    my $subblock=grabblock($block, \$lindex)
+    $call parse_callback_block, $n, $subblock
     $for $i=$idx:$#$callback_output+1
 	$if $callback_output->[$i]=~/^BLOCK$/
 	    $callback_output->[$i]="BLOCK_$n"
 
-subcode: parse_handle_block
-    my $n=new_output()
-    my $subblock=grabblock($block, \$lindex)
-    #$call debug_block, subblock, 0
+subcode: parse_callback_block(n, subblock)
     my $temp=$out;
-    set_output($output_list[$n])
+    set_output($output_list[$(n)])
     #$f_parse->("SCOPE: CALLBACK");
-    parseblock({source=>$subblock, name=>"BLOCK_$n"})
+    parseblock({source=>$(subblock), name=>"BLOCK_$(n)"})
     #$f_parse->("SCOPE: NONE");
     set_output($temp)
 

@@ -112,9 +112,11 @@ subcode: callback_sub
     $if $codelib
 	modepush($codelib->{type});
 
-    $global @callback_block_index_stack
-    $call parse_handle_block
-    push @callback_block_index_stack, $n
+    #my $n=new_output()
+    my $tmp_lindex=$lindex
+    my $subblock=grabblock($block, \$lindex)
+    $global @callback_block_stack
+    push @callback_block_stack, {source=>$subblock, name=>"BLOCK", cur_file=>$cur_file, cur_line=>$cur_line}
 
     $if $codelib
 	push @callsub_stack, $codename
@@ -126,7 +128,7 @@ subcode: callback_sub
 	pop @$deflist;
 	pop @callsub_stack
 
-    pop @callback_block_index_stack
+    pop @callback_block_stack
 
     $if $codelib
 	modepop()

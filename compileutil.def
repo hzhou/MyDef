@@ -100,9 +100,8 @@ subcode: manage_output
 
 subcode: compile
     my ($ext, $mode)=$f_init->($page);
-    @mode_stack=($mode)
-    $cur_mode=$mode
-    $f_modeswitch->($mode)
+    $if $mode
+	modepush($mode)
     init_output();
     print STDERR "PAGE: $pagename\n";
 

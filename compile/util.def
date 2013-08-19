@@ -53,7 +53,7 @@ subcode: dump_deflist
 
 ###########################################################
 subcode:: support_subs
-    $global @mode_stack, $cur_mode
+    $global @mode_stack=("sub"), $cur_mode
 
     # MODES
     $sub modepush($mode)
@@ -75,6 +75,7 @@ subcode:: support_subs
 	$else
 	    $indent=1;
 	    $lindex++;
+	push @sub, "SOURCE: $cur_file - $cur_line"
 	$while $lindex<@$block
 	    $if $block->[$lindex] eq "SOURCE_DEDENT"
 		$indent-- if $indent>0;

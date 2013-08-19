@@ -33,8 +33,10 @@ page: output_c, output_main
 	    $type_prefix{f}="double";
 	MyDef::dumpout::init_funclist();
 	$call @c_init
+
     subcode: parsecode
 	$call parsecode_common
+
     subcode: dumpout
 	# ----  Main Function -------------------
 	my $mainfunc=$functions{"main"};

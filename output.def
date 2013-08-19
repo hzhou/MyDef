@@ -15,7 +15,7 @@ subcode: output_main
     $sub init_page
 	($page)=@_;
 	# ---- Set output file extension
-	my $ext=$page->{ext}
+	my $ext="$(ext)"
 	$if $page->{type}
 	    $ext=$page->{type};
 	$call @init_page
@@ -98,9 +98,15 @@ subcode: inherit_c
 subcode: parsecode
     push @$out, $l
 
+subcode: parsecode_PRINT
+    push @$out, $l
+    return 0
+
 subcode: parsecode_common
     my $should_return=1
-    $call parsecode_special
+    $if $MyDef::compileutil::cur_mode eq "PRINT"
+	$call @parsecode_PRINT
+    $call @parsecode_special
     $elif $l=~/^\s*\$(\w+)\((.*)\)\s+(.*)$/
 	# $function(param1) param2 ---------------------------
 	my ($func, $param1, $param2)=($1, $2, $3)
@@ -114,6 +120,10 @@ subcode: parsecode_common
 
     $if $should_return
 	return
+
+    $call @parsecode_other
+
+    push @$out, $l
 
 subcode: single_blocks
     $sub single_block($t1, $t2)
