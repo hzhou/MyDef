@@ -4,7 +4,7 @@ page: test
 	$call test_read_file
 	$call test_sub
 	$call test_for
-	# $call test_elif
+	$call test_case
 
     subcode: test_read_file
 	print "Test \&call open_r ...\n"
@@ -39,16 +39,20 @@ page: test
 	    print $i, " "
 	print "\n"
 
-subcode: test_elif
-    my $t=10
-    $if $t<0
+subcode: test_case
+    print "Test \$case ...\n"
+    my $t=4
+    $case $t<0
 	print "$t < 0\n"
-    $elif $t<5
+    $case $t<5
 	print "0 <= $t < 5\n"
+    $t--
     $call othercase
+    $case $t<100
+	print "10 <= $t < 100\n"
     $else
 	print "10 <= $t\n"
 
 subcode: othercase
-    $elif $t<10
+    $case $t<10
 	print "5 <= $t < 10\n"
