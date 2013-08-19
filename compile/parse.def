@@ -164,7 +164,7 @@ subcode: parse_line
     $parse_line_count++
     #$call parse_line_progress
     my $msg=$f_parse->($l);
-    my @tails
+    my $tail
     $if $msg
 	$if ref($msg) eq "ARRAY"
 	    # output is held until post processing
@@ -176,7 +176,7 @@ subcode: parse_line
 	    #     eg. cfunctions.pm single_block
 	    $callback_output=$out;
 	    $if $'=~/-(.*)/
-		push @tails, $1
+		$tail= $1
 	$elsif $msg=~/^SKIPBLOCK/
 	    grabblock($block, \$lindex)
 	$elsif $msg=~/^SET:(\w+)=(.*)/
@@ -190,9 +190,8 @@ subcode: parse_line
 	# single_block and $method
 	$if $callback_output
 	    $call check_callback
-	$if @tails
-	    $foreach $t in @tails
-		$f_parse->($t)
+	$if $tail
+	    $f_parse->($tail)
 
 subcode: check_callback
     my $n=new_output()

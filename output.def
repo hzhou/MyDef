@@ -144,3 +144,37 @@ subcode: single_blocks
 		push @$out, $l
 	return "NEWBLOCK";
 
+    $sub case_push
+	$case_stack[$case_level]=2
+	push @case_stack, 1
+	$case_level++
+    $sub case_pop
+	$if $case_level>1
+	    pop @case_stack
+	    $case_level--
+    $sub case_block($t)
+	$if $t=~/^case(.*)/
+	    $if $case_stack[$case_level]==0
+		$t="$case_if$1"
+	    $else
+		$t="$case_elif$1"
+	case_push()
+	push @$out, "$t\{";
+	push @$out, "INDENT";
+	push @$out, "BLOCK";
+	push @$out, "DEDENT";
+	push @$out, "}";
+	return "NEWBLOCK-CASEPOP";
+
+subcode: parsecode_case_support(if, elif)
+    $global @case_stack=(1), $case_level=0
+    $global $case_if="$(if)", $case_elif="$(elif)"
+    $if $l eq "CASEPOP"
+	case_pop()
+	return 0
+    $elif $l!~/^SUBBLOCK/ and $case_stack[$case_level]>0
+	$case_stack[$case_level]--
+
+    print "[$l]\n"
+    print "    case_stack level=$case_level, $case_stack[$case_level]\n"
+
