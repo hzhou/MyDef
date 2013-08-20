@@ -1,5 +1,5 @@
 use strict;
-package output_general;
+package MyDef::output_general;
 use MyDef::dumpout;
 our $debug;
 our $mode;
@@ -15,7 +15,8 @@ sub init_page {
         $ext=$page->{type};
     }
     $page->{pageext}=$ext;
-    return ($ext, "sub");
+    my $init_mode=$page->{init_mode};
+    return ($ext, $init_mode);
 }
 sub set_output {
     $out = shift;

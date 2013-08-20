@@ -29,7 +29,8 @@ sub init_page {
     $style={};
     @style_key_list=();
     $page->{pageext}=$ext;
-    return ($ext, "html");
+    my $init_mode=$page->{init_mode};
+    return ($ext, $init_mode);
 }
 sub set_output {
     $out = shift;
@@ -97,7 +98,8 @@ sub parsecode {
     elsif($l=~/^NOOP/){
         return;
     }
-    if($cur_mode eq "PRINT"){
+    my $should_return=1;
+    if($MyDef::compileutil::cur_mode eq "PRINT"){
         if($l=~/^(SUBBLOCK|SOURCE)/){
             push @$out, $l;
         }
@@ -111,7 +113,6 @@ sub parsecode {
         }
         return 0;
     }
-    my $should_return=1;
     if($l=~/^\s*CSS: (.*)\s*\{(.*)\}/){
         if($style->{$1}){
             $style->{$1}.=";$2";

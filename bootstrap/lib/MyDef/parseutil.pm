@@ -28,13 +28,13 @@ sub import_data_lines {
     my @standard_includes;
     my $stdinc="std_".$MyDef::var->{module}.".def";
     push @standard_includes, $stdinc;
-    import_file($file, $plines, $def, \@includes,\%includes);
+    import_file($file, $plines, $def, \@includes,\%includes, "main");
     while(1){
         if(my $file=shift(@includes)){
-            import_file($file, undef, $def, \@includes,\%includes);
+            import_file($file, undef, $def, \@includes,\%includes, "include");
         }
         elsif(my $file=shift(@standard_includes)){
-            import_file($file, undef, $def, \@includes,\%includes);
+            import_file($file, undef, $def, \@includes,\%includes, "standard_include");
         }
         else{
             last;
@@ -45,7 +45,7 @@ sub import_data_lines {
     return $def;
 }
 sub import_file {
-    my ($f, $plines, $def, $include_list, $include_hash)=@_;
+    my ($f, $plines, $def, $include_list, $include_hash, $file_type)=@_;
     my $pages=$def->{pages};
     my $pagelist=$def->{pagelist};
     my $codes=$def->{codes};
@@ -223,16 +223,18 @@ sub import_file {
                 if($subpage){
                     $page->{subpage}=1;
                 }
-                if($pages->{$pagename}){
-                    my $t=$pagename;
-                    my $j=0;
-                    while($pages->{$pagename}){
-                        $j++;
-                        $pagename=$t.$j;
+                if($file_type eq "main"){
+                    if($pages->{$pagename}){
+                        my $t=$pagename;
+                        my $j=0;
+                        while($pages->{$pagename}){
+                            $j++;
+                            $pagename=$t.$j;
+                        }
                     }
+                    $pages->{$pagename}=$page;
+                    push @$pagelist, $pagename;
                 }
-                $pages->{$pagename}=$page;
-                push @$pagelist, $pagename;
                 $stage='page';
             }
             elsif($line=~/^resource:\s+(\w+)(.*)/){

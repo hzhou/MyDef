@@ -32,6 +32,10 @@ our %structs;
 our @struct_list;
 our @initcodes;
 our %h_hash;
+our @case_stack=(1);
+our $case_level=0;
+our $case_if="if";
+our $case_elif="else if";
 use MyDef::dumpout;
 our $debug;
 our $mode;
@@ -154,7 +158,8 @@ sub init_page {
     @initcodes=();
     %h_hash=();
     $page->{pageext}=$ext;
-    return ($ext, "sub");
+    my $init_mode=$page->{init_mode};
+    return ($ext, $init_mode);
 }
 sub set_output {
     $out = shift;
@@ -181,7 +186,57 @@ sub parsecode {
     elsif($l=~/^NOOP/){
         return;
     }
+    if($l eq "CASEPOP"){
+        if($case_level>1){
+            pop @case_stack;
+            $case_level--;
+        }
+        return 0;
+    }
+    elsif($l!~/^SUBBLOCK/ and $case_stack[$case_level]>0){
+        $case_stack[$case_level]--;
+    }
+    if($l=~/^\$(if|elif|elsif|elseif|case)\s*(.*)$/){
+        my $cond=$2;
+        my $case;
+        if($1 eq "if"){
+            $case=$case_if;
+        }
+        elsif($1 eq "case"){
+            if($case_stack[$case_level]==0){
+                $case=$case_if;
+            }
+            else{
+                $case=$case_elif;
+            }
+        }
+        else{
+            $case=$case_elif;
+        }
+        $cond=parse_condition($cond, $out);
+        push @$out, "$case($cond){";
+        push @$out, "INDENT";
+        push @$out, "BLOCK";
+        push @$out, "DEDENT";
+        push @$out, "}";
+        $case_stack[$case_level]=2;
+        push @case_stack, 1;
+        $case_level++;
+        return "NEWBLOCK-CASEPOP";
+    }
+    elsif($l=~/^\$else/){
+        push @$out, "else{";
+        push @$out, "INDENT";
+        push @$out, "BLOCK";
+        push @$out, "DEDENT";
+        push @$out, "}";
+        return "NEWBLOCK";
+    }
     my $should_return=1;
+    if($MyDef::compileutil::cur_mode eq "PRINT"){
+        push @$out, $l;
+        return 0;
+    }
     if($l=~/^SUBBLOCK BEGIN (\d+)/){
         push @$out, "DUMP_STUB SUBBLOCK_$1";
         if($debug eq "DUMP"){
@@ -198,23 +253,27 @@ sub parsecode {
         if($t=~/usesub:\s*(\w+)/){
             $print_type=$1;
         }
-        elsif($print_type==1){
-            if($t=~/^".*",/){
-                push @$out, "printf($t);";
+        else{
+            my $fmt=$t;
+            if($t!~/^".*"/){
+                my $n;
+                ($n, $fmt)=fmt_string($t);
             }
-            else{
-                my ($n, $fmt)=fmt_string($t);
-                push @$out, "printf($fmt);";
-                if($fmt!~/\\n/){
-                    push @$out, "printf(\"\\n\");";
+            if($fmt=~/^"(.*?[^\\])"(.*)/){
+                my ($t1, $t2)=($1, $2);
+                if($t1!~/\\n$/){
+                    $fmt="\"$t1\\n\"$t2";
                 }
             }
-        }
-        elsif($print_type){
-            MyDef::compileutil::call_sub("$print_type, $t");
+            if($print_type==1){
+                push @$out, "printf($fmt);";
+            }
+            elsif($print_type){
+                MyDef::compileutil::call_sub("$print_type, $fmt");
+            }
         }
     }
-    if($l=~/^\s*\$(\w+)\((.*)\)\s+(.*)$/){
+    elsif($l=~/^\s*\$(\w+)\((.*)\)\s+(.*)$/){
         my ($func, $param1, $param2)=($1, $2, $3);
         if($func eq "allocate"){
             allocate($param1, $param2);
@@ -348,27 +407,18 @@ sub parsecode {
         elsif($func =~/^except/){
             return single_block("$except\{", "}");
         }
-        elsif($func =~ /^(switch)$/){
-            return single_block("$1($param){", "}");
-        }
-        elsif($func =~ /^(if|while|switch|(el|els|else)if)$/){
+        elsif($func =~ /^(while|switch)$/){
             my $name=$1;
-            if($2){
-                $name="else if";
-            }
-            my $p=parse_condition($param, $out);
-            return single_block("$name($p){", "}");
+            $param=parse_condition($param, $out);
+            return single_block("$name($param){", "}");
         }
         elsif($func =~/^dowhile/){
-            my $p=parse_condition($param, $out);
-            return single_block("do{", "}while($p);")
+            $param=parse_condition($param, $out);
+            return single_block("do{", "}while($param);")
         }
         elsif($func =~/^whiletrue/){
             push @$out, "while($param);";
             return;
-        }
-        elsif($func eq "else"){
-            return single_block("else{", "}");
         }
         elsif($func eq "for"){
             if($param=~/(\w+)\s*=\s*(.*?):(.*?)(:.*)?$/){
@@ -721,6 +771,80 @@ sub parsecode {
     if($should_return){
         return;
     }
+    if($l=~/^return\b/){
+        func_return($l, $out);
+    }
+    elsif($l=~/^SOURCE_INDENT/){
+        $cur_indent++;
+    }
+    elsif($l=~/^SOURCE_DEDENT/){
+        $cur_indent--;
+    }
+    while(my ($k, $v)=each %text_include){
+        if($l=~/$k/){
+            my @flist=split /,\s*/, $v;
+            my $autoload;
+            my $autoload_h=0;
+            if($page->{_autoload}){
+                if($page->{autoload} eq "write_h"){
+                    if(!$h_hash{"autoload"}){
+                        $autoload=[];
+                        $h_hash{"autoload"}=$autoload;
+                    }
+                    else{
+                        $autoload=$h_hash{"autoload"};
+                    }
+                }
+                elsif($page->{autoload} eq "h"){
+                    $autoload_h=1;
+                }
+            }
+            foreach my $f (@flist){
+                my $key;
+                if($f=~/\.\w+$/){
+                    $key="\"$f\"";
+                }
+                elsif($f=~/^".*"$/){
+                    $key=$f;
+                }
+                else{
+                    $key="<$f.h>";
+                }
+                $includes{$key}=1;
+                if($autoload){
+                    push @$autoload, "include-$key";
+                }
+            }
+        }
+    }
+    while($l=~/\^([234])/){
+        my $t_p=$1;
+        my $t_tail=$';
+        my ($t_head, $t_exp)=last_exp($`);
+        my $t_trunk="$t_exp*" x ($t_p-1);
+        $t_trunk.=$t_exp;
+        $l="$t_head($t_trunk)$t_tail";
+    }
+    if($l=~/^(\w+)\s+(.*)$/){
+        if($functions{$1} or $stock_functions{$1}){
+            my $fn=$1;
+            my $t=$2;
+            $t=~s/;\s*$//;
+            $t=~s/\s+$//;
+            $l="$fn($t);";
+        }
+    }
+    if($l=~/^\s*$/){
+    }
+    elsif($l=~/(for|while|if|else if)\s*\(.*\)\s*$/){
+    }
+    elsif($l!~/[:\{\};]\s*$/){
+        $l.=";";
+    }
+    if($l=~/^[^'"]*=/){
+        check_assignment(\$l, $out);
+    }
+    push @$out, $l;
 }
 sub dumpout {
     my $f;
@@ -785,7 +909,6 @@ sub dumpout {
                 }
             }
             my $pagename=$page->{pagename};
-            my $ext=$page->{pageext};
             open Subfile, ">$ofile" or die "Can't write $ofile\n";
             if($page->{CC}){
                 print Subfile "CC=$page->{CC}\n";
@@ -867,7 +990,15 @@ sub dumpout {
         }
         push @buf, "\n";
         foreach my $k (@{$ghash{"global"}}){
-            push @buf, "extern $global_type->{$k} $k;\n";
+            my $type=$global_type->{$k};
+            my $flag=$global_flag->{$k};
+            if($type=~/\*$/ and $flag=~/$k\[(.*)\]/){
+                $type=~s/\s*\*$//;
+                push @buf, "extern $type $k\[];\n";
+            }
+            else{
+                push @buf, "extern $type $k;\n";
+            }
         }
         my $out_h="$outdir/$name.h";
         print "  ---> $out_h\n";
@@ -1099,6 +1230,9 @@ sub comma_split {
 }
 sub check_assignment {
     my ($l, $out)=@_;
+    if($debug eq "type"){
+        print "check_assignment: $l\n";
+    }
     if($cur_function and $$l=~/^[^'"\(]*=/){
         my $tl=$$l;
         $tl=~s/;+\s*$//;
@@ -1377,7 +1511,7 @@ sub open_function {
         }
     }
     if($param){
-        my @plist=split /,/, $param;
+        my @plist=split /,\s*/, $param;
         my $i=0;
         foreach my $p (@plist){
             $i++;
@@ -1394,6 +1528,9 @@ sub open_function {
                 push @$param_list, "char * fmt, ...";
             }
             else{
+                if($debug){
+                    print "fntype {$p} = $fntype{$p}\n";
+                }
                 if($fntype{$p}){
                     push @$param_list, $fntype{$p};
                     $var_type->{$p}="function";
@@ -1615,6 +1752,7 @@ sub func_add_var {
     }
     if($debug eq "type"){
         print "    vtype: $vtype\n";
+        print "    vinit: $vinit\n";
     }
     push @$var_list, $name;
     $var_type->{$name}=$vtype;
@@ -1747,8 +1885,10 @@ sub global_add_var {
     }
     if($debug eq "type"){
         print "    vtype: $vtype\n";
+        print "    vinit: $vinit\n";
     }
     $global_type->{$name}=$vtype;
+    $global_flag->{$name}=$vinit;
     push @global_list, $vinit;
     return $name;
 }
@@ -1857,6 +1997,7 @@ sub scope_add_var {
     }
     if($debug eq "type"){
         print "    vtype: $vtype\n";
+        print "    vinit: $vinit\n";
     }
     push @$var_list, $name;
     $var_type->{$name}=$vtype;
@@ -1989,6 +2130,7 @@ sub global_add_symbol {
     }
     if($debug eq "type"){
         print "    vtype: $vtype\n";
+        print "    vinit: $vinit\n";
     }
     $global_type->{$name}=$vtype;
     return $name;

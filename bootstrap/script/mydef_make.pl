@@ -2,7 +2,7 @@
 use strict;
 my @master_config;
 my $module="www";
-my %module_type=(perl=>"pl", www=>"html", xs=>"xs", win32=>"c", c=>"c", apple=>"m", js=>"js", general=>"txt", glsl=>"glsl");
+my %module_type=(php=>"php", perl=>"pl", www=>"html", xs=>"xs", win32=>"c", c=>"c", apple=>"m", js=>"js", general=>"txt", glsl=>"glsl");
 my %macros;
 my @include_folders;
 my $config_outputdir;
@@ -13,6 +13,7 @@ if($ARGV[0] eq 'nosub'){
     shift @ARGV;
     $nosub=1;
 }
+my @master_config;
 if(-d $ARGV[0]){
     my $d=$ARGV[0];
     open In, "config";
@@ -107,7 +108,7 @@ foreach my $f (@allfiles){
         if(-e "$f/skipmake"){
             print "    Skip folder $f\n";
         }
-        elsif($f =~ /^(cmp|old|tests|macros_.*)$/){
+        elsif($f =~ /^(cmp|bootstrap|old|tests|macros_.*)$/){
             print "    Skip folder $f\n";
         }
         elsif($f eq $config_outputdir and -f "$f/Makefile"){
@@ -228,9 +229,6 @@ while(my ($p, $h) = each %h_page){
             $t_module=$h->{module};
         }
         $h->{type}=$module_type{$t_module};
-        if(!$h->{type}){
-            $h->{type}=$t_module;
-        }
     }
     if(!$h->{in_var}){
         $h->{in_var}="toproot";
@@ -248,6 +246,9 @@ while(my ($p, $h) = each %h_page){
     }
     if($config_outputdir and $h->{path}!~/^\//){
         $h->{path}=$config_outputdir."/".$h->{path};
+    }
+    if($h->{type}){
+        $h->{path}.=".$h->{type}";
     }
 }
 while(my ($f, $l) = each %h_def){
@@ -293,7 +294,7 @@ while(my ($f, $l) = each %folder){
     push @tlist, "\${$name}";
     print Out "$name=";
     foreach my $p (@$l){
-        print Out $h_page{$p}->{path}, ".", $h_page{$p}->{type}, " ";
+        print Out $h_page{$p}->{path}, " ";
     }
     print Out "\n";
 }
@@ -351,7 +352,7 @@ while(my ($p, $h)=each %h_page){
                 push @t, $tt;
             }
         }
-        print Out $h->{path}, ".", $h->{type}, ": ", $def, " ", join(" ", @t), " $inc_dep $extra_dep\n";
+        print Out $h->{path}, ": ", $def, " ", join(" ", @t), " $inc_dep $extra_dep\n";
         if($h->{module} and ($h->{module}ne $module)){
             print Out "\t\${MakePage} -m$h->{module} \$< \$\@\n";
         }
@@ -384,7 +385,7 @@ if($config_outputdir){
                 my $tlist=$folder{toproot};
                 my $page=$h_page{$tlist->[0]};
                 my $name=$page->{path};
-                if($name=~/.*\/(.*)/){
+                if($page->{path}=~/.*\/(.*)\.c/){
                     $name=$1;
                 }
                 print Out "cl $name.c user32.lib\r\n";

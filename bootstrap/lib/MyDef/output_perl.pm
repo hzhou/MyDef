@@ -1,6 +1,9 @@
 use strict;
 package MyDef::output_perl;
-our @elifstack;
+our @case_stack=(1);
+our $case_level=0;
+our $case_if="if";
+our $case_elif="elsif";
 use MyDef::dumpout;
 our $debug;
 our $mode;
@@ -25,7 +28,8 @@ sub init_page {
         $page->{package}=$page->{pagename};
     }
     $page->{pageext}=$ext;
-    return ($ext, "sub");
+    my $init_mode=$page->{init_mode};
+    return ($ext, $init_mode);
 }
 sub set_output {
     $out = shift;
@@ -52,6 +56,51 @@ sub parsecode {
     elsif($l=~/^NOOP/){
         return;
     }
+    if($l eq "CASEPOP"){
+        if($case_level>1){
+            pop @case_stack;
+            $case_level--;
+        }
+        return 0;
+    }
+    elsif($l!~/^SUBBLOCK/ and $case_stack[$case_level]>0){
+        $case_stack[$case_level]--;
+    }
+    if($l=~/^\$(if|elif|elsif|elseif|case)\s*(.*)$/){
+        my $cond=$2;
+        my $case;
+        if($1 eq "if"){
+            $case=$case_if;
+        }
+        elsif($1 eq "case"){
+            if($case_stack[$case_level]==0){
+                $case=$case_if;
+            }
+            else{
+                $case=$case_elif;
+            }
+        }
+        else{
+            $case=$case_elif;
+        }
+        push @$out, "$case($cond){";
+        push @$out, "INDENT";
+        push @$out, "BLOCK";
+        push @$out, "DEDENT";
+        push @$out, "}";
+        $case_stack[$case_level]=2;
+        push @case_stack, 1;
+        $case_level++;
+        return "NEWBLOCK-CASEPOP";
+    }
+    elsif($l=~/^\$else/){
+        push @$out, "else{";
+        push @$out, "INDENT";
+        push @$out, "BLOCK";
+        push @$out, "DEDENT";
+        push @$out, "}";
+        return "NEWBLOCK";
+    }
     if($l=~/^\s*\$(\w+)\s*(.*)$/){
         my $func=$1;
         my $param=$2;
@@ -65,14 +114,8 @@ sub parsecode {
             }
             return 0;
         }
-        elsif($func =~ /^(if|while)$/){
+        elsif($func =~ /^(while)$/){
             return single_block("$1($param){", "}");
-        }
-        elsif($func =~ /^(el|els|else)if$/){
-            return single_block("elsif($param){", "}")
-        }
-        elsif($func eq "else"){
-            return single_block("else{", "}");
         }
         elsif($func eq "sub"){
             if($param=~/^(\w+)\((.*)\)/){

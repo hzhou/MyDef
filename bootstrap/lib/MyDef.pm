@@ -18,6 +18,10 @@ sub init {
     if(!$module){
         die "Module type not defined in config!\n";
     }
+    elsif($module eq "php"){
+        require MyDef::output_php;
+        MyDef::compileutil::set_interface(MyDef::output_php::get_interface());
+    }
     elsif($module eq "www"){
         require MyDef::output_www;
         MyDef::compileutil::set_interface(MyDef::output_www::get_interface());
@@ -46,10 +50,6 @@ sub init {
         require MyDef::output_perl;
         MyDef::compileutil::set_interface(MyDef::output_perl::get_interface());
     }
-    elsif($module eq "js"){
-        require MyDef::output_js;
-        MyDef::compileutil::set_interface(MyDef::output_js::get_interface());
-    }
     elsif($module eq "general"){
         require MyDef::output_general;
         MyDef::compileutil::set_interface(MyDef::output_general::get_interface());
@@ -57,6 +57,10 @@ sub init {
     elsif($module eq "glsl"){
         require MyDef::output_glsl;
         MyDef::compileutil::set_interface(MyDef::output_glsl::get_interface());
+    }
+    elsif($module eq "make"){
+        require MyDef::output_make;
+        MyDef::compileutil::set_interface(MyDef::output_make::get_interface());
     }
     else{
         die "Undefined module type $module\n";

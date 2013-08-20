@@ -27,7 +27,8 @@ sub init_page {
     @style_key_list=();
     $style_sheets=[];
     $page->{pageext}=$ext;
-    return ($ext, "html");
+    my $init_mode=$page->{init_mode};
+    return ($ext, $init_mode);
 }
 sub set_output {
     $out = shift;
@@ -108,7 +109,7 @@ sub parsecode {
             }
             push @$out, $l;
         }
-        if($func=~/^(img)$/){
+        elsif($func=~/^(img)$/){
             my @tt_list=split /,\s*/, $param;
             my $is_empty_tag=0;
             my $t="";
@@ -202,7 +203,7 @@ sub parsecode {
         elsif($func eq 'use_css'){
             push @$style_sheets, $param;
         }
-        if($func eq 'include'){
+        elsif($func eq 'include'){
             if(open my $in, $param){
                 MyDef::compileutil::modepush("html");
                 my $omit=0;
@@ -285,7 +286,7 @@ sub parsecode {
                 push @$out, "\$$p=$group\['$p'\];";
             }
         }
-        if($func eq "if"){
+        elsif($func eq "if"){
             return single_block("if($param){", "}")
         }
         elsif($func eq "ifz"){
