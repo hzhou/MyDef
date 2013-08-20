@@ -144,37 +144,57 @@ subcode: single_blocks
 		push @$out, $l
 	return "NEWBLOCK";
 
-    $sub case_push
-	$case_stack[$case_level]=2
-	push @case_stack, 1
-	$case_level++
-    $sub case_pop
-	$if $case_level>1
-	    pop @case_stack
-	    $case_level--
-    $sub case_block($t)
-	$if $t=~/^case(.*)/
-	    $if $case_stack[$case_level]==0
-		$t="$case_if$1"
-	    $else
-		$t="$case_elif$1"
-	case_push()
-	push @$out, "$t\{";
-	push @$out, "INDENT";
-	push @$out, "BLOCK";
-	push @$out, "DEDENT";
-	push @$out, "}";
-	return "NEWBLOCK-CASEPOP";
+# -----
+subcode: case_push
+    $case_stack[$case_level]=2
+    push @case_stack, 1
+    $case_level++
 
-subcode: parsecode_case_support(if, elif)
+subcode: case_pop
+    $if $case_level>1
+	pop @case_stack
+	$case_level--
+
+subcode: parsecode_case_support(if, elif, style)
     $global @case_stack=(1), $case_level=0
     $global $case_if="$(if)", $case_elif="$(elif)"
     $if $l eq "CASEPOP"
-	case_pop()
+	$call case_pop
 	return 0
     $elif $l!~/^SUBBLOCK/ and $case_stack[$case_level]>0
 	$case_stack[$case_level]--
 
-    print "[$l]\n"
-    print "    case_stack level=$case_level, $case_stack[$case_level]\n"
+    $if $l=~/^\$(if|elif|elsif|elseif|case)\s*(.*)$/
+	my $cond=$2
+	my $case
+	$if $1 eq "if"
+	    $case=$case_if
+	$elif $1 eq "case"
+	    $if $case_stack[$case_level]==0
+		$case=$case_if
+	    $else
+		$case=$case_elif
+	$else
+	    $case=$case_elif
+	$call case_$(style)
+	$call case_push
+	return "NEWBLOCK-CASEPOP"
+    $elif $l=~/^\$else/
+	$call else_$(style)
+	return "NEWBLOCK"
+
+subcode: case_c_style
+    $call @parsecode_condition, $cond 
+    push @$out, "$case($cond){"
+    push @$out, "INDENT"
+    push @$out, "BLOCK"
+    push @$out, "DEDENT"
+    push @$out, "}"
+
+subcode: else_c_style
+    push @$out, "else{"
+    push @$out, "INDENT"
+    push @$out, "BLOCK"
+    push @$out, "DEDENT"
+    push @$out, "}"
 

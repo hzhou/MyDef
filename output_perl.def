@@ -20,7 +20,7 @@ subcode:: package_globals
 
 # --------------------------
 subcode: parsecode
-    $call parsecode_case_support, if, elsif
+    $call parsecode_case_support, if, elsif, c_style
     $if $l=~/^\s*\$(\w+)\s*(.*)$/
 	my $func=$1;
 	my $param=$2;
@@ -34,15 +34,6 @@ subcode: parsecode
 
 	$elif $func =~ /^(while)$/
 	    return single_block("$1($param){", "}")
-	$elif $func =~ /^(if)$/
-	    return case_block("if($param)")
-	$elif $func =~ /^(el|els|else)if$/
-	    return case_block("elsif($param)")
-	$elif $func =~ /^(case)$/
-	    return case_block("case($param)")
-	$elif $func eq "else"
-	    return single_block("else{", "}")
-
 	$elif $func eq "sub"
 	    $if $param=~/^(\w+)\((.*)\)/
 		return single_block_pre_post(["sub $1 {", "INDENT", "my ($2)=\@_;"], ["DEDENT", "}"])

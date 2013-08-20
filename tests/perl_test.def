@@ -51,8 +51,11 @@ subcode: test_case
     $case $t<100
 	print "10 <= $t < 100\n"
     $else
-	print "10 <= $t\n"
+	print "100 <= $t\n"
 
 subcode: othercase
     $case $t<10
-	print "5 <= $t < 10\n"
+	$if $t<4
+	    print "$t < 10\n"
+	$else
+	    print "5 <= $t < 10\n"

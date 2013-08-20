@@ -29,14 +29,12 @@ page: test
 	    print "$cmd \n";
 	    system $cmd;
 	    chdir "out";
-	    $if 0
-		# NOOP
 	    $map test, c, xs, win32, php, perl, www
 	    $else
 		print "Unhandled module type: [$module]\n"
 
 subcode: test(module)
-    $elif $module eq "$(module)"
+    $case $module eq "$(module)"
 	$call test_$(module)
 
 subcode: test_www

@@ -214,13 +214,11 @@ subcode: select_on(fd)
 subcode: debug_errno(label)
     # /usr/include/asm-generic/errno.h
     print "$(label): errno = %d ", errno
-    $if 0
-	NOOP
     $map debug_errno_code, EAGAIN, EWOULDBLOCK, EBADF, EFAULT, EINTR, EINVAL, EIO, EISDIR, ECONNRESET
     $else
 	print "Unknown\n"
 
 subcode: debug_errno_code(code)
-    $elif errno==$(code)
+    $case errno==$(code)
 	print "$(code)\n"
 

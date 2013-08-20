@@ -136,22 +136,16 @@ subcode: parsecode_func
 	data_unpack($param)
     $elif $func =~/^except/
 	return single_block("$except\{", "}")
-    $elif $func =~ /^(switch)$/
-	return single_block("$1($param){", "}")
-    $elif $func =~ /^(if|while|switch|(el|els|else)if)$/
+    $elif $func =~ /^(while|switch)$/
 	my $name=$1;
-	$if $2
-	    $name="else if";
-	my $p=parse_condition($param, $out);
-	return single_block("$name($p){", "}")
+	$call @parsecode_condition, $param
+	return single_block("$name($param){", "}")
     $elsif $func =~/^dowhile/
-	my $p=parse_condition($param, $out);
-	return single_block("do{", "}while($p);")
+	$call @parsecode_condition, $param
+	return single_block("do{", "}while($param);")
     $elsif $func =~/^whiletrue/
 	push @$out, "while($param);"
 	return
-    $elsif $func eq "else"
-	return single_block("else{", "}");
     $elsif $func eq "for"
 	$call c_parse_for
     $elsif $func eq "return_type"
@@ -306,6 +300,8 @@ subcode: c_parse_for
     $else
 	return single_block("for($param){", "}")
 
+subcode: parsecode_condition(cond)
+    $(cond)=parse_condition($(cond), $out)
 
 subcode:: c_support_subs
     $sub parse_condition($param)

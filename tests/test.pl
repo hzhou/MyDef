@@ -23,9 +23,7 @@ if($f=~/([a-z0-9]+)_.*\.def$/){
     print "$cmd \n";
     system $cmd;
     chdir "out";
-    if(0){
-    }
-    elsif($module eq "c"){
+    if($module eq "c"){
         print "$yellow*** Compiling test.c ***$normal\n";
         chdir "out";
         unlink "test";

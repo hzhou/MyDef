@@ -35,6 +35,7 @@ page: output_c, output_main
 	$call @c_init
 
     subcode: parsecode
+	$call parsecode_case_support, if, else if, c_style
 	$call parsecode_common
 
     subcode: dumpout
