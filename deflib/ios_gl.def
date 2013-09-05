@@ -1,0 +1,110 @@
+subcode: initFramebuffer
+    @ui_framebuffer=0
+    @ui_renderbuffer=0
+    @ui_depthbuffer=0
+    @n_back_width=0
+    @n_back_height=0
+
+subcode: createFramebuffer
+    glGenFramebuffersOES(1, &ui_framebuffer);
+    glBindFramebufferOES(GL_FRAMEBUFFER_OES, ui_framebuffer);
+
+    glGenRenderbuffersOES(1, &ui_renderbuffer);
+    glBindRenderbufferOES(GL_RENDERBUFFER_OES, ui_renderbuffer);
+
+    [context renderbufferStorage:GL_RENDERBUFFER_OES fromDrawable:(id<EAGLDrawable>)self.layer];
+    glFramebufferRenderbufferOES(GL_FRAMEBUFFER_OES, GL_COLOR_ATTACHMENT0_OES, GL_RENDERBUFFER_OES, ui_renderbuffer);
+    
+    glGetRenderbufferParameterivOES(GL_RENDERBUFFER_OES, GL_RENDERBUFFER_WIDTH_OES, &n_back_width);
+    glGetRenderbufferParameterivOES(GL_RENDERBUFFER_OES, GL_RENDERBUFFER_HEIGHT_OES, &n_back_height);
+    
+    glGenRenderbuffersOES(1, &ui_depthbuffer);
+    glBindRenderbufferOES(GL_RENDERBUFFER_OES, ui_depthbuffer);
+    glRenderbufferStorageOES(GL_RENDERBUFFER_OES, GL_DEPTH_COMPONENT16_OES, n_back_width, n_back_height);
+
+    glFramebufferRenderbufferOES(GL_FRAMEBUFFER_OES, GL_DEPTH_ATTACHMENT_OES, GL_RENDERBUFFER_OES, ui_depthbuffer);
+    
+    $if glCheckFramebufferStatusOES(GL_FRAMEBUFFER_OES) != GL_FRAMEBUFFER_COMPLETE_OES
+	NSLog(@"failed to make complete framebuffer object %x", glCheckFramebufferStatusOES(GL_FRAMEBUFFER_OES));
+
+subcode: destroyFramebuffer
+    glDeleteFramebuffersOES(1, &ui_framebuffer);
+    ui_framebuffer = 0;
+    glDeleteRenderbuffersOES(1, &ui_renderbuffer);
+    ui_renderbuffer = 0;
+    $if ui_depthbuffer
+	glDeleteRenderbuffersOES(1, &ui_depthbuffer);
+	ui_depthbuffer = 0;
+
+#--------------
+subcode: gl_start_framebuffer
+    [EAGLContext setCurrentContext:context];
+    glBindFramebufferOES(GL_FRAMEBUFFER_OES, ui_framebuffer);
+
+subcode: gl_flush_renderbuffer
+    glBindRenderbufferOES(GL_RENDERBUFFER_OES, ui_renderbuffer);
+    [context presentRenderbuffer:GL_RENDERBUFFER_OES];
+
+subcode: erase
+    $call gl_start_framebuffer
+    glClearColor(0.0, 0.0, 0.0, 0.0);
+    glClear(GL_COLOR_BUFFER_BIT);
+    # Display the buffer
+    glBindRenderbufferOES(GL_RENDERBUFFER_OES, ui_renderbuffer);
+    [context presentRenderbuffer:GL_RENDERBUFFER_OES];
+
+subcode: gl_start
+    $global f_scale=1.0
+    n_frame_width=self.bounds.size.width
+    n_frame_height=self.bounds.size.height
+    f_scale=self.contentScaleFactor
+    f_width=n_frame_width*f_scale
+    f_height=n_frame_height*f_scale
+
+    glMatrixMode(GL_PROJECTION);
+    glOrthof(0, f_width, 0, f_height, -1, 1);
+    glViewport(0, 0, f_width, f_height);
+
+    glMatrixMode(GL_MODELVIEW);
+
+    glDisable(GL_DITHER);
+    glEnable(GL_TEXTURE_2D);
+    glEnableClientState(GL_VERTEX_ARRAY);
+    
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    
+    glEnable(GL_POINT_SPRITE_OES);
+    glTexEnvf(GL_POINT_SPRITE_OES, GL_COORD_REPLACE_OES, GL_TRUE);
+    glPointSize(brushWidth/2);
+
+# -------------------------
+subcode: gl_brush
+    $register_name(brushImage) CGImageRef
+    $register_name(brushContext) CGContextRef
+    $register_name(brushData) GLubyte *
+    $register_name(brushWidth) size_t
+    $register_name(brushHeight) size_t
+    @ui_brush_texture=0
+    $local brushImage, brushContext, brushData, brushWidth, brushHeight
+    brushImage=IMG(Particle.png).CGImage
+    brushWidth=CGImageGetWidth(brushImage)
+    brushHeight=CGImageGetHeight(brushImage)
+    $if brushImage
+	printf("burshImage created %d x %d\n", brushWidth, brushHeight);
+	$allocate(4*brushWidth*brushHeight, 0) brushData	
+	brushContext = CGBitmapContextCreate(brushData, brushWidth, brushHeight, 8, brushWidth * 4, CGImageGetColorSpace(brushImage), kCGImageAlphaPremultipliedLast)
+	CGContextDrawImage(brushContext, CGRectMake(0.0, 0.0, (CGFloat)brushWidth, (CGFloat)brushHeight), brushImage)
+	CGContextRelease(brushContext)
+	
+	glGenTextures(1, &ui_brush_texture)
+	glBindTexture(GL_TEXTURE_2D, ui_brush_texture)
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, brushWidth, brushHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, brushData)
+
+	mu_del_pointer(brushData)
+
+subcode: delete_brush
+    $if ui_brush_texture
+	glDeleteTextures(1, &ui_brush_texture)
+	ui_brush_texture=0
