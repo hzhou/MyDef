@@ -11,23 +11,25 @@ subcode:: _autoload
     $list regex_vm_init, regex_vm_finish
     $list regex_vm_match
 
-fncode: regex_vm_init(n_size, struct VMInst * nfa)
+fncode: regex_vm_init(struct VMInst * nfa, n_size)
     $local struct regex_vm * vm
     $allocate vm
     vm->n=n_size
     vm->nfa=nfa
     $allocate(n_size+1) vm->pn_clist
     $allocate(n_size+1) vm->pn_nlist
+    return vm
 
 fncode: regex_vm_finish(struct regex_vm * vm)
     free(vm->pn_clist)
     free(vm->pn_nlist)
 
+# ----------------------------------------------
 subcode: add_vm_thread(tlist, thread)
-    $for i=0:$(tlist)[0]
-        $if $(tlist)[i+1]==$(thread)
+    $for j=0:$(tlist)[0]
+        $if $(tlist)[j+1]==$(thread)
             return
-    $call add_vm_thread_direct(tlist, thread)
+    $call add_vm_thread_direct, $(tlist), $(thread)
 
 subcode: add_vm_thread_direct(tlist, thread)
     $(tlist)[0]++
@@ -41,6 +43,7 @@ fncode: regex_vm_match(struct regex_vm * vm, struct c_input * b)
     nlist=vm->pn_nlist
     nfa=vm->nfa
 
+    matchstart:
     clist[0]=0;
     nlist[0]=0;
     b->n_start=b->n_pos
@@ -50,19 +53,23 @@ fncode: regex_vm_match(struct regex_vm * vm, struct c_input * b)
 
     $call add_vm_thread_direct, clist, 0
     $while clist[0]>0
-	$call @get_char
+	c=c_input_get_char(b)
 	$if c==EOF
 	    return EOF
 	# -- Lock-Step running of all threads --
-	$for i=1:clist[0]+1;i++
+	#print Lock-Step VM c=$c
+	$for i=1:clist[0]+1
 	    $local struct VMInst* pInst
             pInst=nfa+clist[i];
+	    # print "    Thread %d/%d, opcode: %d - %x\n", i, clist[0], pInst->opcode, pInst->c
 	    $call regex_vm_opcode
 	$local int * tlist;
 	tlist=nlist; nlist=clist; clist=tlist;
 	nlist[0]=0;
     $if n_last_match_len>0
 	b->n_pos--
+    $if n_last_match_id==SKIP
+	goto matchstart
     return n_last_match_id
 
 subcode: regex_vm_opcode
@@ -80,29 +87,29 @@ subcode: regex_vm_opcode
     $else
 	$if pInst->opcode==Char
 	    $if c != pInst->c
-		break
+		continue
 	$elif pInst->opcode==Range
 	    $if c<pInst->x || c>pInst->y
-		break
+		continue
 	$elif pInst->opcode==Class
 	    $if pInst->c == 's'
 		$if c!=' ' && c!='\t'
-		    break
+		    continue
 	    $elif pInst->c == 'S'
 		$if c==' ' && c=='\t'
-		    break
+		    continue
 	    $elif pInst->c=='d'
 		$if c<'0' || c>'9'
-		    break
+		    continue
 	    $elif pInst->c=='D'
 		$if c>='0' && c<='9'
-		    break
+		    continue
 	    $elif pInst->c=='w'
 		$if c!='_' && (c<'0' || c>'9') && (c<'A' || c>'Z') && (c<'a' || c>'z') 
-		    break
+		    continue
 	    $elif pInst->c=='W'
 		$if c=='_' || (c>='0' && c<='9') || (c>='A' && c<='Z') || (c>='a' && c<='z') 
-		    break
+		    continue
 	$call add_vm_thread, nlist, clist[i]+1
 
 

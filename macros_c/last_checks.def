@@ -3,7 +3,7 @@ subcode: check_termination
     }
     elsif($l=~/(for|while|if|else if)\s*\(.*\)\s*$/){
     }
-    elsif($l!~/[:\{\};]\s*$/){
+    elsif($l!~/[:\{\};,]\s*$/){
 	$l.=";";
     }
 

@@ -1,17 +1,19 @@
 subcode:: _autoload
-    $struct(c_input) FILE * f, s_buf, n_size, n_start, n_end, n_pos, b_eof, n_bulk_size
+    $struct(c_input) FILE * f, s_buf, n_size, n_start, n_end, n_pos, n_tempchar, b_eof, n_bulk_size
     $list c_input_create, c_input_delete
     $list c_input_flush, c_input_file
     $list c_input_add
+    $list c_input_get_char, c_input_get_str
 
 fncode: c_input_create(n_size)
     $local struct c_input * b
     $allocate b
-    $allocate(n_size) b->s_buf
+    $allocate(n_size+1) b->s_buf
     b->n_size=n_size
     b->n_start=0
     b->n_end=0
     b->n_pos=0
+    b->n_tempchar=0
     b->f=NULL
     b->b_eof=1
     b->n_bulk_size=1
@@ -25,6 +27,7 @@ fncode: c_input_flush(struct c_input * b)
     b->n_start=0
     b->n_end=0
     b->n_pos=0
+    b->n_tempchar=0
 
 # -----
 fncode: c_input_file(struct c_input *b, FILE * f, n_bulk_size)
@@ -44,11 +47,11 @@ subcode: cimem_check_space(more)
 	    $call cimem_realloc, $(more)
 
 subcode: cimem_copy
-    memcpy(b-s_buf, s_mem, n_size)
+    memcpy(b->s_buf, s_mem, n_size)
     b->n_end+=n_size
 subcode: cimem_shift
     memmove(b->s_buf, b->s_buf+b->n_start, b->n_end-b->n_start)
-    b->n_end=-=b->n_start
+    b->n_end-=b->n_start
     b->n_start=0
 subcode: cimem_realloc(more)
     tn_size_new=$(more)+b->n_end-b->n_start+128
@@ -58,12 +61,16 @@ subcode: cimem_realloc(more)
 	$call cimem_shift
 
 # ----- 
-# default get_char, need define b
-subcode: get_char
+fncode: c_input_get_char(struct c_input * b)
+    $return_type int
+    $if b->n_tempchar
+	b->s_buf[b->n_pos]=b->n_tempchar
+	b->n_tempchar=0
+
     $if b->n_pos==b->n_end
 	$if b->b_eof
 	    return EOF
-	$elif b_interactive
+	$elif b->n_bulk_size==1
 	    $call cimem_check_space, 1
 	    c=fgetc(b->f)
 	    $if c==EOF
@@ -72,12 +79,18 @@ subcode: get_char
 	    b->s_buf[b->n_end]=(char)c
 	    b->n_end++
 	$else
-	    $call cimem_check_space, 1000
-	    tn_ret=fread(b->s_buf+b->n_end, 1000, 1, b->f)
+	    $call cimem_check_space, b->n_bulk_size
+	    tn_ret=fread(b->s_buf+b->n_end, 1, b->n_bulk_size, b->f)
 	    $if tn_ret==0
 		b->b_eof=1
 		return EOF
 	    $else
 		b->n_end+=tn_ret
-    c=(int)(b->s_buf[b->n_pos]
+    tn_c=(int)(b->s_buf[b->n_pos])
     b->n_pos++
+    return tn_c
+
+fncode: c_input_get_str(struct c_input * b)
+    b->n_tempchar=b->s_buf[b->n_pos]
+    b->s_buf[b->n_pos]='\0'
+    return b->s_buf+b->n_start

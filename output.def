@@ -164,7 +164,7 @@ subcode: parsecode_case_support(if, elif, style)
     $elif $l!~/^SUBBLOCK/ and $case_stack[$case_level]>0
 	$case_stack[$case_level]--
 
-    $if $l=~/^\$(if|elif|elsif|elseif|case)\s*(.*)$/
+    $if $l=~/^\$(if|elif|elsif|elseif|case)\s+(.*)$/
 	my $cond=$2
 	my $case
 	$if $1 eq "if"
