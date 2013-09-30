@@ -1,27 +1,31 @@
 # dynamic array ----------------------------------------------------
 #     function does  not work because we want flexible element types
 
+#    LESSON: 
+# 	do not over worry about global name collision
+#       rather, work on how to get program detect name collisions
+
 subcode: local_darray(type, var)
     $local $(type) * $(var)=NULL
-    $local n_da_len_$(var)=0
-    $local n_da_size_$(var)=0
+    $local int $(var)_len=0
+    $local int $(var)_size=0
 
 subcode: global_darray(type, var)
     $global $(type) * $(var)=NULL
-    $global n_da_len_$(var)=0
-    $global n_da_size_$(var)=0
+    $global int $(var)_len=0
+    $global int $(var)_size=0
     $(block:main_init)
 	$call darray_init, $(var)
 
 subcode: use_darray(var)
-    $(export:da_len=n_da_len_$(var))
-    $(export:da_size=n_da_size_$(var))
+    $(export:len=$(var)_len)
+    $(export:size=$(var)_size)
 
 # ----------------------------------------------------
 subcode: darray_init(var)
     $(var)=NULL
-    n_da_len_$(var)=0
-    n_da_size_$(var)=0
+    $(var)_len=0
+    $(var)_size=0
 
 subcode: darray_clear(var)
     free($(var))
@@ -29,8 +33,8 @@ subcode: darray_clear(var)
 
 # ----------------------------------------------------
 subcode: darray_check(var)
-    $(export:da_len=n_da_len_$(var))
-    $(export:da_size=n_da_size_$(var))
+    $(export:da_len=$(var)_len)
+    $(export:da_size=$(var)_size)
 
     $if $(da_len)+1>$(da_size)
 	$my tn_temp
@@ -40,13 +44,23 @@ subcode: darray_check(var)
 	$call darray_expand_n, $(var), tn_temp
 
 subcode: darray_check_n(var, n)
-    $if n_da_len_$(var)+$(n)>n_da_size_$(var)
-	$call darray_expand_n, $(var), n_da_len_$(var)+$(n)-n_da_size_$(var)
+    $if $(var)_len+$(n)>$(var)_size
+	$call darray_expand_n, $(var), $(var)_len+$(n)-$(var)_size
     
 subcode: darray_expand_n(var, n)
     $get_pointer_type(type) $(var)
-    n_da_size_$(var)+=$(n)
-    $(var)=($(type) *)realloc($(var), n_da_size_$(var)*sizeof($(type)))
+    $(var)_size+=$(n)
+    $(var)=($(type) *)realloc($(var), $(var)_size*sizeof($(type)))
     $call @assert, $(var)
 
 # ----------------------------------------------------
+subcode: da_push(var, @val)
+    $call darray_check, $(var)
+    $get_pointer_type(type) $(var)
+    $(var)[$(var)_len]=($(type))$(val) ;
+    $(var)_len++
+    # $(export:item=$(var)[$(var)_len-1])
+
+subcode: da_pop(var)
+    $(var)_len--
+    $(export:item=$(var)[$(var)_len])

@@ -67,7 +67,7 @@ subcode:: c_support_subs
     $sub check_assignment
 	my ($l, $out)=@_;
 	$if $debug eq "type"
-	    print "check_assignment: $l\n"
+	    print "check_assignment: $$l\n"
 	$if $cur_function and $$l=~/^[^'"\(]*=/
 	    my $tl=$$l;
 	    $tl=~s/;+\s*$//;
@@ -93,7 +93,8 @@ subcode:: c_support_subs
 	    $type=$1;
 	    $left=$2;
 	$if $left=~/^\w+$/
-	    func_add_var($left, $type, $right);
+	    $if !$global_type->{$left}
+		func_add_var($left, $type, $right);
 	push @$out, "$left=$right;";
 
     $sub last_exp($l)

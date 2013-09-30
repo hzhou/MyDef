@@ -1,5 +1,6 @@
 
 subcode: parse_preproc
+    expand_macro_recurse(\$preproc)
     $if $preproc=~/^for:\s*(\S+)\s+in\s+(.*)/
 	my $vname=$1;
 	my $vparam=$2;
@@ -9,7 +10,6 @@ subcode: parse_preproc
 		push @tlist, $i
 	    }
 	$else
-	    expand_macro_recurse(\$vparam)
 	    @tlist=split /,\s*/, $vparam;
 
 	my $subblock=grabblock($block, \$lindex);
@@ -133,6 +133,9 @@ subcode:: support_subs
 		$if !testcondition($n)
 		    return 0;
 	    return 1;
+	$elsif $cond=~/^hascode:(.*)/
+	    $if $MyDef::def->{codes}->{$1}
+		return 1
 	$elsif $cond=~/^\s*(\w+)\.(\w+)/
 	    $if $1 eq "fields"
 		$if $MyDef::def->{fields}->{$2}

@@ -49,6 +49,7 @@ subcode:: c_support_subs
 	push @function_stack, $cur_function
 	$cur_function=$func;
 	my $fidx=MyDef::dumpout::add_function($func);
+	$call case_init
 	return $fidx;
 
 subcode: open_function_params
@@ -460,7 +461,7 @@ subcode:: support_subs
 	$if @$var_list
 	    $foreach my $v in @$var_list
 		$if $global_type->{$v}
-		    print "  [warning] In $name: local variable $v with exisiting global\n"
+		    print "  [warning] In $name: local variable $v has existing global\n"
 		push @pre, "$var_decl->{$v};";
 	    push @pre, "NEWLINE";
 

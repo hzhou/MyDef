@@ -1,0 +1,28 @@
+
+subcode: mysqlerror
+    $if mysql_errno()
+	$errors[]='Database: '.mysql_error()
+    $else
+	$errors[]='Database: '.$php_errormsg
+
+subcode: database_start
+    $if !$dbhost
+        $if file_exists("/var/www/vhosts/include/global.inc")
+	    include "/var/www/vhosts/include/global.inc";
+    $if $dbhost
+	$if empty($db0)
+	    $db0=mysql_connect($dbhost, $dbuser, $dbpass)
+	    $if !$db0
+		$call mysqlerror
+	    mysql_select_db($dbname);
+	    $sqlrunusedb db0
+
+subcode: sqlexec
+    $r=mysql_query($sql)
+    $if !$r
+	$infos[]="errsql: $sql";
+	$tpage=addslashes($_SERVER["PHP_SELF"]);
+	$tsql=addslashes($sql);
+	mysql_query("INSERT INTO log_errsql (errsql, page) VALUES ('$tsql', '$tpage'");
+	$errors[]="Database Error.";
+## ---------------------------------------------------------------------

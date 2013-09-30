@@ -145,6 +145,10 @@ subcode: single_blocks
 	return "NEWBLOCK";
 
 # -----
+subcode: case_init
+    $case_level=0
+    $case_stack[$case_level]=0
+
 subcode: case_push
     $case_stack[$case_level]=2
     push @case_stack, 1
@@ -156,7 +160,7 @@ subcode: case_pop
 	$case_level--
 
 subcode: parsecode_case_support(if, elif, style)
-    $global @case_stack=(1), $case_level=0
+    $global @case_stack=(0), $case_level=0
     $global $case_if="$(if)", $case_elif="$(elif)"
     $if $l eq "CASEPOP"
 	$call case_pop

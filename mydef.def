@@ -15,8 +15,16 @@ subcode: mydef_main
 
     # ----------------------------------
     import_config("config");
+    my @include_path=split /:/, $var->{include_path}
     $if $ENV{MYDEFLIB}
+	my $mydeflib=$ENV{MYDEFLIB}
+	my @t
+	$foreach $d in @include_path
+	    $if $d=~/^\w+/ and -d "$mydeflib/$d"
+		push @t, "$mydeflib/$d"
 	$var->{include_path}.=":$ENV{MYDEFLIB}";
+	$if @t
+	    $var->{include_path}.=":". join(":", @t)
 
     $sub init
 	my (%config)=@_;

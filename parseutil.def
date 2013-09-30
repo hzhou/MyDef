@@ -389,7 +389,6 @@ subcode: support_subs
 	    $else
 		last;
 
-    $sub get_path($file)
     $sub get_lines
 	my ($file)=@_;
 

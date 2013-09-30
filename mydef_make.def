@@ -95,14 +95,11 @@ subcode: copy_master_config
 	    my @t=split /:/, $t;
 	    my @tt;
 	    push @tt, "..";
-	    foreach my $s (@t){
-		if($s!~/^\//){
+	    $foreach $s in @t
+		$if $s!~/^\// and -d $s
 		    push @tt, "../$s";
-		}
-		else{
+		$else
 		    push @tt, $s;
-		}
-	    }
 	    print Out "include_path: ", join(":", @tt), "\n";
 	$else
 	    print Out $l
@@ -115,25 +112,25 @@ subcode: create_new_config
     print Out "module: $module\n";
 
 subcode: read_config
-    open In, "config";
-    while(<In>){
-	if(/module:\s+(\w+)/){
+    &call open_r, config
+	$if /module:\s+(\w+)/
 	    $module=$1;
-	}
-	elsif(/output_(dir|path): (\S+)/){
+	$elif /output_(dir|path): (\S+)/
 	    $config_outputdir=$2;
-	}
-	elsif(/^include_path:\s*(\S+)/){
+	$elif /^include_path:\s*(\S+)/
 	    my $t=$1;
 	    @include_folders=split /:/, $t;
-	}
-	elsif(/^macro_(\w+):\s*(.*\S)/){
+	$elif /^macro_(\w+):\s*(.*\S)/
 	    $macros{$1}=$2;
-	}
-    }
-    close In;
     $if $ENV{MYDEFLIB}
+	my @t
+	my $lib=$ENV{MYDEFLIB}
+	$foreach $d in @include_folders
+	    $if $d=~/^\w+/ and -d "$lib/$d"
+		push @t, "$lib/$d"
 	push @include_folders, $ENV{MYDEFLIB}
+	$if @t
+	    push @include_folders, @t
 ## ----------------------------------------------------------------------
 subcode: read_copylist
     $if -f "copylist"
