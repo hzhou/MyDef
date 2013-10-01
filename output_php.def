@@ -1,5 +1,4 @@
 include: output.def
-include: macros_php/mysql.def
 
 # Many Legacy/Ugly code here. Wish I will have to time/interest to clean it up.
 
@@ -19,13 +18,14 @@ page: output_php
 	my $style;
 	my $style_sheets
 	# ------ custom dump states
-	my $cur_mode
+	my $cur_mode="html"
 	my $in_js=0
 	# ------ main
 	$call output_main
 	$call custom_dump
 	$call support_subs
     subcode: init_page
+	my $cur_mode="html"
 	$php={};
 	$style={};
 	@style_key_list=()
@@ -35,7 +35,7 @@ page: output_php
 	$if $mode eq "sub"
 	    $mode="php"
 	#print "    [$out->[-3]], [$out->[-2]], [$out->[-1]]\n";
-	#print "modeswitch: $mode $in\n"
+	# print "modeswitch: $cur_mode -> $mode \n"
 	$if $mode ne $cur_mode
 	    # -- exit --
 	    $if $cur_mode eq "php"
@@ -253,8 +253,6 @@ page: output_php
 	    return single_block("$func ($param){", "}")
 	$elsif $func eq "function"
 	    return single_block("function $param {", "}")
-	$elsif $func eq 'input'
-	    field_input($param);
 	$elsif $func eq 'field_label'
 	    field_label($param);
 	$elsif $func eq 'button'

@@ -1,15 +1,7 @@
 subcode:: package_globals
     our $anonymous_count=0
-    our %plugin_statement
-    our %plugin_condition
 
     our $print_type=1
-
-subcode: debug_plugin
-    $while my ($funcname, $codename)=each %plugin_statement
-	print " plugin statement:  $funcname => $codename\n"
-    $while my ($funcname, $codename)=each %plugin_condition
-	print " plugin condition:  $funcname => $codename\n"
 
 subcode: check_text_includes
     $while my ($k, $v)=each %text_include
@@ -23,8 +15,10 @@ subcode: parsecode_special
 	    my ($code, $file, $line)=MyDef::compileutil::get_cur_code()
 	    push @$out, "printf(\"subcode: $file - $line - $code->{name}\\n\");";
 	open_scope("SUBBLOCK_$1")
+	return
     $elif $l=~/^SUBBLOCK END (\d+)/
 	close_scope("SUBBLOCK_$1")
+	return
     $elif $l=~/^\s*PRINT\s+(.*)$/i
 	my $t=$1
 	$if $t=~/usesub:\s*(\w+)/
@@ -42,29 +36,37 @@ subcode: parsecode_special
 		push @$out, "printf($fmt);"
 	    $elif $print_type
 		MyDef::compileutil::call_sub("$print_type, $fmt")
+	return
 
 subcode: parsecode_func_param
     $if $func eq "allocate"
 	allocate($param1, $param2);
+	return
     $elif $func eq "local_allocate"
 	local_allocate($param1, $param2);
+	return
     $elif $func eq "global_allocate"
 	# at main_exit: DUMP_STUB global_cleanup
 	global_allocate($param1, $param2);
+	return
     $elsif $func eq "dump"
 	debug_dump($param2, $param1, $out);
+	return
     $elsif $func eq "register_prefix"
 	$param2=~s/^\s+//;
 	$param2=~s/\s+$//;
 	$type_prefix{$param1}=$param2;
+	return
     $elsif $func eq "register_name"
 	$param2=~s/^\s+//;
 	$param2=~s/\s+$//;
 	$type_name{$param1}=$param2;
+	return
     $elsif $func eq "register_include"
 	$param2=~s/^\s+//;
 	$param2=~s/\s+$//;
 	$type_include{$param1}.=",$param2";
+	return
     $elif $func eq "get_type"
 	my $type=get_var_type($param2);
 	MyDef::compileutil::set_current_macro($param1, $type)
@@ -84,14 +86,17 @@ subcode: parsecode_func_param
 	return
     $elsif $func eq "struct"
 	declare_struct($param1, $param2);
+	return
     $elsif $func eq "define"
 	add_define($param1, $param2)
+	return
     $elsif $func eq "enum"
 	$if !$enums{$param1}
 	    push @enum_list, $param1;
 	    $enums{$param1}=$param2;
 	    $if $param1=~/^,\s*(\w+)/
 		global_add_symbol("int $1")
+	return
     $elsif $func eq "enumbase"
 	my $base=0;
 	$if $param1=~/(\w*),\s*(\d+)/
@@ -103,6 +108,7 @@ subcode: parsecode_func_param
 	$foreach my $t in @plist
 	    add_define("$param1$t", $base)
 	    $base++;
+	return
     $elsif $func eq "enumbit"
 	my $base=0;
 	$if $param1=~/(\w*),\s*(\d+)/
@@ -114,15 +120,10 @@ subcode: parsecode_func_param
 	$foreach my $t in @plist
 	    add_define("$param1$t",0x1<<$base)
 	    $base++;
+	return
     $elif $func eq "write_h"
 	$call write_h, $param1, $param2
-    $elif $func eq "plugin"
-	$if $param2=~/_condition$/
-	    $plugin_condition{$param1}=$param2
-	$else
-	    $plugin_statement{$param1}=$param2
-    $else
-	$should_return=0
+	return
 
 subcode: parsecode_func
     ## All the functions
@@ -130,10 +131,13 @@ subcode: parsecode_func
 	return single_block("$param\{", "}")
     $elif $func eq "allocate"
 	allocate(1, $param);
+	return
     $elif $func eq "pack"
 	data_pack($param)
+	return
     $elif $func eq "unpack"
 	data_unpack($param)
+	return
     $elif $func =~/^except/
 	return single_block("$except\{", "}")
     $elif $func =~ /^(while|switch)$/
@@ -148,8 +152,10 @@ subcode: parsecode_func
 	return
     $elsif $func eq "for"
 	$call c_parse_for
+	return
     $elsif $func eq "return_type"
 	$cur_function->{ret_type}=$param;
+	return
     $elsif $func eq "parameter"
 	my @plist=split /,\s*/, $param;
 	my $fplist=$cur_function->{param_list};
@@ -157,37 +163,48 @@ subcode: parsecode_func
 	    push @$fplist, $p;
 	    $if $p=~/(.*)\s+(\w+)\s*$/
 		$cur_function->{var_type}->{$2}=$1;
+	return
     $elsif $func eq "include"
 	$call add_include, $param
+	return
     $elsif $func eq "declare"
 	$call @do_declare, $param
+	return
     $elsif $func eq "define"
 	push @$out, "#define $param";
+	return
     $elsif $func eq "function"
 	$call parse_function
+	return
     $elsif $func eq "function_end"
 	# automatically generated from compileutil
 	$call parse_function_end
+	return
     $elsif $func eq "list"
 	$call parse_function_list
+	return
     $elsif $func eq "enum"
 	my $name="ANONYMOUS-$anonymous_count"
 	$anonymous_count++
 	push @enum_list, $name;
 	$enums{$name}=$param;
+	return
     $elsif $func eq "uselib"
 	my @flist=split /,\s+/, $param;
 	$foreach my $f in @flist
 	    $objects{"lib$f"}=1;
 	    $if $lib_include{$f}
 		$call add_include, $lib_include{$f}
+	return
     $elsif $func eq "fntype"
 	# Similar to type_name, but for funtion pointer types
 	$if $param=~/^.*?\(\s*\*\s*(\w+)\s*\)/
 	    $fntype{$1}=$param;
+	return
     $elsif $func eq "debug_mem"
 	push @$out, "debug_mem=1;";
 	$misc_vars{"debug_mem"}=1;
+	return
     $elsif $func eq "typedef"
 	add_typedef($param)
     $elsif $func eq "global" or $func eq "local" or $func eq "my" or $func eq "symbol"
@@ -206,53 +223,42 @@ subcode: parsecode_func
 		scope_add_var($v)
 	    $else
 		func_add_var($v, "local");
+	return
     $elsif $func eq "globalinit"
 	global_add_var($param);
+	return
     $elsif $func eq "localinit"
 	func_add_var($param, "local");
+	return
     $elsif $func eq "myinit"
 	$if $page->{disable_scope}
 	    func_add_var($param, "local");
 	$else
 	    scope_add_var($param)
+	return
     $elsif $func eq "dump"
 	debug_dump($param, undef, $out);
+	return
     $elif $func eq "push"
 	$if $param=~/(\w+),\s*(.*)/
 	    list_push($out, $1, $2);
+	return
     $elif $func eq "unshift"
 	$if $param=~/(\w+),\s*(.*)/
 	    list_unshift($out, $1, $2);
+	return
     $elif $func eq "pop"
 	$if $param=~/(\w+)/
 	    list_pop($out, $1);
+	return
     $elif $func eq "shift"
 	$if $param=~/(\w+)/
 	    list_shift($out, $1);
+	return
     $elif $func eq "foreach"
 	$if $param=~/(\w+)\s+in\s+(\w+)/
 	    my ($iv, $v)=($1, $2)
 	    return list_foreach($out, $iv, $v)
-    $elif $func eq "eval"
-	$if $param=~/(\w+)(.*)/
-	    my $codename=$1
-	    $param=$2
-	    $param=~s/^\s*,\s*//
-	    my $t=MyDef::compileutil::eval_sub($codename)
-	    #print "eval [$t]\n\n"
-	    eval $t
-	    $if $@
-		print "Error [$l]: $@\n"
-	$should_return=1
-    $else
-	$should_return=0
-	$foreach $funcname in keys %plugin_statement
-	    $if $func eq $funcname
-		my $codename=$plugin_statement{$funcname}
-		my $t=MyDef::compileutil::eval_sub($codename)
-		eval $t
-		$should_return=1
-		last
 
 subcode: parsecode_other
     $if $l=~/^return\b/
@@ -306,14 +312,8 @@ subcode: parsecode_condition(cond)
 subcode:: c_support_subs
     $sub parse_condition($param)
 	$if $param=~/^\$(\w+)\s+(.*)/
-	    $foreach $funcname in keys %plugin_condition
-		$if $1 eq $funcname
-		    my $param=$2
-		    my $codename=$plugin_condition{$funcname}
-		    my $condition
-		    my $t=MyDef::compileutil::eval_sub($codename)
-		    eval $t
-		    return $condition
+	    my ($func, $param)=($1, $2)
+	    $call parse_condition_check_plugin
 	$while $param =~ /(\S+)\s+eq\s+"(.*?)"/
 	    my ($var, $key)=($1, $2);
 	    my $keylen=length($key);

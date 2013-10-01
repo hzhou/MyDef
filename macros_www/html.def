@@ -15,6 +15,7 @@ subcode: parsecode_html_tag
 
 	$call parse_tag_attributes
 	$call tag_input
+	$call tag_form
 
 	my $P="PRINT-$cur_mode"
 	$if $func=~ /img|input/
@@ -30,11 +31,17 @@ subcode: parsecode_html_tag
 	return 0
 
 subcode: tag_input
-    $if $func eq "input"
+    $case $func eq "input"
 	$if $t !~ /type=/
 	    $t.=" type=\"text\""
 	$if $quick_content
 	    $t.=" placeholder=\"$quick_content\""
+subcode: tag_form
+    $case $func eq "form"
+	$if $t !~ /action=/
+	    $t.=" action=\"<?=\$PHP_SELF ?>\""
+	$if $t !~ /method=/
+	    $t.=" method=\"POST\""
 
 subcode: parse_tag_attributes
     my $t=""

@@ -49,10 +49,10 @@ subcode: parsecode
     return 0;
 
 subcode: dumpout
-    my $pagetype=$MyDef::page->{type}
-    $if !defined $pagetype or $pagetype eq "pl"
-	push @$f, "#!/usr/bin/perl\n"
-    push @$f, "use strict;\n"
+    $if defined $pagetype
+	$if $pagetype eq "pl"
+	    push @$f, "#!/usr/bin/perl\n"
+	push @$f, "use strict;\n"
 
     $if $MyDef::page->{package}
 	push @$f, "package ".$MyDef::page->{package}.";\n"

@@ -25,6 +25,43 @@ htmlcode: js_frame
 	$body
 	    $call @content
 
+## HTML ------------------------------------------------------
+subcode: meta_refresh(time, content)
+    PRINT <meta http-equiv="refresh" content="$(time);url=$(content)">
+
+subcode: js_src(url)
+    <script type="text/javascript" src="$(url)"></script>
+
+# form_input -- one row
+htmlcode: form_input(name)
+    $tr
+        $td label
+	    $div formlabel
+		PRINT $(name.title):
+	    $(if: name.help)
+		$div formhelp
+		    PRINT $(name.help)
+        $td input
+	    $(if:name.type=password)
+		$call input_pass, $(name)
+	    $(else)
+		$call input_text, $(name)
+
+htmlcode: input_hidden(name, value)
+    <input type="hidden" name="$(name)" value="$(value)">
+
+htmlcode: input_radio(name, value, label)
+    <input type="radio" name="$(name)" value="$(value)"> $(label) 
+
+htmlcode: input_checkbox(name, label)
+    <input type="checkbox" name="$(name)"> $(label)
+
+htmlcode: input_text(name)
+    <input type="text" class="textinput" name="$(name)">
+
+htmlcode: input_pass(name)
+    <input type="password" class="textinput" name="$(name)">
+
 ## JavaScript -----------------------------------------------------
 jscode: setf(target)
     $(target) = function(){

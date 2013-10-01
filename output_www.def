@@ -3,6 +3,7 @@ include: macros_www/common.def
 include: macros_www/html.def
 include: macros_www/php.def
 include: macros_www/js.def
+include: macros_www/field.def
 
 # Many Legacy/Ugly code here. Wish I will have to time/interest to clean it up.
 
@@ -29,7 +30,7 @@ subcode: modeswitch
     $global @mode_stack
     $global $cur_mode="html"
 
-    #print "modeswitch $cur_mode-> $mode\n"
+    # print "modeswitch $cur_mode-> $mode\n"
 
     $if $mode eq $cur_mode or $mode eq "sub"
 	goto modeswitch_done
@@ -93,13 +94,17 @@ subcode: parsecode_special
 	$else
 	    $style->{$1}=$2;
 	    push @style_key_list, $1;
+	return
     $elif $l=~/^\s*\$(title|charset)\s+(.*)/
 	$page->{$1}=$2
+	return
     $elif $l=~/^\s*PRINT\s+(.*)/
 	my $P="PRINT-$cur_mode"
 	push @$out, "$P $1"
+	return
     $elif $cur_mode eq "js" && $l=~/^(\S+)\s*=\s*"(.*\$\w+.*)"\s*$/
 	push @$out, "$1=". js_string($2)
+	return
 
 subcode: parsecode_func_param
     $if $cur_mode eq "js"
@@ -117,12 +122,17 @@ subcode: parsecode_func
 	return "NEWBLOCK-\$script_end"
     $elif $func eq "script_end"
 	MyDef::compileutil::modepop()
+	return
     $elif $cur_mode eq "js"
 	$call @js_parse_func
     $elif $cur_mode eq "php"
 	$call @php_parse_func
-    $else
-	$should_return=0
+
+subcode: parsecode_other
+    $if $cur_mode eq "php"
+	$call @php_parsecode_other
+    $elif $cur_mode eq "js"
+	$call @js_parsecode_other
 
 subcode: old_parse
     $elsif $func eq 'hidden'

@@ -57,8 +57,6 @@ subcode:: package_global
     my %module_type=(php=>"php", perl=>"pl", www=>"html", xs=>"xs", win32=>"c", c=>"c", apple=>"m", js=>"js", general=>"txt", glsl=>"glsl");
     my %macros;
     my @include_folders;
-    my $config_outputdir;
-    my $config_outputdir_make=0
 
 
 subcode: support_subs
@@ -112,11 +110,16 @@ subcode: create_new_config
     print Out "module: $module\n";
 
 subcode: read_config
+    $global $config_outputdir;
+    $global $config_outputdir_make=0
+    $global $config_filetype
     &call open_r, config
 	$if /module:\s+(\w+)/
 	    $module=$1;
 	$elif /output_(dir|path): (\S+)/
 	    $config_outputdir=$2;
+	$elif /filetype:\s*(\S+)/
+	    $config_filetype=$1
 	$elif /^include_path:\s*(\S+)/
 	    my $t=$1;
 	    @include_folders=split /:/, $t;
@@ -290,10 +293,13 @@ subcode: outputdir_inpage
 subcode: check_eachpage
     $while my ($p, $h) = each %h_page
 	$if !$h->{type}
-	    my $t_module=$module
-	    $if $h->{module}
-		$t_module=$h->{module}
-	    $h->{type}=$module_type{$t_module}
+	    $if $config_filetype
+		$h->{type}=$config_filetype
+	    $else
+		my $t_module=$module
+		$if $h->{module}
+		    $t_module=$h->{module}
+		$h->{type}=$module_type{$t_module}
 	$if !$h->{in_var}
 	    $h->{in_var}="toproot";
 	    $if $folder{toproot}

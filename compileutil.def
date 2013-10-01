@@ -136,7 +136,7 @@ subcode: compile
     #---- Dump
     $if !$page->{subpage}
 	my @buffer;
-	$f_dumpout->(\@buffer, fetch_output(0));
+	$f_dumpout->(\@buffer, fetch_output(0), $page->{type});
 	return (\@buffer, $ext);
 
 subcode: output_outdir

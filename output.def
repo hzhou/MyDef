@@ -16,6 +16,8 @@ subcode: output_main
 	($page)=@_;
 	# ---- Set output file extension
 	my $ext="$(ext)"
+	$if $MyDef::var->{filetype}
+	    $ext=$MyDef::var->{filetype}
 	$if $page->{type}
 	    $ext=$page->{type};
 	$call @init_page
@@ -44,12 +46,11 @@ subcode: output_main
 	    return
 	$elif $l=~/^NOOP/
 	    return
+	$call parsecode_eval
 	$call parsecode
 
     # ---- Final output, allows for 2nd pass translation
-    $sub dumpout
-	my $f;
-	($f, $out)=@_;
+    $sub dumpout($f, $out, $pagetype)
 	my $dump={out=>$out,f=>$f}
 	$call @dumpout
 	MyDef::dumpout::dumpout($dump);
@@ -83,12 +84,13 @@ subcode: inherit_c
 	return ($ext, "$(init_mode)");
 
     $sub parsecode($l)
+	$call parsecode_eval
 	$call on_parsecode
 	return $(C)parsecode($l)
 
-    $sub dumpout($f, $out)
+    $sub dumpout($f, $out, $pagetype)
 	$call @on_dumpout
-	$(C)dumpout($f, $out)
+	$(C)dumpout($f, $out, $pagetype)
 
     $call @support_subs
 
@@ -102,24 +104,32 @@ subcode: parsecode_PRINT
     push @$out, $l
     return 0
 
+subcode: parsecode_eval
+    $case $l=~/^\$eval\s+(\w+)(.*)/
+	my ($codename, $param)=($1, $2)
+	$param=~s/^\s*,\s*//
+	my $t=MyDef::compileutil::eval_sub($codename)
+	#print "eval [$t]\n\n"
+	eval $t
+	$if $@
+	    print "Error [$l]: $@\n"
+	return
+
 subcode: parsecode_common
-    my $should_return=1
     $if $MyDef::compileutil::cur_mode eq "PRINT"
 	$call @parsecode_PRINT
     $call @parsecode_special
     $elif $l=~/^\s*\$(\w+)\((.*)\)\s+(.*)$/
 	# $function(param1) param2 ---------------------------
 	my ($func, $param1, $param2)=($1, $2, $3)
+	$call parsecode_plugin
 	$call parsecode_func_param
+	$call parsecode_check_plugin
     $elif $l=~/^\s*\$(\w+)\s*(.*)$/
 	# $function param  -----------------------------------
 	my ($func, $param)=($1, $2)
 	$call parsecode_func
-    $else
-	$should_return=0
-
-    $if $should_return
-	return
+	$call parsecode_check_plugin
 
     $call @parsecode_other
 
@@ -144,7 +154,44 @@ subcode: single_blocks
 		push @$out, $l
 	return "NEWBLOCK";
 
-# -----
+# ------------------------------------------
+subcode: debug_plugin
+    $while my ($funcname, $codename)=each %plugin_statement
+	print " plugin statement:  $funcname => $codename\n"
+    $while my ($funcname, $codename)=each %plugin_condition
+	print " plugin condition:  $funcname => $codename\n"
+
+subcode: parsecode_plugin
+    $global %plugin_statement
+    $global %plugin_condition
+    $case $func eq "plugin"
+	$if $param2=~/_condition$/
+	    $plugin_condition{$param1}=$param2
+	$else
+	    $plugin_statement{$param1}=$param2
+	return
+
+subcode: parsecode_run_eval
+    my $codename=$plugin_statement{$func}
+    my $t=MyDef::compileutil::eval_sub($codename)
+    eval $t
+    $if $@
+	print "plugin - $func\n"
+	print "[$t]\n"
+	print "eval error: [$@]\n"
+
+subcode: parsecode_check_plugin
+    $if $plugin_statement{$func}
+	$call parsecode_run_eval
+	return
+
+subcode: parse_condition_check_plugin
+    $if $plugin_condition{$func}
+	my $condition
+	$call parsecode_run_eval
+	return $condition
+
+# -------------------------------------------
 subcode: case_init
     $case_level=0
     $case_stack[$case_level]=0
