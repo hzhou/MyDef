@@ -44,3 +44,4 @@ subcode: php_parse_func
 subcode: php_parsecode_other
     $if $l!~/[\{\};]\s*$/
 	$l.=";";
+

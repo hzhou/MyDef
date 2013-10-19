@@ -178,14 +178,26 @@ phpcode: list_item(item)
     PRINT <li><a href="$(item.href)"$class>$(item.title)</a></li>
 
 ## Forms -------------------------------------------------------
-phpcode: form_simple(inputlist)
-    #$formhead form1
-    PRINT <form name="form1" method="get" action="{$_SERVER['PHP_SELF']}">
-    $table formtable
-	$map form_input, $(inputlist)
-    $p center
-	$button submit, submit
-    $formtail MODE
+htmlcode: form_input(label, name)
+    $tr
+	$td form_label
+	    $(label):
+	$td
+	    $input name:$(name), value:<?=$$(name)?>
+
+htmlcode: form_select(label, name, @options)
+    $tr
+	$td form_label
+	    $(label):
+	$td
+	    $select name:$(name)
+		$map form_option, $(options)
+
+htmlcode: form_option(value)
+    <option value="$(value)">$(value)</option>
+
+htmlcode: hidden(name, value)
+    <input type="hidden" name="$(name)" value="$(value)">
 
 # form show
 phpcode: form_show(field)

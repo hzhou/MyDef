@@ -136,6 +136,13 @@ subcode:: support_subs
 	$elsif $cond=~/^hascode:(.*)/
 	    $if $MyDef::def->{codes}->{$1}
 		return 1
+	$elsif $cond=~/^(string|number):(.*)/
+	    my $test=$1
+	    my $t=get_def($2)
+	    $if $test eq "string" and $t=~/^['"]/
+		return 1
+	    $elif $test eq "number" and $t=~/^\d+/
+		return 1
 	$elsif $cond=~/^\s*(\w+)\.(\w+)/
 	    $if $1 eq "fields"
 		$if $MyDef::def->{fields}->{$2}

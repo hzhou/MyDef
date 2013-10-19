@@ -39,9 +39,10 @@ subcode: html_tag(tag)
 subcode: topdown_loop(name, top)
     my %$(name)_hash
     my @$(name)_list
-    push @$(name)_list, $(top)
+    $global @topdown_list
+    @topdown_list = ($(top))
 
-    $while my $$(name)=pop @$(name)_list
+    $while my $$(name)=pop @topdown_list
 	$if !$$(name)_hash{$$(name)}
 	    $$(name)_hash{$$(name)}=1
 	    BLOCK

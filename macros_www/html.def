@@ -1,8 +1,62 @@
+subcode:: init_page
+    $global $style, @style_key_list
+    $style={};
+    @style_key_list=()
+
+subcode:: dumpout
+    my $metablock=MyDef::compileutil::get_named_block("meta")
+    $call dumpmeta, $metablock
+
+subcode: dumpmeta(block)
+    my $charset=$page->{charset}
+    $if !$charset
+	$charset="utf-8"
+    my $title=$page->{title}
+    $if !$title
+	$title=$page->{pagename}
+    push @$(block), "<meta charset=\"$charset\">"
+    push @$(block), "<title>$title</title>\n"
+    $call dump_styles, $(block)
+    my %sheet_hash;
+    $foreach $s in @$style_sheets
+	$if !$sheet_hash{$s}
+	    $sheet_hash{$s}=1;
+	    push @$(block), "<link rel=\"stylesheet\" type=\"text/css\" href=\"$s\" />\n";
+
+subcode: dump_styles(block)
+    $if @style_key_list
+	#$call dump_hash, $style
+	$if $MyDef::page->{type} ne "css"
+	    push @$(block), "<style>\n";
+	$foreach $k in @style_key_list
+	    my %attr;
+	    my @attr;
+	    my @tlist=split /;/, $style->{$k};
+	    $foreach $t in @tlist
+		$if $t=~/([^ :]+):\s*(.*)/
+		    $if !defined $attr{$1}
+			push @attr, $1;
+		    $attr{$1}=$2;
+	    @tlist=();
+	    $foreach $a in @attr
+		push @tlist, "$a: $attr{$a}";
+		# border-radius|box-shadow
+		$if $a=~/(transition|user-select)/
+		    $foreach $prefix in ("moz", "webkit", "ms", "o")
+			push @tlist, "-$prefix-$a: $attr{$a}"
+		$if $attr{$a}=~/^\s*(linear-gradient)/
+		    $foreach $prefix in ("moz", "webkit", "ms", "o")
+			push @tlist, "$a: -$prefix-$attr{$a}"
+	    push @$(block), "    $k {". join('; ', @tlist)."}\n";
+	$if $MyDef::page->{type} ne "css"
+	    push @$(block), "</style>\n";
+
+# ------------------------------------------------------------
 subcode: parsecode_html_tag
     $(set:html=html|head|body)
     $(set:basic=h[1-5]|p|pre)
     $(set:block=div|span)
-    $(set:form=form|label|fieldset|button|input|textarea)
+    $(set:form=form|label|fieldset|button|input|textarea|select|option)
     $(set:table=table|tr|td|th)
     $(set:list=ol|ul|li)
     $(set:misc=img|a|center|b|style)
@@ -65,58 +119,31 @@ subcode: parse_tag_attributes
 	    $t.=" class=\"$tt\"";
 
 # ------------------------------------------------------------
-subcode:: init_page
-    $global $style, @style_key_list
-    $style={};
-    @style_key_list=()
-
-subcode:: dumpout
-    my $metablock=MyDef::compileutil::get_named_block("meta")
-    $call dumpmeta, $metablock
-
-subcode: dumpmeta(block)
-    my $charset=$page->{charset}
-    $if !$charset
-	$charset="utf-8"
-    my $title=$page->{title}
-    $if !$title
-	$title=$page->{pagename}
-    push @$(block), "<meta charset=\"$charset\">"
-    push @$(block), "<title>$title</title>\n"
-    $call dump_styles, $(block)
-    my %sheet_hash;
-    $foreach $s in @$style_sheets
-	$if !$sheet_hash{$s}
-	    $sheet_hash{$s}=1;
-	    push @$(block), "<link rel=\"stylesheet\" type=\"text/css\" href=\"$s\" />\n";
-
-subcode: dump_styles(block)
-    $if @style_key_list
-	#$call dump_hash, $style
-	$if $MyDef::page->{type} ne "css"
-	    push @$(block), "<style>\n";
-	$foreach $k in @style_key_list
-	    my %attr;
-	    my @attr;
-	    my @tlist=split /;/, $style->{$k};
-	    $foreach $t in @tlist
-		$if $t=~/([^ :]+):\s*(.*)/
-		    $if !defined $attr{$1}
-			push @attr, $1;
-		    $attr{$1}=$2;
-	    @tlist=();
-	    $foreach $a in @attr
-		push @tlist, "$a: $attr{$a}";
-		# border-radius|box-shadow
-		$if $a=~/(transition|user-select)/
-		    $foreach $prefix in ("moz", "webkit", "ms", "o")
-			push @tlist, "-$prefix-$a: $attr{$a}"
-		$if $attr{$a}=~/^\s*(linear-gradient)/
-		    $foreach $prefix in ("moz", "webkit", "ms", "o")
-			push @tlist, "$a: -$prefix-$attr{$a}"
-	    push @$(block), "    $k {". join('; ', @tlist)."}\n";
-	$if $MyDef::page->{type} ne "css"
-	    push @$(block), "</style>\n";
+subcode: html_parse_func
+    $if $func eq "include"
+	$if open my $in, $param
+	    my $omit=0;
+	    $while <$in>
+		$if /<!-- start omit -->/
+		    $omit=1;
+		$elsif $omit
+		    $if /<!-- end omit -->/
+			$omit=0;
+		    next
+		$elsif /(.*)<call>(\w+)<\/call>(.*)/
+		    my ($a, $b, $c)=($1, $2, $3);
+		    push @$out, $a;
+		    print "    call $b\n";
+		    MyDef::compileutil::call_sub($b);
+		    push @$out, $c;
+		$elsif /^\s*<\/HEAD>/i
+		    push @$out, "DUMP_STUB meta"
+		    push @$out, $_;
+		$else
+		    push @$out, $_;
+	    close $in;
+	$else
+	    warn " Can't open [$param]\n";
 
 # ------------------------------------------------------------
 subcode: global_pattern(name, p)

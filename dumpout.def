@@ -73,7 +73,7 @@ subcode: dumpout
 	    $else
 		next;
 	$if $custom and $custom->($f, \$l)
-	    # custom dump -- used in output_php.def
+	    # custom dump -- used in output_www.def
 	$elif $l =~/^INCLUDE_BLOCK (\S+)/
 	    push @source_stack, $out
 	    $out=$dump->{$1}
@@ -100,25 +100,6 @@ subcode: dumpout
 	    $else
 		unshift @$out, $l;
 		next;
-	$elif $l=~/^\s*NEW_BLOCK/
-	    push @openblock, [];
-	    push @preblock, [];
-	    push @postblock, [];
-	    push @closeblock, [];
-	    $blockstack=1;
-	$elif $l=~/^\s*(PRE|POST|OPEN|CLOSE)_BLOCK\s+(.*)/
-	    my $t;
-	    $if $1 eq "OPEN"
-		$t=$openblock[-1];
-	    $elif $1 eq "CLOSE"
-		$t=$closeblock[-1];
-	    $elif $1 eq "PRE"
-		$t=$preblock[-1];
-	    $elif $1 eq "POST"
-		$t=$postblock[-1];
-	    $if $t
-		push @$t, $2;
-	    $blockstack=1;
 	$elif $l=~/^\s*SOURCE_INDENT/
 	    $if $blockstack==0
 		push @openblock, [];
@@ -146,6 +127,8 @@ subcode: dumpout
 	    $blockstack=1;
 	#$elif $l=~/^SCOPE:/
 	$elif $l=~/^SUBBLOCK (BEGIN|END)/
+	    # messages from compileutil.pm
+	$elif $l=~/^NOOP/
 	    # messages from compileutil.pm
 	$else
 	    $call print_line

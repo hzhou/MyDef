@@ -15,7 +15,7 @@ subcode:: package_globals
     use MyDef::dumpout;
     my $cur_indent;
     ## -------------------------------------------------
-    our %misc_vars;
+    $global %misc_vars;
     our $except;
 
 subcode:: support_subs

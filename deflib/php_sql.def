@@ -1,14 +1,11 @@
 
-subcode: mysqlerror
+phpcode: mysqlerror
     $if mysql_errno()
 	$errors[]='Database: '.mysql_error()
     $else
 	$errors[]='Database: '.$php_errormsg
 
-subcode: database_start
-    $if !$dbhost
-        $if file_exists("/var/www/vhosts/include/global.inc")
-	    include "/var/www/vhosts/include/global.inc";
+phpcode: database_start
     $if $dbhost
 	$if empty($db0)
 	    $db0=mysql_connect($dbhost, $dbuser, $dbpass)
@@ -16,7 +13,7 @@ subcode: database_start
 		$call mysqlerror
 	    mysql_select_db($dbname);
 
-subcode: sqlexec
+phpcode: sqlexec
     $r=mysql_query($sql)
     $if !$r
 	$infos[]="errsql: $sql";
@@ -26,12 +23,12 @@ subcode: sqlexec
 	$errors[]="Database Error.";
 
 ## ---------------------------------------------------------------------
-subcode: sql_fetch_count
+phpcode: sql_fetch_count
     $if $r
 	$row=mysql_fetch_row($r)
 	$count=$row[0]
 
-subcode: sql_fetch_list
+phpcode: sql_fetch_list
     $if $r
 	$itemlist=array()
 	$while $row=mysql_fetch_row($r)
@@ -39,19 +36,19 @@ subcode: sql_fetch_list
 	    BLOCK
 	    $itemlist[]=$i
 
-subcode: sql_fetch_array(var)
+phpcode: sql_fetch_array(var)
     $if $r
 	$(var)=array()
 	$while $row=mysql_fetch_row($r)
 	    $(var)[]=$row[0]
 
-subcode: sql_fetch_hash(var)
+phpcode: sql_fetch_hash(var)
     $if $r
 	$(var)=array()
 	$while $row=mysql_fetch_row($r)
 	    $(var)[$row[0]]=$row[1]
 
-subcode: sql_fetch_one
+phpcode: sql_fetch_one
     $empty=1
     $if $r
 	$row=mysql_fetch_row($r)
@@ -59,21 +56,21 @@ subcode: sql_fetch_one
 	    $empty=0
 	    BLOCK
 
-subcode: sql_fetch_list_i(name, i)
+phpcode: sql_fetch_list_i(name, i)
     $i['$(name)']=$row[$(i)]
 
-subcode: sql_fetch_one_i(name, i)
+phpcode: sql_fetch_one_i(name, i)
     $$(name)=$row[$(i)]
 
 ## ---------------------------------------------------------------------
-subcode:: _autoload
+phpcode:: _autoload
     $plugin(sqlrun) sqlrun
 
 perlcode: sqlrun
     $if $param=~/(UPDATE\s+\S+\s+SET)\s+(.*?)\s+(WHERE\s.*)/i
 	my ($action, $param, $where)=($1, $2, $3)
 	$call sql_update
-    $elsif $param=~/((INSERT|INSERT IGNORE|REPLACE)\s+INTO\s+\S+\s+)(.*)/i
+    $elsif $param=~/((INSERT|INSERT IGNORE|REPLACE)\s+INTO\s+\S+\s+)([^\(].*)/i
 	my ($action, $param)=($1, $3)
 	$call sql_insert
     $elsif $param=~/(SELECT_COUNT FROM\s.*)/i
@@ -264,7 +261,7 @@ perlcode: sql_createtable
     return join '', @out;
 }
 
-subcode: old
+phpcode: old
     sub sql_quote {
 	my ($type, $v)=@_;
 	if($type =~/int|DATE/i){

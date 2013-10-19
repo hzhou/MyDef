@@ -84,7 +84,9 @@ subcode: parsecode_PRINT
 	$if $P eq "PRINT-html"
 	    $l=~s/</&lt;/g
 	    $l=~s/>/&gt;/g
-	push @$out, "$P $l"
+	    push @$out, "$P $l"
+	$else
+	    push @$out, $l
     return 0
 
 subcode: parsecode_special
@@ -127,6 +129,8 @@ subcode: parsecode_func
 	$call @js_parse_func
     $elif $cur_mode eq "php"
 	$call @php_parse_func
+    $elif $cur_mode eq "html"
+	$call @html_parse_func
 
 subcode: parsecode_other
     $if $cur_mode eq "php"
@@ -134,204 +138,9 @@ subcode: parsecode_other
     $elif $cur_mode eq "js"
 	$call @js_parsecode_other
 
-subcode: old_parse
-    $elsif $func eq 'hidden'
-	my @p=split /,\s*/, $param;
-	foreach my $n(@p){
-	    push @$out, "print \"<input type=\\\"hidden\\\" name=\\\"$n\\\" value=\\\"\$$n\\\" />\";";
-	}
-    $elsif $l=~/^\s*\$(\w+)(.*)$/
-	my $func=$1;
-	my $param=$2;
-	$param=~s/^\s+//;
-	$param=~s/:?\s*$//;
-	
-	# --------------- php pass through
-	$if $func eq "php"
-	    $l=$param
-	    $call terminate_php
-	    push @$out, $l
-	$call parse_function
-	$else
-	    $if $cur_mode eq "js" and $l=~/\$jq/
-		$l=~s/\$jq\(/\$\(/g;
-		$MyDef::var->{use_jquery}=1;
-	    $elif $cur_mode eq "js" or $cur_mode eq "html"
-		print STDERR "Function \$$func Not Defined.\n";
-	    $else
-		$call terminate_php
-		push @$out, $l;
-    $else
-	# -- Dump everything else out
-	$if $cur_mode ne 'html' and $cur_mode ne 'js'
-	    $call terminate_php
-	$else
-	    $call check_inline_php
-	push @$out, $l;
-
-
-subcode: terminate_php
-    $if $l!~/[\{\};]\s*$/
-	$l.=";";
-
 subcode: check_inline_php
     #print "check_inline_php $l\n";
     $l=~s/(\$\w+)/<?php echo \1 ?>/g
-
-subcode: parse_function
-    $elsif $func eq 'use_css'
-	push @$style_sheets, $param
-    # ----------- End HTML handy notions 
-    $elsif $func eq 'include'
-	if(open my $in, $param){
-	    MyDef::compileutil::modepush("html");
-	    my $omit=0;
-	    while(<$in>){
-		if(/<!-- start omit -->/){
-		    $omit=1;
-		}
-		elsif(/<!-- end omit -->/){
-		    $omit=0;
-		}
-		elsif($omit){
-		    next;
-		}
-		elsif(/(.*)<call>(\w+)<\/call>(.*)/){
-		    my ($a, $b, $c)=($1, $2, $3);
-		    push @$out, $a;
-		    print "    call $b\n";
-		    MyDef::compileutil::call_sub($b);
-		    push @$out, $c;
-		}
-		elsif(/^\s*<\/HEAD>/i){
-		    push @$out, "HTML_HEAD_STUFF";
-		    push @$out, $_;
-		}
-		elsif(/<\/body>/i){
-		    MyDef::compileutil::call_sub("js_ga");
-		    push @$out, $_;
-		}
-		else{
-		    push @$out, $_;
-		}
-	    }
-	    close $in;
-	    MyDef::compileutil::modepop();
-	}
-	else{
-	    print STDERR " Can't open [$param]\n";
-	}
-    $elsif $func eq 'loadoptlist'
-	my @flist=split /,\s*/, $param;
-	foreach my $f(@flist){
-	    loadoptlist($out, $f);
-	}
-    $elsif $func eq 'redirect'
-	push @$out, "header('Location: $param.php');";
-	push @$out, "exit();";
-    $elsif $func eq 'setvar'
-	if($param=~/(.*), (.*)/){
-	    push @$out, "\$$1 = '$2';";
-	}
-    $elsif $func eq 'sqlruncache'
-	sqlrun($out, $param, 1);
-    $elsif $func eq 'sqlrunusedb'
-	$MyDef::var->{usedb}=$param;
-    $elsif $func eq 'sqlrun'
-	sqlrun($out, $param);
-    $elsif $func =~ /tablelistfull(.*)/
-	tablelist($out, $param, 'full', $1);
-    $elsif $func =~ /tablelist(.*)/
-	tablelist($out, $param, "", $1);
-    $elsif $func =~ /csvlistfull(.*)/
-	csvlist($out, $param, 'full', $1);
-    $elsif $func =~ /csvlist(.*)/
-	csvlist($out, $param, "", $1);
-    $elsif $func=~/^(post|get|cookie)var$/
-	my $group='$_'.uc($1);
-	my @tlist=split /,\s*/, $param;
-	$foreach $p in @tlist
-	    push @$out, "\$$p=$group\['$p'\];";
-    # ---- block statements
-    $elsif $func eq "if"
-	return single_block("if($param){", "}")
-    $elsif $func eq "ifz"
-	$if $param=~/(\$\w+)\[(^[\]]*)\]/
-	    return single_block("if(!(array_key_exists($2, $1) and $param)){", "}")
-	$else
-	    return single_block("if(empty($param)){", "}")
-    $elsif $func eq "ifnz"
-	$if $param=~/(\$\w+)\[(^[\]]*)\]/
-	    return single_block("if((array_key_exists($2, $1) and $param)){", "}")
-	$else
-	    return single_block("if(!empty($param)){", "}")
-    $elsif $func =~ /^(el|els|else)if$/
-	$if $cur_mode eq 'html' or $cur_mode eq 'js' # JavaScript
-	    return single_block("else if($param){", "}")
-	$else
-	    return single_block("elseif($param){", "}")
-    $elsif $func eq "else"
-	return single_block("else{", "}")
-    $elsif $func eq "foreach" or $func eq "for" or $func eq "while"
-	return single_block("$func ($param){", "}")
-    $elsif $func eq "function"
-	return single_block("function $param {", "}")
-    $elsif $func eq 'input'
-	field_input($param);
-    $elsif $func eq 'field_label'
-	field_label($param);
-    $elsif $func eq 'button'
-	formbutton($out, $param);
-    $elsif $func eq 'makeiconmenu'
-	my @items=split /,\s*/, $param;
-	push @$out, "PRINT <table class=\"menutable\">";
-	my $j=0;
-	my $col=6;
-	foreach my $i(@items){
-	    if($i eq '|'){
-		if($j>0){push @$out, "PRINT </tr>"; $j=0;}
-		push @$out, "PRINT <tr><td colspan=$col><hr /></td></tr>";
-		$j=0;
-	    }
-	    else{
-		my $ii=$MyDef::def->{menuitems}->{$i};
-		my $l=$ii->{href};
-		if($l!~/\.(php|html)$/){
-		    $l=$l.".php";
-		}
-		my $icon=$ii->{icon};
-		my $label=$ii->{label};
-		if($j==0){push @$out, "PRINT <tr>";}
-		push @$out, "PRINT <td align=center>";
-		push @$out, "PRINT <a href=\"$l\"><img src=\"$icon\" width=100 height=100></a><br />";
-		push @$out, "PRINT <a href=\"$l\">$label</a>";
-		push @$out, "PRINT </td>";
-		$j++;
-		if($j==$col){push @$out, "PRINT </tr>"; $j=0;}
-	    }
-	}
-	push @$out, "PRINT </table>";
-    $elsif $func eq 'makelistmenu'
-	my @items=split /,\s*/, $param;
-	push @$out, "PRINT <ul class=\"menulist\">";
-	foreach my $i(@items){
-	    push @$out, "PRINT <li>";
-	    if($i eq '|'){
-		push @$out, "PRINT <hr>";
-	    }
-	    else{
-		my $ii=$MyDef::def->{menuitems}->{$i};
-		my $l=$ii->{href};
-		if($l!~/\.(php|html)$/){
-		    $l=$l.".php";
-		}
-		my $icon=$ii->{icon};
-		my $label=$ii->{label};
-		push @$out, "PRINT <a href=\"$l\">$label</a>";
-	    }
-	    push @$out, "PRINT </li>";
-	}
-	push @$out, "PRINT </ul>";
 
 subcode:: support_subs
     $sub custom_dump

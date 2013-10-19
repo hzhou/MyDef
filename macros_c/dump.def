@@ -58,6 +58,8 @@ subcode:: support_subs
 	$if !$autoload_h
 	    $if !defined $defines{$name}
 		push @define_list, $name
+	    $else
+		warn "Duplicate define $name: [$defines{$name}] -> [$var]\n"
 	    $defines{$name}=$var
 	    $call add_to_autoload_h, "define-$name"
 

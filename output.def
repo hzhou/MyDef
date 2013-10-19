@@ -44,8 +44,6 @@ subcode: output_main
 	    $else
 		$debug=$1
 	    return
-	$elif $l=~/^NOOP/
-	    return
 	$call parsecode_eval
 	$call parsecode
 
@@ -119,7 +117,7 @@ subcode: parsecode_common
     $if $MyDef::compileutil::cur_mode eq "PRINT"
 	$call @parsecode_PRINT
     $call @parsecode_special
-    $elif $l=~/^\s*\$(\w+)\((.*)\)\s+(.*)$/
+    $elif $l=~/^\s*\$(\w+)\((.*?)\)\s+(.*)$/
 	# $function(param1) param2 ---------------------------
 	my ($func, $param1, $param2)=($1, $2, $3)
 	$call parsecode_plugin
@@ -128,8 +126,9 @@ subcode: parsecode_common
     $elif $l=~/^\s*\$(\w+)\s*(.*)$/
 	# $function param  -----------------------------------
 	my ($func, $param)=($1, $2)
-	$call parsecode_func
-	$call parsecode_check_plugin
+	$if $param !~ /^=/
+	    $call parsecode_func
+	    $call parsecode_check_plugin
 
     $call @parsecode_other
 
@@ -197,18 +196,21 @@ subcode: case_init
     $case_stack[$case_level]=0
 
 subcode: case_push
+    # $call debug_case_push
     $case_stack[$case_level]=2
     push @case_stack, 1
     $case_level++
 
 subcode: case_pop
-    $if $case_level>1
+    # $call debug_case_pop
+    $if $case_level>0
 	pop @case_stack
 	$case_level--
 
 subcode: parsecode_case_support(if, elif, style)
     $global @case_stack=(0), $case_level=0
     $global $case_if="$(if)", $case_elif="$(elif)"
+    # $call debug_case_l
     $if $l eq "CASEPOP"
 	$call case_pop
 	return 0
@@ -249,3 +251,13 @@ subcode: else_c_style
     push @$out, "DEDENT"
     push @$out, "}"
 
+# -------------------------------------------
+subcode: debug_case_push
+    $if $debug eq "case"
+	print "Entering case [$case_level: $case_stack[$case_level]]: $l\n"
+subcode: debug_case_pop
+    $if $debug eq "case"
+	print "    Exit case [$case_level]\n"
+subcode: debug_case_l
+    $if $debug eq "case"
+	print "        [\$l]$l\n"

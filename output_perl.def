@@ -64,12 +64,17 @@ subcode: check_termination
     #$l=~s/^\|//;
     $if $l=~/^\s*$/
 	# NOOP
-    $elsif $l=~/(for|while|if|else if)\s*\(.*\)\s*$/
+    $elif $l=~/^\s*(break|continue);?\s*$/
+	$if $1 eq "break"
+	    $l="last;"
+	$elif $l eq "continue"
+	    $l="next;"
+    $elif $l=~/(for|while|if|else if)\s*\(.*\)\s*$/
 	# NOOP
-    $elsif $l=~/^\s*}/
+    $elif $l=~/^\s*}/
 	# Check the formal blockend
 	# Inline blocks will get ; appended.
-    $elsif $l!~/[,:\(\[\{;]\s*$/
+    $elif $l!~/[,:\(\[\{;]\s*$/
 	#print "[$l]appending ;\n";
 	$l.=";";
     $else
