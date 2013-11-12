@@ -1,3 +1,4 @@
+include: modules.def
 include: macros_util/debug.def
 
 # mydef_make will recursively look into each subdir
@@ -5,6 +6,7 @@ include: macros_util/debug.def
 
 page: mydef_make
     output_dir: script
+    type: pl
     subcode: main
 	$call package_global
 	my $script=$0;
@@ -54,7 +56,7 @@ page: mydef_make
 subcode:: package_global
     my @master_config;
     my $module="www";
-    my %module_type=(php=>"php", perl=>"pl", www=>"html", xs=>"xs", win32=>"c", c=>"c", apple=>"m", js=>"js", general=>"txt", glsl=>"glsl");
+    my %module_type=($(module_type))
     my %macros;
     my @include_folders;
 
@@ -299,7 +301,10 @@ subcode: check_eachpage
 		my $t_module=$module
 		$if $h->{module}
 		    $t_module=$h->{module}
-		$h->{type}=$module_type{$t_module}
+		$if $module_type{$t_module}
+		    $h->{type}=$module_type{$t_module}
+		$else
+		    $h->{type}=$t_module
 	$if !$h->{in_var}
 	    $h->{in_var}="toproot";
 	    $if $folder{toproot}

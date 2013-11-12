@@ -22,6 +22,16 @@ sub init_page {
 }
 sub parsecode {
     my ($l)=@_;
+    if($l=~/^\$eval\s+(\w+)(.*)/){
+        my ($codename, $param)=($1, $2);
+        $param=~s/^\s*,\s*//;
+        my $t=MyDef::compileutil::eval_sub($codename);
+        eval $t;
+        if($@){
+            print "Error [$l]: $@\n";
+        }
+        return;
+    }
     my $out=$MyDef::output_c::out;
     if($l=~/^XS_START/){
         $l= "DUMP_STUB xs_start";
@@ -108,7 +118,7 @@ sub parsecode {
     return MyDef::output_c::parsecode($l);
 }
 sub dumpout {
-    my ($f, $out)=@_;
+    my ($f, $out, $pagetype)=@_;
     my $funclist=MyDef::dumpout::get_func_list();
     foreach my $func (@$funclist){
         if($func->{xs_mode}){
@@ -195,7 +205,7 @@ sub dumpout {
     my $pagename=$MyDef::output_c::page->{pagename};
     push @$block, "MODULE = $pagename\t\tPACKAGE = $pagename\n";
     push @$block, "\n";
-    MyDef::output_c::dumpout($f, $out);
+    MyDef::output_c::dumpout($f, $out, $pagetype);
 }
 sub translate_scalar {
     my ($out, $var, $vartype, $sv)=@_;

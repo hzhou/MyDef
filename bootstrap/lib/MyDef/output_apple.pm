@@ -29,6 +29,16 @@ sub init_page {
 }
 sub parsecode {
     my ($l)=@_;
+    if($l=~/^\$eval\s+(\w+)(.*)/){
+        my ($codename, $param)=($1, $2);
+        $param=~s/^\s*,\s*//;
+        my $t=MyDef::compileutil::eval_sub($codename);
+        eval $t;
+        if($@){
+            print "Error [$l]: $@\n";
+        }
+        return;
+    }
     if($l=~/(RGB|RCT|IMG|FILE|ARRAY|HASH|CSTRING)\((.*?)\)/){
         my $pre=$`;
         my $post=$';
@@ -281,7 +291,7 @@ sub parsecode {
     return MyDef::output_c::parsecode($l);
 }
 sub dumpout {
-    my ($f, $out)=@_;
+    my ($f, $out, $pagetype)=@_;
     my $funclist=MyDef::dumpout::get_func_list();
     foreach my $func (@$funclist){
         if($func->{is_method}){
@@ -375,7 +385,7 @@ sub dumpout {
         push @$f, "#import <$i>\n";
     }
     push @$f, "\n";
-    MyDef::output_c::dumpout($f, $out);
+    MyDef::output_c::dumpout($f, $out, $pagetype);
 }
 sub new_class {
     my ($name, $tail)=@_;

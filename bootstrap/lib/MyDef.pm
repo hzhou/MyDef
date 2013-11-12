@@ -6,8 +6,19 @@ our $var={};
 use MyDef::parseutil;
 use MyDef::compileutil;
 import_config("config");
+my @include_path=split /:/, $var->{include_path};
 if($ENV{MYDEFLIB}){
+    my $mydeflib=$ENV{MYDEFLIB};
+    my @t;
+    foreach my $d (@include_path){
+        if($d=~/^\w+/ and -d "$mydeflib/$d"){
+            push @t, "$mydeflib/$d";
+        }
+    }
     $var->{include_path}.=":$ENV{MYDEFLIB}";
+    if(@t){
+        $var->{include_path}.=":". join(":", @t);
+    }
 }
 sub init {
     my (%config)=@_;
@@ -61,6 +72,10 @@ sub init {
     elsif($module eq "make"){
         require MyDef::output_make;
         MyDef::compileutil::set_interface(MyDef::output_make::get_interface());
+    }
+    elsif($module eq "ino"){
+        require MyDef::output_ino;
+        MyDef::compileutil::set_interface(MyDef::output_ino::get_interface());
     }
     else{
         die "Undefined module type $module\n";

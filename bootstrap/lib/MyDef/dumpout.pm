@@ -62,7 +62,7 @@ sub dumpout {
             push @source_stack, $out;
             $out=$dump->{$1};
         }
-        elsif($l =~ /^DUMP_STUB\s+(\S+)/){
+        elsif($l =~ /^DUMP_STUB\s+(\w+)/){
             my $source=$MyDef::compileutil::named_blocks{$1};
             if($source){
                 push @source_stack, $out;
@@ -91,32 +91,6 @@ sub dumpout {
                 unshift @$out, $l;
                 next;
             }
-        }
-        elsif($l=~/^\s*NEW_BLOCK/){
-            push @openblock, [];
-            push @preblock, [];
-            push @postblock, [];
-            push @closeblock, [];
-            $blockstack=1;
-        }
-        elsif($l=~/^\s*(PRE|POST|OPEN|CLOSE)_BLOCK\s+(.*)/){
-            my $t;
-            if($1 eq "OPEN"){
-                $t=$openblock[-1];
-            }
-            elsif($1 eq "CLOSE"){
-                $t=$closeblock[-1];
-            }
-            elsif($1 eq "PRE"){
-                $t=$preblock[-1];
-            }
-            elsif($1 eq "POST"){
-                $t=$postblock[-1];
-            }
-            if($t){
-                push @$t, $2;
-            }
-            $blockstack=1;
         }
         elsif($l=~/^\s*SOURCE_INDENT/){
             if($blockstack==0){
@@ -149,6 +123,8 @@ sub dumpout {
             $blockstack=1;
         }
         elsif($l=~/^SUBBLOCK (BEGIN|END)/){
+        }
+        elsif($l=~/^NOOP/){
         }
         else{
             if($l=~/^\s*$/){

@@ -11,6 +11,9 @@ sub get_interface {
 sub init_page {
     ($page)=@_;
     my $ext="txt";
+    if($MyDef::var->{filetype}){
+        $ext=$MyDef::var->{filetype};
+    }
     if($page->{type}){
         $ext=$page->{type};
     }
@@ -40,14 +43,20 @@ sub parsecode {
         }
         return;
     }
-    elsif($l=~/^NOOP/){
+    elsif($l=~/^\$eval\s+(\w+)(.*)/){
+        my ($codename, $param)=($1, $2);
+        $param=~s/^\s*,\s*//;
+        my $t=MyDef::compileutil::eval_sub($codename);
+        eval $t;
+        if($@){
+            print "Error [$l]: $@\n";
+        }
         return;
     }
     push @$out, $l;
 }
 sub dumpout {
-    my $f;
-    ($f, $out)=@_;
+    my ($f, $out, $pagetype)=@_;
     my $dump={out=>$out,f=>$f};
     MyDef::dumpout::dumpout($dump);
 }

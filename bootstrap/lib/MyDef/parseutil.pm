@@ -378,9 +378,6 @@ sub expand_macro {
         }
     }
 }
-sub get_path {
-    my ($file)=@_;
-}
 sub get_lines {
     my ($file)=@_;
     my $filename="";

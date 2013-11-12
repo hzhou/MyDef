@@ -114,6 +114,7 @@ subcode: parsecode_eval
 	return
 
 subcode: parsecode_common
+    # print "parsecode_common: input [$l]\n"
     $if $MyDef::compileutil::cur_mode eq "PRINT"
 	$call @parsecode_PRINT
     $call @parsecode_special
@@ -132,6 +133,7 @@ subcode: parsecode_common
 
     $call @parsecode_other
 
+    # print "parsecode_common: push out [$l]\n"
     push @$out, $l
 
 subcode: single_blocks

@@ -1,12 +1,13 @@
 #!/usr/bin/perl
 use strict;
+our $config_outputdir;
+our $config_outputdir_make=0;
+our $config_filetype;
 my @master_config;
 my $module="www";
-my %module_type=(php=>"php", perl=>"pl", www=>"html", xs=>"xs", win32=>"c", c=>"c", apple=>"m", js=>"js", general=>"txt", glsl=>"glsl");
+my %module_type=(perl=>"pl", www=>"html", win32=>"c", apple=>"m", general=>"txt");
 my %macros;
 my @include_folders;
-my $config_outputdir;
-my $config_outputdir_make=0;
 my $script=$0;
 my $nosub=0;
 if($ARGV[0] eq 'nosub'){
@@ -31,7 +32,7 @@ if(!-f "config"){
                 my @tt;
                 push @tt, "..";
                 foreach my $s (@t){
-                    if($s!~/^\//){
+                    if($s!~/^\// and -d $s){
                         push @tt, "../$s";
                     }
                     else{
@@ -54,13 +55,16 @@ if(!-f "config"){
     }
     close Out;
 }
-open In, "config";
+open In, "config" or die "Can't open config.\n";
 while(<In>){
     if(/module:\s+(\w+)/){
         $module=$1;
     }
     elsif(/output_(dir|path): (\S+)/){
         $config_outputdir=$2;
+    }
+    elsif(/filetype:\s*(\S+)/){
+        $config_filetype=$1;
     }
     elsif(/^include_path:\s*(\S+)/){
         my $t=$1;
@@ -72,7 +76,17 @@ while(<In>){
 }
 close In;
 if($ENV{MYDEFLIB}){
+    my @t;
+    my $lib=$ENV{MYDEFLIB};
+    foreach my $d (@include_folders){
+        if($d=~/^\w+/ and -d "$lib/$d"){
+            push @t, "$lib/$d";
+        }
+    }
     push @include_folders, $ENV{MYDEFLIB};
+    if(@t){
+        push @include_folders, @t;
+    }
 }
 print STDERR "    output_path: $config_outputdir\n";
 my @make_folders;
@@ -224,11 +238,21 @@ while(my $f=pop @files){
 }
 while(my ($p, $h) = each %h_page){
     if(!$h->{type}){
-        my $t_module=$module;
-        if($h->{module}){
-            $t_module=$h->{module};
+        if($config_filetype){
+            $h->{type}=$config_filetype;
         }
-        $h->{type}=$module_type{$t_module};
+        else{
+            my $t_module=$module;
+            if($h->{module}){
+                $t_module=$h->{module};
+            }
+            if($module_type{$t_module}){
+                $h->{type}=$module_type{$t_module};
+            }
+            else{
+                $h->{type}=$t_module;
+            }
+        }
     }
     if(!$h->{in_var}){
         $h->{in_var}="toproot";

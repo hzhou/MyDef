@@ -2,8 +2,8 @@ use strict;
 package MyDef::compileutil;
 our $out;
 our @output_list;
-our %index_name_hash;
 our @callback_block_stack;
+our %index_name_hash;
 our @mode_stack=("sub");
 our $cur_mode;
 my ($cur_file, $cur_line);
@@ -164,6 +164,24 @@ sub testcondition {
         }
         return 1;
     }
+    elsif($cond=~/^([01])$/){
+        return $1;
+    }
+    elsif($cond=~/^hascode:(.*)/){
+        if($MyDef::def->{codes}->{$1}){
+            return 1;
+        }
+    }
+    elsif($cond=~/^(string|number):(.*)/){
+        my $test=$1;
+        my $t=get_def($2);
+        if($test eq "string" and $t=~/^['"]/){
+            return 1;
+        }
+        elsif($test eq "number" and $t=~/^\d+/){
+            return 1;
+        }
+    }
     elsif($cond=~/^\s*(\w+)\.(\w+)/){
         if($1 eq "fields"){
             if($MyDef::def->{fields}->{$2}){
@@ -188,17 +206,18 @@ sub testcondition {
     }
     return 0;
 }
-sub call_sub {
-    my ($param, $calltype)=@_;
+sub call_back {
+    my ($param, $subblock)=@_;
     my ($codename, $attr);
+    my $codelib;
     if($param=~/^(@)?(\w+)(.*)/){
         $attr=$1;
         $codename=$2;
         $param=$3;
+        $codelib=get_subcode($codename, $attr);
     }
     else{
         print STDERR "    call_sub [$param] parse failure\n";
-        return;
     }
     my (@pre_plist, $pline, @plist);
     if($param=~/^\(([^\)]*)\)/){
@@ -213,7 +232,77 @@ sub call_sub {
     else{
         @plist=split /,\s*/, $param;
     }
-    my $codelib=get_subcode($codename, $attr);
+    if($codelib){
+        modepush($codelib->{type});
+        push @callback_block_stack, {source=>$subblock, name=>"BLOCK", cur_file=>$cur_file, cur_line=>$cur_line};
+        push @callsub_stack, $codename;
+        my $params=$codelib->{params};
+        my $np=@pre_plist;
+        if($np+@plist!=@$params){
+            my $n2=@plist;
+            my $n3=@$params;
+            if($params->[$n3-1]=~/^\@(\w+)/ and $n2>$n3-$np){
+                my $n0=$n3-$np-1;
+                for(my $i=0;$i<$n0;$i++){
+                    $pline=~s/^[^,]*,//;
+                }
+                $pline=~s/^\s*//;
+                $plist[$n0]=$pline;
+            }
+            else{
+                warn "    [$cur_file:$cur_line] Code $codename parameter mismatch ($np + $n2) != $n3. [pline:$pline]\n";
+            }
+        }
+        my $macro={};
+        for(my $i=0;$i<$np;$i++){
+            $macro->{$params->[$i]}=$pre_plist[$i];
+        }
+        for(my $j=0;$j<@$params-$np;$j++){
+            my $p=$params->[$np+$j];
+            if($p=~/^\@(\w+)/){
+                $p=$1;
+            }
+            if($plist[$j]=~/q"(.*)"/){
+                $macro->{$p}=$1;
+            }
+            else{
+                $macro->{$p}=$plist[$j];
+            }
+        }
+        push @$deflist, $macro;
+        parseblock($codelib);
+        pop @$deflist;
+        pop @callsub_stack;
+        pop @callback_block_stack;
+        modepop();
+    }
+}
+sub call_sub {
+    my ($param, $calltype)=@_;
+    my ($codename, $attr);
+    my $codelib;
+    if($param=~/^(@)?(\w+)(.*)/){
+        $attr=$1;
+        $codename=$2;
+        $param=$3;
+        $codelib=get_subcode($codename, $attr);
+    }
+    else{
+        print STDERR "    call_sub [$param] parse failure\n";
+    }
+    my (@pre_plist, $pline, @plist);
+    if($param=~/^\(([^\)]*)\)/){
+        $param=$';
+        @pre_plist=split /,\s*/, $1;
+    }
+    $param=~s/^\s*,?\s*//;
+    $pline=$param;
+    if($param=~/ \| /){
+        @plist=split /\s+\|\s+/, $param;
+    }
+    else{
+        @plist=split /,\s*/, $param;
+    }
     if($codelib){
         push @callsub_stack, $codename;
         if($calltype=~/\$call-(\w+)/){
@@ -415,10 +504,10 @@ sub parseblock {
         }
         if($cur_mode eq "PRINT"){
             undef $callback_output;
+            my $callback_tail;
             my $idx=$#$out+1;
             $parse_line_count++;
             my $msg=$f_parse->($l);
-            my $tail;
             if($msg){
                 if(ref($msg) eq "ARRAY"){
                     $callback_output=$msg;
@@ -427,7 +516,10 @@ sub parseblock {
                 elsif($msg=~/^NEWBLOCK/){
                     $callback_output=$out;
                     if($'=~/-(.*)/){
-                        $tail= $1;
+                        $callback_tail= $1;
+                    }
+                    else{
+                        $callback_tail="NOOP";
                     }
                 }
                 elsif($msg=~/^SKIPBLOCK/){
@@ -452,15 +544,16 @@ sub parseblock {
                             $callback_output->[$i]="BLOCK_$n";
                         }
                     }
-                }
-                if($tail){
-                    $f_parse->($tail);
+                    if($callback_tail){
+                        $f_parse->($callback_tail);
+                    }
                 }
             }
         }
         else{
             if($l=~/^\$\((.*)\)/){
                 my $preproc=$1;
+                expand_macro_recurse(\$preproc);
                 if($preproc=~/^for:\s*(\S+)\s+in\s+(.*)/){
                     my $vname=$1;
                     my $vparam=$2;
@@ -471,7 +564,6 @@ sub parseblock {
                         }
                     }
                     else{
-                        expand_macro_recurse(\$vparam);
                         @tlist=split /,\s*/, $vparam;
                     }
                     my $subblock=grabblock($block, \$lindex);
@@ -748,88 +840,16 @@ sub parseblock {
                             call_sub($param, $func);
                         }
                         elsif($func eq "\&call"){
-                            my ($codename, $attr);
-                            if($param=~/^(@)?(\w+)(.*)/){
-                                $attr=$1;
-                                $codename=$2;
-                                $param=$3;
-                            }
-                            else{
-                                print STDERR "    call_sub [$param] parse failure\n";
-                                return;
-                            }
-                            my (@pre_plist, $pline, @plist);
-                            if($param=~/^\(([^\)]*)\)/){
-                                $param=$';
-                                @pre_plist=split /,\s*/, $1;
-                            }
-                            $param=~s/^\s*,?\s*//;
-                            $pline=$param;
-                            if($param=~/ \| /){
-                                @plist=split /\s+\|\s+/, $param;
-                            }
-                            else{
-                                @plist=split /,\s*/, $param;
-                            }
-                            my $codelib=get_subcode($codename);
-                            if($codelib){
-                                modepush($codelib->{type});
-                            }
-                            my $tmp_lindex=$lindex;
                             my $subblock=grabblock($block, \$lindex);
-                            push @callback_block_stack, {source=>$subblock, name=>"BLOCK", cur_file=>$cur_file, cur_line=>$cur_line};
-                            if($codelib){
-                                push @callsub_stack, $codename;
-                                my $params=$codelib->{params};
-                                my $np=@pre_plist;
-                                if($np+@plist!=@$params){
-                                    my $n2=@plist;
-                                    my $n3=@$params;
-                                    if($params->[$n3-1]=~/^\@(\w+)/ and $n2>$n3-$np){
-                                        my $n0=$n3-$np-1;
-                                        for(my $i=0;$i<$n0;$i++){
-                                            $pline=~s/^[^,]*,//;
-                                        }
-                                        $pline=~s/^\s*//;
-                                        $plist[$n0]=$pline;
-                                    }
-                                    else{
-                                        warn "    [$cur_file:$cur_line] Code $codename parameter mismatch ($np + $n2) != $n3. [pline:$pline]\n";
-                                    }
-                                }
-                                my $macro={};
-                                for(my $i=0;$i<$np;$i++){
-                                    $macro->{$params->[$i]}=$pre_plist[$i];
-                                }
-                                for(my $j=0;$j<@$params-$np;$j++){
-                                    my $p=$params->[$np+$j];
-                                    if($p=~/^\@(\w+)/){
-                                        $p=$1;
-                                    }
-                                    if($plist[$j]=~/q"(.*)"/){
-                                        $macro->{$p}=$1;
-                                    }
-                                    else{
-                                        $macro->{$p}=$plist[$j];
-                                    }
-                                }
-                                push @$deflist, $macro;
-                                parseblock($codelib);
-                                pop @$deflist;
-                                pop @callsub_stack;
-                            }
-                            pop @callback_block_stack;
-                            if($codelib){
-                                modepop();
-                            }
+                            call_back($param, $subblock);
                         }
                     }
                     else{
                         undef $callback_output;
+                        my $callback_tail;
                         my $idx=$#$out+1;
                         $parse_line_count++;
                         my $msg=$f_parse->($l);
-                        my $tail;
                         if($msg){
                             if(ref($msg) eq "ARRAY"){
                                 $callback_output=$msg;
@@ -838,7 +858,10 @@ sub parseblock {
                             elsif($msg=~/^NEWBLOCK/){
                                 $callback_output=$out;
                                 if($'=~/-(.*)/){
-                                    $tail= $1;
+                                    $callback_tail= $1;
+                                }
+                                else{
+                                    $callback_tail="NOOP";
                                 }
                             }
                             elsif($msg=~/^SKIPBLOCK/){
@@ -863,9 +886,9 @@ sub parseblock {
                                         $callback_output->[$i]="BLOCK_$n";
                                     }
                                 }
-                            }
-                            if($tail){
-                                $f_parse->($tail);
+                                if($callback_tail){
+                                    $f_parse->($callback_tail);
+                                }
                             }
                         }
                     }
@@ -1285,7 +1308,7 @@ sub compile {
     }
     if(!$page->{subpage}){
         my @buffer;
-        $f_dumpout->(\@buffer, fetch_output(0));
+        $f_dumpout->(\@buffer, fetch_output(0), $page->{type});
         return (\@buffer, $ext);
     }
 }

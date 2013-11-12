@@ -133,6 +133,8 @@ subcode:: support_subs
 		$if !testcondition($n)
 		    return 0;
 	    return 1;
+	$elsif $cond=~/^([01])$/
+	    return $1
 	$elsif $cond=~/^hascode:(.*)/
 	    $if $MyDef::def->{codes}->{$1}
 		return 1
