@@ -117,13 +117,11 @@ subcode:: support_subs
 # ---- window proc  ----------------
 subcode: window_proc
     my $block=MyDef::compileutil::get_named_block("global_init")
-    my $old_function=$cur_function;
     &call replace_output, $block
 	my $fidx=open_function("WndProc_$name", "HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam")
 	$cur_function->{ret_type}="LRESULT CALLBACK";
 	&call push_open_function
 	    $call window_proc_core
-    $cur_function=$old_function
 
 subcode: window_proc_core
     my $codes=$MyDef::def->{codes}

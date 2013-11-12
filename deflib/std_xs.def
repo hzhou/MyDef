@@ -1,0 +1,6 @@
+include: std_c.def
+
+subcode: basic_frame
+    $call @c_main
+    XS_START
+    $call xs_main

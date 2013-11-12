@@ -1,9 +1,18 @@
-page: test_xs
-    subcode: main
-	$call xs_main
-    xscode: xs_main
-	$list test
+# TEST: test_xs::test("Hui Zhou");
+# TEST: my @a; for(my $i=2;$i<10;$i++){push @a, $i*$i;} test_xs::test_array(\@a);
 
-fncode: test
-    printf("Hello, World!\n")
+page: test_xs, basic_frame
+    subcode: xs_main
+	$list test, test_array
+
+fncode: test(s_name)
+    $global sv_global
+    sv_global=newSV(0)
+    sv_setiv(sv_global, 100)
+    printf("Hello, %s! %d wishes\n", s_name, SvIV(sv_global))
+
+fncode: test_array(av_list)
+    $foreach tn in av_list
+	printf("  %4d ", tn)
+    printf("\n")
 

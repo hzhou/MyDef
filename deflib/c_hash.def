@@ -1,0 +1,147 @@
+include: c_darray.def
+
+subcode:: _autoload
+    $include stdlib
+    $include string
+    $call hash_functions
+
+# HASH ----------------------------------------------
+subcode: hash_functions
+    $struct(hash_entry) s_key, s_val, next
+    $struct(hash) struct hash_entry * p_table, n_size, n_prime, n_top
+    $list hash_new, 
+    $list hash_expand, hash_free
+    $list hash_getstr, hash_lookup, hash_set_direct
+
+# -------------------------------------
+subcode: hash_set(p_hash, key, val)
+    $local struct hash_entry * p
+    $eval tempstr, $(key)
+    p=hash_lookup($(p_hash), $(tempstr))
+    $eval tempstr, $(val)
+    $if p->s_val
+	free(p->s_val)
+    p->s_val=strdup($(tempstr))
+
+# -------------------------------------
+subcode: hash(var)
+    $local struct hash * $(var)
+    $(var)=hash_new(100)
+
+fncode: hash_new(tn_size)
+    $local struct hash * p_hash
+    $allocate p_hash
+    $call hash_initialize
+    return p_hash
+
+subcode: hash_initialize
+    $call get_prime, tn_size
+    p_hash->n_size=tn_size
+    p_hash->n_prime=tn_prime
+    p_hash->n_top=tn_size-1
+    $allocate(tn_size) p_hash->p_table
+    memset(p_hash->p_table, 0, tn_size*sizeof(struct hash_entry *))
+
+subcode: get_prime(size)
+    tn_prime=$(size)*85/100
+    $(set:comp=tn_prime % $(1) == 0)
+    $if $(comp:2)
+	tn_prime++
+    $while $(comp:3) || $(comp:5) || $(comp:7)
+	tn_prime+=2
+
+# ----
+fncode: hash_expand(struct hash * p_hash)
+    $local struct hash_entry * p_temp
+    $local struct hash_entry * p
+    p_temp=p_hash->p_table
+    tn_old_size=p_hash->n_size
+    tn_size=p_hash->n_size*2
+    $call hash_initialize
+    $for i=0:tn_old_size
+	p=p_temp+i
+	$if p->s_key
+	    hash_set_direct(p_hash, p->s_key, p->s_val)
+    free(p_temp)
+
+fncode: hash_free(struct hash * p_hash)
+    tn_size=p_hash->n_size
+    $for i=0:tn_size
+	$local struct hash_entry * p
+	p=p_hash->p_table+i
+	$if p->s_key
+	    free(p->s_key)
+	$if p->s_val
+	    free(p->s_val)
+    free(p_hash->p_table)
+    free(p_hash)
+
+
+# -------------------------------------
+fncode: hash_getstr(struct hash * p_hash, ts_key)
+    $return_type char *
+    $call hash_sub, getstr
+
+fncode: hash_lookup(struct hash * p_hash, ts_key)
+    $return_type struct hash_entry *
+    $if p_hash->n_top==0
+	hash_expand(p_hash)
+    $call hash_sub, lookup
+
+fncode: hash_set_direct(struct hash * p_hash, ts_key, ts_val)
+    $call hash_sub, setdirect
+# --
+subcode: hash_sub(type)
+    $local struct hash_entry * p
+    $call hash_get_code, ts_key
+    p=p_hash->p_table+tn_h
+
+    $if ! p->s_key
+	$(if:type=getstr)
+	    return NULL
+	$(elif:type=lookup)
+	    p->s_key=strdup(ts_key)
+	    return p
+	$(elif:type=setdirect)
+	    p->s_key=ts_key
+	    p->s_val=ts_val
+	    return p
+    $else
+	$while 1
+	    $if strcmp(ts_key, p->s_key)==0
+		$(if:type=getstr)
+		    return p->s_val
+		$(elif:type=lookup)
+		    return p
+		$(else)
+		    return p
+	    $elif p->next
+		p=p->next
+	    $else
+		$(if:type=getstr)
+		    return NULL
+		$(elif:type=lookup)
+		    $call hash_find_next
+		    p->s_key=strdup(ts_key)
+		    return p
+		$(elif:type=setdirect)
+		    p->s_key=ts_key
+		    p->s_val=ts_val
+		    return p
+
+# --
+subcode: hash_find_next
+    $while p_hash->p_table[p_hash->n_top].s_key
+	p_hash->n_top--
+    p->next=p_hash->p_table+p_hash->n_top
+    p=p->next
+
+subcode: hash_get_code(key)
+    $local unsigned char * s=(unsigned char *)$(key)
+    tn_h=*s++
+    tn_prime=p_hash->n_prime
+    $while *s
+	tn_h+=*s
+	$if tn_h>tn_prime
+	    tn_h-=tn_prime
+	s++

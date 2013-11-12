@@ -1,13 +1,61 @@
 page: test
     type: pl
     subcode: main
-	&call loop
-	    printf("%4d ", $i)
+	$call test_read_file
+	$call test_sub
+	$call test_for
+	$call test_case
+
+    subcode: test_read_file
+	print "Test \&call open_r ...\n"
+	&call read_sub
+	    print "subcode: $1\n"
+
+    subcode: read_sub
+	&call open_r, ../perl_test.def
+	    $if /^\s*subcode:\s+(\w+)/
+		BLOCK
+
+    subcode: test_sub
+	print "Test \$sub and \$global ...\n"
+	test_global("Hui")
+	test_global("Xiaoyi")
+	test_global("Harry")
+
+	$sub test_global($name)
+	    $global $index
+	    $index++
+	    print "$index: $name\n"
+
+    subcode: test_for
+	print "Test \$for ...\n"
+	$for $i=0:10
+	    print $i
+	    $if $i<10-1
+		print ", "
+
 	print "\n"
-	&call loop
-	    printf("%4d ", $i*$i)
+	$for $i=10:0
+	    print $i, " "
 	print "\n"
 
-    subcode: loop
-	$for $i=0:10
-	    BLOCK
+subcode: test_case
+    print "Test \$case ...\n"
+    my $t=4
+    $case $t<0
+	print "$t < 0\n"
+    $case $t<5
+	print "0 <= $t < 5\n"
+    $t--
+    $call othercase
+    $case $t<100
+	print "10 <= $t < 100\n"
+    $else
+	print "100 <= $t\n"
+
+subcode: othercase
+    $case $t<10
+	$if $t<4
+	    print "$t < 10\n"
+	$else
+	    print "5 <= $t < 10\n"

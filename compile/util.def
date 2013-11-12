@@ -21,25 +21,27 @@ subcode:: support_subs
 # --------------------------------
 subcode:: package_global	
     our %named_blocks;   # $(block: name)
+    $sub set_named_block($name, $block)
+	$named_blocks{$name}=$block
 
     $sub get_named_block
 	my $name=shift
 	$if $name eq "_post"
 	    my $cur_idx=$block_stack[-1]->{eindex}
 	    $name="block$cur_idx\_post"
+	$elif $name =~ /_post(\d+)/
+	    my $idx=$block_stack[-$1]->{eindex}
+	    #print "fetching $name idx : $idx\n"
+	    $name="block$idx\_post"
 	$if !$named_blocks{$name}
 	    $named_blocks{$name}=[]
 	return $named_blocks{$name}
 
-subcode: parse_named_block
-    my $subblock=grabblock($block, \$lindex);
-    my $output=get_named_block($name)
-
+subcode: with_named_block(name)
+    my $output=get_named_block($(name))
     my $temp=$out;
     set_output($output)
-    #$f_parse->("SCOPE: $name");
-    parseblock({source=>$subblock, name=>"block:$name"})
-    #$f_parse->("SCOPE: NONE");
+    BLOCK
     set_output($temp)
 
 subcode: dump_deflist
@@ -51,15 +53,18 @@ subcode: dump_deflist
 
 ###########################################################
 subcode:: support_subs
+    $global @mode_stack=("sub"), $cur_mode
+
     # MODES
     $sub modepush($mode)
-	push @$modelist, $mode;
+	$cur_mode=$mode
+	push @mode_stack, $mode;
 	$f_modeswitch->($mode, 1);
 
     $sub modepop
-	pop @$modelist
-	my $mode=$modelist->[-1];
-	$f_modeswitch->($mode, 0);
+	pop @mode_stack
+	$cur_mode=$mode_stack[-1]
+	$f_modeswitch->($cur_mode, 0);
 
     $sub grabblock($block, $index_ref)
 	my @sub;
@@ -70,6 +75,7 @@ subcode:: support_subs
 	$else
 	    $indent=1;
 	    $lindex++;
+	push @sub, "SOURCE: $cur_file - $cur_line"
 	$while $lindex<@$block
 	    $if $block->[$lindex] eq "SOURCE_DEDENT"
 		$indent-- if $indent>0;

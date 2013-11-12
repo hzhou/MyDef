@@ -1,43 +1,74 @@
 include: output.def
-include: macros_c/cfunctions.def
+include: macros_c/parsing.def
+include: macros_c/last_checks.def
+include: macros_c/structure.def
+include: macros_c/functions.def
+include: macros_c/hash_and_list.def
+include: macros_c/types.def
+include: macros_c/dump.def
+include: macros_c/dump_h.def
+# include: macros_c/regex.def
+include: macros_c/allocate.def
+
+
+subcode:: package_globals
+    use MyDef::dumpout;
+    my $cur_indent;
+    ## -------------------------------------------------
+    $global %misc_vars;
+    our $except;
+
+subcode:: support_subs
+    $call c_support_subs
 
 page: output_c, output_main
     type: pm
     output_dir: lib/MyDef
     ext: c
-    init_mode: sub
-    subcode: package_subs
-	$call c_main
+    package: MyDef::output_c
+
     subcode: init_page
-	$call c_init
+	$if $MyDef::def->{"macros"}->{"use_double"}
+	    $type_name{f}="double";
+	    $type_prefix{f}="double";
+	MyDef::dumpout::init_funclist();
+	$call @c_init
+
     subcode: parsecode
-	$call check_text_includes
-	$call c_parsecode
+	$call parsecode_case_support, if, else if, c_style
+	$call parsecode_common
+
     subcode: dumpout
 	# ----  Main Function -------------------
-	my $func=$functions{"main"};
-	$if $func
-	    $func->{skip_declare}=1;
-	    $func->{ret_type}="int";
-	    $func->{param_list}=["int argc", "char** argv"];
-	    $func->{init}=["DUMP_STUB main_init"];
-	    $func->{finish}=["DUMP_STUB main_exit", "return 0;"];
+	my $mainfunc=$functions{"main"};
+	$if $mainfunc
+	    $mainfunc->{skip_declare}=1;
+	    $mainfunc->{ret_type}="int";
+	    $mainfunc->{param_list}=["int argc", "char** argv"];
+	    unshift @{$mainfunc->{init}}, "DUMP_STUB main_init"
+	    push @{$mainfunc->{finish}}, "DUMP_STUB main_exit", "return 0;"
 
 	# ---- process_function ------------------------
 	my $funclist=MyDef::dumpout::get_func_list()
-	$foreach my $func in @$funclist
-	    $call process_function_std
+	$foreach $func in @$funclist
+	    $if !$func->{processed}
+		process_function_std($func)
 
 	$call process_extern_binary
 	$call dump_Makefile
 
 	# ---- Header stuff --------------------------
-	unshift @$out, "\n/**** END GLOBAL INIT ****/\n";
-	unshift @$out, "DUMP_STUB global_init";
+	unshift @$out, "\n/**** END GLOBAL INIT ****/\n"
+	unshift @$out, "DUMP_STUB global_init"
+
+	$if $page->{autoload} eq "h"
+	    $includes{"\"autoload.h\""}=1
+	    #unshift @$out, "#include \"autoload.h\""
+
 	$call c_dump_init
 
     subcode: dump_Makefile
-	$if $functions{"main"}
+	$if $mainfunc
 	    my $ofile=$page->{outdir}."/Makefile"
 	    $if !-f $ofile or $page->{makefile}
 		print "  ---> $ofile\n"
@@ -49,7 +80,6 @@ page: output_c, output_main
 		    $elif $i=~/(.*\.o)/
 			push @objlist, "$i"
 		my $pagename=$page->{pagename}
-		my $ext=$page->{pageext}
 		open Subfile, ">$ofile" or die "Can't write $ofile\n"
 		$call set_make_macro, CC, gcc
 		$call set_make_macro, CFLAGS, -
@@ -72,77 +102,3 @@ subcode: set_make_macro(name, default)
 	$else
 	    print Subfile "$(name)=$(default)\n"
 
-page: output_glsl, output_main
-    type: pm
-    output_dir: lib/MyDef
-    ext: glsl
-    init_mode: sub
-    subcode: package_subs
-	$call c_main
-    subcode: init_page
-	$call c_init
-	$type_prefix{v}="vec4"
-	$type_prefix{v2}="vec2"
-	$type_prefix{v3}="vec3"
-	$type_prefix{v4}="vec4"
-	$type_prefix{iv2}="ivec2"
-	$type_prefix{iv3}="ivec3"
-	$type_prefix{iv4}="ivec4"
-	$type_prefix{bv2}="bvec2"
-	$type_prefix{bv3}="bvec3"
-	$type_prefix{bv4}="bvec4"
-	$type_prefix{m}="mat4"
-	$type_prefix{m2}="mat2"
-	$type_prefix{m3}="mat3"
-	$type_prefix{m4}="mat4"
-	$type_prefix{s1}="sampler1D"
-	$type_prefix{s2}="sampler2D"
-	$type_prefix{s3}="sampler3D"
-	$type_prefix{sc}="samplerCube"
-	$type_prefix{s1w}="sampler1Dshadow"
-	$type_prefix{s2w}="sampler2Dshadow"
-	$global_type->{gl_FrontColor}="vec4"
-	$global_type->{gl_BackColor}="vec4"
-	$global_type->{gl_TexCoord}="vec4 *"
-	$global_type->{gl_Position}="vec4"
-	$global_type->{gl_FragColor}="vec4"
-	$global_type->{gl_FragDepth}="float"
-    subcode: parsecode
-	$call pre_parse
-	$call c_parsecode
-    subcode: dumpout
-	# ----  Main Function -------------------
-	my $func=$functions{"main"};
-	$if $func
-	    $func->{skip_declare}=1;
-	    $func->{ret_type}="void";
-	    $func->{param_list}=["void"];
-	    $func->{init}=["DUMP_STUB main_init"];
-	    $func->{finish}=["DUMP_STUB main_exit"];
-
-	# ---- process_function ------------------------
-	my $funclist=MyDef::dumpout::get_func_list()
-	$foreach my $func in @$funclist
-	    $call process_function_std
-
-	my @dump_init
-	$dump->{block_init}=\@dump_init
-	unshift @$out, "INCLUDE_BLOCK block_init"
-	$call dump_structs
-	$call dump_function_declares
-	$call dump_declares
-	$call dump_structs_functions
-	$call dump_globals
-	$call dump_code_list
-
-    subcode: pre_parse
-	$if $l=~/^\$(attribute|uniform|varying)\s*(.*)/
-	    my $a=$1;
-	    my @vlist=split /,\s+/, $2
-	    $foreach $v in @vlist
-		my $n0=$#global_list
-		global_add_var($v)
-		my $n1=$#global_list
-		$if $n1>$n0
-		    $global_list[$n1]="$a $global_list[$n1]"
-	    return

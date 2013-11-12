@@ -3,9 +3,10 @@ subcode:: support_subs
 	my ($code)=@_;
 	my $block=$code->{source}
 
+	my $indent=0
 	$call parse_stack_push
 
-	my $indent=0;
+	my @last_line
 	my $context;
 	my $lindex=0;
 
@@ -24,29 +25,50 @@ subcode:: support_subs
 	    $call parse_catch_meta
 	    # -- such as indentation and BLOCK_n
 	    $call parse_filter_meta
-	    # -- handle preproc and out-of-switch
-	    $if $l=~/^\$\((.*)\)/
-		my $preproc=$1
-		$call parse_preproc
-	    $elif $l=~/^\$:\s+(.*)/
-		# Literal by-pass
-		push @$out, $1
+
+	    $if $cur_mode eq "PRINT"
+		$call parse_line
 	    $else
-		NormalParse:
-		undef $context;
-		expand_macro_recurse(\$l);
-		$while 1
-		    # -- parse_line could return a new $l
-		    # -- otherwise, last in the end breaks the loop
-		    $if $l=~/^(&call|\$call|\$map)\s+(.*)$/
-			my ($func, $param)=($1, $2);
-			$call parse_call_sub
-		    $else
-			$call parse_line
-		    last
+		$call compile_line
 	$call parse_stack_pop
 
+subcode: compile_line
+    # -- handle preproc and out-of-switch
+    $if $l=~/^\$\((.*)\)/
+	my $preproc=$1
+	$call parse_preproc
+    $elif $l=~/^\$:\s+(.*)/
+	# Literal by-pass
+	push @$out, $1
+    $elif $l=~/^BLOCK\s*$/
+	$if $#callback_block_stack <0
+	    warn "BLOCK called out of context!\n"
+	    push @$out, $1
+	$else
+	    my $block=pop @callback_block_stack
+	    my $depth=$#callback_block_stack+1
+	    $if $debug
+		print "BLOCK [$cur_file:$cur_line] -> [$block->{cur_file}: $block->{cur_line}] depth=$depth\n"
+	    parseblock($block)
+	    push @callback_block_stack, $block
+    $else
+	NormalParse:
+	undef $context;
+	expand_macro_recurse(\$l);
+	$while 1
+	    # -- parse_line could return a new $l
+	    # -- otherwise, last in the end breaks the loop
+	    $if $l=~/^(&call|\$call|\$map|\$call-PRINT)\s+(.*)$/
+		my ($func, $param)=($1, $2);
+		$call parse_call_sub
+	    $else
+		$call parse_line
+	    last
+
 subcode:: support_subs
+    $sub curfile_curline
+	return "$cur_file:$cur_line"
+
     $sub protect_key($key)
 	$foreach $blk in @block_stack
 	    $if $blk->{$key}
@@ -55,17 +77,18 @@ subcode:: support_subs
 
 ######## Parse Output Stacks ######################################
 subcode:: package_global
-    my $block_index=0;
+    my $block_index=0
     our @block_stack;    # maintain state for each parseblock
+
+    our $parse_line_count=0
 
 subcode: parse_stack_push
     # ---- protect $out context
     $block_index++
-    push @block_stack, {out=>$out, index=>$block_index, eindex=>$block_index, file=>$cur_file, line=>$cur_line, code=>$code};
+    my $blk= {out=>$out, index=>$block_index, eindex=>$block_index, file=>$cur_file, line=>$cur_line, code=>$code}
+    push @block_stack, $blk
     # SUBBLOCK messages to enable block scopes ------
     $f_parse->("SUBBLOCK BEGIN $block_index")
-    $if $debug eq "DUMP_C"
-	push @$out, "printf(\"subcode: $codename\\n\");"
 
 subcode: parse_stack_pop
     my $blk=pop @block_stack;
@@ -131,11 +154,18 @@ subcode: parse_catch_meta
 	$cur_line=$2
 	next
 
+subcode: parse_line_progress
+    $if $parse_line_count % 100 == 0
+	print "\tcompiling $parse_line_count ...\n"
+
 subcode: parse_line
     undef $callback_output
+    my $callback_tail
+
     my $idx=$#$out+1;
+    $parse_line_count++
+    #$call parse_line_progress
     my $msg=$f_parse->($l);
-    my @tails
     $if $msg
 	$if ref($msg) eq "ARRAY"
 	    # output is held until post processing
@@ -147,7 +177,11 @@ subcode: parse_line
 	    #     eg. cfunctions.pm single_block
 	    $callback_output=$out;
 	    $if $'=~/-(.*)/
-		push @tails, $1
+		$callback_tail= $1
+	    $else
+		$callback_tail="NOOP"
+	$elsif $msg=~/^SKIPBLOCK/
+	    grabblock($block, \$lindex)
 	$elsif $msg=~/^SET:(\w+)=(.*)/
 	    # set/reset definitions
 	    #     eg. cfunctions.pm get_pointer_type
@@ -159,24 +193,22 @@ subcode: parse_line
 	# single_block and $method
 	$if $callback_output
 	    $call check_callback
-	$if @tails
-	    $foreach $t in @tails
-		$f_parse->($t)
+	    $if $callback_tail
+		$f_parse->($callback_tail)
 
 subcode: check_callback
+    my $n=new_output()
+    my $subblock=grabblock($block, \$lindex)
+    $call parse_callback_block, $n, $subblock
     $for $i=$idx:$#$callback_output+1
 	$if $callback_output->[$i]=~/^BLOCK$/
-	    my $n=new_output();
 	    $callback_output->[$i]="BLOCK_$n"
-	    $call parse_handle_block, $n
 
-subcode: parse_handle_block(n)
-    my $subblock=grabblock($block, \$lindex)
-    #$call debug_block, subblock, 0
+subcode: parse_callback_block(n, subblock)
     my $temp=$out;
     set_output($output_list[$(n)])
     #$f_parse->("SCOPE: CALLBACK");
-    parseblock({source=>$subblock, name=>"BLOCK_$(n)"})
+    parseblock({source=>$(subblock), name=>"BLOCK_$(n)"})
     #$f_parse->("SCOPE: NONE");
     set_output($temp)
 

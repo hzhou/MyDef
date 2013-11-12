@@ -1,0 +1,47 @@
+
+subcode: enter_php
+    push @$out, "<?php\n"
+
+subcode: exit_php
+    push @$out, "?>\n";
+
+subcode:: support_subs
+    $sub echo_php($t, $ln)
+	$t=~s/\\/\\\\/g
+	$t=~s/"/\\"/g
+	$if $ln
+	    return "echo \"$t\\n\";";
+	$else
+	    return "echo \"$t\";";
+
+subcode: php_parse_func_param
+
+subcode: php_parse_func
+    $if $func eq "if"
+	return single_block("if($param){", "}")
+    $elsif $func eq "ifz"
+	$if $param=~/(\$\w+)\[(^[\]]*)\]/
+	    return single_block("if(!(array_key_exists($2, $1) and $param)){", "}")
+	$else
+	    return single_block("if(empty($param)){", "}")
+    $elsif $func eq "ifnz"
+	$if $param=~/(\$\w+)\[(^[\]]*)\]/
+	    return single_block("if((array_key_exists($2, $1) and $param)){", "}")
+	$else
+	    return single_block("if(!empty($param)){", "}")
+    $elsif $func =~ /^(el|els|else)if$/
+	$if $cur_mode eq 'html' or $cur_mode eq 'js' # JavaScript
+	    return single_block("else if($param){", "}")
+	$else
+	    return single_block("elseif($param){", "}")
+    $elsif $func eq "else"
+	return single_block("else{", "}")
+    $elsif $func eq "foreach" or $func eq "for" or $func eq "while"
+	return single_block("$func ($param){", "}")
+    $elsif $func eq "function"
+	return single_block("function $param {", "}")
+
+subcode: php_parsecode_other
+    $if $l!~/[\{\};]\s*$/
+	$l.=";";
+

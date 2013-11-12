@@ -1,65 +1,25 @@
-## Frames -------------------------------------------------------------
-htmlcode: basic_frame
-    $call @process
-    $html
-	$head
-	    DUMP_STUB meta
-	    $call @meta
-	$body
-	    $call @content
 
-## ----------------------------------------------------------------
-subcode: meta_refresh(time, content)
-    PRINT <meta http-equiv="refresh" content="$(time);url=$(content)">
+phpcode: echobig(string)
+    $splitString = str_split($(string), 8192)
+    $foreach $splitString as $chunk
+	echo $chunk;
 
-jscode: set_onload(fname)
-    if (window.attachEvent) {window.attachEvent("onload", $(fname));}
-    else if (window.addEventListener) {window.addEventListener("load", $(fname), false);}
-    else {document.addEventListener("load", $(fname), false);}
 ## ---------------------------------------------------------------------
-subcode: mysqlerror
-    $if mysql_errno()
-	$errors[]='Database: '.mysql_error()
-    $else
-	$errors[]='Database: '.$php_errormsg
-
-subcode: database_start
-    $if !$dbhost
-        $if file_exists("/var/www/vhosts/include/global.inc")
-	    include "/var/www/vhosts/include/global.inc";
-    $if $dbhost
-	$if empty($db0)
-	    $db0=mysql_connect($dbhost, $dbuser, $dbpass)
-	    $if !$db0
-		$call mysqlerror
-	    mysql_select_db($dbname);
-	    $sqlrunusedb db0
-
-subcode: sqlexec
-    $r=mysql_query($sql)
-    if(!$r){
-	$infos[]="errsql: $sql";
-	$tpage=addslashes($_SERVER["PHP_SELF"]);
-	$tsql=addslashes($sql);
-	mysql_query("INSERT INTO log_errsql (errsql, page) VALUES ('$tsql', '$tpage'");
-	$errors[]="Database Error.";
-    }
-## ---------------------------------------------------------------------
-subcode: getparam(var)
+phpcode: getparam(var)
     $if array_key_exists('$(var)', $_POST)
 	$$(var)=$_POST['$(var)'];
     $elif array_key_exists('$(var)', $_GET)
 	$$(var)=$_GET['$(var)'];
 
-subcode: loadget(var)
+phpcode: loadget(var)
     $if array_key_exists('$(var)', $_GET)
 	$$(var)=$_GET['$(var)'];
 
-subcode: loadpost(var)
+phpcode: loadpost(var)
     $if array_key_exists('$(var)', $_POST)
 	$$(var)=$_POST['$(var)'];
 
-subcode: reqparam(var)
+phpcode: reqparam(var)
     $if array_key_exists('$(var)', $_POST)
 	$$(var)=$_POST['$(var)'];
     $elif array_key_exists('$(var)', $_GET)
@@ -68,7 +28,7 @@ subcode: reqparam(var)
 	$errors[]="Missing $(var)"
 	exit()
 ## ---------------------------------------------------------------------
-subcode: redirect(url)
+phpcode: redirect(url)
     if($siteroot){
 	header("Location: $siteroot/$(url)");
     }
@@ -77,42 +37,38 @@ subcode: redirect(url)
     }
     exit;
 
-subcode: initinfo
-    $errors=array();
-    $infos=array();
-    $error_fields=array();
-    if($_SESSION['infos']){
-	foreach ($_SESSION['infos'] as $i){
-	    $infos[]=$i;
-	}
-	unset($_SESSION['infos']);
-    }
-    if($_SESSION['errors']){
-	foreach ($_SESSION['errors'] as $i){
-	    $errors[]=$i;
-	}
-	unset($_SESSION['errors']);
-    }
-    $errortype=1;
+phpcode: session_start
+    session_start()
+    $errors=array()
+    $infos=array()
 
-subcode: setinfo
-    if(!$_SESSION['infos']){$_SESSION['infos']=array();}
-    foreach ($infos as $i){
+phpcode: setinfo
+    $if !$_SESSION['infos']
+	$_SESSION['infos']=array()
+    $foreach  $infos as $i
 	$_SESSION['infos'][]=$i;
-    }
-subcode: seterror
-    if(!$_SESSION['errors']){$_SESSION['errors']=array();}
-    foreach ($errors as $i){
-	$_SESSION['errors'][]=$i;
-    }
 
-subcode: errorpage(errormsg)
+phpcode: seterror
+    $if !$_SESSION['errors']
+	$_SESSION['errors']=array()
+    $foreach  $errors as $i
+	$_SESSION['errors'][]=$i;
+
+phpcode: errorpage(errormsg)
     $h3 error
 	PRINT $(errormsg)
+    $if $_SESSION['infos']
+	$foreach  $_SESSION['infos'] as $i
+	    $infos[]=$i;
+	unset($_SESSION['infos']);
+    $if $_SESSION['errors']
+	$foreach  $_SESSION['errors'] as $i
+	    $errors[]=$i;
+	unset($_SESSION['errors']);
     $call showerror
     exit();
 
-subcode: loadstatelist
+phpcode: loadstatelist
     $statelist=array( "AL"=>"Alabama", "AK"=>"Alaska", "AZ"=>"Arizona", "AR"=>"Arkansas", "CA"=>"California", "CO"=>"Colorado", "CT"=>"Connecticut", "DE"=>"Delaware", "DC"=>"District Of Columbia", "FL"=>"Florida", "GA"=>"Georgia", "HI"=>"Hawaii", "ID"=>"Idaho", "IL"=>"Illinois", "IN"=>"Indiana", "IA"=>"Iowa", "KS"=>"Kansas", "KY"=>"Kentucky", "LA"=>"Louisiana", "ME"=>"Maine", "MD"=>"Maryland", "MA"=>"Massachusetts", "MI"=>"Michigan", "MN"=>"Minnesota", "MS"=>"Mississippi", "MO"=>"Missouri", "MT"=>"Montana", "NE"=>"Nebraska", "NV"=>"Nevada", "NH"=>"New Hampshire", "NJ"=>"New Jersey", "NM"=>"New Mexico", "NY"=>"New York", "NC"=>"North Carolina", "ND"=>"North Dakota", "OH"=>"Ohio", "OK"=>"Oklahoma", "OR"=>"Oregon", "PA"=>"Pennsylvania", "PR"=>"Puerto Rico", "RI"=>"Rhode Island", "SC"=>"South Carolina", "SD"=>"South Dakota", "TN"=>"Tennessee", "TX"=>"Texas", "UT"=>"Utah", "VT"=>"Vermont", "VA"=>"Virginia", "WA"=>"Washington", "WV"=>"West Virginia", "WI"=>"Wisconsin", "WY"=>"Wyoming");
 
 ##########################################
@@ -174,10 +130,10 @@ htmlcode: tablelistcss
     CSS: .tablelist td.even {background-color: beige;}
 
 ###################################################
-subcode: textinput(name, size)
+phpcode: textinput(name, size)
     PRINT <input type="text" name="$(name)" size="$(size)" value="$$(name)">
 
-subcode: textarea(name, cols, rows)
+phpcode: textarea(name, cols, rows)
     $t=htmlentities($$(name))
     PRINT <textarea name="$(name)" cols="$(cols)" rows="$(rows)">$t</textarea>
 
@@ -186,7 +142,7 @@ subcode: textarea(name, cols, rows)
 htmlcode: menuheading(title)
     <div class="menuheading">$(title)</div>
 	
-subcode: logininfo
+phpcode: logininfo
     if($_SESSION['user']['username']){
 	PRINT <div id="logininfo">
 	print "[".$_SESSION['user']['username']."]";
@@ -194,16 +150,15 @@ subcode: logininfo
 	PRINT </div>
     }
 
-subcode: showinfo
+phpcode: showinfo
     CSS: li.info {font-size: 12px; color: green; margin: 10px; }
     CSS: li.error {font-size: 12px; color: red; font-weight: 700; margin: 10px; }
-    $if ereg("(test.dodeals.com|creia)", $_SERVER["SERVER_NAME"])
-	$if $infos
-	    $ul infobox
-		$foreach $infos as $i
-		    print "<li class=\"info\">$i</li>";
+    $if $infos
+	$ul infobox
+	    $foreach $infos as $i
+		print "<li class=\"info\">$i</li>";
 
-subcode: showerror
+phpcode: showerror
     CSS: li.error {font-size: 12px; color: red; font-weight: 700; margin: 10px; }
     if($errors){
 	$ul infobox
@@ -219,21 +174,33 @@ htmlcode: std_tab_css(name)
     CSS: $(name) A:hover, #globalnav A:active, #globalnav A.here:link, #globalnav A.here:visited { background:#bbb; }
     CSS: $(name) A.here:link, #globalnav A.here:visited { position:relative; z-index:102; }
 
-subcode: list_item(item)
+phpcode: list_item(item)
     PRINT <li><a href="$(item.href)"$class>$(item.title)</a></li>
 
 ## Forms -------------------------------------------------------
-subcode: form_simple(inputlist)
-    #$formhead form1
-    PRINT <form name="form1" method="get" action="{$_SERVER['PHP_SELF']}">
-    $table formtable
-	$map form_input, $(inputlist)
-    $p center
-	$button submit, submit
-    $formtail MODE
+htmlcode: form_input(label, name)
+    $tr
+	$td form_label
+	    $(label):
+	$td
+	    $input name:$(name), value:<?=$$(name)?>
+
+htmlcode: form_select(label, name, @options)
+    $tr
+	$td form_label
+	    $(label):
+	$td
+	    $select name:$(name)
+		$map form_option, $(options)
+
+htmlcode: form_option(value)
+    <option value="$(value)">$(value)</option>
+
+htmlcode: hidden(name, value)
+    <input type="hidden" name="$(name)" value="$(value)">
 
 # form show
-subcode: form_show(field)
+phpcode: form_show(field)
     $tr
         $td label
 	    $div formlabel
@@ -244,33 +211,7 @@ subcode: form_show(field)
         $td input
             PRINT $$(field)
 
-# form_input -- one row
-subcode: form_input(field)
-    $tr
-        $td label
-	    $div formlabel
-		PRINT $(field.title):
-	    $(if: field.help)
-		$div formhelp
-		    PRINT $(field.help)
-        $td input
-            $input $(field)
-
-# form_input -- name -- --
-subcode: form_input_2(name, field1, field2)
-    $tr
-        $td label
-	    $div formlabel
-		PRINT $(name.title):
-	    $(if: name.help)
-		$div formhelp
-		    PRINT $(name.help)
-        $td input
-            $input $(field1)
-	    PRINT &nbsp;
-	    $input $(field2)
-
-subcode: view_input(field)
+phpcode: view_input(field)
     $tr
 	$td label
 	    PRINT $(field.title):
@@ -280,9 +221,9 @@ subcode: view_input(field)
 	    $(else)
 		print $$(field)
 
-subcode: submit(label)
+phpcode: submit(label)
     PRINT <input class="formbutton" type="submit" value="$(label)" onmouseover="this.style.borderColor='silver'" onmouseout="this.style.borderColor='gray'">
 
-subcode: button(label, mode)
+phpcode: button(label, mode)
     PRINT <input class="formbutton" type="submit" value="$(label)" onmouseover="this.style.borderColor='silver'" onmouseout="this.style.borderColor='gray'" onclick="this.form.MODE.value='$(mode)'; return true;">
 

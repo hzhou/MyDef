@@ -1,10 +1,15 @@
 subcode: replace_output(name)
-    my $tempout=$MyDef::compileutil::out
+    $if defined $old_out
+	die "Re-entrance of replace_output macro not allowed.\n"
+    my $old_out=$MyDef::compileutil::out
+    my $old_function=$cur_function;
     $MyDef::compileutil::out=$(name)
     $out=$(name)
     BLOCK
-    $MyDef::compileutil::out=$tempout
-    $out=$tempout
+    $MyDef::compileutil::out=$old_out
+    $out=$old_out
+    $cur_function=$old_function
+    undef $old_out
 
 subcode: push_open_function
     push @$out, "OPEN_FUNC_$fidx"

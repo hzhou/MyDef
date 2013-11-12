@@ -8,188 +8,16 @@ subcode: basic_frame
     $call @global
     $list main2
 
-##  Memory utilities
-subcode: memory_utility
-    $global float mu_total_mem=0.0
-    $call mu_dlist
-    #$call ref_counting, 97, mu, void *
-
-# -----------------------------------------------------------------------
-subcode: mu_dlist
-    $call dlist memlist | | void * p, const char * name, int size
-    $global struct memlist * p_memlist=NULL
-    $list mu_add_pointer, mu_del_pointer, mu_clean_up
-
-    $(block:main_init)
-	p_memlist=memlist_new()
-
-
-fncode: mu_add_pointer(void* pointer, const char * name, int size)
-    $if !p_memlist
-	p_memlist=memlist_new()
-    $if pointer
-	$push p_memlist, pointer, name, size
-    
-fncode: mu_del_pointer(void * pointer)
-    $local struct memlist_node * p
-    $local struct memlist_node * p2
-    $if p_memlist
-	&call dlist_each_safe, p_memlist, p, p2
-	    $if p->p==pointer
-		$call dlist_unlink, p_memlist, p
-		free(p->p)
-		free(p)
-		break;
-
-fncode: mu_clean_up
-    $local struct memlist_node * p
-    $local struct memlist_node * p2
-    $if p_memlist
-	&call dlist_each_safe, p_memlist, p, p2
-	    $call dlist_unlink, p_memlist, p
-	    $(if:mu_debug)
-		printf("Freeing pointer %s: %x (%x)\n", p->name, p->p, p)
-	    free(p->p)
-	    free(p)
-
-## Regular Expression
-
-## hash
-subcode: text_hash(name, nbuckets)
-    unsigned int hash = 0
-    char * s =$(name)
-    unsigned c
-    while(c=*s++) hash=hash*9^c
-
-subcode: make_hash(name, nbuckets, node)
-    $struct($(name)_node) $(node), s_text, next
-    $(block:main_init)
-	$for i=0:$(nbuckets)
-	    DEBUG
-	    $(name)[i].s_text=NULL
-	    $(name)[i].next=NULL
-    $(block:global_init)
-	struct $(name)_node $(name)[$(nbuckets)]
-	struct $(name)_node * hash_lookup_$(name)(char * name){
-	    #int hash=text_hash(name) % $(nbuckets);
-	    $call text_hash, name, $(nbuckets)
-	    struct $(name)_node * p=&$(name)[hash]
-	    $while 1
-		$if p->s_text == NULL
-		    return p
-		$else
-		    $if strcmp(p->s_text, name)==0
-			return p
-		    $elif p->next
-			p=p->next
-		    $else
-			break
-	    p->next=(struct $(name)_node *)malloc(sizeof(struct $(name)_node))
-	    p->next->next=NULL
-	    p->next->s_text=NULL
-	    return p->next
-	}
-
-###############################################################
-## doubly linked list
-#    $struct(name_node) prop1, prop2, ..., prev, next 
-#    $struct(name) prop1, prop2, ..., head
-#    the current node is always referred with p
-subcode: dlist(name, list, node)
-    $struct($(name)_node) $(node), struct $(name)_node * prev, struct $(name)_node * next
-    $struct($(name)) $(list), n, struct $(name)_node* head
-    $call dlist_support
-
-subcode: dlist_support
-    $register_name(plist) struct $(name) *
-    $register_name(p) struct $(name)_node *
-    $list dlist_new($(name)_new)
-    $list dlist_push($(name)_push)
-    $list dlist_pop($(name)_pop)
-    $list dlist_shift($(name)_shift)
-    $list dlist_unshift($(name)_unshift)
-
-fncode: dlist_new
-    plist=(struct $(name) *)malloc(sizeof(struct $(name)))
-    p=(struct $(name)_node *)malloc(sizeof(struct $(name)_node))
-    p->prev=p
-    p->next=p
-    plist->n=0
-    plist->head=p
-    return plist
-
-fncode: dlist_push(plist)
-    p=(struct $(name)_node *)malloc(sizeof(struct $(name)_node))
-    p->next=plist->head
-    p->prev=plist->head->prev
-    p->prev->next=p
-    p->next->prev=p
-    plist->n++
-    return p
-
-fncode: dlist_pop(plist)
-    $if plist->n>0
-	p=plist->head->prev
-	$call dlist_unlink, plist, p
-	return p
-    $else
-	return NULL
-
-fncode: dlist_shift(plist)
-    $if plist->n>0
-	p=plist->head->next
-	$call dlist_unlink, plist, p
-	return p
-    $else
-	return NULL
-
-fncode: dlist_unshift(plist)
-    p=(struct $(name)_node *)malloc(sizeof(struct $(name)_node))
-    p->next=plist->head->next
-    p->prev=plist->head
-    p->next->prev=p
-    p->prev->next=p
-    plist->n++
-    return p
-
-subcode: dlist_unlink(plist, p)
-    $(p)->prev->next=$(p)->next
-    $(p)->next->prev=$(p)->prev
-    $(plist)->n--
-
-subcode: dlist_each(plist, p)
-    $(p)=$(plist)->head->next
-    $while $(p) != $(plist)->head
-        BLOCK
-        $(p)=$(p)->next
-
-subcode: dlist_each_safe(plist, p, p2)
-    $(p2)=$(plist)->head->next
-    $while $(p2) != $(plist)->head
-	$(p)=$(p2)
-        $(p2)=$(p2)->next
-        BLOCK
-
-subcode: dlist_each_inverse(plist, p)
-    $(p)=$(plist)->head->prev
-    $while $(p) != $(plist)->head
-        BLOCK
-        $(p)=$(p)->prev
-
-subcode: dlist_each_inverse_safe(plist, p, p2)
-    $(p2)=$(plist)->head
-    $while $(p2)->prev != $(plist)->head
-	$(p)=$(p2)->prev
-        BLOCK
-        $(p2)=$(p2)->prev
-
 # ----
 ###############################################################
 ## Utility
 subcode: assert(check)
     $if !($(check))
-	printf("Error: !($(check)) at line %d \n", __LINE__)
-	exit(1)
+	$call assert_action
+
+subcode: assert_action
+    printf("Assert Error: ($(check)) at line %d \n", __LINE__)
+    exit(1)
 
 ## FILE IO
 subcode: mmap(filename, strname, strsize)
@@ -230,4 +58,14 @@ subcode: write_var(name)
 
 subcode: read_var(name)
     t_n=fread(&$(name), sizeof($(name)), 1, file_in)
+
+# --------------------------------
+perlcode: tempstr
+    my ($n, $fmt)=fmt_string($param)
+    $if $n>0
+	func_add_var("ts_temp_buf[100]", "local")
+	push @$out, "snprintf(ts_temp_buf, 100, $fmt);"
+	MyDef::compileutil::set_current_macro("tempstr", "ts_temp_buf")
+    $else
+	MyDef::compileutil::set_current_macro("tempstr", $fmt)
 

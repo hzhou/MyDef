@@ -17,87 +17,25 @@ subcode: c_dump_init
     $call dump_globals
     $call dump_code_list
 
-# ---- h name list -----------------
-subcode:: package_globals
-    # name hashes for header files
-    # $h_names{name} is list of macro, structure, function declarations
-    my %h_names
-    my %h_files
-
-subcode: write_h(file, names)
-    my $tlist=$h_files{$(file)}
-    $if !$tlist
-	$tlist=[]
-	$h_files{$(file)}=$tlist
-    my @namelist=split /,\s*/, $(names)
-    $foreach $name in @namelist
-	push @$tlist, $name
-
-subcode: dump_h_files
-    my $outdir=$page->{outdir}
-    $foreach $f in keys %h_files
-	my %allkey_list=("define"=>[],"struct"=>[],"function"=>[])
-	my %allkey_hash
-	my $tlist=$h_files{$f}
-	$foreach $t in @$tlist
-	    my $klist=$h_names{$t}
-	    $foreach $k in @$klist
-		print "dump_h_files [$k] in $klist\n"
-		$if !$allkey_hash{$k}
-		    $allkey_hash{$k}=1
-		    $if $k=~/^(\w+)-(.*)/
-			push @{$allkey_list{$1}}, $2
-	my @buf
-	my $dump_out=\@buf
-	$foreach $k in @{$allkey_list{"define"}}
-	    $call dump_define, $k
-	$foreach $k in @{$allkey_list{"struct"}}
-	    $call dump_struct, $k
-	$foreach $k in @{$allkey_list{"function"}}
-	    $call dump_function_declare, $k
-	open Out, ">$outdir/$f" or die "can't write $outdir/$f\n"
-	$foreach $l in @buf
-	    print Out $l
-	close Out
-
-subcode: check_h_names_init
-    my @h_name_list
-
-subcode: check_h_names(v, name)
-    $call check_h_names_init
-    $while $(v)=~/^\$(\w+),?\s*(.*)/
-	$(v)=$2
-	$call check_h_names_name, $1
-    $call check_h_names_key, $(name)
-
-subcode: check_h_names_name(name)
-    print "check_h_names_name ",  $(name), "\n"
-    $if !$h_names{$(name)}
-	my $t=[]
-	$h_names{$(name)}=$t
-	push @h_name_list, $t
-    $else
-	push @h_name_list, $h_names{$(name)}
-
-subcode: check_h_names_key(key)
-    $foreach $h in @h_name_list
-	print "check_h_names_key [$h] ",  $(key), "\n"
-	push @$h, $(key)
-
 # ---- Includes ----
-subcode:: package_globals
-    our %includes
-    our %objects
-    $sub add_include 
-	my $l=shift;
-	my @tlist=split /,/, $l;
-	$foreach my $t in @tlist
-	    $if $t=~/(\S+)/
-		$includes{"<$1>"}=1;
-
 subcode:: c_init
+    $global %includes, %objects
     %includes=()
     %objects=()
+
+subcode: add_include(l)
+    my @flist=split /,\s*/, $(l)
+    $call check_autoload_h
+    $foreach $f in @flist
+	my $key
+	$if $f=~/\.\w+$/
+	    $key="\"$f\""
+	$elif $f=~/^".*"$/
+	    $key=$f
+	$else
+	    $key="<$f.h>"
+	$includes{$key}=1
+	$call add_to_autoload_h, "include-$key"
 
 subcode: dump_includes
     my $cnt=0
@@ -108,22 +46,22 @@ subcode: dump_includes
 	push @$dump_out, "\n";
 
 # ---- Defines ----
-subcode:: package_globals
-    our $define_id_base=1000;
-    our @define_list;
-    our %defines;
-
 subcode:: c_init
+    $global $define_id_base, @define_list, %defines
     $define_id_base=1000
     @define_list=()
     %defines=()
 
 subcode:: support_subs
     $sub add_define($name, $var)
-	$call check_h_names, $var, "define-$name"
-	$if !defined $defines{$name}
-	    push @define_list, $name
-	$defines{$name}=$var
+	$call check_autoload_h
+	$if !$autoload_h
+	    $if !defined $defines{$name}
+		push @define_list, $name
+	    $else
+		warn "Duplicate define $name: [$defines{$name}] -> [$var]\n"
+	    $defines{$name}=$var
+	    $call add_to_autoload_h, "define-$name"
 
 subcode: dump_defines
     my $cnt=0
@@ -137,30 +75,32 @@ subcode: dump_define(k)
     push @$dump_out, "#define $(k) $defines{$(k)}\n";
 
 # ---- TypeDefs ----
-subcode:: package_globals
-    our @typedef_list
 subcode:: c_init
+    $global @typedef_list, %typedef_hash
     @typedef_list=()
-    my %typedef_hash
+    %typedef_hash=()
 
-subcode:: do_typedef(param)
-    $if $(param)=~/(.*)\s+(\w+)\s*$/
-	$typedef_hash{$2}=$1
-	push @typedef_list, $2
-	$call check_h_names, $(param), "typedef-$2"
+subcode:: support_subs
+    $sub add_typedef($param)
+	$call check_autoload_h
+	$if !$autoload_h
+	    $if $param=~/(.*)\s+(\w+)\s*$/
+		$typedef_hash{$2}=$1
+		push @typedef_list, $2
+		$call add_to_autoload_h, "typedef-$2"
 
 subcode: dump_typedefs
     $if @typedef_list
 	$foreach $k in @typedef_list
-	    push @$dump_out, "typedef $typedef_hash{$k} $k;"
+	    $call dump_typedef, $k
 	push @$dump_out, "\n";
 
-# ---- Enums ----
-subcode:: package_globals
-    our %enums;
-    our @enum_list;
+subcode: dump_typedef(k)
+    push @$dump_out, "typedef $typedef_hash{$(k)} $(k);"
 
+# ---- Enums ----
 subcode:: c_init
+    $global %enums, @enum_list
     %enums=()
     @enum_list=()
 
@@ -179,12 +119,8 @@ subcode: dump_enums
 	push @$dump_out, "\n";
 
 # ---- Global Variables ----
-subcode:: package_globals
-    our $global_type={};
-    our $global_flag={};
-    our @global_list;
-
 subcode:: c_init
+    $global $global_type, $global_flag, @global_list
     $global_type={}
     $global_flag={}
     @global_list=()
@@ -192,22 +128,14 @@ subcode:: c_init
 subcode: dump_globals
     my $cnt=0
     $foreach my $v in @global_list
-	$call dump_global
+	push @$dump_out, "$v;\n";
+	$cnt++
     $if $cnt>0
 	push @$dump_out, "\n";
 
-subcode: dump_global
-    $call dump_global_std
-
-subcode: dump_global_std
-    push @$dump_out, "$v;\n";
-    $cnt++
-
 # ---- Function Delcares ----
-subcode:: package_globals
-    our @function_declare_list
-
 subcode:: c_init
+    $global @function_declare_list
     @function_declare_list=()
 
 subcode: dump_function_declares
@@ -223,18 +151,11 @@ subcode: dump_function_declares
 subcode: dump_function_declare(k)
     $(if:k!=$func)
 	my $func=$functions{$(k)}
-    my $name=$func->{name}
-    my $ret_type=$func->{'ret_type'};
-    if(!$ret_type){$ret_type="void";}
-    my $paramlist=$func->{'param_list'};
-    my $param=join(', ', @$paramlist);
-    push @$dump_out, "$ret_type $name($param);\n";
+    push @$dump_out, $func->{declare}.";\n"
 
 # ---- Declares ----
-subcode:: package_globals
-    our @declare_list
-
 subcode:: c_init
+    $global @declare_list
     @declare_list=()
 
 subcode:: do_declare(param)
@@ -249,11 +170,8 @@ subcode: dump_declares
 	push @$dump_out, "\n";
 
 # ---- Structures ----
-subcode:: package_globals
-    our %structs;
-    our @struct_list;
-
 subcode:: c_init
+    $global %structs, @struct_list
     %structs=()
     @struct_list=()
 
@@ -299,10 +217,8 @@ subcode: dump_structs_functions
 	push @$dump_out, "\n";
 
 # ---- Init codes ----
-subcode:: package_globals
-    our @initcodes
-
 subcode:: c_init
+    $global @initcodes
     @initcodes=()
 
 subcode: dump_code_list

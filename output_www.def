@@ -1,0 +1,162 @@
+include: output.def
+include: macros_www/common.def
+include: macros_www/html.def
+include: macros_www/php.def
+include: macros_www/js.def
+include: macros_www/field.def
+
+# Many Legacy/Ugly code here. Wish I will have to time/interest to clean it up.
+
+page: output_www, output_main
+    type: pm
+    output_dir: lib/MyDef
+    ext: html
+    init_mode: html
+    package: MyDef::output_www
+
+subcode:: package_globals
+    use MyDef::compileutil;
+    use Term::ANSIColor qw(:constants);
+    # ------ global variables
+    my $php;
+    my $style_sheets
+
+subcode:: init_page
+    $php={};
+    $style_sheets=[]
+
+subcode: modeswitch
+    # stackable mode : html -> js -> php
+    $global @mode_stack
+    $global $cur_mode="html"
+
+    # print "modeswitch $cur_mode-> $mode\n"
+
+    $if $mode eq $cur_mode or $mode eq "sub"
+	goto modeswitch_done
+
+    $if $cur_mode eq "PRINT"
+	$call popmode
+
+    $if $mode eq "PRINT"
+	$call pushmode
+
+    $if $cur_mode eq "php"
+	$call exit_php
+	$call popmode
+
+    $if $mode eq "php"
+	$call enter_php
+	$call pushmode
+
+    $if $cur_mode eq "js"
+	$call exit_js
+	$call popmode
+
+    $if $mode eq "js"
+	$call enter_js
+	$call pushmode
+
+    modeswitch_done:
+
+# --
+subcode: pushmode
+    push @mode_stack, $cur_mode
+    $cur_mode=$mode
+    goto modeswitch_done
+
+subcode: popmode
+    $cur_mode=pop @mode_stack
+    $if $mode eq $cur_mode
+	goto modeswitch_done
+# ------------------------
+subcode:: dumpout
+    $dump->{custom}=\&custom_dump
+
+subcode: parsecode
+    $call parsecode_common
+
+subcode: parsecode_PRINT
+    $if $l=~/^(SUBBLOCK|SOURCE)/
+	push @$out, $l
+    $else
+	my $P="PRINT-".$mode_stack[-1]
+	$if $P eq "PRINT-html"
+	    $l=~s/</&lt;/g
+	    $l=~s/>/&gt;/g
+	    push @$out, "$P $l"
+	$else
+	    push @$out, $l
+    return 0
+
+subcode: parsecode_special
+    $if $l=~/^\s*CSS: (.*)\s*\{(.*)\}/
+	$if $style->{$1}
+	    $style->{$1}.=";$2";
+	$else
+	    $style->{$1}=$2;
+	    push @style_key_list, $1;
+	return
+    $elif $l=~/^\s*\$(title|charset)\s+(.*)/
+	$page->{$1}=$2
+	return
+    $elif $l=~/^\s*PRINT\s+(.*)/
+	my $P="PRINT-$cur_mode"
+	push @$out, "$P $1"
+	return
+    $elif $cur_mode eq "js" && $l=~/^(\S+)\s*=\s*"(.*\$\w+.*)"\s*$/
+	push @$out, "$1=". js_string($2)
+	return
+
+subcode: parsecode_func_param
+    $if $cur_mode eq "js"
+	$call @js_parse_func_param
+    $elif $cur_mode eq "php"
+	$call @php_parse_func_param
+
+subcode: parsecode_func
+    $call parsecode_html_tag
+    $if $func eq "script"
+	MyDef::compileutil::modepush("js")
+	push @$out, "SOURCE_INDENT";
+	push @$out, "BLOCK";
+	push @$out, "SOURCE_DEDENT";
+	return "NEWBLOCK-\$script_end"
+    $elif $func eq "script_end"
+	MyDef::compileutil::modepop()
+	return
+    $elif $cur_mode eq "js"
+	$call @js_parse_func
+    $elif $cur_mode eq "php"
+	$call @php_parse_func
+    $elif $cur_mode eq "html"
+	$call @html_parse_func
+
+subcode: parsecode_other
+    $if $cur_mode eq "php"
+	$call @php_parsecode_other
+    $elif $cur_mode eq "js"
+	$call @js_parsecode_other
+
+subcode: check_inline_php
+    #print "check_inline_php $l\n";
+    $l=~s/(\$\w+)/<?php echo \1 ?>/g
+
+subcode:: support_subs
+    $sub custom_dump
+	my ($f, $rl)=@_;
+	$if $$rl=~/\\span_(\w+)\{([^}]*)\}/
+	    my $t="<span class=\"$1\">$2</span>";
+	    $$rl=$`.$t.$';
+	$if $$rl=~/PRINT-(\w+) (.*)/
+	    my $mode=$1;
+	    my $t=$2;
+	    $if $mode eq "php"
+		$$rl=echo_php($t)
+	    $elif $mode eq "js"
+		$$rl="PRINT $t"
+	    $else
+		$call mydef_print
+		$$rl="PRINT $t"
+	return 0
+

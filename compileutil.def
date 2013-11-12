@@ -6,30 +6,33 @@ include: compile/macro.def
 include: compile/ogdl.def
 include: compile/list.def
 include: compile/util.def
+include: compile/quick.def
 
 page: compileutil
     type: pm
     output_dir: lib/MyDef
+    package: MyDef::compileutil
+
     subcode: main
 	$call compile_main
 
 subcode: compile_main
-    package MyDef::compileutil;
     my ($cur_file, $cur_line);
     $call package_global
     $call manage_output
     $call support_subs
     # ---------------------------------------------------
     $sub compile
-	my ($pagename)=@_;
-	my $page=$MyDef::def->{pages}->{$pagename};
+	my $page=$MyDef::page
+	my $pagename=$page->{pagename}
 	$call output_outdir
 	$page->{outdir}=$outdir
 	$call compile
 
     $sub output
-	my ($pagename, $plines, $ext)=@_;
-	my $page=$MyDef::def->{pages}->{$pagename};
+	my ($plines, $ext)=@_;
+	my $page=$MyDef::page
+	my $pagename=$page->{pagename}
 	my $outdir=$page->{outdir}
 
 	my $outname=$outdir."/".$pagename;
@@ -62,20 +65,25 @@ subcode:: package_global
     $sub set_interface
 	($f_init, $f_parse, $f_setout, $f_modeswitch, $f_dumpout)=@_;
 
+    $sub get_interface
+	return ($f_init, $f_parse, $f_setout, $f_modeswitch, $f_dumpout)
+
     $sub set_output($output)
 	$out=$output
 	$f_setout->($out)
 
     # ---------------------------------------------------
     our $deflist;
-    our $modelist;
 
     my $debug;
 
+    our %misc_vars;
+
 
 subcode: manage_output
-    our $out;
-    our @output_list;
+    $global $out
+    $global @output_list
+
     $sub init_output
 	@output_list=([]);
 	set_output($output_list[0])
@@ -92,8 +100,8 @@ subcode: manage_output
 
 subcode: compile
     my ($ext, $mode)=$f_init->($page);
-    $modelist=[$mode];
-    $f_modeswitch->($mode)
+    $if $mode
+	modepush($mode)
     init_output();
     print STDERR "PAGE: $pagename\n";
 
@@ -107,14 +115,18 @@ subcode: compile
 
     #---- autoload
     my $codelist=$MyDef::def->{codes};
+    $page->{_autoload}=1
     $foreach my $codename  in keys %$codelist
 	$if $codename=~/_autoload$/
 	    parse_code($codelist->{$codename});
+    $page->{_autoload}=0
 
     #---- main
     my $maincode=$page->{codes}->{main};
     $if !$maincode
 	$maincode=$MyDef::def->{codes}->{main};
+    $if !$maincode
+	$maincode=$MyDef::def->{codes}->{basic_frame};
     parse_code($maincode);
 
     #---- restore var
@@ -124,7 +136,7 @@ subcode: compile
     #---- Dump
     $if !$page->{subpage}
 	my @buffer;
-	$f_dumpout->(\@buffer, fetch_output(0));
+	$f_dumpout->(\@buffer, fetch_output(0), $page->{type});
 	return (\@buffer, $ext);
 
 subcode: output_outdir

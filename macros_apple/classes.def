@@ -1,167 +1,171 @@
-includes: macros_util/tool_output.def
+include: macros_util/tool_output.def
 
 subcode:: package_global
     my %classes;
     my $cur_class;
-    my %method_hash;
-    my $method_idx=1;
-    my $class_default
-
-subcode: dump_class_interface(block)
-    my $interface=$class->{interface};
-    $if @{$class->{protocols}}
-	my $plist=$class->{protocols}
-	$interface.=" <".join(", ", @$plist).">";
-    push @$(block), "\@interface $name : $interface";
-    # -- properties --
-    $while my ($pname, $ptype)=each %{$class->{properties}}
-	push @$(block), "\@property $ptype $pname;";
-    $foreach my $declare in @{$class->{declares}}
-	push @$(block), "$declare;";
-    push @$(block), "\@end";
-    push @$(block), "NEWLINE";
-
-subcode: dump_class_implementation(block)
-    push @$(block), "\@implementation $name";
-    $while my ($pname, $ptype)=each %{$class->{properties}}
-	push @$(block), "\@synthesize $pname;";
-    $foreach my $method in @{$class->{methods}}
-	push @$(block), "NEWLINE";
-	$foreach my $t in @$method
-	    push @$(block), $t;
-	push @$(block), "NEWLINE";
-    push @$(block), "\@end";
-    push @$(block), "NEWLINE";
 
 
+# ---- New Class ----
 subcode:: support_subs
-    $sub new_class
-	my ($name, $tail)=@_;
-	my $newclass;
-	$if $tail=~/,\s*(\w+)/
-	    $newclass=$1
-	$elif $tail=~/,\s*_(\w+)/
-	    $newclass="$name\_$1"
-	$else
-	    $newclass=$name
+    $global %classes, @class_list
+    $global $cur_class
+    $sub new_class($name, $tail)
+	$call get_new_class_name
 	# ----
-	$cur_class={super=>$name, protocols=>[], name=>$newclass, properties=>{}, declares=>[], methods=>[]};
-	my $field=collect_class_field($name)
+	$if $classes{$new_class_name}
+	    $cur_class=$classes{$new_class_name}
+	    warn "Duplicate class [$new_class_name]\n"
+	$else
+	    $cur_class={name=>$new_class_name, super=>$name, protocols=>[], properties=>{}, methods=>[], declares=>[]}
+	    $classes{$new_class_name} = $cur_class
+	    push @class_list, $cur_class
+
+	$call collect_class_field, $name
 	$cur_class->{field}=$field
-	$classes{$newclass} = $cur_class
 	# ----
 	my $class=$field->{class};
 	$if !$class
 	    $class=$name;
 	$cur_class->{interface}="$class";
+
 	my $protocol=$field->{protocol};
 	$call implement_protocol
+	return $new_class_name
+
+subcode: get_new_class_name
+    my $new_class_name;
+    $if $tail=~/,\s*(\w+)/
+	$new_class_name=$1
+    $elif $tail=~/,\s*_(\w+)/
+	$new_class_name="$name\_$1"
+    $else
+	$new_class_name=$name
 
 subcode: implement_protocol
     $if $protocol
 	my $plist=$cur_class->{protocols}
 	my $exist=0;
-	$foreach my $p in @plist
+	$foreach my $p in @$plist
 	    $if $p eq $protocol
 		$exist=1;
 	$if !$exist
 	    push @$plist, $protocol;
 	    res_collect($cur_class->{field}, $class_default->{$protocol})
 
-subcode: new_method(name, blockname)
-    my $declare
-    my $method=$cur_class->{field}->{$(name)}
-    $if !ref($method)
-	$declare=$method
-    $else
-	$if $method->{declare}
-	    $declare=$method->{declare}
-	$else
-	    $declare=$method->{_name}
-    $if !$declare
-	$if $(name)=~/^\w+_/
-	    my $ret_type=get_c_type($(name));
-	    $declare="- ($ret_type)$(name)";
-	$else
-	    $declare="- (void)$(name)";
-    $if $tail=~/^\((.*)\)/
-	my @plist=split /,\s*/, $1;
-	for(my $i=0; $i<@plist; $i++){
-	    my $type=get_c_type($plist[$i]);
-	    $if $i>0
-		$declare.=" p$i";
-	    $declare.=":($type)$plist[$i]";
-	}
+# ---- New Method ----
+subcode:: support_subs
+    $sub new_method($name, $param)
+	# --- as a function ---
+	my $fidx=$(C)open_function($name, $param)
+	my $func=MyDef::dumpout::get_function($fidx)
+	$func->{"skip_declare"}=1
 
-    my $fidx=open_closure("$declare {", "}");
-    my $prop=$cur_class->{properties};
-    foreach my $v (keys %$prop){
-	declare_var($v, $prop->{$v});
-    }
-    # ----
-    my @method_block;
-    push @method_block, "OPEN_FUNC_$fidx";
-    push @method_block, "SOURCE_INDENT";
-    # -- pre --
-    $call push_method_block, pre
-    # ---------- Method Block ------------------
-    $(if:blockname=BLOCK)
-	push @method_block, "BLOCK";
-    $(else)
-	push @method_block, "INCLUDE_BLOCK $(blockname)";
-    # -- post --
-    $call push_method_block, post
+	# --- inherit the declaration
+	my $declare
+	my $method=$cur_class->{field}->{$name}
+	$if !ref($method)
+	    $declare=$method
+	$else
+	    $if $method->{declare}
+		$declare=$method->{declare}
+	    $else
+		$declare=$method->{_name}
+	$if $declare
+	    $func->{declare}=$declare
 
-    push @method_block, "SOURCE_DEDENT";
-    push @{$cur_class->{methods}}, \@method_block;
-    push @{$cur_class->{declares}}, $declare;
+	# --- member variables ---
+	my $var_type=$func->{var_type};
+
+	my $prop=$cur_class->{properties};
+	$foreach $v in keys %$prop
+	    $var_type->{$v}=$prop->{$v}
+
+	push @{$cur_class->{methods}}, $fidx
+
+	# ---- method block ---------------------------
+	my $block=MyDef::compileutil::get_named_block("METHOD-$fidx")
+	my $tempout=$MyDef::compileutil::out
+	$MyDef::compileutil::out=$block
+	$(Cout)=$block
+	    push @$block, "OPEN_FUNC_$fidx";
+	    push @$block, "SOURCE_INDENT"
+	    # -- pre --
+	    $call push_method_block, pre
+	    # ---------- Method Block ------------------
+	    push @$block, "BLOCK"
+	    # -- post --
+	    $call push_method_block, post
+	    push @$block, "SOURCE_DEDENT"
+	$MyDef::compileutil::out=$tempout
+	$(Cout)=$tempout
+
+	return $block
 
 subcode: push_method_block(name)
-    $if $method->{$(name)}
-	&call replace_output, \@method_block
-	    $if !ref($method->{$(name)})
-		MyDef::compileutil::parseblock([$method->{$(name)}])
-	    $else
-		MyDef::compileutil::parseblock($method->{$(name)}->{_list})
+    $if ref($method) eq "HASH" and $method->{$(name)}
+	$if !ref($method->{$(name)})
+	    MyDef::compileutil::parseblock([$method->{$(name)}])
+	$else
+	    MyDef::compileutil::parseblock($method->{$(name)}->{_list})
 
 # ----
 subcode: add_property(t, attr)
     my @plist=split /,\s*/, $(t);
     $foreach my $p in @plist
-	my ($type, $name)=get_name_type($p)
+	$call get_name_type, $p
 	$if $cur_class
 	    $if $(attr)
 		$cur_class->{properties}->{$name}="($(attr)) $type"
 	    $else
 		$cur_class->{properties}->{$name}=$type;
-	    declare_var($name, $type);
+	    $call declare_var
+
+subcode: get_name_type(t)
+    my $name=$(t)
+    my $type
+    $if $(t)=~/(.*)\s+(\w+)$/
+	$type=$1
+	$name=$2
+    $else
+	$type=$(C)get_c_type($name)
+
+subcode: declare_var
+    $if $$(C)cur_function
+	my $var_type=$$(C)cur_function->{var_type}
+	$var_type->{$name}=$type
 ############################################
+subcode:: on_init
+    $global $class_default
+    $class_default=$MyDef::def->{resource}->{"class_default"}
+    $if !$class_default
+	warn "resource: class_default not found!\n"
 
-subcode: apple_functions
-    my $animate_block_depth=0;
-    my $animate_need_completion=0;
+subcode: collect_class_field(name)
+    my $field={}
+    my $super_field=$class_default->{$(name)}
+    $while $super_field
+	res_collect($field, $super_field)
+	$if $super_field->{super}
+	    $super_field=$class_default->{$super_field->{super}}
+	$else
+	    undef $super_field
+    res_collect($field, $class_default->{Default})
 
-    my %viewitems;
-
-    $sub res_collect
-	my ($field, $from)=@_
+subcode:: support_subs
+    $sub res_collect($field, $from)
 	$if $from
 	    $while my ($k, $v)=each %$from
 		$if !$field->{$k}
 		    $field->{$k}=$v
+		$else
+		    $if $k eq "imports"
+			$field->{$k}="$v, $field->{$k}"
 
-    $sub collect_class_field
-	my ($name)=@_;
-	my $field=$class_default->{$name}
-	$if !$field
-	    return $class_default->{Default}
-	$else
-	    $while $field->{super}
-		my $super=$class_default->{$field->{super}}
-		$field->{super}=undef
-		res_collect($field, $super)
-	    res_collect($field, $class_default->{Default})
-	    return $field;
+subcode:: support_subs
+    my $animate_block_depth=0;
+    my $animate_need_completion=0;
+
+    my %viewitems;
 
     ############################################
     sub parse_animation_param {
@@ -177,20 +181,6 @@ subcode: apple_functions
 
 	}
 	return $param;
-    }
-
-    sub newclass_spec {
-	my ($init, $spec)=@_;
-	if($init=~/\$2/){
-	    my @speclist=split /,\s*/, $spec;
-	    for(my $i=1; $i-1<@speclist; $i++){
-		$init=~s/\$$i/$speclist[$i-1]/;
-	    }
-	}
-	else{
-	    $init=~s/\$1/$spec/;
-	}
-	return $init;
     }
 
     sub nsstring {
@@ -248,107 +238,39 @@ subcode: apple_functions
 	close In;
     }
 
-    sub addview {
-	my ($out, $name, $parent)=@_;
-	if(!$viewitems{$name}){
-	    warn "Missing layout item $name\n";
-	}
-	my $main=$viewitems{"main"};
-	my $v=$viewitems{$name};
-	my $type=$v->{type}?$v->{type}:"UIView";
-	my $x=$v->{x};
-	my $y=$v->{y};
-	my $w=$v->{width};
-	my $h=$v->{height};
-
-	new_object($out, $name, $type, "CGRectMake($x, $y, $w, $h)"); 
-	if($v->{background}){
-	    if($v->{background}=~/\.png/){
-		push @$out, "$name.backgroundColor=[UIColor colorWithPatternImage:[UIImage ImageNamed:@\"$v->{background}\"]]";
-	    }
-	    elsif($v->{background}=~/#(..)(..)(..)(..)/){
-		push @$out, "$name.backgroundColor=[UIColor colorWithRed:$1/255.0 green:$2/255.0 blue:$3/255.0 alpha:$4/255.0]";
-	    }
-	}
-	if(!$parent){
-	    push @$out, "self.view = $view";
-	}
-	else{
-	    push @$out, "[$parent addSubview:$name]";
-	}
-	if($v->{children}){
-	    my @tlist=split /,\s*/, $v->{children};
-	    foreach my $t (@tlist){
-		addview($out, $t, $name);
-	    }
-	}
-
-    }
     # ----
-    $sub new_object
-	my ($out, $v, $class, $spec)=@_;
-	$spec=~s/^,?\s*//;
-	#print "new: v=[$v], class=[$class], spec=[$spec]\n";
-	my $init="init";
-	my $field;
-	$if $classes{$class}
-	    $field=$MyDef::def->{fields}->{$classes{$class}->{super}};
+subcode: new_object(v, name, spec)
+    #print "new: v=[$(v)], class=[$(name)], spec=[$(spec)]\n";
+    my $class_field
+    $if $classes{$(name)}
+	$class_field=$classes{$(name)}->{field}
+    $else
+	$call collect_class_field, $(name)
+	$class_field=$field
+
+    my $class_name=$(name)
+    $if $class_field->{class}
+	$class_name=$class_field->{class}
+    # ----
+    $if $(v)!~/[.]/
+	$(C)func_add_var($(v), "$class_name *");
+
+    $if $class_field->{create_spec}
+	my $init=$class_field->{create_spec}
+	$init=~s/\$0/$class_name/
+	$if $init=~/\$\@/
+	    $init=~s/\$\@/$(spec)/
+	$elif $init=~/\$2/
+	    my @spec_list=split /,\s*/, $(spec)
+	    $for $i=1:@spec_list
+		$init=~s/\$$i/$spec_list[$i-1]/;
 	$else
-	    $field=$MyDef::def->{fields}->{$class};
-	    $if $field->{class}
-		$class=$field->{class};
-	# ----
-	if($v=~/^@(.*)/){
-	    $v=$1;
-	    $cur_class->{properties}->{$1}="$class *";
-	}
-	elsif($v!~/[.]/){
-	    func_add_var($v, "$class *");
-	}
-	if($field->{create_spec}){
-	    my $create=newclass_spec($field->{create_spec}, $spec);
-	    push @$out, "$v = [$class $create];";
-	}
-	else{
-	    if(!$spec){
-		while($field){
-		    if($field->{init_default}){
-			last;
-		    }
-		    else{
-			$field=$MyDef::def->{fields}->{$field->{super}};
-		    }
-		}
-		if($field){
-		    $init=$field->{init_default};
-		}
-	    }
-	    else{
-		while($field){
-		    if($field->{init_spec}){
-			last;
-		    }
-		    else{
-			$field=$MyDef::def->{fields}->{$field->{super}};
-		    }
-		}
-		#print "init_spec: $field->{init_spec}\n";
-		if($field){
-		    $init=newclass_spec($field->{init_spec}, $spec);
-		}
-		else{
-		    $init=$spec;
-		}
-	    }
-	    push @$out, "$v = [[$class alloc] $init];";
-	}
-	# -- specific classes --
-	$if $class=~/EAGLContext/
-	    $imports{"QuartzCore/QuartzCore.h"}=1;
-	    $imports{"OpenGLES/EAGL.h"}=1;
-	    $if $init=~/OpenGLES1/
-		$imports{"OpenGLES/ES1/gl.h"}=1;
-		$imports{"OpenGLES/ES1/glext.h"}=1;
-	    $if $init=~/OpenGLES2/
-		$imports{"OpenGLES/ES2/gl.h"}=1;
-		$imports{"OpenGLES/ES2/glext.h"}=1;
+	    $init=~s/\$1/$(spec)/
+	push @$(Cout), "$(v) = $init;"
+    $else
+	warn "class $class_name create_spec not found!\n"
+
+    $if $class_field->{imports}
+	my @inc_list=split /,\s*/, $class_field->{imports}
+	$foreach $inc in @inc_list
+	    $imports{$inc}=1

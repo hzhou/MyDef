@@ -2,26 +2,26 @@ subcode: parse_call_sub
     $param=~s/\s*$//;
     $if $func eq "\$map"
 	call_sub($param, $func);
-    $elif $func eq "\$call"
-	call_sub($param);
+    $elif $func =~ /^\$call/
+	call_sub($param, $func);
     $elif $func eq "\&call"
-	my @callback_list=callback_sub($param, $func);
-	$foreach $n in @callback_list
-	    $call parse_handle_block, $n
-	modepop()
+	my $subblock=grabblock($block, \$lindex)
+	call_back($param, $subblock)
 
 subcode:: package_global
     my @callsub_stack;
 
 subcode: call_sub_param
     my ($codename, $attr);
+    my $codelib
     $if $param=~/^(@)?(\w+)(.*)/
 	$attr=$1
 	$codename=$2
 	$param=$3
+	$codelib=get_subcode($codename, $attr)
     $else
 	print STDERR "    call_sub [$param] parse failure\n";
-	return;
+
     # ---- Parse Parameter Line ------------------
     my (@pre_plist, $pline, @plist);
     $if $param=~/^\(([^\)]*)\)/
@@ -55,8 +55,11 @@ subcode: call_sub_map
 	pop @$deflist;
 
 subcode: call_sub_normal
-    $call call_sub_normal_setup_macro
-    push @$deflist, $macro;
+    $if $calltype eq "\$call-PRINT"
+	push @$deflist, {}
+    $else
+	$call call_sub_normal_setup_macro
+	push @$deflist, $macro;
     parseblock($codelib);
     pop @$deflist;
 
@@ -88,24 +91,46 @@ subcode: call_sub_normal_setup_macro
 
 # ------
 subcode: call_sub_block
-    my $codelib=get_subcode($codename, $attr)
     $if $codelib
 	push @callsub_stack, $codename
-	modepush($codelib->{type});
+	$if $calltype=~/\$call-(\w+)/
+	    modepush($1)
+	$else
+	    modepush($codelib->{type})
 	my $params=$codelib->{params};
 	BLOCK
 	modepop()
 	pop @callsub_stack
+	set_current_macro("notfound", 0)
+    $else
+	# $call @somecode
+	# $(if:notfound=1)
+	#     $call @othercode
+	set_current_macro("notfound", 1)
 
 subcode:: support_subs
-    $sub get_sub_param_list($codename)
-	my $codelib=get_def_attr("codes", $codename);
-	$if !$codelib
-	    die "    Code $codename not found\n"
-	return $codelib->{params}
+    $sub call_back($param, $subblock)
+	$call call_sub_param
+	$if $codelib
+	    modepush($codelib->{type});
 
-    $sub call_sub
-	my ($param, $calltype)=@_;
+	    $global @callback_block_stack
+	    push @callback_block_stack, {source=>$subblock, name=>"BLOCK", cur_file=>$cur_file, cur_line=>$cur_line}
+
+	    push @callsub_stack, $codename
+	    my $params=$codelib->{params};
+	    my $np=@pre_plist;
+	    $call call_sub_normal_setup_macro
+	    push @$deflist, $macro;
+	    parseblock($codelib);
+	    pop @$deflist;
+	    pop @callsub_stack
+
+	    pop @callback_block_stack
+
+	    modepop()
+
+    $sub call_sub($param, $calltype)
 	$call call_sub_param
 	&call call_sub_block
 	    my $np=@pre_plist;
@@ -115,33 +140,6 @@ subcode:: support_subs
 		$call call_sub_map
 	    $else
 		$call call_sub_normal
-
-    $sub callback_sub
-	my ($param)=@_;
-	$call call_sub_param
-	my $codelib=get_subcode($codename)
-	$if $codelib
-	    push @callsub_stack, $codename
-	    modepush($codelib->{type});
-
-	    my $params=$codelib->{params};
-	    my $np=@pre_plist;
-	    $call call_sub_normal_setup_macro
-
-	    push @$deflist, $macro;
-	    my $source=$codelib->{source};
-	    my @callback_list
-	    extract_callback_block($source, \@callback_list)
-	    parseblock($codelib);
-	    pop @$deflist;
-
-	    pop @callsub_stack
-
-	    my @tlist;
-	    $foreach $b in @callback_list
-		$b->{source}->[$b->{line}]="BLOCK"
-		push @tlist, $b->{block}
-	    return @tlist
 
     $sub get_subcode($codename, $attr)
 	# ---- Grab Code Block ------------------
@@ -162,17 +160,28 @@ subcode:: support_subs
 	    $codelib->{recurse}=$recurse
 	    return $codelib
 
-    $sub extract_callback_block($source, $callback_list)
-	$for $i=0:$#$source+1
-	    $if $source->[$i]=~/^BLOCK$/
-		my $n=new_output()
-		$source->[$i]="BLOCK_$n"
-		push @$callback_list, {block=>$n, source=>$source, line=>$i}
-	    $elif $source->[$i]=~/^\$call\s+(.*)/
-		my $t=$1
-		expand_macro_recurse(\$t)
-		$if $t=~/(\w+)/
-		my $codelib=get_subcode($1)
-		$if $codelib
-		    extract_callback_block($codelib->{source}, $callback_list)
+subcode:: support_subs
+    $sub eval_sub($codename)
+	my $codelib=get_def_attr("codes", $codename);
+	$if !$codelib
+	    warn "    eval_sub: Code $codename not found\n"
+
+	require MyDef::output_perl
+	my $save_out=$out
+	my @save_interface=get_interface()
+
+	set_interface(MyDef::output_perl::get_interface())
+	$out=[]
+	$f_setout->($out)
+
+	parse_code($codelib)
+	my @t
+	$f_dumpout->(\@t, $out)
+
+	set_interface(@save_interface)
+	$out=$save_out
+	$f_setout->($out)
+
+	my $t=join("", @t)
+	return $t
 

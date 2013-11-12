@@ -1,0 +1,224 @@
+subcode:: _autoload
+    $include string
+
+# ---- Read/Write Wrapper --------------------------------
+subcode: Read(fd, buf, size)
+    $while 1
+	n=read($(fd), $(buf), $(size))
+	$if n==0 # EOF
+	    break
+	$elif n<0
+	    $call assert, errno==EINTR
+	    $if errno==EINTR
+		continue
+	$else
+	    break
+
+subcode: Write(fd, buf, len)
+    tn_total=$(len)
+    tn_left=tn_total
+    ts_ptr=$(buf)
+    $while tn_left>0
+	n=write($(fd), ts_ptr, tn_left)
+	$if n<0
+	    $call assert, errno==EINTR
+	    $if errno==EINTR
+		continue
+	$else
+	    tn_left-=n
+	    ts_ptr+=n
+    n=tn_total-tn_left
+
+# ---- Generic Client -------------------------------------
+subcode: socket_common
+    $include arpa/inet
+    $include errno
+
+# ---- TCP Wrapper ---------------------------------------
+subcode: tcp_connect(host, port)
+    $call socket_common
+    $include netdb
+    $local struct addrinfo ai_hint
+    memset(&ai_hint, 0, sizeof(ai_hint))
+    ai_hint.ai_family=AF_UNSPEC
+    ai_hint.ai_socktype=SOCK_STREAM
+    $local struct addrinfo * ai_res
+    tn_ret=getaddrinfo($(host), $(port), &ai_hint, &ai_res)
+    $call assert, tn_ret==0
+    ai_p=ai_res
+    $while ai_p
+	tn_socket=socket(ai_p->ai_family, ai_p->ai_socktype, ai_p->ai_protocol)
+	$if tn_socket<0
+	    ai_p=ai_p->ai_next
+	    continue
+	tn_ret=connect(tn_socket, ai_p->ai_addr, ai_p->ai_addrlen)
+	$if tn_ret==0
+	    break
+	$else
+	    close(tn_socket)
+	    ai_p=ai_p->ai_next
+	    continue
+    $call assert, ai_p
+    freeaddrinfo(ai_res)
+
+subcode: tcp_listen(port)
+    $call socket_common
+
+    tn_socket_listen=socket(AF_INET, SOCK_STREAM, 0)
+    $call assert, tn_socket_listen>=0
+
+    $local struct sockaddr_in inet_addr
+    memset(&inet_addr, 0, sizeof(inet_addr))
+    inet_addr.sin_family=AF_INET
+    inet_addr.sin_port=htons($(port))
+    inet_addr.sin_addr.s_addr=htonl(INADDR_ANY)
+
+    tn_ret=bind(tn_socket_listen, (struct sockaddr *)&inet_addr, sizeof(inet_addr))
+    $call assert, tn_ret==0
+    tn_ret=listen(tn_socket_listen, 4)
+    $call assert, tn_ret==0
+
+# ---- Read Loop ---------------------------------------
+subcode: socket_read_loop
+    $(set:SIZE=1000)
+    $local ts_socket_buffer[$(SIZE)+1]
+    $while 1
+	# $call Read, tn_socket, ts_socket_buffer, $(SIZE)
+	n=read(tn_socket, ts_socket_buffer, $(SIZE))
+	$if n<0
+	    $call debug_errno, Read Error
+	    break
+	$elif n==0
+	    break
+	$else
+	    BLOCK
+
+# ---- Generic Server -------------------------------------
+subcode: socket_server(port)
+    $call tcp_listen, $(port)
+
+    $while 1
+	print "Accepting connection at port $(port)"
+	tn_addrlen=sizeof(inet_addr)
+	tn_socket=accept(tn_socket_listen, (struct sockaddr *)&inet_addr, &tn_addrlen)
+	$if tn_socket<0 && errno==EINTR
+	    continue
+	$call assert, tn_socket>=0
+	BLOCK
+	$call Close, tn_socket
+
+# ---- Common Util-----------------------------------------
+subcode: fork_server
+    tn_pid=fork()
+    $if tn_pid==0
+	$call Close, tn_socket_listen
+	BLOCK
+	$call Close, tn_socket
+	exit(0)
+
+subcode: print_client_address
+    $local ts_ip_buffer[16]
+    ts_ip=(char *)inet_ntop(AF_INET, &inet_addr.sin_addr, ts_ip_buffer, 16)
+    $call assert, ts_ip
+    tn_port=ntohs(inet_addr.sin_port)
+    printf("Connection from %s:%d\n", ts_ip, tn_port)
+
+subcode: sig_child
+    $include sys/wait
+    &call signal, SIGCHLD
+	int tn_pid, tn_stat
+	$while 1
+	    tn_pid=waitpid(-1, &tn_stat, WNOHANG)
+	    $if tn_pid>0
+		printf("child %d terminated.\n", tn_pid)
+	    $else
+		break
+
+# ---- Daemon ----
+subcode: daemon_start
+    $include unistd
+    $call daemon_fork
+    # -- new session leader --
+    $if setsid()<0
+	return -1
+    $call signal_ignore, SIGHUP
+    $call daemon_fork
+    # -- non_session_leader --
+    chdir("/")
+    $for i=0:3
+	close(i)
+    open("/dev/null", O_RDONLY)
+    open("/dev/null", O_RDWR)
+    open("/dev/null", O_RDWR)
+
+    $call sig_child
+
+subcode: daemon_fork
+    tn_pid=fork()
+    $if tn_pid<0
+	print "daemon_fork failed!"
+	return -1
+    $elif tn_pid>0
+	# parent
+	_exit(0)
+
+
+# ---- Wrapper -----------------------------------------------------
+subcode: Close(fd)
+    tn_ret=close($(fd))
+    $call assert, tn_ret==0
+
+# ---- Signal handling ---------------------------
+subcode: signal(signo)
+    $(block:global_init)
+	void on_$(signo)(int signo){
+	    BLOCK
+	    return
+	}
+    $call signal_set, $(signo), on_$(signo)
+
+subcode: signal_ignore(signo)
+    $call signal_set, $(signo), SIG_IGN
+
+subcode: signal_set(signo, handler)
+    $include signal
+    $local struct sigaction struct_sigaction, struct sigaction struct_sigaction_out
+    struct_sigaction.sa_handler=$(handler)
+    sigemptyset(&struct_sigaction.sa_mask)
+    struct_sigaction.sa_flags=0
+    tn_ret=sigaction($(signo), &struct_sigaction, &struct_sigaction_out)
+    $call assert, tn_ret>=0
+
+# ---- Select -----------------------------------
+subcode: select_setup
+    $include sys/select
+    $local fd_set select_rset
+    tn_select_max=0
+    BLOCK
+    tn_select_max+=1
+    tn_ret=select(tn_select_max, &select_rset, NULL, NULL, NULL)
+    $call assert, tn_ret>=0
+
+subcode: select(@plist)
+    $(foreach:p)
+	$if $(p)>tn_select_max
+	    tn_select_max=$(p)
+	FD_SET($(p), &select_rset)
+
+subcode: select_on(fd)
+    $if FD_ISSET($(fd), &select_rset)
+	BLOCK
+
+# DEBUG #############################################
+
+subcode: debug_errno(label)
+    # /usr/include/asm-generic/errno.h
+    print "$(label): errno = %d ", errno
+    $map debug_errno_code, EAGAIN, EWOULDBLOCK, EBADF, EFAULT, EINTR, EINVAL, EIO, EISDIR, ECONNRESET
+    $else
+	print "Unknown\n"
+
+subcode: debug_errno_code(code)
+    $case errno==$(code)
+	print "$(code)\n"
+

@@ -1,81 +1,102 @@
-include: macros_c/parsing_short.def
 subcode:: package_globals
     our $anonymous_count=0
 
-subcode: c_parsecode
-    my $should_return=1
+    our $print_type=1
+
+subcode: check_text_includes
+    $while my ($k, $v)=each %text_include
+	$if $l=~/$k/
+	    $call add_include, $v
+
+subcode: parsecode_special
     $if $l=~/^SUBBLOCK BEGIN (\d+)/
 	push @$out, "DUMP_STUB SUBBLOCK_$1"
 	$if $debug eq "DUMP"
 	    my ($code, $file, $line)=MyDef::compileutil::get_cur_code()
 	    push @$out, "printf(\"subcode: $file - $line - $code->{name}\\n\");";
 	open_scope("SUBBLOCK_$1")
+	return
     $elif $l=~/^SUBBLOCK END (\d+)/
 	close_scope("SUBBLOCK_$1")
-    $elif $l=~/^\s*PRINT\s+(.*)$/
-	$call fmt_print
-    $elif $l=~/^\s*\$(\w+)\((.*)\)\s+(.*)$/
-	# $function(param1) param2 ---------------------------
-	my ($func, $param1, $param2)=($1, $2, $3)
-	$call parsecode_func_param
-    $elif $l=~/^\s*\$(\w+)\s*(.*)$/
-	# $function param  -----------------------------------
-	my ($func, $param)=($1, $2)
-	$call parsecode_func
-    $else
-	$should_return=0
-    $if $should_return
 	return
-    $call @custom_parse
-    $call parsecode_other
+    $elif $l=~/^\s*PRINT\s+(.*)$/i
+	my $t=$1
+	$if $t=~/usesub:\s*(\w+)/
+	    $print_type=$1
+	$else
+	    my $fmt=$t
+	    $if $t!~/^".*"/
+		my $n
+		($n, $fmt)=fmt_string($t)
+	    $if $fmt=~/^"(.*?[^\\])"(.*)/
+		my ($t1, $t2)=($1, $2)
+		$if $t1!~/\\n$/
+		    $fmt="\"$t1\\n\"$t2"
+	    $if $print_type==1
+		push @$out, "printf($fmt);"
+	    $elif $print_type
+		MyDef::compileutil::call_sub("$print_type, $fmt")
+	return
 
 subcode: parsecode_func_param
     $if $func eq "allocate"
 	allocate($param1, $param2);
+	return
     $elif $func eq "local_allocate"
 	local_allocate($param1, $param2);
+	return
+    $elif $func eq "global_allocate"
+	# at main_exit: DUMP_STUB global_cleanup
+	global_allocate($param1, $param2);
+	return
     $elsif $func eq "dump"
 	debug_dump($param2, $param1, $out);
+	return
     $elsif $func eq "register_prefix"
 	$param2=~s/^\s+//;
 	$param2=~s/\s+$//;
 	$type_prefix{$param1}=$param2;
+	return
     $elsif $func eq "register_name"
 	$param2=~s/^\s+//;
 	$param2=~s/\s+$//;
 	$type_name{$param1}=$param2;
+	return
     $elsif $func eq "register_include"
 	$param2=~s/^\s+//;
 	$param2=~s/\s+$//;
 	$type_include{$param1}.=",$param2";
-    $elsif $func eq "struct"
-	declare_struct($param1, $param2);
-	$type_prefix{"st$param1"}="struct $param1";
+	return
     $elif $func eq "get_type"
 	my $type=get_var_type($param2);
 	MyDef::compileutil::set_current_macro($param1, $type)
 	return 
     $elif $func eq "get_pointer_type"
-	my $type=pointer_type(get_var_type_complex($param2));
+	my $type=pointer_type(get_var_type($param2));
 	MyDef::compileutil::set_current_macro($param1, $type)
 	return
     $elif $func eq "get_struct_var_prefix"
-	my $type=get_var_type_complex($param2)
+	my $type=get_var_type($param2)
 	$if $type=~/struct (\w+)\s*\*/
 	    MyDef::compileutil::set_current_macro($param1, "$param2->")
 	$elif $type=~/struct (\w+)/
 	    MyDef::compileutil::set_current_macro($param1, "$param2.")
 	$else
-	    die "get_var_type_complex: $param2 returns type $type\n"
+	    die "get_var_type: $param2 returns type $type\n"
+	return
+    $elsif $func eq "struct"
+	declare_struct($param1, $param2);
 	return
     $elsif $func eq "define"
 	add_define($param1, $param2)
+	return
     $elsif $func eq "enum"
 	$if !$enums{$param1}
 	    push @enum_list, $param1;
 	    $enums{$param1}=$param2;
 	    $if $param1=~/^,\s*(\w+)/
 		global_add_symbol("int $1")
+	return
     $elsif $func eq "enumbase"
 	my $base=0;
 	$if $param1=~/(\w*),\s*(\d+)/
@@ -87,6 +108,7 @@ subcode: parsecode_func_param
 	$foreach my $t in @plist
 	    add_define("$param1$t", $base)
 	    $base++;
+	return
     $elsif $func eq "enumbit"
 	my $base=0;
 	$if $param1=~/(\w*),\s*(\d+)/
@@ -98,53 +120,42 @@ subcode: parsecode_func_param
 	$foreach my $t in @plist
 	    add_define("$param1$t",0x1<<$base)
 	    $base++;
-    $elsif $func eq "write_h"
+	return
+    $elif $func eq "write_h"
 	$call write_h, $param1, $param2
-    $else
-	$should_return=0
+	return
 
 subcode: parsecode_func
-    ## Pre-Process condition clause
-    while($param =~ /(\S+)\s+eq\s+"(.*?)"/){
-	my ($var, $key)=($1, $2);
-	my $keylen=length($key);
-	$param=$`."strncmp($var, \"$key\", $keylen)==0".$';
-    }
     ## All the functions
     $if $func eq "block"
 	return single_block("$param\{", "}")
-    $elsif $func eq "allocate"
-	allocate($out, 1, $param);
-    $elsif $func =~/^except/
+    $elif $func eq "allocate"
+	allocate(1, $param);
+	return
+    $elif $func eq "pack"
+	data_pack($param)
+	return
+    $elif $func eq "unpack"
+	data_unpack($param)
+	return
+    $elif $func =~/^except/
 	return single_block("$except\{", "}")
-    $elsif $func =~ /^(switch)$/
-	return single_block("$1($param){", "}")
-    $elsif $func =~ /^(if|while|switch|(el|els|else)if)$/
+    $elif $func =~ /^(while|switch)$/
 	my $name=$1;
-	$if $2
-	    $name="else if";
-	my $p=parse_condition($param, $out);
-	return single_block("$name($p){", "}")
+	$call @parsecode_condition, $param
+	return single_block("$name($param){", "}")
     $elsif $func =~/^dowhile/
-	my $p=parse_condition($param, $out);
-	return single_block("do{", "}while($p);")
+	$call @parsecode_condition, $param
+	return single_block("do{", "}while($param);")
     $elsif $func =~/^whiletrue/
 	push @$out, "while($param);"
 	return
-    $elsif $func eq "else"
-	return single_block("else{", "}");
     $elsif $func eq "for"
 	$call c_parse_for
-    $elsif $func eq "function"
-	$if $param=~/(\w+)\s*\((.*)\)/
-	    my $fidx=open_function($1, $2);
-	    push @$out, "OPEN_FUNC_$fidx";
-	    push @$out, "SOURCE_INDENT";
-	    push @$out, "BLOCK";
-	    push @$out, "SOURCE_DEDENT";
-	    return "NEWBLOCK-FUNC END";
+	return
     $elsif $func eq "return_type"
 	$cur_function->{ret_type}=$param;
+	return
     $elsif $func eq "parameter"
 	my @plist=split /,\s*/, $param;
 	my $fplist=$cur_function->{param_list};
@@ -152,138 +163,104 @@ subcode: parsecode_func
 	    push @$fplist, $p;
 	    $if $p=~/(.*)\s+(\w+)\s*$/
 		$cur_function->{var_type}->{$2}=$1;
-    $elsif $func eq "mu_skip"
-	my @plist=split /,\s*/, $param;
-	$foreach my $p in @plist
-	    $cur_function->{mu_skip}->{$p}=1;
-    $elsif $func eq "mu_enable"
-	mu_enable();
+	return
     $elsif $func eq "include"
-	my @flist=split /,\s*/, $param;
-	$foreach my $f in @flist
-	    $if $f=~/\.h$/
-		$includes{"\"$f\""}=1;
-	    $else
-		$includes{"<$f.h>"}=1;
+	$call add_include, $param
+	return
     $elsif $func eq "declare"
 	$call @do_declare, $param
+	return
     $elsif $func eq "define"
 	push @$out, "#define $param";
+	return
+    $elsif $func eq "function"
+	$call parse_function
+	return
+    $elsif $func eq "function_end"
+	# automatically generated from compileutil
+	$call parse_function_end
+	return
     $elsif $func eq "list"
-	my @flist=split /,\s*/, $param
-	$call check_h_names_init
-	$foreach my $f in @flist
-	    $if $f=~/^\$(\w+)/
-		$call check_h_names_name, $1
-	    $else
-		$call check_h_names_key, "function-$f"
-	    my $funcname=$f
-	    my $codename=$f
-	    $if $f=~/(\w+)\((\w+)\)/
-		$codename=$1
-		$funcname=$2
-	    my $params=MyDef::compileutil::get_sub_param_list($codename)
-	    my $paramline=join(",", @$params)
-	    $if $funcname eq "n_main" or $funcname eq "main2"
-		$funcname="main";
-	    my $fidx=open_function($funcname, $paramline);
-	    push @$out, "OPEN_FUNC_$fidx";
-	    $cur_indent=1
-	    push @$out, "SOURCE_INDENT"
-	    MyDef::compileutil::call_sub($codename, "\$list")
-	    push @$out, "SOURCE_DEDENT"
-	    $cur_function=pop @function_stack
-
-    $elsif $func eq "typedef"
-	$call @do_typedef, $param
+	$call parse_function_list
+	return
     $elsif $func eq "enum"
 	my $name="ANONYMOUS-$anonymous_count"
 	$anonymous_count++
 	push @enum_list, $name;
 	$enums{$name}=$param;
+	return
     $elsif $func eq "uselib"
 	my @flist=split /,\s+/, $param;
 	$foreach my $f in @flist
-	    $includes{"lib$f"}=1;
+	    $objects{"lib$f"}=1;
 	    $if $lib_include{$f}
-		add_include($lib_include{$f});
+		$call add_include, $lib_include{$f}
+	return
     $elsif $func eq "fntype"
 	# Similar to type_name, but for funtion pointer types
 	$if $param=~/^.*?\(\s*\*\s*(\w+)\s*\)/
 	    $fntype{$1}=$param;
+	return
     $elsif $func eq "debug_mem"
 	push @$out, "debug_mem=1;";
 	$misc_vars{"debug_mem"}=1;
-    $elsif $func eq "namespace"
-	my @vlist=split /,\s+/, $param;
-	$foreach my $v in @vlist
-	    global_namespace($v);
+	return
+    $elsif $func eq "typedef"
+	add_typedef($param)
     $elsif $func eq "global" or $func eq "local" or $func eq "my" or $func eq "symbol"
+	$call check_autoload_h
+	$if $func eq "global" and $autoload_h
+	    $func="symbol"
+
 	my @vlist=split /,\s+/, $param;
 	$foreach my $v in @vlist
 	    $if $func eq "global"
-		global_add_var($v)
+		my $name=global_add_var($v)
+		$call add_to_autoload_h, "global-$name"
 	    $elif $func eq "symbol"
 		global_add_symbol($v)
 	    $elif $func eq "my" and !$page->{disable_scope}
 		scope_add_var($v)
 	    $else
 		func_add_var($v, "local");
+	return
     $elsif $func eq "globalinit"
 	global_add_var($param);
+	return
     $elsif $func eq "localinit"
 	func_add_var($param, "local");
+	return
     $elsif $func eq "myinit"
 	$if $page->{disable_scope}
 	    func_add_var($param, "local");
 	$else
 	    scope_add_var($param)
-    $elsif $func eq "new"
-	my @plist=split /,\s+/, $param;
-	$foreach my $p in @plist
-	    $if $p
-		func_add_var($p);
-		my $type=pointer_type(get_var_type($p));
-		$includes{"<stdlib.h>"}=1;
-		push @$out, "$p=($type*) malloc(sizeof($type));";
-    $elsif $func eq "free"
-	my @plist=split /,\s+/, $param;
-	$foreach my $p in @plist
-	    my $ptype=get_var_type($p);
-	    struct_free($out, $ptype, $p);
+	return
     $elsif $func eq "dump"
 	debug_dump($param, undef, $out);
-    $elsif $func eq "getopt"
-	my @vlist=split /,\s+/, $param;
-	$call c_parse_getopt
-    $elsif $func eq "getbits"
-	$call c_parse_getbits
-
+	return
     $elif $func eq "push"
 	$if $param=~/(\w+),\s*(.*)/
 	    list_push($out, $1, $2);
+	return
     $elif $func eq "unshift"
 	$if $param=~/(\w+),\s*(.*)/
 	    list_unshift($out, $1, $2);
+	return
     $elif $func eq "pop"
 	$if $param=~/(\w+)/
 	    list_pop($out, $1);
+	return
     $elif $func eq "shift"
 	$if $param=~/(\w+)/
 	    list_shift($out, $1);
+	return
     $elif $func eq "foreach"
 	$if $param=~/(\w+)\s+in\s+(\w+)/
+	    my ($iv, $v)=($1, $2)
 	    return list_foreach($out, $iv, $v)
-    $elif $func eq "tempstr"
-	$if $param=~/^\s*"(.*)"/
-	    $param=$1
-	my $t=temp_string($param)
-	MyDef::compileutil::set_current_macro("tempstr", $t)
-    $else
-	$should_return=0
 
 subcode: parsecode_other
-    #print "parsecode residue: [$l]\n";
     $if $l=~/^return\b/
 	func_return($l, $out);
     $elsif $l=~/^SOURCE_INDENT/
@@ -291,23 +268,13 @@ subcode: parsecode_other
     $elsif $l=~/^SOURCE_DEDENT/
 	$cur_indent--;
 
+    $call check_text_includes
     $call check_exponential
     $call check_functioncall
     $call check_termination
 
     $if $l=~/^[^'"]*=/
-	$if $l=~/^(\w+)->\{(.*)\}\s*=\s*(.+)/
-	    $l=hash_assign($out, $1, $2, $3);
-	$elsif $l=~/^(\w+)\s*=\s*(\w+)->\{(.*)\}/
-	    $l=hash_fetch($out, $2, $3, $1);
-	$elsif $l=~/^(\w+)\s*=\s*(shift|pop)\s+(\w+)/
-	    $if $2 eq "shift"
-		$l=array_shift($out, $3, $1);
-	    $elif $2 eq "pop"
-		$l=array_pop($out, $3, $1);
 	check_assignment(\$l, $out);
-    $if $l
-	push @$out, $l;
 
 # ----------------------------------------------
 subcode: c_parse_for
@@ -326,7 +293,12 @@ subcode: c_parse_for
 	    $else
 		$stepclause="$var=$i0;$var<$i1;$var+=$t";
 	$else
-	    $if $i1=~/^-?\d+/ and $i0=~/^-?\d+/ and $i1<$i0
+	    # CAUTION
+	    # I would like to have $i=n:0 be the reverse of $i=0:n
+	    # Infact I would to symmetry between $i=$a:$b:$step and $i=$b:$a:-$step, TO BE DONE
+	    $if $i1 eq "0"
+		$stepclause="$var=$i0-1;$var>=0;$var--";
+	    $elif $i1=~/^-?\d+/ and $i0=~/^-?\d+/ and $i1<$i0
 		$stepclause="$var=$i0;$var>$i1;$var--";
 	    $else
 		$stepclause="$var=$i0;$var<$i1;$var++";
@@ -334,100 +306,157 @@ subcode: c_parse_for
     $else
 	return single_block("for($param){", "}")
 
-subcode: c_parse_getopt
-    $includes{"<stdlib.h>"}=1;
-    $includes{"<unistd.h>"}=1;
-    my $cstr='';
-    $foreach my $v in @vlist
-	$if $v=~/(\w+):(\w+)(=.*)?/
-	    func_add_var($1);
-	    $if substr($1, 0, 2) eq "b_"
-		$cstr.=$2;
-		push @$out, "$1=0;";
-	    $elsif $3
-		push @$out, "$1$3;";
-		$cstr.="$2::";
-	    $else
-		$cstr.="$2:";
-    push @$out, "opterr = 1;";
-    func_add_var("c", "char");
-    push @$out, "while ((c=getopt(argc, argv, \"$cstr\"))!=-1){";
-    push @$out, "    switch(c){";
-    $foreach my $v in @vlist
-	$if $v=~/(\w+):(\w+)/
-	    push @$out, "        case '$2':";
-	    my $type=get_var_type($1);
-	    $if substr($1, 0, 2) eq "b_"
-		push @$out, "            $1=1;";
-	    $elsif $type eq "char *"
-		push @$out, "            $1=optarg;";
-	    $elsif $type eq "int" or $type eq "long"
-		push @$out, "            $1=atoi(optarg);";
-	    $elsif $type eq "float" or $type eq "double"
-		push @$out, "            $1=atof(optarg);";
-	push @$out, "            break;";
-    push @$out, "    }";
-    push @$out, "}";
-
-subcode: c_parse_getbits
-    use integer
-    my ($var, $buf, $pos, $bits)=split /,\s+/, $param
-    func_add_var($var)
-    my ($bufvar, $bufpos)=($buf,0)
-    $if $buf=~/(.*)\[(.*)\]/
-	$bufvar=$1
-	$bufpos=$2
-    my @tlist
-    my $byte_off=$pos / 8
-    my $bits_off=$pos % 8
-    $while $bits>0
-	my $t=$bufvar
-	$if $bufpos and $byte_off>0
-	    $t.="[$bufpos+$byte_off]"
-	$elif $bufpos
-	    $t.="[$bufpos]"
-	$else
-	    $t.="[$byte_off]"
-	$if $bits>8
-	    $t="(unsigned int)$t"
-	$if $bits_off
-	    my $mask=sprintf "0x%02x", 0xff>>$bits_off
-	    $t="($t & $mask)"
-	$if $bits>8-$bits_off
-	    $bits-=8-$bits_off
-	    $t="($t<<$bits)"
-	$elif $bits<8-$bits_off
-	    $bits=8-$bits_off-$bits
-	    $t="($t>>$bits)"
-	    $bits=0
-	$else
-	    $bits=0
-	push @tlist, $t
-	$bits_off=0
-	$byte_off++
-    push @$out, "$var = ".join("|", @tlist).";"
+subcode: parsecode_condition(cond)
+    $(cond)=parse_condition($(cond), $out)
 
 subcode:: c_support_subs
-    $sub parse_condition
-	my ($param)=@_;
-	$if $param=~/^(\S+)\s*(!~|=~)\s*\/(.*)\//
-	    my ($var, $eq, $pattern)=($1, $2, $3)
-	    my ($pos, $end)
-	    $if $var=~/(.*)\[(.*)\]/
-		($var, $pos)=($1, $2)
-	    $else
-		($pos, $end)=(0, 0)
-	    my $t= parse_regex_match($pattern, $var, $pos, $end);
-	    $if $eq =~/!~/
-		return "!($t)"
-	    $else
-		return $t;
+    $sub parse_condition($param)
+	$if $param=~/^\$(\w+)\s+(.*)/
+	    my ($func, $param)=($1, $2)
+	    $call parse_condition_check_plugin
+	$while $param =~ /(\S+)\s+eq\s+"(.*?)"/
+	    my ($var, $key)=($1, $2);
+	    my $keylen=length($key);
+	    $param=$`."strncmp($var, \"$key\", $keylen)==0".$';
 
-	$elsif $param=~/(\w+)->\{(.*)\}/
-	    return hash_check($1, $2);
-	$elsif $param!~/^\(.*\)$/ and $param=~/[^!><=']=[^=]/
+	$if $param=~/(\w+)->\{(.*)\}/
+	    my $t="\$"."(macro_hash_cond:$1,$2)"
+	    MyDef::compileutil::expand_macro_recurse(\$t)
+	    return $t
+	$elsif $param!~/^\(.*\)$/ and $param=~/[^!><=]=[^=]/
 	    print "Assignment in [$param], possible bug?\n"
 	    return $param
 	$else
 	    return $param;
+
+# ----------------------------------------------
+subcode: parse_function
+    $call check_autoload_h
+    $if !$autoload_h and $param=~/(\w+)(.*)/
+	my ($fname, $paramline)=($1, $2)
+	$if $paramline=~/\((.*)\)/
+	    $paramline=$1
+	$elif $paramline=~/^\s*,\s*(.*)/
+	    $paramline=$1
+	my $fidx=open_function($fname, $paramline)
+	push @$out, "OPEN_FUNC_$fidx";
+	push @$out, "SOURCE_INDENT";
+	push @$out, "BLOCK";
+	push @$out, "SOURCE_DEDENT";
+	$call add_to_autoload_h, "function-$fname"
+	return "NEWBLOCK-\$function_end";
+    $else
+	return "SKIPBLOCK"
+
+subcode: parse_function_end
+    $cur_function=pop @function_stack
+
+subcode: parse_function_list
+    $call check_autoload_h
+    $if !$autoload_h
+	my @tlist=split /,\s*/, $param
+	$foreach $f in @tlist
+	    $call parse_function_list_item, $f
+	    $call add_to_autoload_h, "function-$f"
+
+subcode: parse_function_list_item(f)
+    my $funcname=$(f)
+    my $codename=$(f)
+    $if $f=~/(\w+)\((\w+)\)/
+	$codename=$1
+	$funcname=$2
+    $funcname=~s/^@//
+    my $params=MyDef::compileutil::get_sub_param_list($codename)
+    my $paramline=join(",", @$params)
+    $if $funcname eq "n_main" or $funcname eq "main2"
+	$funcname="main";
+    my $fidx=open_function($funcname, $paramline);
+    push @$out, "OPEN_FUNC_$fidx";
+    $cur_indent=1
+    push @$out, "SOURCE_INDENT"
+    MyDef::compileutil::call_sub($codename, "\$list")
+    push @$out, "SOURCE_DEDENT"
+    $cur_function=pop @function_stack
+
+# ---------------------------------------------------
+subcode:: support_subs
+    $sub data_pack($param)
+	$call datapack, pack
+
+    $sub data_unpack($param)
+	$call datapack, unpack
+
+subcode: datapack(dir)
+    my @t=split /,\s*/, $param
+    my $buf=shift @t
+    my $fmt=shift @t
+    $if !$buf
+	warn " datapack ($(dir)): buf empty: $param\n"
+    my @vlist=@t
+    $if $fmt=~/"(.*)"/
+	$fmt=$1
+    my $fmt_pos=0
+    my $buf_pos=0
+    my $fmt_len=length($fmt)
+    my $last_var
+    $while $fmt_pos<$fmt_len
+	my $var=shift @vlist
+	my $vartype=get_var_type($var)
+	my $c=substr($fmt, $fmt_pos, 1)
+	$if $c eq "s"
+	    $(if:dir=pack)
+		$call datapack_pointer
+	    $(else)
+		$call dataunpack_pointer
+	$elif $c=~/\d/
+	    $(if:dir=pack)
+		$call datapack_var
+	    $(else)
+		$call dataunpack_var
+	    $buf_pos+=$c
+	$fmt_pos++
+	$last_var=$var
+
+subcode: datapack_pointer
+    push @$out, "memcpy($buf+$buf_pos, (const void *)$var, $last_var);"
+
+subcode: dataunpack_pointer
+    push @$out, "$var=($vartype)($buf+$buf_pos);"
+
+subcode: datapack_var
+    $if $vartype=~/int/
+	$if $c==1
+	    push @$out, "*((char *)($buf+$buf_pos))=$var;"
+	$elif $c==2
+	    push @$out, "*((short *)($buf+$buf_pos))=$var;"
+	$elif $c==4
+	    push @$out, "*((int *)($buf+$buf_pos))=$var;"
+    $elif $vartype=~/unsigned/
+	$if $c==1
+	    push @$out, "*((unsigned char *)($buf+$buf_pos))=$var;"
+	$elif $c==2
+	    push @$out, "*((unsigned short *)($buf+$buf_pos))=$var;"
+	$elif $c==4
+	    push @$out, "*((unsigned int *)($buf+$buf_pos))=$var;"
+    $else
+	print "pack: unhandled type $var - $vartype\n"
+
+subcode: dataunpack_var
+    $if $vartype=~/int/
+	$if $c==1
+	    push @$out, "$var=*((char *)($buf+$buf_pos));"
+	$elif $c==2
+	    push @$out, "$var=*((short *)($buf+$buf_pos));"
+	$elif $c==4
+	    push @$out, "$var=*((int *)($buf+$buf_pos));"
+    $elif $vartype=~/unsigned/
+	$if $c==1
+	    push @$out, "$var=*((unsigned char *)($buf+$buf_pos));"
+	$elif $c==2
+	    push @$out, "$var=*((unsigned short *)($buf+$buf_pos));"
+	$elif $c==4
+	    push @$out, "$var=*((unsigned int *)($buf+$buf_pos));"
+    $else
+	print "unpack: unhandled type $var - $vartype\n"
+
 

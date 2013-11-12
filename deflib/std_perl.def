@@ -35,3 +35,14 @@ subcode: html_tag(tag)
     print Out "</$(tag)>\n"
 
 
+# -- COMMON PATTERNS ---------------
+subcode: topdown_loop(name, top)
+    my %$(name)_hash
+    my @$(name)_list
+    $global @topdown_list
+    @topdown_list = ($(top))
+
+    $while my $$(name)=pop @topdown_list
+	$if !$$(name)_hash{$$(name)}
+	    $$(name)_hash{$$(name)}=1
+	    BLOCK
