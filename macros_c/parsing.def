@@ -212,8 +212,9 @@ subcode: parsecode_func
 	$if $func eq "global" and $autoload_h
 	    $func="symbol"
 
+	$param=~s/\s*;\s*$//
 	my @vlist=split /,\s+/, $param;
-	$foreach my $v in @vlist
+	$foreach $v in @vlist
 	    $if $func eq "global"
 		my $name=global_add_var($v)
 		$call add_to_autoload_h, "global-$name"
@@ -274,7 +275,7 @@ subcode: parsecode_other
     $call check_termination
 
     $if $l=~/^[^'"]*=/
-	check_assignment(\$l, $out);
+	$call check_assignment
 
 # ----------------------------------------------
 subcode: c_parse_for
@@ -323,7 +324,7 @@ subcode:: c_support_subs
 	    my $t="\$"."(macro_hash_cond:$1,$2)"
 	    MyDef::compileutil::expand_macro_recurse(\$t)
 	    return $t
-	$elsif $param!~/^\(.*\)$/ and $param=~/[^!><=]=[^=]/
+	$elsif $param!~/^\(.*\)$/ and $param=~/[^!><=']=[^=]/
 	    print "Assignment in [$param], possible bug?\n"
 	    return $param
 	$else

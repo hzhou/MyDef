@@ -284,8 +284,10 @@ subcode: infer_type
 	    my $val_type=infer_c_type($value)
 	    $if $debug eq "type" and $type ne $val_type
 		print "infer_type: $type -- $val_type\n"
-	    $if !$type or $type eq "void" or $name=~/^\w+$/
-		$if $val_type and $val_type ne "void"
+	    $if $val_type and $val_type ne "void"
+		$if !$type or $type eq "void"
+		    $type = $val_type
+		$elif $val_type ne "int"
 		    $type = $val_type
 
 subcode: var_array_type

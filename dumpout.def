@@ -77,7 +77,7 @@ subcode: dumpout
 	$elif $l =~/^INCLUDE_BLOCK (\S+)/
 	    push @source_stack, $out
 	    $out=$dump->{$1}
-	$elif $l =~ /^DUMP_STUB\s+(\S+)/
+	$elif $l =~ /^DUMP_STUB\s+(\w+)/
 	    my $source=$MyDef::compileutil::named_blocks{$1};
 	    # print "DUMP_STUB $1 : $source\n"
 	    $if $source

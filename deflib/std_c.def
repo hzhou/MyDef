@@ -36,14 +36,14 @@ subcode: mmap(filename, strname, strsize)
 
 # --------------------------------
 subcode: open_w(file)
-    file_out=fopen($(file), "w")
+    file_out=fopen($(file), "wb")
     $if file_out==NULL
         fprintf(stderr, "Can't write %s\n", $(file))
     $else
         BLOCK
         fclose(file_out)
 subcode: open_r(file)
-    file_in=fopen($(file), "r")
+    file_in=fopen($(file), "rb")
     $if file_in==NULL
         fprintf(stderr, "Can't open %s\n", $(file))
     $else

@@ -1,5 +1,6 @@
 use strict;
 package MyDef::output_c;
+our %misc_vars;
 our %type_name;
 our %type_prefix;
 our %fntype;
@@ -32,10 +33,12 @@ our %structs;
 our @struct_list;
 our @initcodes;
 our %h_hash;
-our @case_stack=(1);
+our @case_stack=(0);
 our $case_level=0;
 our $case_if="if";
 our $case_elif="else if";
+our %plugin_statement;
+our %plugin_condition;
 use MyDef::dumpout;
 our $debug;
 our $mode;
@@ -43,11 +46,8 @@ our $page;
 our $out;
 use MyDef::dumpout;
 my $cur_indent;
-our %misc_vars;
 our $except;
 our $anonymous_count=0;
-our %plugin_statement;
-our %plugin_condition;
 our $print_type=1;
 use File::stat;
 sub get_mtime {
@@ -124,6 +124,9 @@ sub get_interface {
 sub init_page {
     ($page)=@_;
     my $ext="c";
+    if($MyDef::var->{filetype}){
+        $ext=$MyDef::var->{filetype};
+    }
     if($page->{type}){
         $ext=$page->{type};
     }
@@ -183,11 +186,18 @@ sub parsecode {
         }
         return;
     }
-    elsif($l=~/^NOOP/){
+    elsif($l=~/^\$eval\s+(\w+)(.*)/){
+        my ($codename, $param)=($1, $2);
+        $param=~s/^\s*,\s*//;
+        my $t=MyDef::compileutil::eval_sub($codename);
+        eval $t;
+        if($@){
+            print "Error [$l]: $@\n";
+        }
         return;
     }
     if($l eq "CASEPOP"){
-        if($case_level>1){
+        if($case_level>0){
             pop @case_stack;
             $case_level--;
         }
@@ -196,7 +206,7 @@ sub parsecode {
     elsif($l!~/^SUBBLOCK/ and $case_stack[$case_level]>0){
         $case_stack[$case_level]--;
     }
-    if($l=~/^\$(if|elif|elsif|elseif|case)\s*(.*)$/){
+    if($l=~/^\$(if|elif|elsif|elseif|case)\s+(.*)$/){
         my $cond=$2;
         my $case;
         if($1 eq "if"){
@@ -232,7 +242,6 @@ sub parsecode {
         push @$out, "}";
         return "NEWBLOCK";
     }
-    my $should_return=1;
     if($MyDef::compileutil::cur_mode eq "PRINT"){
         push @$out, $l;
         return 0;
@@ -244,9 +253,11 @@ sub parsecode {
             push @$out, "printf(\"subcode: $file - $line - $code->{name}\\n\");";
         }
         open_scope("SUBBLOCK_$1");
+        return;
     }
     elsif($l=~/^SUBBLOCK END (\d+)/){
         close_scope("SUBBLOCK_$1");
+        return;
     }
     elsif($l=~/^\s*PRINT\s+(.*)$/i){
         my $t=$1;
@@ -272,35 +283,52 @@ sub parsecode {
                 MyDef::compileutil::call_sub("$print_type, $fmt");
             }
         }
+        return;
     }
-    elsif($l=~/^\s*\$(\w+)\((.*)\)\s+(.*)$/){
+    elsif($l=~/^\s*\$(\w+)\((.*?)\)\s+(.*)$/){
         my ($func, $param1, $param2)=($1, $2, $3);
+        if($func eq "plugin"){
+            if($param2=~/_condition$/){
+                $plugin_condition{$param1}=$param2;
+            }
+            else{
+                $plugin_statement{$param1}=$param2;
+            }
+            return;
+        }
         if($func eq "allocate"){
             allocate($param1, $param2);
+            return;
         }
         elsif($func eq "local_allocate"){
             local_allocate($param1, $param2);
+            return;
         }
         elsif($func eq "global_allocate"){
             global_allocate($param1, $param2);
+            return;
         }
         elsif($func eq "dump"){
             debug_dump($param2, $param1, $out);
+            return;
         }
         elsif($func eq "register_prefix"){
             $param2=~s/^\s+//;
             $param2=~s/\s+$//;
             $type_prefix{$param1}=$param2;
+            return;
         }
         elsif($func eq "register_name"){
             $param2=~s/^\s+//;
             $param2=~s/\s+$//;
             $type_name{$param1}=$param2;
+            return;
         }
         elsif($func eq "register_include"){
             $param2=~s/^\s+//;
             $param2=~s/\s+$//;
             $type_include{$param1}.=",$param2";
+            return;
         }
         elsif($func eq "get_type"){
             my $type=get_var_type($param2);
@@ -327,9 +355,11 @@ sub parsecode {
         }
         elsif($func eq "struct"){
             declare_struct($param1, $param2);
+            return;
         }
         elsif($func eq "define"){
             add_define($param1, $param2);
+            return;
         }
         elsif($func eq "enum"){
             if(!$enums{$param1}){
@@ -339,6 +369,7 @@ sub parsecode {
                     global_add_symbol("int $1");
                 }
             }
+            return;
         }
         elsif($func eq "enumbase"){
             my $base=0;
@@ -354,6 +385,7 @@ sub parsecode {
                 add_define("$param1$t", $base);
                 $base++;
             }
+            return;
         }
         elsif($func eq "enumbit"){
             my $base=0;
@@ -369,6 +401,7 @@ sub parsecode {
                 add_define("$param1$t",0x1<<$base);
                 $base++;
             }
+            return;
         }
         elsif($func eq "write_h"){
             my $tlist=$h_hash{$param1};
@@ -377,399 +410,408 @@ sub parsecode {
                 $h_hash{$param1}=$tlist;
             }
             push @$tlist, split(/,\s*/, $param2);
+            return;
         }
-        elsif($func eq "plugin"){
-            if($param2=~/_condition$/){
-                $plugin_condition{$param1}=$param2;
+        if($plugin_statement{$func}){
+            my $codename=$plugin_statement{$func};
+            my $t=MyDef::compileutil::eval_sub($codename);
+            eval $t;
+            if($@){
+                print "plugin - $func\n";
+                print "[$t]\n";
+                print "eval error: [$@]\n";
             }
-            else{
-                $plugin_statement{$param1}=$param2;
-            }
-        }
-        else{
-            $should_return=0;
+            return;
         }
     }
     elsif($l=~/^\s*\$(\w+)\s*(.*)$/){
         my ($func, $param)=($1, $2);
-        if($func eq "block"){
-            return single_block("$param\{", "}");
-        }
-        elsif($func eq "allocate"){
-            allocate(1, $param);
-        }
-        elsif($func eq "pack"){
-            data_pack($param);
-        }
-        elsif($func eq "unpack"){
-            data_unpack($param);
-        }
-        elsif($func =~/^except/){
-            return single_block("$except\{", "}");
-        }
-        elsif($func =~ /^(while|switch)$/){
-            my $name=$1;
-            $param=parse_condition($param, $out);
-            return single_block("$name($param){", "}");
-        }
-        elsif($func =~/^dowhile/){
-            $param=parse_condition($param, $out);
-            return single_block("do{", "}while($param);")
-        }
-        elsif($func =~/^whiletrue/){
-            push @$out, "while($param);";
-            return;
-        }
-        elsif($func eq "for"){
-            if($param=~/(\w+)\s*=\s*(.*?):(.*?)(:.*)?$/){
-                my ($var, $i0, $i1, $step)=($1, $2, $3, $4);
-                func_add_var($var, undef, $i0);
-                my $stepclause;
-                if($step){
-                    my $t=substr($step, 1);
-                    if($t eq "-1"){
-                        $stepclause="$var=$i0;$var>$i1;$var--";
-                    }
-                    elsif($t=~/^-/){
-                        $stepclause="$var=$i0;$var>$i1;$var=$var$t";
-                    }
-                    elsif($t eq "1"){
-                        $stepclause="$var=$i0;$var<$i1;$var++";
-                    }
-                    else{
-                        $stepclause="$var=$i0;$var<$i1;$var+=$t";
-                    }
-                }
-                else{
-                    if($i1 eq "0"){
-                        $stepclause="$var=$i0-1;$var>=0;$var--";
-                    }
-                    elsif($i1=~/^-?\d+/ and $i0=~/^-?\d+/ and $i1<$i0){
-                        $stepclause="$var=$i0;$var>$i1;$var--";
-                    }
-                    else{
-                        $stepclause="$var=$i0;$var<$i1;$var++";
-                    }
-                }
-                return single_block("for($stepclause){", "}");
+        if($param !~ /^=/){
+            if($func eq "block"){
+                return single_block("$param\{", "}");
             }
-            else{
-                return single_block("for($param){", "}")
+            elsif($func eq "allocate"){
+                allocate(1, $param);
+                return;
             }
-        }
-        elsif($func eq "return_type"){
-            $cur_function->{ret_type}=$param;
-        }
-        elsif($func eq "parameter"){
-            my @plist=split /,\s*/, $param;
-            my $fplist=$cur_function->{param_list};
-            foreach my $p (@plist){
-                push @$fplist, $p;
-                if($p=~/(.*)\s+(\w+)\s*$/){
-                    $cur_function->{var_type}->{$2}=$1;
-                }
+            elsif($func eq "pack"){
+                data_pack($param);
+                return;
             }
-        }
-        elsif($func eq "include"){
-            my @flist=split /,\s*/, $param;
-            my $autoload;
-            my $autoload_h=0;
-            if($page->{_autoload}){
-                if($page->{autoload} eq "write_h"){
-                    if(!$h_hash{"autoload"}){
-                        $autoload=[];
-                        $h_hash{"autoload"}=$autoload;
-                    }
-                    else{
-                        $autoload=$h_hash{"autoload"};
-                    }
-                }
-                elsif($page->{autoload} eq "h"){
-                    $autoload_h=1;
-                }
+            elsif($func eq "unpack"){
+                data_unpack($param);
+                return;
             }
-            foreach my $f (@flist){
-                my $key;
-                if($f=~/\.\w+$/){
-                    $key="\"$f\"";
-                }
-                elsif($f=~/^".*"$/){
-                    $key=$f;
-                }
-                else{
-                    $key="<$f.h>";
-                }
-                $includes{$key}=1;
-                if($autoload){
-                    push @$autoload, "include-$key";
-                }
+            elsif($func =~/^except/){
+                return single_block("$except\{", "}");
             }
-        }
-        elsif($func eq "declare"){
-            push @declare_list, $param;
-        }
-        elsif($func eq "define"){
-            push @$out, "#define $param";
-        }
-        elsif($func eq "function"){
-            my $autoload;
-            my $autoload_h=0;
-            if($page->{_autoload}){
-                if($page->{autoload} eq "write_h"){
-                    if(!$h_hash{"autoload"}){
-                        $autoload=[];
-                        $h_hash{"autoload"}=$autoload;
-                    }
-                    else{
-                        $autoload=$h_hash{"autoload"};
-                    }
-                }
-                elsif($page->{autoload} eq "h"){
-                    $autoload_h=1;
-                }
+            elsif($func =~ /^(while|switch)$/){
+                my $name=$1;
+                $param=parse_condition($param, $out);
+                return single_block("$name($param){", "}");
             }
-            if(!$autoload_h and $param=~/(\w+)(.*)/){
-                my ($fname, $paramline)=($1, $2);
-                if($paramline=~/\((.*)\)/){
-                    $paramline=$1;
-                }
-                elsif($paramline=~/^\s*,\s*(.*)/){
-                    $paramline=$1;
-                }
-                my $fidx=open_function($fname, $paramline);
-                push @$out, "OPEN_FUNC_$fidx";
-                push @$out, "SOURCE_INDENT";
-                push @$out, "BLOCK";
-                push @$out, "SOURCE_DEDENT";
-                if($autoload){
-                    push @$autoload, "function-$fname";
-                }
-                return "NEWBLOCK-\$function_end";
+            elsif($func =~/^dowhile/){
+                $param=parse_condition($param, $out);
+                return single_block("do{", "}while($param);")
             }
-            else{
-                return "SKIPBLOCK";
+            elsif($func =~/^whiletrue/){
+                push @$out, "while($param);";
+                return;
             }
-        }
-        elsif($func eq "function_end"){
-            $cur_function=pop @function_stack;
-        }
-        elsif($func eq "list"){
-            my $autoload;
-            my $autoload_h=0;
-            if($page->{_autoload}){
-                if($page->{autoload} eq "write_h"){
-                    if(!$h_hash{"autoload"}){
-                        $autoload=[];
-                        $h_hash{"autoload"}=$autoload;
-                    }
-                    else{
-                        $autoload=$h_hash{"autoload"};
-                    }
-                }
-                elsif($page->{autoload} eq "h"){
-                    $autoload_h=1;
-                }
-            }
-            if(!$autoload_h){
-                my @tlist=split /,\s*/, $param;
-                foreach my $f (@tlist){
-                    my $funcname=$f;
-                    my $codename=$f;
-                    if($f=~/(\w+)\((\w+)\)/){
-                        $codename=$1;
-                        $funcname=$2;
-                    }
-                    $funcname=~s/^@//;
-                    my $params=MyDef::compileutil::get_sub_param_list($codename);
-                    my $paramline=join(",", @$params);
-                    if($funcname eq "n_main" or $funcname eq "main2"){
-                        $funcname="main";
-                    }
-                    my $fidx=open_function($funcname, $paramline);
-                    push @$out, "OPEN_FUNC_$fidx";
-                    $cur_indent=1;
-                    push @$out, "SOURCE_INDENT";
-                    MyDef::compileutil::call_sub($codename, "\$list");
-                    push @$out, "SOURCE_DEDENT";
-                    $cur_function=pop @function_stack;
-                    if($autoload){
-                        push @$autoload, "function-$f";
-                    }
-                }
-            }
-        }
-        elsif($func eq "enum"){
-            my $name="ANONYMOUS-$anonymous_count";
-            $anonymous_count++;
-            push @enum_list, $name;
-            $enums{$name}=$param;
-        }
-        elsif($func eq "uselib"){
-            my @flist=split /,\s+/, $param;
-            foreach my $f (@flist){
-                $objects{"lib$f"}=1;
-                if($lib_include{$f}){
-                    my @flist=split /,\s*/, $lib_include{$f};
-                    my $autoload;
-                    my $autoload_h=0;
-                    if($page->{_autoload}){
-                        if($page->{autoload} eq "write_h"){
-                            if(!$h_hash{"autoload"}){
-                                $autoload=[];
-                                $h_hash{"autoload"}=$autoload;
-                            }
-                            else{
-                                $autoload=$h_hash{"autoload"};
-                            }
+            elsif($func eq "for"){
+                if($param=~/(\w+)\s*=\s*(.*?):(.*?)(:.*)?$/){
+                    my ($var, $i0, $i1, $step)=($1, $2, $3, $4);
+                    func_add_var($var, undef, $i0);
+                    my $stepclause;
+                    if($step){
+                        my $t=substr($step, 1);
+                        if($t eq "-1"){
+                            $stepclause="$var=$i0;$var>$i1;$var--";
                         }
-                        elsif($page->{autoload} eq "h"){
-                            $autoload_h=1;
+                        elsif($t=~/^-/){
+                            $stepclause="$var=$i0;$var>$i1;$var=$var$t";
                         }
-                    }
-                    foreach my $f (@flist){
-                        my $key;
-                        if($f=~/\.\w+$/){
-                            $key="\"$f\"";
-                        }
-                        elsif($f=~/^".*"$/){
-                            $key=$f;
+                        elsif($t eq "1"){
+                            $stepclause="$var=$i0;$var<$i1;$var++";
                         }
                         else{
-                            $key="<$f.h>";
+                            $stepclause="$var=$i0;$var<$i1;$var+=$t";
                         }
-                        $includes{$key}=1;
-                        if($autoload){
-                            push @$autoload, "include-$key";
-                        }
-                    }
-                }
-            }
-        }
-        elsif($func eq "fntype"){
-            if($param=~/^.*?\(\s*\*\s*(\w+)\s*\)/){
-                $fntype{$1}=$param;
-            }
-        }
-        elsif($func eq "debug_mem"){
-            push @$out, "debug_mem=1;";
-            $misc_vars{"debug_mem"}=1;
-        }
-        elsif($func eq "typedef"){
-            add_typedef($param);
-        }
-        elsif($func eq "global" or $func eq "local" or $func eq "my" or $func eq "symbol"){
-            my $autoload;
-            my $autoload_h=0;
-            if($page->{_autoload}){
-                if($page->{autoload} eq "write_h"){
-                    if(!$h_hash{"autoload"}){
-                        $autoload=[];
-                        $h_hash{"autoload"}=$autoload;
                     }
                     else{
-                        $autoload=$h_hash{"autoload"};
+                        if($i1 eq "0"){
+                            $stepclause="$var=$i0-1;$var>=0;$var--";
+                        }
+                        elsif($i1=~/^-?\d+/ and $i0=~/^-?\d+/ and $i1<$i0){
+                            $stepclause="$var=$i0;$var>$i1;$var--";
+                        }
+                        else{
+                            $stepclause="$var=$i0;$var<$i1;$var++";
+                        }
                     }
-                }
-                elsif($page->{autoload} eq "h"){
-                    $autoload_h=1;
-                }
-            }
-            if($func eq "global" and $autoload_h){
-                $func="symbol";
-            }
-            my @vlist=split /,\s+/, $param;
-            foreach my $v (@vlist){
-                if($func eq "global"){
-                    my $name=global_add_var($v);
-                    if($autoload){
-                        push @$autoload, "global-$name";
-                    }
-                }
-                elsif($func eq "symbol"){
-                    global_add_symbol($v);
-                }
-                elsif($func eq "my" and !$page->{disable_scope}){
-                    scope_add_var($v);
+                    return single_block("for($stepclause){", "}");
                 }
                 else{
-                    func_add_var($v, "local");
+                    return single_block("for($param){", "}")
+                }
+                return;
+            }
+            elsif($func eq "return_type"){
+                $cur_function->{ret_type}=$param;
+                return;
+            }
+            elsif($func eq "parameter"){
+                my @plist=split /,\s*/, $param;
+                my $fplist=$cur_function->{param_list};
+                foreach my $p (@plist){
+                    push @$fplist, $p;
+                    if($p=~/(.*)\s+(\w+)\s*$/){
+                        $cur_function->{var_type}->{$2}=$1;
+                    }
+                }
+                return;
+            }
+            elsif($func eq "include"){
+                my @flist=split /,\s*/, $param;
+                my $autoload;
+                my $autoload_h=0;
+                if($page->{_autoload}){
+                    if($page->{autoload} eq "write_h"){
+                        if(!$h_hash{"autoload"}){
+                            $autoload=[];
+                            $h_hash{"autoload"}=$autoload;
+                        }
+                        else{
+                            $autoload=$h_hash{"autoload"};
+                        }
+                    }
+                    elsif($page->{autoload} eq "h"){
+                        $autoload_h=1;
+                    }
+                }
+                foreach my $f (@flist){
+                    my $key;
+                    if($f=~/\.\w+$/){
+                        $key="\"$f\"";
+                    }
+                    elsif($f=~/^".*"$/){
+                        $key=$f;
+                    }
+                    else{
+                        $key="<$f.h>";
+                    }
+                    $includes{$key}=1;
+                    if($autoload){
+                        push @$autoload, "include-$key";
+                    }
+                }
+                return;
+            }
+            elsif($func eq "declare"){
+                push @declare_list, $param;
+                return;
+            }
+            elsif($func eq "define"){
+                push @$out, "#define $param";
+                return;
+            }
+            elsif($func eq "function"){
+                my $autoload;
+                my $autoload_h=0;
+                if($page->{_autoload}){
+                    if($page->{autoload} eq "write_h"){
+                        if(!$h_hash{"autoload"}){
+                            $autoload=[];
+                            $h_hash{"autoload"}=$autoload;
+                        }
+                        else{
+                            $autoload=$h_hash{"autoload"};
+                        }
+                    }
+                    elsif($page->{autoload} eq "h"){
+                        $autoload_h=1;
+                    }
+                }
+                if(!$autoload_h and $param=~/(\w+)(.*)/){
+                    my ($fname, $paramline)=($1, $2);
+                    if($paramline=~/\((.*)\)/){
+                        $paramline=$1;
+                    }
+                    elsif($paramline=~/^\s*,\s*(.*)/){
+                        $paramline=$1;
+                    }
+                    my $fidx=open_function($fname, $paramline);
+                    push @$out, "OPEN_FUNC_$fidx";
+                    push @$out, "SOURCE_INDENT";
+                    push @$out, "BLOCK";
+                    push @$out, "SOURCE_DEDENT";
+                    if($autoload){
+                        push @$autoload, "function-$fname";
+                    }
+                    return "NEWBLOCK-\$function_end";
+                }
+                else{
+                    return "SKIPBLOCK";
+                }
+                return;
+            }
+            elsif($func eq "function_end"){
+                $cur_function=pop @function_stack;
+                return;
+            }
+            elsif($func eq "list"){
+                my $autoload;
+                my $autoload_h=0;
+                if($page->{_autoload}){
+                    if($page->{autoload} eq "write_h"){
+                        if(!$h_hash{"autoload"}){
+                            $autoload=[];
+                            $h_hash{"autoload"}=$autoload;
+                        }
+                        else{
+                            $autoload=$h_hash{"autoload"};
+                        }
+                    }
+                    elsif($page->{autoload} eq "h"){
+                        $autoload_h=1;
+                    }
+                }
+                if(!$autoload_h){
+                    my @tlist=split /,\s*/, $param;
+                    foreach my $f (@tlist){
+                        my $funcname=$f;
+                        my $codename=$f;
+                        if($f=~/(\w+)\((\w+)\)/){
+                            $codename=$1;
+                            $funcname=$2;
+                        }
+                        $funcname=~s/^@//;
+                        my $params=MyDef::compileutil::get_sub_param_list($codename);
+                        my $paramline=join(",", @$params);
+                        if($funcname eq "n_main" or $funcname eq "main2"){
+                            $funcname="main";
+                        }
+                        my $fidx=open_function($funcname, $paramline);
+                        push @$out, "OPEN_FUNC_$fidx";
+                        $cur_indent=1;
+                        push @$out, "SOURCE_INDENT";
+                        MyDef::compileutil::call_sub($codename, "\$list");
+                        push @$out, "SOURCE_DEDENT";
+                        $cur_function=pop @function_stack;
+                        if($autoload){
+                            push @$autoload, "function-$f";
+                        }
+                    }
+                }
+                return;
+            }
+            elsif($func eq "enum"){
+                my $name="ANONYMOUS-$anonymous_count";
+                $anonymous_count++;
+                push @enum_list, $name;
+                $enums{$name}=$param;
+                return;
+            }
+            elsif($func eq "uselib"){
+                my @flist=split /,\s+/, $param;
+                foreach my $f (@flist){
+                    $objects{"lib$f"}=1;
+                    if($lib_include{$f}){
+                        my @flist=split /,\s*/, $lib_include{$f};
+                        my $autoload;
+                        my $autoload_h=0;
+                        if($page->{_autoload}){
+                            if($page->{autoload} eq "write_h"){
+                                if(!$h_hash{"autoload"}){
+                                    $autoload=[];
+                                    $h_hash{"autoload"}=$autoload;
+                                }
+                                else{
+                                    $autoload=$h_hash{"autoload"};
+                                }
+                            }
+                            elsif($page->{autoload} eq "h"){
+                                $autoload_h=1;
+                            }
+                        }
+                        foreach my $f (@flist){
+                            my $key;
+                            if($f=~/\.\w+$/){
+                                $key="\"$f\"";
+                            }
+                            elsif($f=~/^".*"$/){
+                                $key=$f;
+                            }
+                            else{
+                                $key="<$f.h>";
+                            }
+                            $includes{$key}=1;
+                            if($autoload){
+                                push @$autoload, "include-$key";
+                            }
+                        }
+                    }
+                }
+                return;
+            }
+            elsif($func eq "fntype"){
+                if($param=~/^.*?\(\s*\*\s*(\w+)\s*\)/){
+                    $fntype{$1}=$param;
+                }
+                return;
+            }
+            elsif($func eq "debug_mem"){
+                push @$out, "debug_mem=1;";
+                $misc_vars{"debug_mem"}=1;
+                return;
+            }
+            elsif($func eq "typedef"){
+                add_typedef($param);
+            }
+            elsif($func eq "global" or $func eq "local" or $func eq "my" or $func eq "symbol"){
+                my $autoload;
+                my $autoload_h=0;
+                if($page->{_autoload}){
+                    if($page->{autoload} eq "write_h"){
+                        if(!$h_hash{"autoload"}){
+                            $autoload=[];
+                            $h_hash{"autoload"}=$autoload;
+                        }
+                        else{
+                            $autoload=$h_hash{"autoload"};
+                        }
+                    }
+                    elsif($page->{autoload} eq "h"){
+                        $autoload_h=1;
+                    }
+                }
+                if($func eq "global" and $autoload_h){
+                    $func="symbol";
+                }
+                $param=~s/\s*;\s*$//;
+                my @vlist=split /,\s+/, $param;
+                foreach my $v (@vlist){
+                    if($func eq "global"){
+                        my $name=global_add_var($v);
+                        if($autoload){
+                            push @$autoload, "global-$name";
+                        }
+                    }
+                    elsif($func eq "symbol"){
+                        global_add_symbol($v);
+                    }
+                    elsif($func eq "my" and !$page->{disable_scope}){
+                        scope_add_var($v);
+                    }
+                    else{
+                        func_add_var($v, "local");
+                    }
+                }
+                return;
+            }
+            elsif($func eq "globalinit"){
+                global_add_var($param);
+                return;
+            }
+            elsif($func eq "localinit"){
+                func_add_var($param, "local");
+                return;
+            }
+            elsif($func eq "myinit"){
+                if($page->{disable_scope}){
+                    func_add_var($param, "local");
+                }
+                else{
+                    scope_add_var($param);
+                }
+                return;
+            }
+            elsif($func eq "dump"){
+                debug_dump($param, undef, $out);
+                return;
+            }
+            elsif($func eq "push"){
+                if($param=~/(\w+),\s*(.*)/){
+                    list_push($out, $1, $2);
+                }
+                return;
+            }
+            elsif($func eq "unshift"){
+                if($param=~/(\w+),\s*(.*)/){
+                    list_unshift($out, $1, $2);
+                }
+                return;
+            }
+            elsif($func eq "pop"){
+                if($param=~/(\w+)/){
+                    list_pop($out, $1);
+                }
+                return;
+            }
+            elsif($func eq "shift"){
+                if($param=~/(\w+)/){
+                    list_shift($out, $1);
+                }
+                return;
+            }
+            elsif($func eq "foreach"){
+                if($param=~/(\w+)\s+in\s+(\w+)/){
+                    my ($iv, $v)=($1, $2);
+                    return list_foreach($out, $iv, $v);
                 }
             }
-        }
-        elsif($func eq "globalinit"){
-            global_add_var($param);
-        }
-        elsif($func eq "localinit"){
-            func_add_var($param, "local");
-        }
-        elsif($func eq "myinit"){
-            if($page->{disable_scope}){
-                func_add_var($param, "local");
-            }
-            else{
-                scope_add_var($param);
-            }
-        }
-        elsif($func eq "dump"){
-            debug_dump($param, undef, $out);
-        }
-        elsif($func eq "push"){
-            if($param=~/(\w+),\s*(.*)/){
-                list_push($out, $1, $2);
-            }
-        }
-        elsif($func eq "unshift"){
-            if($param=~/(\w+),\s*(.*)/){
-                list_unshift($out, $1, $2);
-            }
-        }
-        elsif($func eq "pop"){
-            if($param=~/(\w+)/){
-                list_pop($out, $1);
-            }
-        }
-        elsif($func eq "shift"){
-            if($param=~/(\w+)/){
-                list_shift($out, $1);
-            }
-        }
-        elsif($func eq "foreach"){
-            if($param=~/(\w+)\s+in\s+(\w+)/){
-                my ($iv, $v)=($1, $2);
-                return list_foreach($out, $iv, $v);
-            }
-        }
-        elsif($func eq "eval"){
-            if($param=~/(\w+)(.*)/){
-                my $codename=$1;
-                $param=$2;
-                $param=~s/^\s*,\s*//;
+            if($plugin_statement{$func}){
+                my $codename=$plugin_statement{$func};
                 my $t=MyDef::compileutil::eval_sub($codename);
                 eval $t;
                 if($@){
-                    print "Error [$l]: $@\n";
+                    print "plugin - $func\n";
+                    print "[$t]\n";
+                    print "eval error: [$@]\n";
                 }
-            }
-            $should_return=1;
-        }
-        else{
-            $should_return=0;
-            foreach my $funcname (keys %plugin_statement){
-                if($func eq $funcname){
-                    my $codename=$plugin_statement{$funcname};
-                    my $t=MyDef::compileutil::eval_sub($codename);
-                    eval $t;
-                    $should_return=1;
-                    last;
-                }
+                return;
             }
         }
-    }
-    else{
-        $should_return=0;
-    }
-    if($should_return){
-        return;
     }
     if($l=~/^return\b/){
         func_return($l, $out);
@@ -838,17 +880,36 @@ sub parsecode {
     }
     elsif($l=~/(for|while|if|else if)\s*\(.*\)\s*$/){
     }
-    elsif($l!~/[:\{\};]\s*$/){
+    elsif($l!~/[:\{\};,]\s*$/){
         $l.=";";
     }
     if($l=~/^[^'"]*=/){
-        check_assignment(\$l, $out);
+        if($debug eq "type"){
+            print "check_assignment: $l\n";
+        }
+        if($cur_function and $l=~/^[^'"\(]*=/){
+            my $tl=$l;
+            $tl=~s/;+\s*$//;
+            if($tl=~/^\s*\((.*?\w)\)\s*=\s*\((.*)\)/){
+                my ($left, $right)=($1, $2);
+                my @left=split /,\s*/, $left;
+                my @right=comma_split($right);
+                for(my $i=0;$i<$#left+1;$i++){
+                    do_assignment($left[$i], $right[$i], $out);
+                }
+                return;
+            }
+            elsif($tl=~/^\s*(.*?\w)\s*=\s*([^=].*)/){
+                my ($left, $right)=($1, $2);
+                do_assignment($left, $right, $out);
+                return;
+            }
+        }
     }
     push @$out, $l;
 }
 sub dumpout {
-    my $f;
-    ($f, $out)=@_;
+    my ($f, $out, $pagetype)=@_;
     my $dump={out=>$out,f=>$f};
     my $mainfunc=$functions{"main"};
     if($mainfunc){
@@ -1152,15 +1213,18 @@ sub single_block_pre_post {
 sub parse_condition {
     my ($param)=@_;
     if($param=~/^\$(\w+)\s+(.*)/){
-        foreach my $funcname (keys %plugin_condition){
-            if($1 eq $funcname){
-                my $param=$2;
-                my $codename=$plugin_condition{$funcname};
-                my $condition;
-                my $t=MyDef::compileutil::eval_sub($codename);
-                eval $t;
-                return $condition;
+        my ($func, $param)=($1, $2);
+        if($plugin_condition{$func}){
+            my $condition;
+            my $codename=$plugin_statement{$func};
+            my $t=MyDef::compileutil::eval_sub($codename);
+            eval $t;
+            if($@){
+                print "plugin - $func\n";
+                print "[$t]\n";
+                print "eval error: [$@]\n";
             }
+            return $condition;
         }
     }
     while($param =~ /(\S+)\s+eq\s+"(.*?)"/){
@@ -1173,7 +1237,7 @@ sub parse_condition {
         MyDef::compileutil::expand_macro_recurse(\$t);
         return $t;
     }
-    elsif($param!~/^\(.*\)$/ and $param=~/[^!><=]=[^=]/){
+    elsif($param!~/^\(.*\)$/ and $param=~/[^!><=']=[^=]/){
         print "Assignment in [$param], possible bug?\n";
         return $param;
     }
@@ -1228,30 +1292,6 @@ sub comma_split {
     }
     return @t;
 }
-sub check_assignment {
-    my ($l, $out)=@_;
-    if($debug eq "type"){
-        print "check_assignment: $l\n";
-    }
-    if($cur_function and $$l=~/^[^'"\(]*=/){
-        my $tl=$$l;
-        $tl=~s/;+\s*$//;
-        if($tl=~/^\s*\((.*?\w)\)\s*=\s*\((.*)\)/){
-            undef $$l;
-            my ($left, $right)=($1, $2);
-            my @left=split /,\s*/, $left;
-            my @right=comma_split($right);
-            for(my $i=0;$i<$#left+1;$i++){
-                do_assignment($left[$i], $right[$i], $out);
-            }
-        }
-        elsif($tl=~/^\s*(.*?\w)\s*=\s*([^=].*)/){
-            undef $$l;
-            my ($left, $right)=($1, $2);
-            do_assignment($left, $right, $out);
-        }
-    }
-}
 sub do_assignment {
     my ($left, $right, $out)=@_;
     if($debug eq "type"){
@@ -1263,7 +1303,9 @@ sub do_assignment {
         $left=$2;
     }
     if($left=~/^\w+$/){
-        func_add_var($left, $type, $right);
+        if(!$global_type->{$left}){
+            func_add_var($left, $type, $right);
+        }
     }
     push @$out, "$left=$right;";
 }
@@ -1551,6 +1593,8 @@ sub open_function {
     push @function_stack, $cur_function;
     $cur_function=$func;
     my $fidx=MyDef::dumpout::add_function($func);
+    $case_level=0;
+    $case_stack[$case_level]=0;
     return $fidx;
 }
 my $cur_scope;
@@ -1717,8 +1761,11 @@ sub func_add_var {
             if($debug eq "type" and $type ne $val_type){
                 print "infer_type: $type -- $val_type\n";
             }
-            if(!$type or $type eq "void"){
-                if($val_type and $val_type ne "void"){
+            if($val_type and $val_type ne "void"){
+                if(!$type or $type eq "void"){
+                    $type = $val_type;
+                }
+                elsif($val_type ne "int"){
                     $type = $val_type;
                 }
             }
@@ -1850,8 +1897,11 @@ sub global_add_var {
             if($debug eq "type" and $type ne $val_type){
                 print "infer_type: $type -- $val_type\n";
             }
-            if(!$type or $type eq "void"){
-                if($val_type and $val_type ne "void"){
+            if($val_type and $val_type ne "void"){
+                if(!$type or $type eq "void"){
+                    $type = $val_type;
+                }
+                elsif($val_type ne "int"){
                     $type = $val_type;
                 }
             }
@@ -1962,8 +2012,11 @@ sub scope_add_var {
             if($debug eq "type" and $type ne $val_type){
                 print "infer_type: $type -- $val_type\n";
             }
-            if(!$type or $type eq "void"){
-                if($val_type and $val_type ne "void"){
+            if($val_type and $val_type ne "void"){
+                if(!$type or $type eq "void"){
+                    $type = $val_type;
+                }
+                elsif($val_type ne "int"){
                     $type = $val_type;
                 }
             }
@@ -2095,8 +2148,11 @@ sub global_add_symbol {
             if($debug eq "type" and $type ne $val_type){
                 print "infer_type: $type -- $val_type\n";
             }
-            if(!$type or $type eq "void"){
-                if($val_type and $val_type ne "void"){
+            if($val_type and $val_type ne "void"){
+                if(!$type or $type eq "void"){
+                    $type = $val_type;
+                }
+                elsif($val_type ne "int"){
                     $type = $val_type;
                 }
             }
@@ -2831,7 +2887,7 @@ sub process_function_std {
     if(@$var_list){
         foreach my $v (@$var_list){
             if($global_type->{$v}){
-                print "  [warning] In $name: local variable $v with exisiting global\n";
+                print "  [warning] In $name: local variable $v has existing global\n";
             }
             push @pre, "$var_decl->{$v};";
         }
@@ -2869,6 +2925,9 @@ sub add_define {
     if(!$autoload_h){
         if(!defined $defines{$name}){
             push @define_list, $name;
+        }
+        else{
+            warn "Duplicate define $name: [$defines{$name}] -> [$var]\n";
         }
         $defines{$name}=$var;
         if($autoload){

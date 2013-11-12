@@ -1,3 +1,5 @@
+include: modules.def
+
 page: MyDef
     type: pm
     output_dir: lib
@@ -33,7 +35,7 @@ subcode: mydef_main
 	my $module=$var->{module};
 	$if !$module
 	    die "Module type not defined in config!\n"
-	$map require_module, php, www, c, xs, apple, win32, win32rc, perl, general, glsl, make
+	$map require_module, $(module_list)
 	$else
 	    die "Undefined module type $module\n";
     # ----

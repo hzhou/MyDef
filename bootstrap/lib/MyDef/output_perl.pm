@@ -1,6 +1,6 @@
 use strict;
 package MyDef::output_perl;
-our @case_stack=(1);
+our @case_stack=(0);
 our $case_level=0;
 our $case_if="if";
 our $case_elif="elsif";
@@ -17,6 +17,9 @@ sub get_interface {
 sub init_page {
     ($page)=@_;
     my $ext="pl";
+    if($MyDef::var->{filetype}){
+        $ext=$MyDef::var->{filetype};
+    }
     if($page->{type}){
         $ext=$page->{type};
     }
@@ -53,11 +56,18 @@ sub parsecode {
         }
         return;
     }
-    elsif($l=~/^NOOP/){
+    elsif($l=~/^\$eval\s+(\w+)(.*)/){
+        my ($codename, $param)=($1, $2);
+        $param=~s/^\s*,\s*//;
+        my $t=MyDef::compileutil::eval_sub($codename);
+        eval $t;
+        if($@){
+            print "Error [$l]: $@\n";
+        }
         return;
     }
     if($l eq "CASEPOP"){
-        if($case_level>1){
+        if($case_level>0){
             pop @case_stack;
             $case_level--;
         }
@@ -66,7 +76,7 @@ sub parsecode {
     elsif($l!~/^SUBBLOCK/ and $case_stack[$case_level]>0){
         $case_stack[$case_level]--;
     }
-    if($l=~/^\$(if|elif|elsif|elseif|case)\s*(.*)$/){
+    if($l=~/^\$(if|elif|elsif|elseif|case)\s+(.*)$/){
         my $cond=$2;
         my $case;
         if($1 eq "if"){
@@ -105,6 +115,7 @@ sub parsecode {
         my $func=$1;
         my $param=$2;
         if($func =~ /^global$/){
+            $param=~s/\s*;\s*$//;
             my @tlist=split /,\s*/, $param;
             foreach my $v (@tlist){
                 if(!$globals{$v}){
@@ -168,6 +179,14 @@ sub parsecode {
     }
     if($l=~/^\s*$/){
     }
+    elsif($l=~/^\s*(break|continue);?\s*$/){
+        if($1 eq "break"){
+            $l="last;";
+        }
+        elsif($l eq "continue"){
+            $l="next;";
+        }
+    }
     elsif($l=~/(for|while|if|else if)\s*\(.*\)\s*$/){
     }
     elsif($l=~/^\s*}/){
@@ -181,14 +200,14 @@ sub parsecode {
     return 0;
 }
 sub dumpout {
-    my $f;
-    ($f, $out)=@_;
+    my ($f, $out, $pagetype)=@_;
     my $dump={out=>$out,f=>$f};
-    my $pagetype=$MyDef::page->{type};
-    if(!defined $pagetype or $pagetype eq "pl"){
-        push @$f, "#!/usr/bin/perl\n";
+    if(defined $pagetype){
+        if($pagetype eq "pl"){
+            push @$f, "#!/usr/bin/perl\n";
+        }
+        push @$f, "use strict;\n";
     }
-    push @$f, "use strict;\n";
     if($MyDef::page->{package}){
         push @$f, "package ".$MyDef::page->{package}.";\n";
     }

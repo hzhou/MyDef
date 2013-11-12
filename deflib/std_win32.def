@@ -11,6 +11,7 @@ subcode: win32_autoload
     $register_prefix(lpstr) LPSTR
 
     $register_prefix(hwnd) HWND
+    $register_prefix(hdc) HDC
     $register_prefix(hmenu) HMENU
     $register_prefix(rect) RECT
     $register_prefix(hfont) HFONT
@@ -37,6 +38,15 @@ subcode: win_loop
     $while GetMessage(&msg, NULL, 0, 0)>0
 	TranslateMessage(&msg)
 	DispatchMessage(&msg)
+
+# ---------
+subcode: on_paint
+    $local PAINTSTRUCT ps
+    $local HDC hdc
+    hdc = BeginPaint(hwnd, &ps)
+    BLOCK
+    EndPaint(hwnd, &ps)
+    return 0
 
 ###############################################################
 # -----------------------------------------------------------------------
@@ -100,7 +110,7 @@ subcode: openfilename
 subcode: register_wndclass(name, proc)
     $local WNDCLASSEX wc
     wc.cbSize = sizeof(WNDCLASSEX);
-    wc.hInstance = cur_instance;
+    wc.hInstance = cur_instance
     wc.cbClsExtra = 0;
 
     $(if:wc_style!=1)
