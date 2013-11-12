@@ -21,7 +21,7 @@ page: mydef_make
 
 	# ---- in current directory ------------------------
 	my @master_config;
-	my $module="php";
+	my $module="general";
 	my %module_type=(perl=>"pl", php=>"php", xs=>"xs", win32=>"c", c=>"c", apple=>"m", js=>"js", general=>"txt", glsl=>"glsl");
 	my %macros;
 	my @include_folders;
@@ -106,8 +106,8 @@ subcode: copy_master_config
 subcode: create_new_config
     $config_outputdir=prompt("Please enter the path to compile into:");
     print Out "output_dir: $config_outputdir\n";
-    $module=prompt("Please enter module type [php]:");
-    if(!$module){$module="php";}
+    $module=prompt("Please enter module type [general]:");
+    if(!$module){$module="general";}
     print Out "module: $module\n";
 
 subcode: read_config

@@ -425,7 +425,7 @@ subcode:: c_support_subs
 
 	$elsif $param=~/(\w+)->\{(.*)\}/
 	    return hash_check($1, $2);
-	$elsif $param!~/^\(.*\)$/ and $param=~/[^!><=]=[^=]/
+	$elsif $param!~/^\(.*\)$/ and $param=~/[^!><=']=[^=]/
 	    print "Assignment in [$param], possible bug?\n"
 	    return $param
 	$else
