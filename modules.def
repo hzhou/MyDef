@@ -1,0 +1,3 @@
+macros:
+    module_list: php, www, c, xs, apple, win32, win32rc, perl, general, glsl, make, ino
+    module_type: perl=>"pl", www=>"html", win32=>"c", apple=>"m", general=>"txt" 
