@@ -280,14 +280,12 @@ subcode: infer_type
 	$type=get_c_type($name)
 	$if $fntype{$name}
 	    $type="function"
-	$if defined $value
-	    my $val_type=infer_c_type($value)
-	    $if $debug eq "type" and $type ne $val_type
-		print "infer_type: $type -- $val_type\n"
-	    $if $val_type and $val_type ne "void"
-		$if !$type or $type eq "void"
-		    $type = $val_type
-		$elif !name_with_prefix($name)
+	$if !($type and $type ne "void" and name_with_prefix($name))
+	    $if defined $value
+		my $val_type=infer_c_type($value)
+		$if $debug eq "type" and $type ne $val_type
+		    print "infer_type: $type -- $val_type\n"
+		$if $val_type and $val_type ne "void"
 		    $type = $val_type
 
 subcode: var_array_type

@@ -88,6 +88,12 @@ subcode: call_sub_normal_setup_macro
 	    $macro->{$p}=$1;
 	$else
 	    $macro->{$p}=$plist[$j];
+    $if $debug eq "macro"
+	print "Code $codename: "
+	$while my ($k, $v)=each %$macro
+	    print "$k=$v, "
+	print "\n"
+	
 
 # ------
 subcode: call_sub_block
