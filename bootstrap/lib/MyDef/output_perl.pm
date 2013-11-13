@@ -202,12 +202,12 @@ sub parsecode {
 sub dumpout {
     my ($f, $out, $pagetype)=@_;
     my $dump={out=>$out,f=>$f};
-    if(defined $pagetype){
-        if($pagetype eq "pl"){
-            push @$f, "#!/usr/bin/perl\n";
-        }
-        push @$f, "use strict;\n";
+    if(!defined $pagetype or $pagetype eq "pl"){
+	push @$f, "#!/usr/bin/perl\n";
     }
+
+    push @$f, "use strict;\n";
+
     if($MyDef::page->{package}){
         push @$f, "package ".$MyDef::page->{package}.";\n";
     }
