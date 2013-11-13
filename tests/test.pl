@@ -1,5 +1,3 @@
-#!/usr/bin/perl
-use strict;
 $ENV{MYDEFLIB}="../MyDef/deflib";
 $ENV{PERL5LIB}="../MyDef/blib/lib";
 if(!-d "out"){
