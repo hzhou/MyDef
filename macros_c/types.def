@@ -77,7 +77,9 @@ subcode:: c_support_subs
 	my $val=shift;
 	$if $debug eq "type"
 	    print "infer_c_type: [$val]\n"
-	$if $val=~/^\((.*)/
+	$if $val=~/^\((float|int|char|unsigned .*|.+\*)\)/
+	    return $1
+	$elif $val=~/^\((.*)/
 	    return infer_c_type($1)
 	$elif $val=~/^[+-]?\d+\./
 	    return "float"
