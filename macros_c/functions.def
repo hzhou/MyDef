@@ -287,7 +287,7 @@ subcode: infer_type
 	    $if $val_type and $val_type ne "void"
 		$if !$type or $type eq "void"
 		    $type = $val_type
-		$elif $val_type ne "int"
+		$elif !name_with_prefix($name)
 		    $type = $val_type
 
 subcode: var_array_type

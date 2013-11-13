@@ -156,6 +156,13 @@ subcode:: c_support_subs
 	    print "get_c_type:   $name: $type\n";
 	return $type;
 
+    $sub name_with_prefix($name)
+	$if $name=~/^[tp]*(\w+)\_/
+	    $if $type_prefix{$1}
+		return 1
+	return 0
+
+subcode:: c_support_subs
     $sub pointer_type
 	my ($t)=@_;
 	$t=~s/\s*\*\s*$//;
