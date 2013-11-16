@@ -280,7 +280,7 @@ subcode: check_file_notinpage
 subcode: outputdir_inpage
     my $dir=expand_macros($1);
 
-    $if $dir !~/^\// and $output_path
+    $if $dir !~/^[\/\.]/ and $output_path
 	$dir=$output_path."/".$dir
     $page->{output_dir}=$dir;
     my $tlist=$folder{$dir};
