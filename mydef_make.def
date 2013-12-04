@@ -315,7 +315,7 @@ subcode: check_eachpage
 	$h->{path}=$h->{page};
 	$if $h->{output_dir}
 	    $h->{path}=$h->{output_dir}."/".$h->{path};
-	$if $config_outputdir and $h->{path}!~/^\//
+	$if $config_outputdir and $h->{path}!~/^[\/\.]/
 	    $h->{path}=$config_outputdir."/".$h->{path};
 	$if $h->{type}
 	    $h->{path}.=".$h->{type}"
@@ -353,6 +353,7 @@ subcode: write_makefile
     $if $config_outputdir_make
 	print Out "install: $config_outputdir\n"
 	print Out "\tmake -C $config_outputdir install\n"
+	print Out "\n"
 
     # expand def dependcy tree
     $call write_rule_copylist
@@ -456,7 +457,7 @@ subcode: create_outputdir
     $foreach $f in keys(%folder)
 	$if $f=~/toproot|ROOT/
 	    next
-	$if $f !~/^\//
+	$if $f !~/^[\/\.]/
 	    $f=$config_outputdir."/".$f
 	$if !-d $f
 	    print "Create output folder $f ...\n";

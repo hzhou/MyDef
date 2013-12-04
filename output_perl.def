@@ -26,7 +26,7 @@ subcode: parsecode
 	my $param=$2;
 	$if $func =~ /^global$/
 	    $param=~s/\s*;\s*$//
-	    my @tlist=split /,\s*/, $param
+	    my @tlist=split /,\s+/, $param
 	    $foreach $v in @tlist
 		$if !$globals{$v}
 		    $globals{$v}=1

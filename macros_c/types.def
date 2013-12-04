@@ -157,8 +157,11 @@ subcode:: c_support_subs
 	return $type;
 
     $sub name_with_prefix($name)
-	$if $name=~/^[tp]*(\w+)\_/
-	    $if $type_prefix{$1}
+	$if $name=~/^(t_?)*(p_?)*([a-zA-Z][a-zA-Z0-9]*)\_/
+	    my $prefix=$3
+	    $if $debug eq "type"
+		print "name_with_prefix: $prefix - $type_prefix{$prefix}\n"
+	    $if $type_prefix{$prefix}
 		return 1
 	return 0
 
@@ -176,7 +179,7 @@ subcode:: c_support_subs
 	    return (get_c_type($t), $t)
 
     # --------------------------------------------
-    $sub get_var_fmt($v)
+    $sub get_var_fmt($v, $warn)
 	my $type=get_var_type($v)
 	$if !$type or $type eq "void"
 	    $type=get_c_type($v);
@@ -193,8 +196,9 @@ subcode:: c_support_subs
 	$elsif $type=~/char/
 	    return "\%c";
 	$else
-	    print "get_var_fmt: unhandled $v - $type\n";
-	    return $v
+	    $if $warn
+		print "get_var_fmt: unhandled $v - $type\n";
+	    return undef
 
 # -------------------------------------
 subcode:: c_support_subs
@@ -213,7 +217,7 @@ subcode:: c_support_subs
 		$call fmt_string_check_trailing
 		$vcnt++
 		push @vlist, $v
-		$segs[$j]=get_var_fmt($v)
+		$segs[$j]=get_var_fmt($v, 1)
 	$if $vcnt>0
 	    return ($vcnt, '"'.join('',@segs).'", '.join(', ', @vlist))
 	$else
@@ -232,14 +236,29 @@ subcode: fmt_string_check_trailing
 # -------------------------------------
 subcode:: c_support_subs
     $sub debug_dump($param, $prefix, $out)
+	my %colors=(red=>31,green=>32,yellow=>33,blue=>34,magenta=>35,cyan=>36)
 	my @vlist=split /,\s+/, $param;
 	my @a1;
 	my @a2;
 	$foreach my $v in @vlist
-	    push @a2, $v;
-	    push @a1, "$v=".get_var_fmt($v)
+	    $if $v=~/^(\w+):(.*)/
+		my ($color,$v)=($1,$2)
+		push @a2, $v;
+		push @a1, "\\x1b[$colors{$color}m" . "$v=".get_var_fmt($v, 1) . "\\x1b[0m"
+	    $else
+		my $fmt=get_var_fmt($v)
+		$if !defined $fmt
+		    push @a1, $v
+		$else
+		    push @a2, $v;
+		    push @a1, "$v=".get_var_fmt($v, 1)
 	$if $prefix
-	    push @$out, "fprintf(stdout, \"    :[$prefix] ".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
+	    $if $prefix=~/(red|green|yellow|blue|magenta|cyan)/
+		push @$out, "printf(\"\x1b[$colors{$prefix}m\");"
+		push @$out, "printf(\"    :".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
+		push @$out, "printf(\"\x1b[0m\");"
+	    $else
+		push @$out, "fprintf(stdout, \"    :[$prefix] ".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
 	$else
 	    push @$out, "fprintf(stdout, \"    :".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
 	$includes{"<stdio.h>"}=1;
