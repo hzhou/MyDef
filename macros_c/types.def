@@ -204,7 +204,7 @@ subcode:: c_support_subs
 subcode:: c_support_subs
     $sub fmt_string($str)
 	$if $str=~/^\w+$/
-	    return (0, $str)
+	    return (0, "\"$str\"")
 	$if $str=~/^\s*\"(.*)\"\s*$/
 	    $str=$1
 	my @segs=split /(\$\w+)/, $str

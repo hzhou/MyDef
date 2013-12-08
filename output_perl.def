@@ -26,8 +26,8 @@ subcode: parsecode
 	my $param=$2;
 	$if $func =~ /^global$/
 	    $param=~s/\s*;\s*$//
-	    my @tlist=split /,\s+/, $param
-	    $foreach $v in @tlist
+	    my $tlist=MyDef::utils::proper_split($param)
+	    $foreach $v in @$tlist
 		$if !$globals{$v}
 		    $globals{$v}=1
 		    push @globals, $v
