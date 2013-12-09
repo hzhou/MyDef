@@ -60,6 +60,11 @@ subcode: read_var(name)
     t_n=fread(&$(name), sizeof($(name)), 1, file_in)
 
 # --------------------------------
+subcode: die(msg)
+    fprintf(stderr, $(msg))
+    exit(-1)
+
+# --------------------------------
 perlcode: tempstr
     my ($n, $fmt)=fmt_string($param)
     $if $n>0

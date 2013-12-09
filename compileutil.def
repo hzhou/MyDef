@@ -144,7 +144,7 @@ subcode: output_outdir
     $if $MyDef::var->{output_dir}
 	$outdir=$MyDef::var->{output_dir};
     $if $page->{output_dir}
-	$if $page->{output_dir}=~/^\//
+	$if $page->{output_dir}=~/^[\/\.]/
 	    $outdir=$page->{output_dir};
 	$else
 	    $outdir=$outdir."/".$page->{output_dir};

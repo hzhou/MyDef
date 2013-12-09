@@ -93,7 +93,6 @@ subcode: call_sub_normal_setup_macro
 	$while my ($k, $v)=each %$macro
 	    print "$k=$v, "
 	print "\n"
-	
 
 # ------
 subcode: call_sub_block
