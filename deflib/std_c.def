@@ -6,9 +6,11 @@ subcode: basic_frame
     $include stdio
     $include stdlib
     $call @global
-    $list main2
+    $(if:hascode:n_main)
+	$list n_main
+    $(if:hascode:main2)
+	$list main2
 
-# ----
 ###############################################################
 ## Utility
 subcode: assert(check)
@@ -73,4 +75,17 @@ perlcode: tempstr
 	MyDef::compileutil::set_current_macro("tempstr", "ts_temp_buf")
     $else
 	MyDef::compileutil::set_current_macro("tempstr", $fmt)
+
+# ---- sprintf ------------
+perlcode: parse_fmt
+    my ($n, $fmt)=fmt_string($param)
+    MyDef::compileutil::set_current_macro("fmt", $fmt)
+
+subcode: sprint(@fmt)
+    $global s_printf_buffer[100], n_printf_length=0
+    $eval parse_fmt, $(fmt)
+    n_printf_length=snprintf(s_printf_buffer, 100, $(fmt))
+    $if n_printf_length>=100
+	n_printf_length=99
+    $(mexport:s=s_printf_buffer,n=n_printf_length)
 

@@ -19,7 +19,7 @@ subcode: parsecode_special
     $elif $l=~/^SUBBLOCK END (\d+)/
 	close_scope("SUBBLOCK_$1")
 	return
-    $elif $l=~/^\s*PRINT\s+(.*)$/i
+    $elif $l=~/^\s*print\s+(.*)$/i
 	my $t=$1
 	$if $t=~/usesub:\s*(\w+)/
 	    $print_type=$1
@@ -368,16 +368,17 @@ subcode: parse_function_list_item(f)
 	$funcname=$2
     $funcname=~s/^@//
     my $params=MyDef::compileutil::get_sub_param_list($codename)
-    my $paramline=join(",", @$params)
-    $if $funcname eq "n_main" or $funcname eq "main2"
-	$funcname="main";
-    my $fidx=open_function($funcname, $paramline);
-    push @$out, "OPEN_FUNC_$fidx";
-    $cur_indent=1
-    push @$out, "SOURCE_INDENT"
-    MyDef::compileutil::call_sub($codename, "\$list")
-    push @$out, "SOURCE_DEDENT"
-    $cur_function=pop @function_stack
+    $if defined $params
+	my $paramline=join(",", @$params)
+	$if $funcname eq "n_main" or $funcname eq "main2"
+	    $funcname="main";
+	my $fidx=open_function($funcname, $paramline);
+	push @$out, "OPEN_FUNC_$fidx";
+	$cur_indent=1
+	push @$out, "SOURCE_INDENT"
+	MyDef::compileutil::call_sub($codename, "\$list")
+	push @$out, "SOURCE_DEDENT"
+	$cur_function=pop @function_stack
 
 # ---------------------------------------------------
 subcode:: support_subs
