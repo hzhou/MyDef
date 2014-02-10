@@ -179,6 +179,7 @@ subcode: parse_line
 	    $if $'=~/-(.*)/
 		$callback_tail= $1
 	    $else
+		# allow case_support to wrap
 		$callback_tail="NOOP"
 	$elsif $msg=~/^SKIPBLOCK/
 	    grabblock($block, \$lindex)

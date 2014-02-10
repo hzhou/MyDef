@@ -350,6 +350,7 @@ subcode: parse_function
 	return "SKIPBLOCK"
 
 subcode: parse_function_end
+    $call case_reset
     $cur_function=pop @function_stack
 
 subcode: parse_function_list
@@ -376,8 +377,8 @@ subcode: parse_function_list_item(f)
     $cur_indent=1
     push @$out, "SOURCE_INDENT"
     MyDef::compileutil::call_sub($codename, "\$list")
+    $call parse_function_end
     push @$out, "SOURCE_DEDENT"
-    $cur_function=pop @function_stack
 
 # ---------------------------------------------------
 subcode:: support_subs
