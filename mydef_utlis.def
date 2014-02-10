@@ -1,0 +1,63 @@
+page: utils
+    type: pm
+    output_dir: lib/MyDef
+    package: MyDef::utils
+    subcode: main
+	$call package_subs
+	1;
+
+subcode:: package_subs
+    $sub proper_split($param)
+	my @closure_stack
+	my @tlist
+	my $t
+	$while 1
+	    $if $param=~/\G(\s+)/gc
+		$if @closure_stack
+		    $t.=$1
+	    $elif $param=~/\G,/gc
+		$if @closure_stack
+		    $t.=$1
+		$else
+		    push @tlist, $t
+		    $t=""
+	    $elif $param=~/\G([^"'\(\[\{\)\]\},]+)/gc
+		$t.=$1
+	    $elif $param=~/\G(['"])/gc
+		$t.=$1
+		$if !@closure_stack
+		    push @closure_stack, $1
+		$elif $closure_stack[-1] eq $1
+		    pop @closure_stack
+		$elif $closure_stack[-1] eq '"' or $closure_stack[-1] eq "'"
+		    # pass
+		$else
+		    push @closure_stack, $1
+	    $elif $param=~/\G([\(\[\{])/gc
+		$t.=$1
+		$if !@closure_stack or $closure_stack[-1] ne "'" and $closure_stack[-1] ne '"'
+		    push @closure_stack, $1
+	    $elif $param=~/\G([\)\]\}])/gc
+		$t.=$1
+		$if @closure_stack
+		    $if $closure_stack[-1] ne "'" and $closure_stack[-1] ne '"'
+			my $match
+			$if $1 eq ')'
+			    $match='('
+			$elif $1 eq ']'
+			    $match='['
+			$elif $1 eq '}'
+			    $match='{'
+			my $pos=-1
+			$for $i=0:@closure_stack
+			    $if $match==$closure_stack[$i]
+				$pos=$i
+			$if $pos>=0
+			    splice(@closure_stack, $pos)
+			$else
+			    # possible error
+	    $else
+		push @tlist, $t
+		return \@tlist
+
+
