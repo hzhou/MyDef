@@ -20,6 +20,10 @@ subcode:: package_globals
 
 # --------------------------
 subcode: parsecode
+    $global $case_flag="\$b_flag_case"
+    $global $case_flag_set="my \$b_flag_case=1;"
+    $global $case_flag_reset="\$b_flag_case=0;"
+
     $call parsecode_case_support, if, elsif, c_style
     $if $l=~/^\s*\$(\w+)\s*(.*)$/
 	my $func=$1;
@@ -50,6 +54,9 @@ subcode: parsecode
     return 0;
 
 subcode: dumpout
+    # needed for wrapping up &case support
+    parsecode("NOOP")
+    # ---------------
     $if !defined $pagetype or $pagetype eq "pl"
 	push @$f, "#!/usr/bin/perl\n"
 

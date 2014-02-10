@@ -203,9 +203,9 @@ subcode:: c_support_subs
 # -------------------------------------
 subcode:: c_support_subs
     $sub fmt_string($str)
-	$if $str=~/^\w+$/
-	    return (0, "\"$str\"")
-	$elif $str=~/^\s*\"(.*)\"\s*,(.*)$/
+	# $if $str=~/^\w+$/
+	#     return (0, $str)
+	$if $str=~/^\s*\"(.*)\"\s*,(.*)$/
 	    return (1, "\"$1\", $2")
 	$elif $str=~/^\s*\"(.*)\"\s*$/
 	    $str=$1

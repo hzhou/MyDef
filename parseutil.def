@@ -167,13 +167,17 @@ subcode: get_multiline_comment
 
 subcode: get_indentation
     $if $line=~/^\s*$/
-	$line="NOOP"
+	#$line="NOOP"
+	next
     $elif $line=~/^(\s*)(.*)/
 	# get current indentation and stripping starting spaces
 	my $indent=getindent($1)
 	$line=$2
 	$if $line=~/^#/
-	    $line="NOOP"
+	    $if $indent != $curindent
+		$line="NOOP"
+	    $else
+		next
 	$else
 	    # Trim the tail
 	    $line=~s/\s+$//

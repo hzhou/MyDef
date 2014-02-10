@@ -194,31 +194,36 @@ subcode: parse_condition_check_plugin
 	return $condition
 
 # -------------------------------------------
-subcode: case_init
-    $case_level=0
-    $case_stack[$case_level]=0
+subcode: case_reset
+    $global @case_stack
+    $global $case_state, $case_wrap
+    @case_stack=()
+    undef $case_state
+    $if $case_wrap
+	push @$out, @$case_wrap
+	undef $case_wrap
 
-subcode: case_push
-    # $call debug_case_push
-    $case_stack[$case_level]=2
-    push @case_stack, 1
-    $case_level++
+subcode: case_push(state)
+    $if !$case_wrap
+	$case_wrap=[]
+    push @case_stack, {state=>$(state), wrap=>$case_wrap}
+
+    undef $case_state
+    undef $case_wrap
+    $call debug_case_push
 
 subcode: case_pop
-    # $call debug_case_pop
-    $if $case_level>0
-	pop @case_stack
-	$case_level--
+    $call debug_case_pop
+    my $t_case=pop @case_stack
+    $if $t_case
+	$case_state=$t_case->{state}
+	$case_wrap=$t_case->{wrap}
 
 subcode: parsecode_case_support(if, elif, style)
-    $global @case_stack=(0), $case_level=0
     $global $case_if="$(if)", $case_elif="$(elif)"
-    # $call debug_case_l
-    $if $l eq "CASEPOP"
-	$call case_pop
-	return 0
-    $elif $l!~/^SUBBLOCK/ and $case_stack[$case_level]>0
-	$case_stack[$case_level]--
+    $global @case_stack
+    $global $case_state, $case_wrap
+    $call debug_case_l
 
     $if $l=~/^\$(if|elif|elsif|elseif|case)\s+(.*)$/
 	my $cond=$2
@@ -226,19 +231,44 @@ subcode: parsecode_case_support(if, elif, style)
 	$if $1 eq "if"
 	    $case=$case_if
 	$elif $1 eq "case"
-	    $if $case_stack[$case_level]==0
+	    $if !$case_state
 		$case=$case_if
 	    $else
 		$case=$case_elif
 	$else
 	    $case=$case_elif
 	$call case_$(style)
-	$call case_push
+	$call case_push, "if"
+	return "NEWBLOCK-CASEPOP"
+    $elif $l=~/^\&case\s+(.*)/
+	$if !$case_state
+	    $call case_flag_if
+	$else
+	    $call case_flag_elif
+	$call case_push, "if"
 	return "NEWBLOCK-CASEPOP"
     $elif $l=~/^\$else/
+	$if !$case_state
+	    warn "Dangling \$else .\n"
 	$call else_$(style)
-	return "NEWBLOCK"
+	$call case_push, undef
+	return "NEWBLOCK-CASEPOP"
+    $elif $l!~/^SUBBLOCK/
+	undef $case_state
+	$if $l eq "CASEPOP"
+	    $call case_pop
+	    return 0
+	$elif $l=~/^CASEEXIT/
+	    push @$out, $case_flag_reset
+	    return 0
 
+    $if $case_wrap and !$case_state
+	my $t=join(" | ", @$case_wrap)
+	print "casewrap: [$l] [$t]\n"
+	push @$out, @$case_wrap
+	undef $case_wrap
+
+# -----
 subcode: case_c_style
     $call @parsecode_condition, $cond 
     push @$out, "$case($cond){"
@@ -254,13 +284,47 @@ subcode: else_c_style
     push @$out, "DEDENT"
     push @$out, "}"
 
+# -----
+subcode: case_flag_if
+    push @$out, $case_flag_set
+    MyDef::compileutil::call_sub($1, "\$call")
+    push @$out, "if($case_flag){"
+    push @$out, "INDENT"
+    push @$out, "BLOCK"
+    push @$out, "DEDENT"
+    push @$out, "}"
+
+subcode: case_flag_elif
+    push @$out, "else{"
+    push @$out, "INDENT"
+    push @$out, $case_flag_set
+    MyDef::compileutil::call_sub($1, "\$call")
+    push @$out, "if($case_flag){"
+    push @$out, "INDENT"
+    push @$out, "BLOCK"
+    push @$out, "DEDENT"
+    push @$out, "}"
+    push @$out, "DEDENT"
+
+    push @$case_wrap, "}"
+
+subcode: case_flag_else
+    push @$out, "else{"
+    push @$out, "INDENT"
+    push @$out, "BLOCK"
+    push @$out, "DEDENT"
+    push @$out, "}"
+
 # -------------------------------------------
 subcode: debug_case_push
     $if $debug eq "case"
-	print "Entering case [$case_level: $case_stack[$case_level]]: $l\n"
+	my $level=@case_stack
+	print "Entering case [$level]: $l\n"
 subcode: debug_case_pop
     $if $debug eq "case"
-	print "    Exit case [$case_level]\n"
+	my $level=@case_stack
+	print "    Exit case [$level]\n"
 subcode: debug_case_l
     $if $debug eq "case"
-	print "        [\$l]$l\n"
+	my $level=@case_stack
+	print "        $level:[$case_state]$l\n"

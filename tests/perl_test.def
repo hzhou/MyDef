@@ -1,10 +1,12 @@
 page: test
     type: pl
     subcode: main
-	$call test_read_file
-	$call test_sub
-	$call test_for
-	$call test_case
+	# $call test_read_file
+	# $call test_sub
+	# $call test_for
+	# $call test_case, 1
+	# $call test_case, 2
+	$call test_case_compound
 
     subcode: test_read_file
 	print "Test \&call open_r ...\n"
@@ -39,23 +41,47 @@ page: test
 	    print $i, " "
 	print "\n"
 
-subcode: test_case
+# ------------------------------------
+subcode: test_case(option)
+    DEBUG case
     print "Test \$case ...\n"
     my $t=4
-    $case $t<0
-	print "$t < 0\n"
+    print " * \$case -> if/elsif: 4 < 5\n"
     $case $t<5
-	print "0 <= $t < 5\n"
-    $t--
+	print "$t < 5\n"
+    $case $t<10
+	print "5 <= $t < 10\n"
+
+    $(if:option=2)
+	print " \$case restart before \$call othercase ...\n"
     $call othercase
-    $case $t<100
-	print "10 <= $t < 100\n"
+
+    $case $t<1000
+	print "100 <= $t < 1000\n"
     $else
-	print "100 <= $t\n"
+	print "1000 <= $t\n"
 
 subcode: othercase
-    $case $t<10
-	$if $t<4
-	    print "$t < 10\n"
-	$else
+    $case $t<100
+	$if $t<5
+	    print "$t < 5\n"
+	$case $t<10
 	    print "5 <= $t < 10\n"
+	$else
+	    print "$t >= 10\n"
+
+# ------------------------------------
+subcode: test_case_compound
+    my $t=4
+    print " * Compound case: \&case: 4 < 5\n"
+    &case compound_test, 5
+	print "$t < 5\n"
+    &case compound_test, 10
+	print "5 <= $t < 10\n"
+    &case compound_test, 100
+	print "10 <= $t < 100\n"
+
+subcode: compound_test(n)
+    $if $t>=$(n)
+	CASEEXIT
+

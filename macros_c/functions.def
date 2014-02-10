@@ -49,7 +49,6 @@ subcode:: c_support_subs
 	push @function_stack, $cur_function
 	$cur_function=$func;
 	my $fidx=MyDef::dumpout::add_function($func);
-	$call case_init
 	return $fidx;
 
 subcode: open_function_params
@@ -239,13 +238,14 @@ subcode: c_var_init
 	    $tail=" = $init_value";
 
 subcode: c_struct_init
-    my $s_init=$structs{$1}->{hash}->{"-init"}
+    my $s_name=$1
+    my $s_init=$structs{$s_name}->{hash}->{"-init"}
     $if $s_init and @$s_init
 	$if $array=~/^\[([^\[\]]+)\]/
 	    func_add_var("i", "int");
-	    push @{$cur_function->{init}}, "for(i=0;i<$1;i++){$1_constructor(&$name\[i]);}";
+	    push @{$cur_function->{init}}, "for(i=0;i<$1;i++){$s_name\_constructor(&$name\[i]);}";
 	$else
-	    push @{$cur_function->{init}}, "$1_constructor(&$name);"
+	    push @{$cur_function->{init}}, "$s_name\_constructor(&$name);"
 
 # ----
 subcode: split_name
