@@ -40,6 +40,7 @@ our $case_elif="else if";
 our %plugin_statement;
 our %plugin_condition;
 use MyDef::dumpout;
+use MyDef::utils;
 our $debug;
 our $mode;
 our $page;
@@ -259,7 +260,7 @@ sub parsecode {
         close_scope("SUBBLOCK_$1");
         return;
     }
-    elsif($l=~/^\s*PRINT\s+(.*)$/i){
+    elsif($l=~/^\s*print\s+(.*)$/i){
         my $t=$1;
         if($t=~/usesub:\s*(\w+)/){
             $print_type=$1;
@@ -627,17 +628,19 @@ sub parsecode {
                         }
                         $funcname=~s/^@//;
                         my $params=MyDef::compileutil::get_sub_param_list($codename);
-                        my $paramline=join(",", @$params);
-                        if($funcname eq "n_main" or $funcname eq "main2"){
-                            $funcname="main";
+                        if(defined $params){
+                            my $paramline=join(",", @$params);
+                            if($funcname eq "n_main" or $funcname eq "main2"){
+                                $funcname="main";
+                            }
+                            my $fidx=open_function($funcname, $paramline);
+                            push @$out, "OPEN_FUNC_$fidx";
+                            $cur_indent=1;
+                            push @$out, "SOURCE_INDENT";
+                            MyDef::compileutil::call_sub($codename, "\$list");
+                            push @$out, "SOURCE_DEDENT";
+                            $cur_function=pop @function_stack;
                         }
-                        my $fidx=open_function($funcname, $paramline);
-                        push @$out, "OPEN_FUNC_$fidx";
-                        $cur_indent=1;
-                        push @$out, "SOURCE_INDENT";
-                        MyDef::compileutil::call_sub($codename, "\$list");
-                        push @$out, "SOURCE_DEDENT";
-                        $cur_function=pop @function_stack;
                         if($autoload){
                             push @$autoload, "function-$f";
                         }
@@ -1756,16 +1759,13 @@ sub func_add_var {
         if($fntype{$name}){
             $type="function";
         }
-        if(defined $value){
-            my $val_type=infer_c_type($value);
-            if($debug eq "type" and $type ne $val_type){
-                print "infer_type: $type -- $val_type\n";
-            }
-            if($val_type and $val_type ne "void"){
-                if(!$type or $type eq "void"){
-                    $type = $val_type;
+        if(!($type and $type ne "void" and name_with_prefix($name))){
+            if(defined $value){
+                my $val_type=infer_c_type($value);
+                if($debug eq "type" and $type ne $val_type){
+                    print "infer_type: $type -- $val_type\n";
                 }
-                elsif($val_type ne "int"){
+                if($val_type and $val_type ne "void"){
                     $type = $val_type;
                 }
             }
@@ -1892,16 +1892,13 @@ sub global_add_var {
         if($fntype{$name}){
             $type="function";
         }
-        if(defined $value){
-            my $val_type=infer_c_type($value);
-            if($debug eq "type" and $type ne $val_type){
-                print "infer_type: $type -- $val_type\n";
-            }
-            if($val_type and $val_type ne "void"){
-                if(!$type or $type eq "void"){
-                    $type = $val_type;
+        if(!($type and $type ne "void" and name_with_prefix($name))){
+            if(defined $value){
+                my $val_type=infer_c_type($value);
+                if($debug eq "type" and $type ne $val_type){
+                    print "infer_type: $type -- $val_type\n";
                 }
-                elsif($val_type ne "int"){
+                if($val_type and $val_type ne "void"){
                     $type = $val_type;
                 }
             }
@@ -2007,16 +2004,13 @@ sub scope_add_var {
         if($fntype{$name}){
             $type="function";
         }
-        if(defined $value){
-            my $val_type=infer_c_type($value);
-            if($debug eq "type" and $type ne $val_type){
-                print "infer_type: $type -- $val_type\n";
-            }
-            if($val_type and $val_type ne "void"){
-                if(!$type or $type eq "void"){
-                    $type = $val_type;
+        if(!($type and $type ne "void" and name_with_prefix($name))){
+            if(defined $value){
+                my $val_type=infer_c_type($value);
+                if($debug eq "type" and $type ne $val_type){
+                    print "infer_type: $type -- $val_type\n";
                 }
-                elsif($val_type ne "int"){
+                if($val_type and $val_type ne "void"){
                     $type = $val_type;
                 }
             }
@@ -2143,16 +2137,13 @@ sub global_add_symbol {
         if($fntype{$name}){
             $type="function";
         }
-        if(defined $value){
-            my $val_type=infer_c_type($value);
-            if($debug eq "type" and $type ne $val_type){
-                print "infer_type: $type -- $val_type\n";
-            }
-            if($val_type and $val_type ne "void"){
-                if(!$type or $type eq "void"){
-                    $type = $val_type;
+        if(!($type and $type ne "void" and name_with_prefix($name))){
+            if(defined $value){
+                my $val_type=infer_c_type($value);
+                if($debug eq "type" and $type ne $val_type){
+                    print "infer_type: $type -- $val_type\n";
                 }
-                elsif($val_type ne "int"){
+                if($val_type and $val_type ne "void"){
                     $type = $val_type;
                 }
             }
@@ -2355,7 +2346,13 @@ sub infer_c_type {
     if($debug eq "type"){
         print "infer_c_type: [$val]\n";
     }
-    if($val=~/^[+-]?\d+\./){
+    if($val=~/^\((float|int|char|unsigned .*|.+\*)\)/){
+        return $1;
+    }
+    elsif($val=~/^\((.*)/){
+        return infer_c_type($1);
+    }
+    elsif($val=~/^[+-]?\d+\./){
         return "float";
     }
     elsif($val=~/^[+-]?\d/){
@@ -2485,6 +2482,19 @@ sub get_c_type {
     }
     return $type;
 }
+sub name_with_prefix {
+    my ($name)=@_;
+    if($name=~/^(t_?)*(p_?)*([a-zA-Z][a-zA-Z0-9]*)\_/){
+        my $prefix=$3;
+        if($debug eq "type"){
+            print "name_with_prefix: $prefix - $type_prefix{$prefix}\n";
+        }
+        if($type_prefix{$prefix}){
+            return 1;
+        }
+    }
+    return 0;
+}
 sub pointer_type {
     my ($t)=@_;
     $t=~s/\s*\*\s*$//;
@@ -2500,7 +2510,7 @@ sub get_name_type {
     }
 }
 sub get_var_fmt {
-    my ($v)=@_;
+    my ($v, $warn)=@_;
     my $type=get_var_type($v);
     if(!$type or $type eq "void"){
         $type=get_c_type($v);
@@ -2524,16 +2534,21 @@ sub get_var_fmt {
         return "\%c";
     }
     else{
-        print "get_var_fmt: unhandled $v - $type\n";
-        return $v;
+        if($warn){
+            print "get_var_fmt: unhandled $v - $type\n";
+        }
+        return undef;
     }
 }
 sub fmt_string {
     my ($str)=@_;
     if($str=~/^\w+$/){
-        return (0, $str);
+        return (0, "\"$str\"");
     }
-    if($str=~/^\s*\"(.*)\"\s*$/){
+    elsif($str=~/^\s*\"(.*)\"\s*,(.*)$/){
+        return (1, "\"$1\", $2");
+    }
+    elsif($str=~/^\s*\"(.*)\"\s*$/){
         $str=$1;
     }
     my @segs=split /(\$\w+)/, $str;
@@ -2553,7 +2568,7 @@ sub fmt_string {
             }
             $vcnt++;
             push @vlist, $v;
-            $segs[$j]=get_var_fmt($v);
+            $segs[$j]=get_var_fmt($v, 1);
         }
     }
     if($vcnt>0){
@@ -2565,15 +2580,36 @@ sub fmt_string {
 }
 sub debug_dump {
     my ($param, $prefix, $out)=@_;
+    my %colors=(red=>31,green=>32,yellow=>33,blue=>34,magenta=>35,cyan=>36);
     my @vlist=split /,\s+/, $param;
     my @a1;
     my @a2;
     foreach my $v (@vlist){
-        push @a2, $v;
-        push @a1, "$v=".get_var_fmt($v);
+        if($v=~/^(\w+):(.*)/){
+            my ($color,$v)=($1,$2);
+            push @a2, $v;
+            push @a1, "\\x1b[$colors{$color}m" . "$v=".get_var_fmt($v, 1) . "\\x1b[0m";
+        }
+        else{
+            my $fmt=get_var_fmt($v);
+            if(!defined $fmt){
+                push @a1, $v;
+            }
+            else{
+                push @a2, $v;
+                push @a1, "$v=".get_var_fmt($v, 1);
+            }
+        }
     }
     if($prefix){
-        push @$out, "fprintf(stdout, \"    :[$prefix] ".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
+        if($prefix=~/(red|green|yellow|blue|magenta|cyan)/){
+            push @$out, "printf(\"\x1b[$colors{$prefix}m\");";
+            push @$out, "printf(\"    :".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
+            push @$out, "printf(\"\x1b[0m\");";
+        }
+        else{
+            push @$out, "fprintf(stdout, \"    :[$prefix] ".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
+        }
     }
     else{
         push @$out, "fprintf(stdout, \"    :".join(", ", @a1)."\\n\", ".join(", ", @a2).");";

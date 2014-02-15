@@ -157,7 +157,7 @@ while(my $f=pop @files){
             if($inpage){
                 if(/^\s*output_dir: (\S+)/){
                     my $dir=expand_macros($1);
-                    if($dir !~/^\// and $output_path){
+                    if($dir !~/^[\/\.]/ and $output_path){
                         $dir=$output_path."/".$dir;
                     }
                     $page->{output_dir}=$dir;
@@ -268,7 +268,7 @@ while(my ($p, $h) = each %h_page){
     if($h->{output_dir}){
         $h->{path}=$h->{output_dir}."/".$h->{path};
     }
-    if($config_outputdir and $h->{path}!~/^\//){
+    if($config_outputdir and $h->{path}!~/^[\/\.]/){
         $h->{path}=$config_outputdir."/".$h->{path};
     }
     if($h->{type}){
@@ -347,6 +347,7 @@ print Out "\n\n";
 if($config_outputdir_make){
     print Out "install: $config_outputdir\n";
     print Out "\tmake -C $config_outputdir install\n";
+    print Out "\n";
 }
 if(%h_copylist){
     while( my ($f, $l) = each %h_copylist){
@@ -453,7 +454,7 @@ foreach my $f (keys(%folder)){
     if($f=~/toproot|ROOT/){
         next;
     }
-    if($f !~/^\//){
+    if($f !~/^[\/\.]/){
         $f=$config_outputdir."/".$f;
     }
     if(!-d $f){

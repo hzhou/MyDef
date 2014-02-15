@@ -168,7 +168,7 @@ sub testcondition {
         return $1;
     }
     elsif($cond=~/^hascode:(.*)/){
-        if($MyDef::def->{codes}->{$1}){
+        if($MyDef::def->{codes}->{$1} or $MyDef::page->{codes}->{$1}){
             return 1;
         }
     }
@@ -268,6 +268,13 @@ sub call_back {
             else{
                 $macro->{$p}=$plist[$j];
             }
+        }
+        if($debug eq "macro"){
+            print "Code $codename: ";
+            while(my ($k, $v)=each %$macro){
+                print "$k=$v, ";
+            }
+            print "\n";
         }
         push @$deflist, $macro;
         parseblock($codelib);
@@ -377,6 +384,13 @@ sub call_sub {
                     else{
                         $macro->{$p}=$plist[$j];
                     }
+                }
+                if($debug eq "macro"){
+                    print "Code $codename: ";
+                    while(my ($k, $v)=each %$macro){
+                        print "$k=$v, ";
+                    }
+                    print "\n";
                 }
                 push @$deflist, $macro;
             }
@@ -1236,6 +1250,7 @@ sub get_sub_param_list {
     $codename=~s/^@//;
     my $codelib=get_def_attr("codes", $codename);
     if(!$codelib){
+        print "get_sub_param_list: code \"$codename\" not found\n";
         return undef;
     }
     return $codelib->{params};
@@ -1248,7 +1263,7 @@ sub compile {
         $outdir=$MyDef::var->{output_dir};
     }
     if($page->{output_dir}){
-        if($page->{output_dir}=~/^\//){
+        if($page->{output_dir}=~/^[\/\.]/){
             $outdir=$page->{output_dir};
         }
         else{

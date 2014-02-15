@@ -1,6 +1,7 @@
 use strict;
 package MyDef::output_general;
 use MyDef::dumpout;
+use MyDef::utils;
 our $debug;
 our $mode;
 our $page;
