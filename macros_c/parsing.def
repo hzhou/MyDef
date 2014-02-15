@@ -142,10 +142,10 @@ subcode: parsecode_func
 	return single_block("$except\{", "}")
     $elif $func =~ /^(while|switch)$/
 	my $name=$1;
-	$call @parsecode_condition, $param
+	$param=parse_condition($param)
 	return single_block("$name($param){", "}")
     $elsif $func =~/^dowhile/
-	$call @parsecode_condition, $param
+	$param=parse_condition($param)
 	return single_block("do{", "}while($param);")
     $elsif $func =~/^whiletrue/
 	push @$out, "while($param);"
@@ -307,14 +307,25 @@ subcode: c_parse_for
     $else
 	return single_block("for($param){", "}")
 
-subcode: parsecode_condition(cond)
-    $(cond)=parse_condition($(cond), $out)
-
 subcode:: c_support_subs
     $sub parse_condition($param)
 	$if $param=~/^\$(\w+)\s+(.*)/
 	    my ($func, $param)=($1, $2)
-	    $call parse_condition_check_plugin
+	    $if $func eq "or" || $func eq "and"
+		$if $param=~/(\w+)\s*(.*)/
+		    my $f=$1
+		    my @args=split /,\s*/, $2
+		    my @t
+		    $foreach $a in @args
+			push @t, "$f($a)"
+		    $if $func eq "or"
+			return join(" || ", @t)
+		    $elif $func eq "and"
+			return join(" && ", @t)
+		$else
+		    print "error in condition: $param\n"
+	    $else
+		$call parse_condition_check_plugin
 	$while $param =~ /(\S+)\s+eq\s+"(.*?)"/
 	    my ($var, $key)=($1, $2);
 	    my $keylen=length($key);
