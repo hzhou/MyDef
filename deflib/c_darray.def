@@ -33,12 +33,12 @@ subcode: darray_clear(var)
 
 # ----------------------------------------------------
 subcode: darray_check(var)
-    $(export:da_len=$(var)_len)
-    $(export:da_size=$(var)_size)
+    $(export:len=$(var)_len)
+    $(export:size=$(var)_size)
 
-    $if $(da_len)+1>$(da_size)
+    $if $(len)+1>$(size)
 	$my tn_temp
-	tn_temp=(int)($(da_size)*2/3)
+	tn_temp=(int)($(size)*2/3)
 	$if tn_temp<64
 	    tn_temp=64
 	$call darray_expand_n, $(var), tn_temp

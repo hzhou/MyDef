@@ -263,8 +263,8 @@ subcode: parsecode_case_support(if, elif, style)
 	    return 0
 
     $if $case_wrap and !$case_state
-	my $t=join(" | ", @$case_wrap)
-	print "casewrap: [$l] [$t]\n"
+	#my $t=join(" | ", @$case_wrap)
+	#print "casewrap: [$l] [$t]\n"
 	push @$out, @$case_wrap
 	undef $case_wrap
 

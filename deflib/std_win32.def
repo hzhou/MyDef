@@ -27,6 +27,12 @@ fncode: WinMain
     $call win_main
     $call win_loop
 
+subcode: win_main(mainname)
+    $global hwnd_main
+    $call register_wndclass, "$(mainname)", WndProc_main
+    $call create_window, hwnd_main, "$(mainname)"
+    $call win_show, hwnd_main
+
 subcode: win_show(hwnd)
     NEWLINE
     ShowWindow($(hwnd), n_cmdshow)
@@ -49,7 +55,16 @@ subcode: on_paint
     return 0
 
 ###############################################################
-# -----------------------------------------------------------------------
+subcode: sprint(@fmt)
+    $global s_printf_buffer[100], n_printf_length=0
+    $eval parse_fmt, $(fmt)
+    n_printf_length=_snprintf(s_printf_buffer, 100, $(fmt))
+    $if n_printf_length<0
+	s_printf_buffer[99]='\0'
+	n_printf_length=99
+    $(mexport:s=s_printf_buffer,n=n_printf_length)
+
+# ----------------------------------------------------------------
 subcode: init_println
     $local n_cur_text_x, n_cur_text_y, n_text_height
     n_cur_text_x=10

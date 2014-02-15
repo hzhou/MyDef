@@ -55,6 +55,7 @@ subcode: tcp_connect(host, port)
 	$if tn_ret==0
 	    break
 	$else
+	    print Failed to connect.
 	    close(tn_socket)
 	    ai_p=ai_p->ai_next
 	    continue
