@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+use strict;
 my $pre_indent;
 my $indent=0;
 while(<STDIN>){

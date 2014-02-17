@@ -188,7 +188,7 @@ sub import_file {
                     $codes->{$name}=$t_code;
                 }
                 elsif($stage eq 'page'){
-                    if($page->{codes}->{$name} and ($name eq "main")){
+                    if($name eq "main" and $page->{codes}->{main}){
                         $page->{codes}->{'main2'}=$t_code;
                     }
                     else{

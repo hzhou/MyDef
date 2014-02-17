@@ -7,6 +7,7 @@ our $cur_mode="html";
 our %plugin_statement;
 our %plugin_condition;
 use MyDef::dumpout;
+use MyDef::utils;
 our $debug;
 our $mode;
 our $page;

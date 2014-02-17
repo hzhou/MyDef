@@ -5,6 +5,7 @@ our $case_level=0;
 our $case_if="if";
 our $case_elif="elsif";
 use MyDef::dumpout;
+use MyDef::utils;
 our $debug;
 our $mode;
 our $page;
@@ -116,8 +117,8 @@ sub parsecode {
         my $param=$2;
         if($func =~ /^global$/){
             $param=~s/\s*;\s*$//;
-            my @tlist=split /,\s*/, $param;
-            foreach my $v (@tlist){
+            my $tlist=MyDef::utils::proper_split($param);
+            foreach my $v (@$tlist){
                 if(!$globals{$v}){
                     $globals{$v}=1;
                     push @globals, $v;
@@ -203,11 +204,9 @@ sub dumpout {
     my ($f, $out, $pagetype)=@_;
     my $dump={out=>$out,f=>$f};
     if(!defined $pagetype or $pagetype eq "pl"){
-	push @$f, "#!/usr/bin/perl\n";
+        push @$f, "#!/usr/bin/perl\n";
     }
-
     push @$f, "use strict;\n";
-
     if($MyDef::page->{package}){
         push @$f, "package ".$MyDef::page->{package}.";\n";
     }

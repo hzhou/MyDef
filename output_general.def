@@ -9,6 +9,7 @@ page: output_general, output_main
 page: output_make, output_main
     type: pm
     output_dir: lib/MyDef
+    ext: 
     package: MyDef::output_make
     subcode: parsecode
 	$if $l=~/^\s*PRINT (.*)/

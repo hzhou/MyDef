@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+use strict;
 use MyDef;
 my $def_file;
 my $module;

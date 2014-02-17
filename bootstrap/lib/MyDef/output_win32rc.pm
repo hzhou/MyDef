@@ -1,6 +1,7 @@
 use strict;
 package output_win32rc;
 use MyDef::dumpout;
+use MyDef::utils;
 our $debug;
 our $mode;
 our $page;
