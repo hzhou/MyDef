@@ -144,7 +144,8 @@ subcode:: support_subs
 		my $t=eval_sub_string($codelib)
 		eval $t
 		$if $@
-		    print STDERR "    [$cur_file:$cur_line] Code eval error!\n";
+		    print STDERR "    [$cur_file:$cur_line] Code eval error: [$@]\n";
+		    print STDERR "  $t\n"
 	    $else
 		$call split_sub_param
 		&call call_sub_block
@@ -193,7 +194,7 @@ subcode:: support_subs
 
 	parse_code($codelib)
 	my @t
-	$f_dumpout->(\@t, $out)
+	$f_dumpout->(\@t, $out, "eval")
 
 	set_interface(@save_interface)
 	$out=$save_out

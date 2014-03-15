@@ -112,6 +112,7 @@ subcode: parsecode_eval
 	eval $t
 	$if $@
 	    print "Error [$l]: $@\n"
+	    print "  $t\n"
 	return
 
 subcode: parsecode_common

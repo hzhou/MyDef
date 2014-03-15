@@ -236,7 +236,7 @@ perlcode: wndproc
 		$call window_proc_core
 	    $cur_function=$old_function
 
-perlcode: window_proc_core
+subcode: window_proc_core
     my $codes=$MyDef::def->{codes}
     # ---- process window msg ---------------
     MyDef::compileutil::call_sub("\@pre_WndProc_$name")
@@ -257,7 +257,7 @@ perlcode: window_proc_core
     $elif $type eq "DlgProc"
 	push @$out, "return FALSE;"
 
-perlcode: window_proc_on_msg
+subcode: window_proc_on_msg
     $msg_hash{$msg}=1
     $if $msg eq "WM_ALLKEY"
 	push @$out, "case WM_KEYDOWN:"

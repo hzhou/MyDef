@@ -153,6 +153,8 @@ subcode: parsecode_func
     $elsif $func eq "for"
 	$call c_parse_for
 	return
+    $elif $func eq "endfor"
+	$call c_parse_for_end
     $elsif $func eq "return_type"
 	$cur_function->{ret_type}=$param;
 	return
@@ -279,8 +281,15 @@ subcode: parsecode_other
 
 # ----------------------------------------------
 subcode: c_parse_for
+    $global %protected_var
     $if $param=~/(\w+)\s*=\s*(.*?):(.*?)(:.*)?$/
 	my ($var, $i0, $i1, $step)=($1, $2, $3, $4);
+	$if $protected_var{$var}
+	    my $curfile=MyDef::compileutil::curfile_curline()
+	    print "[$curfile] Duplicate for variable $var\n"
+	    $protected_var{$var}++
+	$else
+	    $protected_var{$var}=1
 	func_add_var($var, undef, $i0);
 	my $stepclause;
 	$if $step
@@ -303,9 +312,17 @@ subcode: c_parse_for
 		$stepclause="$var=$i0;$var>$i1;$var--";
 	    $else
 		$stepclause="$var=$i0;$var<$i1;$var++";
-	return single_block("for($stepclause){", "}");
+	single_block("for($stepclause){", "}");
+	return "NEWBLOCK-\$endfor $var"
     $else
 	return single_block("for($param){", "}")
+
+subcode: c_parse_for_end
+    $protected_var{$param}--
+    return
+
+subcode: parsecode_condition(cond)
+    $(cond)=parse_condition($(cond), $out)
 
 subcode:: c_support_subs
     $sub parse_condition($param)
