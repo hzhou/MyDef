@@ -194,6 +194,21 @@ subcode: parse_condition_check_plugin
 	return $condition
 
 # -------------------------------------------
+subcode: parse_condition_map
+    my @args=MyDef::utils::proper_split($param)
+    my $map=shift @args
+    print "map: [$map]\n"
+    $if $map=~/\$map\((.*?),\s+(.*)\)/
+	my $sep=$1
+	my $template=$2
+	my @segs
+	$foreach $a in @args
+	    my $t=$template
+	    $t=~s/\$1/$a/g
+	    push @segs, $t
+	return $pre . join($sep, @segs)
+
+# -------------------------------------------
 subcode: case_reset
     $global @case_stack
     $global $case_state, $case_wrap
@@ -237,6 +252,8 @@ subcode: parsecode_case_support(if, elif, style)
 		$case=$case_elif
 	$else
 	    $case=$case_elif
+	$(if:parse_condition)
+	    $cond=parse_condition($cond)
 	$call case_$(style)
 	$call case_push, "if"
 	return "NEWBLOCK-CASEPOP"

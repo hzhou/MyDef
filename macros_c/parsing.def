@@ -309,23 +309,13 @@ subcode: c_parse_for
 
 subcode:: c_support_subs
     $sub parse_condition($param)
-	$if $param=~/^\$(\w+)\s+(.*)/
+	$if $param=~/\$map\b/
+	    my $pre=$`
+	    $call parse_condition_map
+	$elif $param=~/^\$(\w+)\s+(.*)/
 	    my ($func, $param)=($1, $2)
-	    $if $func eq "or" || $func eq "and"
-		$if $param=~/(\w+)\s*(.*)/
-		    my $f=$1
-		    my @args=split /,\s*/, $2
-		    my @t
-		    $foreach $a in @args
-			push @t, "$f($a)"
-		    $if $func eq "or"
-			return join(" || ", @t)
-		    $elif $func eq "and"
-			return join(" && ", @t)
-		$else
-		    print "error in condition: $param\n"
-	    $else
-		$call parse_condition_check_plugin
+	    $call parse_condition_check_plugin
+
 	$while $param =~ /(\S+)\s+eq\s+"(.*?)"/
 	    my ($var, $key)=($1, $2);
 	    my $keylen=length($key);
