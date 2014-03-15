@@ -44,6 +44,7 @@ subcode: open_w(file)
     $else
         BLOCK
         fclose(file_out)
+
 subcode: open_r(file)
     file_in=fopen($(file), "rb")
     $if file_in==NULL
@@ -52,14 +53,24 @@ subcode: open_r(file)
         BLOCK
         fclose(file_in)
 
-# --------------------------------
 subcode: write_sig(name)
     t_n=fwrite("$(name)", 1, $(name:len), file_out)
+
+subcode: read_sig(name, len)
+    t_n=fread($(name), 1, $(len), file_in)
+    $(name)[$(len)]=0
+
 subcode: write_var(name)
     t_n=fwrite(&$(name), sizeof($(name)), 1, file_out)
 
 subcode: read_var(name)
     t_n=fread(&$(name), sizeof($(name)), 1, file_in)
+
+subcode: write_data(name, size)
+    t_n=fwrite($(name), 1, $(size), file_out)
+
+subcode: read_data(name, size)
+    t_n=fread($(name), 1, $(size), file_in)
 
 # --------------------------------
 subcode: die(msg)

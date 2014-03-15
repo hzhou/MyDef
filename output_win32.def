@@ -20,6 +20,7 @@ page: output_win32
 	$sub dumpout
 	    my ($f, $out)=@_;
 	    $call @on_dumpout
+	    push @$f, "#define _CRT_SECURE_NO_WARNINGS\n"
 	    push @$f, "#define WIN32_LEAN_AND_MEAN\n"
 	    push @$f, "#include <windows.h>\n";
 	    MyDef::output_c::dumpout($f, $out)
