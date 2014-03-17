@@ -146,7 +146,7 @@ subcode: parse_catch_meta
 	$else
 	    $call debug_on, $1
 	next
-    $elif $l =~ /^BLOCK RELEASE/
+    $elif $l =~ /^BLOCK RELEASE/i
 	$block_stack[-1]->{eindex}=$block_stack[-2]->{eindex}
 	next
     $elif $l =~/^SOURCE: (.*) - (\d+)$/
