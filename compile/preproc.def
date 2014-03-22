@@ -97,7 +97,7 @@ subcode:: support_subs
 	$if $test=~/^:(\d+)/
 	    $test=$'
 	    $a=substr($a, 0, $1);
-	$if $test=~/(~|=|!=|<|>)(.*)/
+	$elif $test=~/\s*(~|=|!=|<|>)(.*)/
 	    my ($op, $b)=($1, $2)
 	    $if $op eq "="
 		if($a eq $b){ return 1;}
@@ -114,6 +114,16 @@ subcode:: support_subs
 	$else
 	    return defined $a
 
+    $sub test_in($a, $test)
+	my @tlist=split /,\s*/, $test
+	$foreach $t in @tlist
+	    $if $t=~/(\S)-(\S)/
+		$if ord($a)>=ord($1) and ord($a)<=ord($2)
+		    return 1
+	    $elif $a eq $t
+		return 1
+	return 0
+
     $sub testcondition
 	my ($cond)=@_;
 	$if !$cond
@@ -127,12 +137,6 @@ subcode:: support_subs
 		$if testcondition($n)
 		    return 1;
 	    return 0;
-	$elsif $cond=~/,/
-	    my @nlist=split /,/, $cond;
-	    $foreach $n in @nlist
-		$if !testcondition($n)
-		    return 0;
-	    return 1;
 	$elsif $cond=~/^([01])$/
 	    return $1
 	$elsif $cond=~/^hascode:(.*)/
@@ -145,6 +149,15 @@ subcode:: support_subs
 		return 1
 	    $elif $test eq "number" and $t=~/^\d+/
 		return 1
+	$elif $cond=~/^(\w+)\s+in\s+(.*)/
+	    my $t=get_def($1);
+	    return test_in($t, $2)
+	$elsif $cond=~/,/
+	    my @nlist=split /,/, $cond;
+	    $foreach $n in @nlist
+		$if !testcondition($n)
+		    return 0;
+	    return 1;
 	$elsif $cond=~/^\s*(\w+)\.(\w+)/
 	    $if $1 eq "fields"
 		$if $MyDef::def->{fields}->{$2}

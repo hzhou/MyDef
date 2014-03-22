@@ -158,7 +158,7 @@ subcode: expand_macro_seg
 		my @plist=split /,/, $p;
 		my $i=1;
 		$foreach $pp in @plist
-		    $t=~s/\$\($i\)/$pp/g
+		    $t=~s/\$$i/$pp/g
 		    $i++
 		$segs[$j]=$t
     $elsif $s=~/^\$\((.+)\)/
