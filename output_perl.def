@@ -6,6 +6,7 @@ page: output_perl, output_main
     ext: pl
     init_mode: sub
     package: MyDef::output_perl
+    interface_type: perl
 
 subcode: init_page
     $if $page->{package} and !$page->{type}
