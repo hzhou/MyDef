@@ -170,6 +170,7 @@ subcode:: c_support_subs
 	$call add_var, symbol
 
 subcode: add_var(scope)
+    # TODO: static array, retain maximum dimensions
     $call split_name
     $(if:scope=global)
 	$if $global_type->{$name}

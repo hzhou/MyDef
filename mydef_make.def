@@ -345,11 +345,13 @@ subcode: write_makefile
 
     $call write_var_folder
     $call write_var_copylist
-    $if $config_outputdir_make
-	print Out "$config_outputdir: all\n"
-	print Out "\tmake -C $config_outputdir\n";
-    print Out "all: ", join(" ", @tlist, @make_folders),;
+
+    print Out "all_targets: ", join(" ", @tlist, @make_folders),;
     print Out "\n\n";
+
+    $if $config_outputdir_make
+	print Out "all: all_targets\n"
+	print Out "\tmake -C $config_outputdir\n";
     $if $config_outputdir_make
 	print Out "install: $config_outputdir\n"
 	print Out "\tmake -C $config_outputdir install\n"

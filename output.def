@@ -198,7 +198,7 @@ subcode: parse_condition_check_plugin
 subcode: parse_condition_map
     my @args=MyDef::utils::proper_split($param)
     my $map=shift @args
-    print "map: [$map]\n"
+    # print "map: [$map]\n"
     $if $map=~/\$map\((.*?),\s+(.*)\)/
 	my $sep=$1
 	my $template=$2
@@ -288,7 +288,6 @@ subcode: parsecode_case_support(if, elif, style)
 
 # -----
 subcode: case_c_style
-    $call @parsecode_condition, $cond 
     push @$out, "$case($cond){"
     push @$out, "INDENT"
     push @$out, "BLOCK"

@@ -321,13 +321,12 @@ subcode: c_parse_for_end
     $protected_var{$param}--
     return
 
-subcode: parsecode_condition(cond)
-    $(cond)=parse_condition($(cond), $out)
-
+# ---- called from output.def -----------------
 subcode:: c_support_subs
     $sub parse_condition($param)
-	$if $param=~/\$map\b/
+	$if $param=~/(\$map\b.*)/
 	    my $pre=$`
+	    $param=$1
 	    $call parse_condition_map
 	$elif $param=~/^\$(\w+)\s+(.*)/
 	    my ($func, $param)=($1, $2)

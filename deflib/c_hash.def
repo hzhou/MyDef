@@ -44,7 +44,7 @@ subcode: hash_initialize
 
 subcode: get_prime(size)
     tn_prime=$(size)*85/100
-    $(set:comp=tn_prime % $(1) == 0)
+    $(set:comp=tn_prime % $1 == 0)
     $if $(comp:2)
 	tn_prime++
     $while $(comp:3) || $(comp:5) || $(comp:7)
