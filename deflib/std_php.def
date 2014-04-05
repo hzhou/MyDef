@@ -183,7 +183,10 @@ htmlcode: form_input(label, name)
 	$td form_label
 	    $(label):
 	$td
-	    $input name:$(name), value:<?=$$(name)?>
+	    $(if:name=password or name=pass)
+		$input name:$(name), value:<?=$$(name)?>, type:password
+	    $(else)
+		$input name:$(name), value:<?=$$(name)?>
 
 htmlcode: form_select(label, name, @options)
     $tr

@@ -11,7 +11,11 @@ subcode: output_main
     $call @package_globals
 
     $sub get_interface
-	return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
+	$(if:interface_type)
+	    my $interface_type="$(interface_type)"
+	$(else)
+	    my $interface_type="general"
+	return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout, $interface_type);
 
     $sub init_page
 	($page)=@_;

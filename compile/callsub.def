@@ -140,7 +140,7 @@ subcode:: support_subs
     $sub call_sub($param, $calltype)
 	$call call_sub_param
 	$if $codelib
-	    $if $codelib->{type} eq "perl"
+	    $if $codelib->{type} eq "perl" && $interface_type ne "perl"
 		my $t=eval_sub_string($codelib)
 		eval $t
 		$if $@
