@@ -204,6 +204,7 @@ subcode: parse_condition_map
     my $map=shift @args
     # print "map: [$map]\n"
     $if $map=~/\$map\((.*?),\s+(.*)\)/
+	# print "map: sep [$1], template [$2]\n"
 	my $sep=$1
 	my $template=$2
 	my @segs
@@ -212,6 +213,8 @@ subcode: parse_condition_map
 	    $t=~s/\$1/$a/g
 	    push @segs, $t
 	return $pre . join($sep, @segs)
+    $else
+	return $pre . $param
 
 # -------------------------------------------
 subcode: case_reset
@@ -270,8 +273,9 @@ subcode: parsecode_case_support(if, elif, style)
 	$call case_push, "if"
 	return "NEWBLOCK-CASEPOP"
     $elif $l=~/^\$else/
-	$if !$case_state
-	    warn "Dangling \$else .\n"
+	$if !$case_state and $l!~/NoWarn/i
+	    my $pos=MyDef::compileutil::curfile_curline()
+	    warn "[$pos]Dangling \$else .\n"
 	$call else_$(style)
 	$call case_push, undef
 	return "NEWBLOCK-CASEPOP"

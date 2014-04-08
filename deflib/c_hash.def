@@ -14,6 +14,8 @@ subcode: hash_functions
     $list hash_getstr, hash_lookup, hash_set_direct
 
 # -------------------------------------
+# p_hash=hash_new(1000)
+# -------------------------------------
 subcode: hash_set(p_hash, key, val)
     $local struct hash_entry * p
     $eval tempstr, $(key)
@@ -28,19 +30,19 @@ subcode: hash(var)
     $local struct hash * $(var)
     $(var)=hash_new(100)
 
-fncode: hash_new(tn_size)
+fncode: hash_new(tn_initial_size)
     $local struct hash * p_hash
     $allocate p_hash
-    $call hash_initialize
+    $call hash_initialize, tn_initial_size
     return p_hash
 
-subcode: hash_initialize
-    $call get_prime, tn_size
-    p_hash->n_size=tn_size
+subcode: hash_initialize(size)
+    $call get_prime, $(size)
+    p_hash->n_size=$(size)
     p_hash->n_prime=tn_prime
-    p_hash->n_top=tn_size-1
-    $allocate(tn_size) p_hash->p_table
-    memset(p_hash->p_table, 0, tn_size*sizeof(struct hash_entry *))
+    p_hash->n_top=$(size)-1
+    $allocate($(size)) p_hash->p_table
+    memset(p_hash->p_table, 0, $(size)*sizeof(struct hash_entry *))
 
 subcode: get_prime(size)
     tn_prime=$(size)*85/100
@@ -57,7 +59,7 @@ fncode: hash_expand(struct hash * p_hash)
     p_temp=p_hash->p_table
     tn_old_size=p_hash->n_size
     tn_size=p_hash->n_size*2
-    $call hash_initialize
+    $call hash_initialize, tn_size
     $for i=0:tn_old_size
 	p=p_temp+i
 	$if p->s_key
