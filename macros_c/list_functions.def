@@ -1,0 +1,4 @@
+subcode: parsecode_post
+    $global %list_function_hash
+    $global @list_function_list
+
