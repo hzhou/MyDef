@@ -35,12 +35,14 @@ subcode: on_dumpout
     $global @xs_globals
     my @t
     my $cnt
-    $foreach $v in @$(C)global_list
+    my $ghash=$$(C)global_hash
+    $foreach $name in @$(C)global_list
+	my $v=$ghash->{$name}
 	$if $v=~/^[SHA]V/
 	    push @xs_globals, "$v;\n";
 	    $cnt++
 	$else
-	    push @t, $v
+	    push @t, $name
     $if $cnt>0
 	@$(C)global_list=@t
 

@@ -19,6 +19,9 @@ subcode: parsecode_special
     $elif $l=~/^SUBBLOCK END (\d+)/
 	close_scope("SUBBLOCK_$1")
 	return
+    $elif $l=~/^NOOP POST_MAIN/
+	$call parsecode_post
+	return
     $elif $l=~/^\s*print\s+(.*)$/i
 	my $t=$1
 	$if $t=~/usesub:\s*(\w+)/
@@ -175,16 +178,6 @@ subcode: parsecode_func
     $elsif $func eq "define"
 	push @$out, "#define $param";
 	return
-    $elsif $func eq "function"
-	$call parse_function
-	return
-    $elsif $func eq "function_end"
-	# automatically generated from compileutil
-	$call parse_function_end
-	return
-    $elsif $func eq "list"
-	$call parse_function_list
-	return
     $elsif $func eq "enum"
 	my $name="ANONYMOUS-$anonymous_count"
 	$anonymous_count++
@@ -262,6 +255,7 @@ subcode: parsecode_func
 	$if $param=~/(\w+)\s+in\s+(\w+)/
 	    my ($iv, $v)=($1, $2)
 	    return list_foreach($out, $iv, $v)
+    $call @parsecode_func_other
 
 subcode: parsecode_other
     $if $l=~/^return\b/
@@ -341,62 +335,14 @@ subcode:: c_support_subs
 	    my $t="\$"."(macro_hash_cond:$1,$2)"
 	    MyDef::compileutil::expand_macro_recurse(\$t)
 	    return $t
-	$elsif $param!~/^\(.*\)$/ and $param=~/[^!><=']=[^=]/
-	    print "Assignment in [$param], possible bug?\n"
+	$elsif $param!~/^\(.*\)$/ and $param=~/[^!><='"]=[^=]/
+	    my $pre=$`
+	    $if $pre!~/['"]/
+		# ... unless left is quoted
+		print "Assignment in [$param], possible bug? pre:[$pre]\n"
 	    return $param
 	$else
 	    return $param;
-
-# ----------------------------------------------
-subcode: parse_function
-    $call check_autoload_h
-    $if !$autoload_h and $param=~/(\w+)(.*)/
-	my ($fname, $paramline)=($1, $2)
-	$if $paramline=~/\((.*)\)/
-	    $paramline=$1
-	$elif $paramline=~/^\s*,\s*(.*)/
-	    $paramline=$1
-	my $fidx=open_function($fname, $paramline)
-	push @$out, "OPEN_FUNC_$fidx";
-	push @$out, "SOURCE_INDENT";
-	push @$out, "BLOCK";
-	push @$out, "SOURCE_DEDENT";
-	$call add_to_autoload_h, "function-$fname"
-	return "NEWBLOCK-\$function_end";
-    $else
-	return "SKIPBLOCK"
-
-subcode: parse_function_end
-    $call case_reset
-    $cur_function=pop @function_stack
-
-subcode: parse_function_list
-    $call check_autoload_h
-    $if !$autoload_h
-	my @tlist=split /,\s*/, $param
-	$foreach $f in @tlist
-	    $call parse_function_list_item, $f
-	    $call add_to_autoload_h, "function-$f"
-
-subcode: parse_function_list_item(f)
-    my $funcname=$(f)
-    my $codename=$(f)
-    $if $f=~/(\w+)\((\w+)\)/
-	$codename=$1
-	$funcname=$2
-    $funcname=~s/^@//
-    my $params=MyDef::compileutil::get_sub_param_list($codename)
-    $if defined $params
-	my $paramline=join(",", @$params)
-	$if $funcname eq "n_main" or $funcname eq "main2"
-	    $funcname="main";
-	my $fidx=open_function($funcname, $paramline);
-	push @$out, "OPEN_FUNC_$fidx";
-	$cur_indent=1
-	push @$out, "SOURCE_INDENT"
-	MyDef::compileutil::call_sub($codename, "\$list")
-	$call parse_function_end
-	push @$out, "SOURCE_DEDENT"
 
 # ---------------------------------------------------
 subcode:: support_subs

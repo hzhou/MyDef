@@ -1,5 +1,6 @@
 #include: ref_counting.def
 include: c_slist.def
+include: c_tempstr.def
 
 ## frame
 subcode: basic_frame
@@ -20,6 +21,10 @@ subcode: assert(check)
 subcode: assert_action
     printf("Assert Error: ($(check)) at line %d \n", __LINE__)
     exit(1)
+
+subcode: die(msg)
+    fprintf(stderr, $(msg))
+    exit(-1)
 
 ## FILE IO
 subcode: mmap(filename, strname, strsize)
@@ -72,31 +77,19 @@ subcode: write_data(name, size)
 subcode: read_data(name, size)
     t_n=fread($(name), 1, $(size), file_in)
 
-# --------------------------------
-subcode: die(msg)
-    fprintf(stderr, $(msg))
-    exit(-1)
+# ---- time -------------------------------------------
+subcode: tick_reset(seconds)
+    $include time
+    $global time_t time_last_tick=0, f_tick_interval=1.0
+    time_last_tick=time(NULL)
+    f_tick_interval=$(seconds)
 
-# --------------------------------
-perlcode: tempstr
-    my ($n, $fmt)=fmt_string($param)
-    $if $n>0
-	func_add_var("ts_temp_buf[100]", "local")
-	push @$out, "snprintf(ts_temp_buf, 100, $fmt);"
-	MyDef::compileutil::set_current_macro("tempstr", "ts_temp_buf")
-    $else
-	MyDef::compileutil::set_current_macro("tempstr", $fmt)
-
-# ---- sprintf ------------
-perlcode: parse_fmt
-    my ($n, $fmt)=fmt_string($param)
-    MyDef::compileutil::set_current_macro("fmt", $fmt)
-
-subcode: sprint(@fmt)
-    $global s_printf_buffer[100], n_printf_length=0
-    $eval parse_fmt, $(fmt)
-    n_printf_length=snprintf(s_printf_buffer, 100, $(fmt))
-    $if n_printf_length>=100
-	n_printf_length=99
-    $(mexport:s=s_printf_buffer,n=n_printf_length)
+subcode: tick(msg)
+    $include time
+    $global time_t time_last_tick=0, f_tick_interval
+    $local time_t time_tick_temp
+    time_tick_temp=time(NULL)
+    $if difftime(time_tick_temp, time_last_tick)>f_tick_interval
+	print $(msg)
+	time_last_tick=time_tick_temp
 

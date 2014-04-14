@@ -129,6 +129,7 @@ subcode: compile
     $if !$maincode
 	$maincode=$MyDef::def->{codes}->{basic_frame};
     parse_code($maincode);
+    $f_parse->("NOOP POST_MAIN")
 
     #---- restore var
     $while my ($k, $v)=each %varsave

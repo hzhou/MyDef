@@ -27,14 +27,14 @@ subcode: split_sub_param
     my (@pre_plist, $pline, @plist);
     $if $param=~/^\(([^\)]*)\)/
 	$param=$';
-	@pre_plist=split /,\s*/, $1;
+	@pre_plist=MyDef::utils::proper_split($1)
     $param=~s/^\s*,?\s*//;
     $pline=$param;
     $if $param=~/ \| /
 	# ---- ' | ' seperated param list
 	@plist=split /\s+\|\s+/, $param;
     $else
-	@plist=split /,\s*/, $param;
+	@plist=MyDef::utils::proper_split($param)
 
 subcode: call_sub_map
     $if 1+@pre_plist!=@$params

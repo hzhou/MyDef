@@ -8,7 +8,9 @@ include: macros_c/types.def
 include: macros_c/dump.def
 include: macros_c/dump_h.def
 # include: macros_c/regex.def
+
 include: macros_c/allocate.def
+include: macros_c/list_functions.def
 
 
 subcode:: package_globals

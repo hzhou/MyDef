@@ -121,7 +121,7 @@ subcode:: c_support_subs
 	$if $cur_function->{var_flag}->{$name}
 	    return $cur_function->{var_flag}->{$name};
 	$else
-	    return $global_flag->{$name};
+	    return $global_hash->{$name};
 
     $sub get_var_type
 	my $name=shift
@@ -174,7 +174,16 @@ subcode: add_var(scope)
     $call split_name
     $(if:scope=global)
 	$if $global_type->{$name}
-	    return $name
+	    $if defined $array && $array=~/^\[(\d+)\]$/
+		my $n=$1
+		my $old=$global_hash->{$name}
+		$if $old=~/\[(\d+)\]/
+		    $if $n<=$1
+			return $name
+	    $else
+		return $name
+	$else
+	    push @global_list, $name
     $(elif:scope=symbol)
 	$if $global_type->{$name}
 	    return $name
@@ -213,8 +222,7 @@ subcode: add_var(scope)
 
     $(if:scope=global)
 	$global_type->{$name}=$vtype
-	$global_flag->{$name}=$vinit
-	push @global_list, $vinit
+	$global_hash->{$name}=$vinit
     $(elif:scope=symbol)
 	$global_type->{$name}=$vtype
     $(else)
@@ -332,7 +340,8 @@ subcode: value_from_file
 	close In
 	$tail="=\"".join("\\n\\\n", @t)."\""
     $elif $tail=~/^=\[binary_from_file:(\S+)\]/
-	push @global_list, "extern char _$name"
+	$global_hash->{"_$name"}="extern char _$name"
+	push @global_list, "_$name"
 	$tail="=&_$name"
 	push @extern_binary, "$name:$1"
 
