@@ -78,9 +78,25 @@ subcode: itoa(n, base)
 	    $(n)/=$(base)
 
 	i--
-	$while i>0
+	$while i>=0
 	    BLOCK
 	    i--
 
+# ---------------------------------
+macros: 
+    ansi_black: \x1b[30m
+    ansi_red:   \x1b[31m
+    ansi_green: \x1b[32m
+    ansi_yellow:\x1b[33m
+    ansi_blue:  \x1b[34m
+    ansi_magenta: \x1b[35m
+    ansi_cyan:  \x1b[36m
+    ansi_white: \x1b[37m
+    ansi_reset: \x1b[0m
 
+subcode: tempstr_add_ansi_color(color)
+    $(if:number:color)
+	$call tempstr_add, "\x1b[38;5;$(color)m"
+    $(else)
+	$call tempstr_add, "$(ansi_$(color))"
 
