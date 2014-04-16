@@ -5,13 +5,16 @@ sub proper_split {
     my @closure_stack;
     my @tlist;
     my $t;
+    if(!$param){
+        return @tlist;
+    }
     while(1){
         if($param=~/\G(\s+)/gc){
             if(@closure_stack){
                 $t.=$1;
             }
         }
-        elsif($param=~/\G,/gc){
+        elsif($param=~/\G(,)/gc){
             if(@closure_stack){
                 $t.=$1;
             }
@@ -31,7 +34,7 @@ sub proper_split {
             elsif($closure_stack[-1] eq $1){
                 pop @closure_stack;
             }
-            elsif($closure_stack[-1] eq '"' or $closure_stack[-1] eq "'"){
+            elsif($closure_stack[-1] eq "'" or $closure_stack[-1] eq '"'){
             }
             else{
                 push @closure_stack, $1;
@@ -45,35 +48,33 @@ sub proper_split {
         }
         elsif($param=~/\G([\)\]\}])/gc){
             $t.=$1;
-            if(@closure_stack){
-                if($closure_stack[-1] ne "'" and $closure_stack[-1] ne '"'){
-                    my $match;
-                    if($1 eq ')'){
-                        $match='(';
+            if(@closure_stack and $closure_stack[-1] ne "'" and $closure_stack[-1] ne '"'){
+                my $match;
+                if($1 eq ')'){
+                    $match='(';
+                }
+                elsif($1 eq ']'){
+                    $match='[';
+                }
+                elsif($1 eq '}'){
+                    $match='{';
+                }
+                my $pos=-1;
+                for(my $i=0;$i<@closure_stack;$i++){
+                    if($match==$closure_stack[$i]){
+                        $pos=$i;
                     }
-                    elsif($1 eq ']'){
-                        $match='[';
-                    }
-                    elsif($1 eq '}'){
-                        $match='{';
-                    }
-                    my $pos=-1;
-                    for(my $i=0;$i<@closure_stack;$i++){
-                        if($match==$closure_stack[$i]){
-                            $pos=$i;
-                        }
-                    }
-                    if($pos>=0){
-                        splice(@closure_stack, $pos);
-                    }
-                    else{
-                    }
+                }
+                if($pos>=0){
+                    splice(@closure_stack, $pos);
+                }
+                else{
                 }
             }
         }
         else{
             push @tlist, $t;
-            return \@tlist;
+            return @tlist;
         }
     }
 }

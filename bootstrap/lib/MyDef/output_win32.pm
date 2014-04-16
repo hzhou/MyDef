@@ -26,9 +26,16 @@ sub dumpout {
     else{
         $extern="extern ";
     }
-    push @MyDef::output_c::global_list, $extern."HINSTANCE cur_instance";
+    push @MyDef::output_c::global_list, "cur_instance";
+    $MyDef::output_c::global_hash->{cur_instance}= $extern."HINSTANCE cur_instance";
+    push @$f, "#define _CRT_SECURE_NO_WARNINGS\n";
     push @$f, "#define WIN32_LEAN_AND_MEAN\n";
     push @$f, "#include <windows.h>\n";
+    foreach my $i (keys %MyDef::output_c::objects){
+        if($i=~/^lib(.*)/){
+            push @$f, "#pragma comment(lib, \"$1\")\n";
+        }
+    }
     MyDef::output_c::dumpout($f, $out);
 }
 1;

@@ -11,7 +11,8 @@ my %id_step;
 my %res_id_hash;
 my @res_id_list;
 sub get_interface {
-    return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
+    my $interface_type="general";
+    return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout, $interface_type);
 }
 sub init_page {
     ($page)=@_;
@@ -55,6 +56,7 @@ sub parsecode {
         eval $t;
         if($@){
             print "Error [$l]: $@\n";
+            print "  $t\n";
         }
         return;
     }

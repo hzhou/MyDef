@@ -40,14 +40,10 @@ sub parsecode {
     if($l=~/^\$(attribute|uniform|varying)\s*(.*)/){
         my $a=$1;
         my @vlist=split /,\s+/, $2;
-        my $glist=\@MyDef::output_c::global_list;
+        my $ghash=$MyDef::output_c::global_hash;
         foreach my $v (@vlist){
-            my $n0=$#$glist;
             MyDef::output_c::global_add_var($v);
-            my $n1=$#$glist;
-            if($n1>$n0){
-                $glist->[$n1]="$a $glist->[$n1]";
-            }
+            $ghash->[$v]="$a $v";
         }
         return;
     }

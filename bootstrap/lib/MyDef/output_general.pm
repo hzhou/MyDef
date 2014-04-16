@@ -7,7 +7,8 @@ our $mode;
 our $page;
 our $out;
 sub get_interface {
-    return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
+    my $interface_type="general";
+    return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout, $interface_type);
 }
 sub init_page {
     ($page)=@_;
@@ -51,6 +52,7 @@ sub parsecode {
         eval $t;
         if($@){
             print "Error [$l]: $@\n";
+            print "  $t\n";
         }
         return;
     }
