@@ -164,7 +164,6 @@ subcode: parse_line
 
     my $idx=$#$out+1;
     $parse_line_count++
-    #$call parse_line_progress
     my $msg=$f_parse->($l);
     $if $msg
 	$if ref($msg) eq "ARRAY"
@@ -176,22 +175,29 @@ subcode: parse_line
 	    # check the new output for blocks
 	    #     eg. cfunctions.pm single_block
 	    $callback_output=$out;
-	    $if $'=~/-(.*)/
-		$callback_tail= $1
-	    $else
-		# allow case_support to wrap
-		$callback_tail="NOOP"
 	$elsif $msg=~/^SKIPBLOCK/
 	    grabblock($block, \$lindex)
+	    last
 	$elsif $msg=~/^SET:(\w+)=(.*)/
 	    # set/reset definitions
 	    #     eg. cfunctions.pm get_pointer_type
 	    $deflist->[-1]->{$1}=$2;
+	    last
 	$elsif $msg=~/^PARSE:(.*)/
 	    $l=$1
 	    next
 	# ---------------------------------
 	# single_block and $method
+	$if $callback_output
+	    $call check_callback
+
+subcode: old_callback_tail_support
+	$elsif $msg=~/^NEWBLOCK/
+	    $if $'=~/-(.*)/
+		$callback_tail= $1
+	    $else
+		# allow case_support to wrap
+		$callback_tail="NOOP"
 	$if $callback_output
 	    $call check_callback
 	    $if $callback_tail
@@ -201,9 +207,16 @@ subcode: check_callback
     my $n=new_output()
     my $subblock=grabblock($block, \$lindex)
     $call parse_callback_block, $n, $subblock
+    my $n_end_parse=0
     $for $i=$idx:$#$callback_output+1
 	$if $callback_output->[$i]=~/^BLOCK$/
 	    $callback_output->[$i]="BLOCK_$n"
+	$elif $callback_output->[$i]=~/^PARSE:(.*)/
+	    $n_end_parse++
+	    $f_parse->($1)
+	    $callback_output->[$i]="NOOP"
+    $if $n_end_parse==0
+	$call hack_case_wrap
 
 subcode: parse_callback_block(n, subblock)
     my $temp=$out;
@@ -211,5 +224,15 @@ subcode: parse_callback_block(n, subblock)
     #$f_parse->("SCOPE: CALLBACK");
     parseblock({source=>$(subblock), name=>"BLOCK_$(n)"})
     #$f_parse->("SCOPE: NONE");
+    set_output($temp)
+
+subcode: hack_case_wrap
+    # case wrap 
+    #     $for ..
+    #         $if ...
+    # need wrap at the end of $for
+    my $temp=$out;
+    set_output($output_list[$n])
+    $f_parse->("NOOP")
     set_output($temp)
 

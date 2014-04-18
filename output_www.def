@@ -121,7 +121,8 @@ subcode: parsecode_func
 	push @$out, "SOURCE_INDENT";
 	push @$out, "BLOCK";
 	push @$out, "SOURCE_DEDENT";
-	return "NEWBLOCK-\$script_end"
+	push @$out, "PARSE:\$script_end"
+	return "NEWBLOCK"
     $elif $func eq "script_end"
 	MyDef::compileutil::modepop()
 	return

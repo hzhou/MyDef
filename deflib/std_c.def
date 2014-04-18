@@ -101,3 +101,20 @@ subcode: tick(msg)
 	print $(msg)
 	time_last_tick=time_tick_temp
 
+# ---- sort -------------------------------------
+subcode: qsort(list, size, type)
+    $function qsort_cmp(const void * a, const void * b)
+	$return_type int
+	$(set:a=(*($(type)*)a))
+	$(set:b=(*($(type)*)b))
+	BLOCK
+    qsort($(list), $(size), sizeof($(type)), $(lamda))
+
+subcode: numcmp(na, nb)
+    $(allow_recurse:10)
+    $if $(na)<$(nb)
+	return -1
+    $elif $(na)>$(nb)
+	return 1
+    $else
+	BLOCK

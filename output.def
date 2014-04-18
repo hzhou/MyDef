@@ -153,12 +153,10 @@ subcode: single_blocks
 
     $sub single_block_pre_post($pre, $post)
 	$if $pre
-	    $foreach my $l in @$pre
-		push @$out, $l
+	    push @$out, @$pre
 	push @$out, "BLOCK";
 	$if $post
-	    $foreach my $l in @$post
-		push @$out, $l
+	    push @$out, @$post
 	return "NEWBLOCK";
 
 # ------------------------------------------
@@ -227,8 +225,7 @@ subcode: case_reset
 	undef $case_wrap
 
 subcode: case_push(state)
-    $if !$case_wrap
-	$case_wrap=[]
+    push @$out, "PARSE:CASEPOP"
     push @case_stack, {state=>$(state), wrap=>$case_wrap}
 
     undef $case_state
@@ -264,21 +261,21 @@ subcode: parsecode_case_support(if, elif, style)
 	    $cond=parse_condition($cond)
 	$call case_$(style)
 	$call case_push, "if"
-	return "NEWBLOCK-CASEPOP"
+	return "NEWBLOCK"
     $elif $l=~/^\&case\s+(.*)/
 	$if !$case_state
 	    $call case_flag_if
 	$else
 	    $call case_flag_elif
 	$call case_push, "if"
-	return "NEWBLOCK-CASEPOP"
+	return "NEWBLOCK"
     $elif $l=~/^\$else/
 	$if !$case_state and $l!~/NoWarn/i
 	    my $pos=MyDef::compileutil::curfile_curline()
-	    warn "[$pos]Dangling \$else .\n"
+	    print "[$pos]Dangling \$else \n"
 	$call else_$(style)
 	$call case_push, undef
-	return "NEWBLOCK-CASEPOP"
+	return "NEWBLOCK"
     $elif $l!~/^SUBBLOCK/
 	undef $case_state
 	$if $l eq "CASEPOP"
@@ -289,8 +286,6 @@ subcode: parsecode_case_support(if, elif, style)
 	    return 0
 
     $if $case_wrap and !$case_state
-	#my $t=join(" | ", @$case_wrap)
-	#print "casewrap: [$l] [$t]\n"
 	push @$out, @$case_wrap
 	undef $case_wrap
 
@@ -331,6 +326,8 @@ subcode: case_flag_elif
     push @$out, "}"
     push @$out, "DEDENT"
 
+    $if !$case_wrap
+	$case_wrap=[]
     push @$case_wrap, "}"
 
 subcode: case_flag_else
@@ -353,3 +350,4 @@ subcode: debug_case_l
     $if $debug eq "case"
 	my $level=@case_stack
 	print "        $level:[$case_state]$l\n"
+
