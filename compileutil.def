@@ -19,7 +19,6 @@ page: compileutil
 subcode: compile_main
     my ($cur_file, $cur_line);
     $call package_global
-    $call manage_output
     $call support_subs
     # ---------------------------------------------------
     $sub compile
@@ -80,24 +79,6 @@ subcode:: package_global
 
     our %misc_vars;
 
-
-subcode: manage_output
-    $global $out
-    $global @output_list
-
-    $sub init_output
-	@output_list=([]);
-	set_output($output_list[0])
-
-    $sub new_output
-	my $new_out=[];
-	push @output_list, $new_out;
-	my $nidx=$#output_list;
-	return $nidx;
-
-    $sub fetch_output
-	my $n=shift;
-	return $output_list[$n];
 
 subcode: compile
     my ($ext, $mode)=$f_init->($page);

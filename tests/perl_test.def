@@ -44,7 +44,7 @@ page: test
 # ------------------------------------
 subcode: test_case(option)
     DEBUG case
-    print "Test \$case ...\n"
+    print "Test \$case option $(option)...\n"
     my $t=4
     print " * \$case -> if/elsif: 4 < 5\n"
     $case $t<5
@@ -72,14 +72,21 @@ subcode: othercase
 
 # ------------------------------------
 subcode: test_case_compound
-    my $t=4
-    print " * Compound case: \&case: 4 < 5\n"
-    &case compound_test, 5
-	print "$t < 5\n"
-    &case compound_test, 10
-	print "5 <= $t < 10\n"
-    &case compound_test, 100
-	print "10 <= $t < 100\n"
+    DEBUG case
+    $for $i=0:2
+	my $t=4
+	print " * Compound case: \&case: 4 < 5\n"
+	&case compound_test, 5
+	    print "$t < 5\n"
+	&case compound_test, 10
+	    print "5 <= $t < 10\n"
+	&case compound_test, 100
+	    print "10 <= $t < 100\n"
+
+subcode: test_wrap
+    print "Start test wrap...\n"
+    BLOCK
+    print "End test wrap\n"
 
 subcode: compound_test(n)
     $if $t>=$(n)

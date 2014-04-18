@@ -46,27 +46,35 @@ subcode: add_list_function(f)
 # ------------------------------------
 subcode: parse_function_list_item(f)
     my $funcname=$(f)
-    my $codename=$(f)
-    $if $f=~/(\w+)\((\w+)\)/
-	$codename=$1
-	$funcname=$2
-    $funcname=~s/^@//
-    my $params=MyDef::compileutil::get_sub_param_list($codename)
-    $if defined $params
-	my $paramline=join(",", @$params)
-	$if $funcname eq "n_main" or $funcname eq "main2"
-	    $funcname="main";
-	my $fidx=open_function($funcname, $paramline);
-	push @$out, "OPEN_FUNC_$fidx";
-	$cur_indent=1
-	push @$out, "SOURCE_INDENT"
-	MyDef::compileutil::set_current_macro("FunctionName", $funcname)
-	MyDef::compileutil::call_sub($codename, "\$list")
-	$call parse_function_end
-	push @$out, "SOURCE_DEDENT"
+    $if $lamda_functions{$funcname}
+	my $block=$lamda_functions{$funcname}
+	push @$out, @$block
+    $else
+	my ($paramline, $codename)
+	$codename=$(f)
+	$if $codename=~/(\w+)\((\w+)\)/
+	    $codename=$1
+	    $funcname=$2
+	$funcname=~s/^@//
+	my $params=MyDef::compileutil::get_sub_param_list($codename)
+	$if defined $params
+	    $paramline=join(",", @$params)
+	    $if $funcname eq "n_main" or $funcname eq "main2"
+		$funcname="main";
+
+	$if defined $paramline
+	    my $fidx=open_function($funcname, $paramline);
+	    push @$out, "OPEN_FUNC_$fidx";
+	    $cur_indent=1
+	    push @$out, "SOURCE_INDENT"
+	    MyDef::compileutil::set_current_macro("FunctionName", $funcname)
+	    MyDef::compileutil::call_sub($codename, "\$list")
+	    $call parse_function_end
+	    push @$out, "SOURCE_DEDENT"
 
 # ---- Direct $function ------------------
 subcode: parse_function
+    $global %lamda_functions
     $call check_autoload_h
     $if !$autoload_h and $param=~/(\w+)(.*)/
 	my ($fname, $paramline)=($1, $2)
@@ -74,19 +82,31 @@ subcode: parse_function
 	    $paramline=$1
 	$elif $paramline=~/^\s*,\s*(.*)/
 	    $paramline=$1
-	my $fidx=open_function($fname, $paramline)
-	push @$out, "OPEN_FUNC_$fidx";
-	push @$out, "SOURCE_INDENT";
-	push @$out, "BLOCK";
-	push @$out, "SOURCE_DEDENT";
-	$call add_to_autoload_h, "function-$fname"
-	return "NEWBLOCK-\$function_end";
+
+	my $name=MyDef::utils::uniq_name($fname, \%list_function_hash)
+	my $block=[]
+
+	my $fidx=open_function($name, $paramline)
+	push @$block, "OPEN_FUNC_$fidx";
+	push @$block, "SOURCE_INDENT";
+	push @$block, "BLOCK";
+	push @$block, "SOURCE_DEDENT";
+	push @$block, "PARSE:\$function_end"
+	$call add_to_autoload_h, "function-$name"
+
+	$lamda_functions{$name}=$block
+	$call add_list_function, $name
+	MyDef::compileutil::set_current_macro("lamda", $name)
+
+	return $block
     $else
 	return "SKIPBLOCK"
 
 subcode: parse_function_end
-    $call case_reset
     $cur_function=pop @function_stack
+    my $level=@function_stack
+    $if $level==0
+	$call case_reset
 
 # == legacy ======================================
 

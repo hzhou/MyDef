@@ -202,6 +202,7 @@ subcode: parsecode_func
 	return
     $elsif $func eq "typedef"
 	add_typedef($param)
+	return
     $elsif $func eq "global" or $func eq "local" or $func eq "my" or $func eq "symbol"
 	$call check_autoload_h
 	$if $func eq "global" and $autoload_h
@@ -306,8 +307,8 @@ subcode: c_parse_for
 		$stepclause="$var=$i0;$var>$i1;$var--";
 	    $else
 		$stepclause="$var=$i0;$var<$i1;$var++";
-	single_block("for($stepclause){", "}");
-	return "NEWBLOCK-\$endfor $var"
+	my $end="PARSE:\$endfor $var"
+	return single_block_pre_post(["for($stepclause){", "INDENT"], ["DEDENT", "}",$end])
     $else
 	return single_block("for($param){", "}")
 

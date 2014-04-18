@@ -132,7 +132,8 @@ subcode: objc_parsecode
 	my $name=new_class($1, $2)
 	push @$(Cout), "DUMP_STUB CLASS-$name"
 	push @$(Cout), "BLOCK"
-	return "NEWBLOCK-\$class_end"
+	push @$(Cout), "PARSE:\$class_end"
+	return "NEWBLOCK"
     $elif $l=~/^\$class_end/
 	undef $cur_class
 	return

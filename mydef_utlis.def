@@ -6,6 +6,7 @@ page: utils
 	$call package_subs
 	1;
 
+# ---------------------------------------------------------
 subcode:: package_subs
     $(set:in_quote=$closure_stack[-1] eq "'" or $closure_stack[-1] eq '"')
     $(set:not_in_quote=$closure_stack[-1] ne "'" and $closure_stack[-1] ne '"')
@@ -13,7 +14,9 @@ subcode:: package_subs
 	my @closure_stack
 	my @tlist
 	my $t
-	$if !$param
+	$if $param eq "0"
+	    return (0)
+	$elif !$param
 	    return @tlist
 	# print "proper_split [$param]\n"
 	$while 1
@@ -67,3 +70,13 @@ subcode: proper_split_close_bracket
     $else
 	# possible error
 
+# ---------------------------------------------------------
+subcode:: package_subs
+    $sub uniq_name($name, $hash)
+	$if !$hash->{$name}
+	    return $name
+	$else
+	    my $i=2
+	    $while $hash->{"$name$i"}
+		$i++
+	    return "$name$i"

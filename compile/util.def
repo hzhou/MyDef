@@ -20,6 +20,26 @@ subcode:: support_subs
 
 # --------------------------------
 subcode:: package_global	
+    $global $out
+    $global @output_list
+
+    $sub init_output
+	@output_list=([]);
+	set_output($output_list[0])
+
+    $sub new_output
+	my $new_out=[];
+	push @output_list, $new_out;
+	my $nidx=$#output_list;
+	return $nidx;
+
+    $sub fetch_output
+	my $n=shift;
+	return $output_list[$n];
+
+
+# --------------------------------
+subcode:: package_global	
     our %named_blocks;   # $(block: name)
     $sub set_named_block($name, $block)
 	$named_blocks{$name}=$block

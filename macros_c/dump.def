@@ -88,6 +88,11 @@ subcode:: support_subs
 		$typedef_hash{$2}=$1
 		push @typedef_list, $2
 		$call add_to_autoload_h, "typedef-$2"
+	    $elif $param=~/\(\*\s*(\w+)\)/
+		$typedef_hash{$1}=$param
+		push @typedef_list, $1
+		$call add_to_autoload_h, "typedef-$1"
+
 
 subcode: dump_typedefs
     $if @typedef_list
@@ -96,7 +101,11 @@ subcode: dump_typedefs
 	push @$dump_out, "\n";
 
 subcode: dump_typedef(k)
-    push @$dump_out, "typedef $typedef_hash{$(k)} $(k);"
+    my $t=$typedef_hash{$(k)}
+    $if $t=~/\(\*\s*(\w+)\)/
+	push @$dump_out, "typedef $t;"
+    $else
+	push @$dump_out, "typedef $t $(k);"
 
 # ---- Enums ----
 subcode:: c_init
