@@ -11,19 +11,27 @@ subcode: hash_functions
     $struct(hash) struct hash_entry * p_table, n_size, n_prime, n_top
     $list hash_new, 
     $list hash_expand, hash_free
-    $list hash_getstr, hash_lookup, hash_set_direct
+    $list hash_getstr, hash_lookup
+
+subcode: hash_free_val(p)
+    $if $(p)->s_val && $(p)->s_val >(char *)100
+	free($(p)->s_val)
+
+subcode: hash_free_key(p)
+    $if $(p)->s_key
+	free($(p)->s_key)
+
+subcode: hash_set_val(p, val)
+    $call hash_free_val, $(p)
+    $(p)->s_val=strdup($(val))
 
 # -------------------------------------
 # p_hash=hash_new(1000)
 # -------------------------------------
 subcode: hash_set(p_hash, key, val)
     $local struct hash_entry * p
-    $eval tempstr, $(key)
-    p=hash_lookup($(p_hash), $(tempstr))
-    $eval tempstr, $(val)
-    $if p->s_val
-	free(p->s_val)
-    p->s_val=strdup($(tempstr))
+    p=hash_lookup($(p_hash), $(key))
+    $call hash_set_val, p, $(val)
 
 # -------------------------------------
 subcode: hash(var)
@@ -63,7 +71,7 @@ fncode: hash_expand(struct hash * p_hash)
     $for i=0:tn_old_size
 	p=p_temp+i
 	$if p->s_key
-	    hash_set_direct(p_hash, p->s_key, p->s_val)
+	    $fcall hash_set_direct(p_hash, p->s_key, p->s_val)
     free(p_temp)
 
 fncode: hash_free(struct hash * p_hash)
@@ -71,10 +79,8 @@ fncode: hash_free(struct hash * p_hash)
     $for i=0:tn_size
 	$local struct hash_entry * p
 	p=p_hash->p_table+i
-	$if p->s_key
-	    free(p->s_key)
-	$if p->s_val
-	    free(p->s_val)
+	$call hash_free_key, p
+	$call hash_free_val, p
     free(p_hash->p_table)
     free(p_hash)
 

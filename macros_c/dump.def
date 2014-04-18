@@ -120,14 +120,15 @@ subcode: dump_enums
 
 # ---- Global Variables ----
 subcode:: c_init
-    $global $global_type, $global_flag, @global_list
+    $global $global_type, $global_hash, @global_list
     $global_type={}
-    $global_flag={}
+    $global_hash={}
     @global_list=()
 
 subcode: dump_globals
     my $cnt=0
-    $foreach my $v in @global_list
+    $foreach $name in @global_list
+	my $v=$global_hash->{$name}
 	push @$dump_out, "$v;\n";
 	$cnt++
     $if $cnt>0

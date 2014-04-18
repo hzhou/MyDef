@@ -338,12 +338,12 @@ if(%h_copylist){
     push @tlist, "\${COPY}";
 }
 print Out "\n";
+print Out "all_targets: ", join(" ", @tlist, @make_folders),;
+print Out "\n\n";
 if($config_outputdir_make){
-    print Out "$config_outputdir: all\n";
+    print Out "all: all_targets\n";
     print Out "\tmake -C $config_outputdir\n";
 }
-print Out "all: ", join(" ", @tlist, @make_folders),;
-print Out "\n\n";
 if($config_outputdir_make){
     print Out "install: $config_outputdir\n";
     print Out "\tmake -C $config_outputdir install\n";
@@ -413,7 +413,7 @@ if($config_outputdir){
                 if($page->{path}=~/.*\/(.*)\.c/){
                     $name=$1;
                 }
-                print Out "cl $name.c user32.lib\r\n";
+                print Out "cl /W3 $name.c user32.lib\r\n";
             }
             close Out;
         }

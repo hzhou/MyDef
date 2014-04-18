@@ -29,6 +29,7 @@ sub parsecode {
         eval $t;
         if($@){
             print "Error [$l]: $@\n";
+            print "  $t\n";
         }
         return;
     }
@@ -179,13 +180,15 @@ sub dumpout {
     }
     my @t;
     my $cnt;
-    foreach my $v (@MyDef::output_c::global_list){
+    my $ghash=$MyDef::output_c::global_hash;
+    foreach my $name (@MyDef::output_c::global_list){
+        my $v=$ghash->{$name};
         if($v=~/^[SHA]V/){
             push @xs_globals, "$v;\n";
             $cnt++;
         }
         else{
-            push @t, $v;
+            push @t, $name;
         }
     }
     if($cnt>0){

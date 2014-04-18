@@ -1,9 +1,13 @@
 use strict;
 package MyDef::output_perl;
-our @case_stack=(0);
-our $case_level=0;
+our $case_flag="\$b_flag_case";
+our $case_flag_set="my \$b_flag_case=1;";
+our $case_flag_reset="\$b_flag_case=0;";
 our $case_if="if";
 our $case_elif="elsif";
+our @case_stack;
+our $case_state;
+our $case_wrap;
 use MyDef::dumpout;
 use MyDef::utils;
 our $debug;
@@ -13,7 +17,8 @@ our $out;
 our @globals;
 our %globals;
 sub get_interface {
-    return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
+    my $interface_type="perl";
+    return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout, $interface_type);
 }
 sub init_page {
     ($page)=@_;
@@ -64,18 +69,13 @@ sub parsecode {
         eval $t;
         if($@){
             print "Error [$l]: $@\n";
+            print "  $t\n";
         }
         return;
     }
-    if($l eq "CASEPOP"){
-        if($case_level>0){
-            pop @case_stack;
-            $case_level--;
-        }
-        return 0;
-    }
-    elsif($l!~/^SUBBLOCK/ and $case_stack[$case_level]>0){
-        $case_stack[$case_level]--;
+    if($debug eq "case"){
+        my $level=@case_stack;
+        print "        $level:[$case_state]$l\n";
     }
     if($l=~/^\$(if|elif|elsif|elseif|case)\s+(.*)$/){
         my $cond=$2;
@@ -84,7 +84,7 @@ sub parsecode {
             $case=$case_if;
         }
         elsif($1 eq "case"){
-            if($case_stack[$case_level]==0){
+            if(!$case_state){
                 $case=$case_if;
             }
             else{
@@ -99,26 +99,105 @@ sub parsecode {
         push @$out, "BLOCK";
         push @$out, "DEDENT";
         push @$out, "}";
-        $case_stack[$case_level]=2;
-        push @case_stack, 1;
-        $case_level++;
+        if(!$case_wrap){
+            $case_wrap=[];
+        }
+        push @case_stack, {state=>"if", wrap=>$case_wrap};
+        undef $case_state;
+        undef $case_wrap;
+        if($debug eq "case"){
+            my $level=@case_stack;
+            print "Entering case [$level]: $l\n";
+        }
+        return "NEWBLOCK-CASEPOP";
+    }
+    elsif($l=~/^\&case\s+(.*)/){
+        if(!$case_state){
+            push @$out, $case_flag_set;
+            MyDef::compileutil::call_sub($1, "\$call");
+            push @$out, "if($case_flag){";
+            push @$out, "INDENT";
+            push @$out, "BLOCK";
+            push @$out, "DEDENT";
+            push @$out, "}";
+        }
+        else{
+            push @$out, "else{";
+            push @$out, "INDENT";
+            push @$out, $case_flag_set;
+            MyDef::compileutil::call_sub($1, "\$call");
+            push @$out, "if($case_flag){";
+            push @$out, "INDENT";
+            push @$out, "BLOCK";
+            push @$out, "DEDENT";
+            push @$out, "}";
+            push @$out, "DEDENT";
+            push @$case_wrap, "}";
+        }
+        if(!$case_wrap){
+            $case_wrap=[];
+        }
+        push @case_stack, {state=>"if", wrap=>$case_wrap};
+        undef $case_state;
+        undef $case_wrap;
+        if($debug eq "case"){
+            my $level=@case_stack;
+            print "Entering case [$level]: $l\n";
+        }
         return "NEWBLOCK-CASEPOP";
     }
     elsif($l=~/^\$else/){
+        if(!$case_state and $l!~/NoWarn/i){
+            my $pos=MyDef::compileutil::curfile_curline();
+            warn "[$pos]Dangling \$else .\n";
+        }
         push @$out, "else{";
         push @$out, "INDENT";
         push @$out, "BLOCK";
         push @$out, "DEDENT";
         push @$out, "}";
-        return "NEWBLOCK";
+        if(!$case_wrap){
+            $case_wrap=[];
+        }
+        push @case_stack, {state=>undef, wrap=>$case_wrap};
+        undef $case_state;
+        undef $case_wrap;
+        if($debug eq "case"){
+            my $level=@case_stack;
+            print "Entering case [$level]: $l\n";
+        }
+        return "NEWBLOCK-CASEPOP";
+    }
+    elsif($l!~/^SUBBLOCK/){
+        undef $case_state;
+        if($l eq "CASEPOP"){
+            if($debug eq "case"){
+                my $level=@case_stack;
+                print "    Exit case [$level]\n";
+            }
+            my $t_case=pop @case_stack;
+            if($t_case){
+                $case_state=$t_case->{state};
+                $case_wrap=$t_case->{wrap};
+            }
+            return 0;
+        }
+        elsif($l=~/^CASEEXIT/){
+            push @$out, $case_flag_reset;
+            return 0;
+        }
+    }
+    if($case_wrap and !$case_state){
+        push @$out, @$case_wrap;
+        undef $case_wrap;
     }
     if($l=~/^\s*\$(\w+)\s*(.*)$/){
         my $func=$1;
         my $param=$2;
         if($func =~ /^global$/){
             $param=~s/\s*;\s*$//;
-            my $tlist=MyDef::utils::proper_split($param);
-            foreach my $v (@$tlist){
+            my @tlist=MyDef::utils::proper_split($param);
+            foreach my $v (@tlist){
                 if(!$globals{$v}){
                     $globals{$v}=1;
                     push @globals, $v;
@@ -203,6 +282,7 @@ sub parsecode {
 sub dumpout {
     my ($f, $out, $pagetype)=@_;
     my $dump={out=>$out,f=>$f};
+    parsecode("NOOP");
     if(!defined $pagetype or $pagetype eq "pl"){
         push @$f, "#!/usr/bin/perl\n";
     }

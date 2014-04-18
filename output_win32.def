@@ -48,4 +48,5 @@ subcode:: on_dumpout
     $else
 	$extern="extern "
 
-    push @MyDef::output_c::global_list, $extern."HINSTANCE cur_instance"
+    push @MyDef::output_c::global_list, "cur_instance"
+    $MyDef::output_c::global_hash->{cur_instance}= $extern."HINSTANCE cur_instance"

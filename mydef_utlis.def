@@ -13,6 +13,8 @@ subcode:: package_subs
 	my @closure_stack
 	my @tlist
 	my $t
+	$if !$param
+	    return @tlist
 	# print "proper_split [$param]\n"
 	$while 1
 	    $if $param=~/\G(\s+)/gc
