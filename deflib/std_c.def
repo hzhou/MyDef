@@ -53,8 +53,13 @@ subcode: open_r(file)
         BLOCK
         fclose(file_in)
 
+subcode: skip_r(n)
+    t_n=fseek(file_in, $(n), SEEK_CUR)
+
 subcode: write_sig(name)
     t_n=fwrite("$(name)", 1, $(name:len), file_out)
+subcode: write_sig_n(quoted_sig, n)
+    t_n=fwrite($(quoted_sig), 1, $(n), file_out)
 
 subcode: read_sig(name, len)
     t_n=fread($(name), 1, $(len), file_in)
@@ -62,6 +67,9 @@ subcode: read_sig(name, len)
 
 subcode: write_var(name)
     t_n=fwrite(&$(name), sizeof($(name)), 1, file_out)
+subcode: write_int_n(i, n)
+    tn_value=$(i)
+    t_n=fwrite(&tn_value, $(n), 1, file_out)
 
 subcode: read_var(name)
     t_n=fread(&$(name), sizeof($(name)), 1, file_in)
