@@ -1,0 +1,176 @@
+include: DefParser/c_fifo.def
+include: DefParser/input_buffer.def
+
+subcode:: _autoload
+    $include ctype
+    $list skip_space, match_eof
+    $list match_char, match_char_class, match_keyword
+    $list match_identifier
+
+subcode: get_ts_token
+    ts_token=input_get_str($(input))
+
+# ----- overload input_buffer.def -----
+subcode: input_start
+    $call @input_skip
+    $(input)->n_start=$(input)->n_pos
+
+subcode: input_restart
+    $call input_check_tempchar, $(input)
+    $(input)->n_pos=$(input)->n_start
+
+subcode: input_get_c(c)
+    $(c)=input_get_char($(input))
+
+subcode: input_back_char
+    $if $(input)->n_pos>$(input)->n_start
+	$(input)->n_pos--
+
+subcode: input_debug
+    tn_c=$(input)->buffer[$(input)->n_pos]
+    print "input_debug: %d - %d - %d [%c][%d]", $(input)->n_start, $(input)->n_pos, $(input)->n_end, tn_c, tn_c
+    $for i=0:40
+	$if $(input)->n_pos+i<$(input)->n_end
+	    $if $(input)->buffer[$(input)->n_pos+i]=='\n'
+		break
+	    $else
+		printf "%c", $(input)->buffer[$(input)->n_pos+i]
+    print "\n"
+
+# ---- overload to customize -----------------------------
+subcode: input_skip
+    skip_space()
+
+# ---------------------------------
+subcode: match_until(cond)
+    $while 1
+	$call input_get_c, tn_c
+	$if $(cond)
+	    $if tn_c>0
+		$call input_back_char
+	    return 1
+
+# -----------------------------
+fncode: skip_space
+    $call match_until, !isspace(tn_c)
+
+fncode: match_eof
+    $call input_get_c, tn_c
+    $if tn_c<=0
+	return 1
+    $else
+	$call input_back_char
+	return 0
+
+fncode: match_char(tn_char)
+    $call input_get_c, tn_c
+    $if tn_c==tn_char
+	return 1
+    $else
+	$call input_back_char
+	return 0
+
+# ---------------------------------
+fncode: match_char_class(s_class)
+    $call input_get_c, tn_c
+    $while *s_class
+	$if tn_c==*s_class
+	    return 1
+	s_class++
+    $if tn_c>0
+	$call input_back_char
+    return 0
+
+# ---------------------------------
+fncode: match_keyword(s_key)
+    $(set:isword=(isalnum(tn_c)||tn_c=='_'))
+    $(set:isword2=(isalnum(tn_c2)||tn_c2=='_'))
+    $while 1
+	$call input_get_c, tn_c
+	$if tn_c !=*s_key
+	    $call input_restart
+	    return 0
+	s_key++
+	$if !*s_key
+	    $call input_get_c, tn_c2
+	    $if tn_c2<=0
+		return 1
+	    $elif $(isword) && !$(isword2) || !$(isword) 
+		$call input_back_char
+		return 1
+	    $else
+		$call input_restart
+		return 0
+
+# -------------------------------
+fncode: match_char_unless(tn_c1, s_tail)
+    $if match_char(tn_c1)
+	$if match_char_class(s_tail)
+	    $call input_restart
+	    return 0
+	$else
+	    return 1
+    $else
+	return 0
+
+fncode: match_keyword_unless(s_key, s_tail)
+    $if match_keyword(s_key)
+	$if match_char_class(s_tail)
+	    $call input_restart
+	    return 0
+	$else
+	    return 1
+    $else
+	return 0
+
+# ---------------------------------
+fncode: match_identifier()
+    $call input_get_c, tn_c
+    $if isalpha(tn_c) || tn_c=='_'
+	$call match_until, !(isalnum(tn_c) || tn_c=='_')
+    $else
+	$call input_restart
+	return 0
+
+# ---------------------------------
+fncode: match_bracket(tn_c1)
+    tn_escape='\\'
+    $if tn_c1=='{'
+	tn_c2='}'
+    $elif tn_c1=='['
+	tn_c2=']'
+    $elif tn_c1=='('
+	tn_c2=')'
+    $elif tn_c1=='\'' || tn_c1=='"'
+	$call match_quote, tn_c1
+	return 1
+    $else
+	# error
+	return 0
+
+    tb_flag_escape=0
+    $while 1
+	$call input_get_c, tn_c
+	$if tb_flag_escape
+	    tb_flag_escape=0
+	$elif tn_c=='\'' || tn_c=='"'
+	    tn_quote=tn_c
+	    $call match_quote, tn_quote
+	$elif tn_c==tn_c1
+	    match_bracket(tn_c)
+	$elif tn_c==tn_c2
+	    return 1
+	$elif tn_c<=0
+	    return 1
+
+subcode: match_quote(c)
+    tn_escape='\\'
+    tb_flag_escape=0
+    $while 1
+	$call input_get_c, tn_c
+	$if tb_flag_escape
+	    tb_flag_escape=0
+	$elif tn_c==tn_escape
+	    tb_flag_escape=1
+	$elif tn_c==$(c)
+	    break

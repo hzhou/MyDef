@@ -1,0 +1,84 @@
+subcode: set_tn_expect_error
+    $(export:tn_expect_error=on)
+    tn_expect_error=0
+
+subcode: parse_sequence(id)
+    $call parse_push
+    $call input_start
+    BLOCK
+    $call parse_pop, $(id)
+    return 1
+
+subcode: expect(c)
+    $(if:c~')
+	$call input_skip
+	$if !match_char($(c))
+	    $call expect_error, $(c)
+    $(elif:c~")
+	$call input_skip
+	$if !match_keyword($(c))
+	    $call expect_error, $(c:1:word)
+    $(elif:c~parse_)
+	$if !$(c)
+	    $call expect_error, $(c)
+
+subcode: expect_error(c)
+    $(if:tn_expect_error)
+	tn_expect_error++
+    $call @parse_error, Expect $(c)
+
+subcode: parse_error(msg)
+    $call tempstr_init
+    $call tempstr_add, '['
+    $if $(input)->s_file
+	$call tempstr_add, $(input)->s_file
+    $call tempstr_add, ": line "
+    $call tempstr_add_int, $(input)->n_line
+    $call tempstr_add, ']'
+    print $tempstr_buffer Error in $(FunctionName): $(msg)
+    $call input_debug
+
+# ------------------------------------------
+subcode: build_op_macro(@t)
+    $(for:a in $(t))
+	$(if:a~')
+	    $(set:match=match_char($(a)))
+	$(else)
+	    $(set:match=match_keyword($(a)))
+	$(if:m)
+	    $(set:m=$(m) || $(match))
+	$(else)
+	    $(set:m=$(match))
+	$(export:m)
+    $(export:op=$(m))
+
+# ----------------------------------
+subcode: parse_left(parse, @op)
+    $list $(parse)
+    $call parse_push
+    $if !$(parse)()
+	return 0
+    $else
+	$call input_start
+	$while $(op)
+	    $call push_string_token, g_Operator
+	    $call expect, $(parse)()
+	    $call parse_pop, g_Exp_Binary_Left
+	    $call parse_push_n, 1
+    return 1
+
+subcode: parse_right(parse, @op)
+    $list $(parse)
+    $call parse_push
+    $if !$(parse)()
+	return 0
+    $else
+	$call input_start
+	$if $(op)
+	    $call push_string_token, g_Operator
+	    # $call input_start
+	    $call expect, $(FunctionName)()
+	    $call parse_pop, g_Exp_Binary_Right
+	return 1
+
+# ----------------------------------

@@ -1,0 +1,139 @@
+include: DefParser/ast.def
+include: DefParser/lex.def
+include: DefParser/parser_pattern.def
+
+# --------------------------------------
+subcode:: _autoload
+    $call global_darray, struct ast *, p_parse_stack
+    $global n_token_count=0
+
+    $list push_token
+
+subcode: push_ast
+    push_token((struct ast *)$(ast))
+
+fncode: push_token(struct ast * p)
+    $call da_push, p_parse_stack, p
+    n_token_count++
+
+# ---------------------------------
+subcode: push_string_token(id)
+    $call get_ts_token
+    $eval ast_id_define, $(id)
+    $call new_ast_string, $(id), strdup(ts_token)
+    $call push_ast
+
+subcode: push_empty_token(id)
+    $eval ast_id_define, $(id)
+    $call new_ast_string, $(id), NULL
+    $call push_ast
+
+subcode: if_last_token(id)
+    $call use_darray, p_parse_stack
+    $(set:p=p_parse_stack[$(len)-1])
+    $if $(p)->id==$(id)
+	BLOCK
+
+# -------------------------------------------
+subcode: quick_input_loop
+    $(allow_recurse:10)
+    $while 1
+	$call input_start
+	BLOCK
+
+# -------
+subcode: parse_push
+    tn_save_token_count=n_token_count
+
+subcode: parse_push_n(n)
+    tn_save_token_count=n_token_count-$(n)
+
+subcode: parse_pop(id)
+    $(if:id~g_)
+	$eval ast_id_define, $(id)
+    n_token_count=n_token_count-tn_save_token_count
+    concat_ast_group($(id))
+    n_token_count=tn_save_token_count+1
+
+subcode: if_parsed
+    $if n_token_count>tn_save_token_count
+	BLOCK
+
+subcode: if_parsed_gt(n)
+    $if n_token_count>tn_save_token_count+$(n)
+	BLOCK
+
+# -------
+subcode: parse_pop_n(n, id)
+    $(if:id~g_)
+	$eval ast_id_define, $(id)
+    tn_save_token_count=n_token_count-$(n)
+    n_token_count=$(n)
+    concat_ast_group($(id))
+    n_token_count=tn_save_token_count+1
+
+subcode: ast_string_merge
+    $call use_darray, p_parse_stack
+    $call get_ast_string, p_parse_stack[$(len)-1]
+    ts_a=$(v)
+    $call get_ts_token
+    tn_len=strlen(ts_a)+strlen(ts_token)+1
+    ts_b=malloc(tn_len)
+    $if ts_b
+	strcpy(ts_b, ts_a)
+	strcat(ts_b, " ") 
+	strcat(ts_b, ts_token)
+	$(v)=ts_b
+	free(ts_a)
+
+# -------------------------------------------
+subcode:: _autoload
+    $list concat_ast_group
+
+fncode: concat_ast_group(tn_id)
+    #print concat_ast_group: [$n_token_count] $tn_id
+    $call new_ast_group, tn_id, n_token_count
+    $if n_token_count>0
+	$(ast)->list=(struct ast**)malloc(n_token_count*sizeof(struct ast *))
+	$call use_darray, p_parse_stack
+	j=$(len)-n_token_count
+	$for i=0:n_token_count
+	    $(ast)->list[i]=p_parse_stack[j+i]
+	$(len)=j
+    $call push_ast
+
+
+# ---- Debug Routines ------------------------------------
+subcode: print_stack
+    $call use_darray, p_parse_stack
+    $for i=0:$(len)
+	print_ast(p_parse_stack[i], 0)
+
+# ---- legacy ------------------------------------
+subcode: on_parse_tail
+    $if n_token_count>1
+	concat_ast_group(G_group)
+
+subcode: on_parse_finish(name)
+    $(if:hascode:on_$(name))
+	$call @on_$(name)
+    $(else)
+	$if n_token_count!=1
+	    concat_ast_group(G_$(name))
+
+# used in %left etc.
+subcode: while_lookahead(depth, LA)
+    tn_loop_cnt=0
+    $while 1
+	$call look_ahead, $(depth)
+	$if !($(LA))
+	    break
+	BLOCK
+	tn_loop_cnt++
+
+# needed in %right etc.
+subcode: each_while_lookahead
+    $for i=0:tn_loop_cnt
+	BLOCK
+
+# ------------------------
