@@ -1,0 +1,66 @@
+subcode:: _autoload
+    $call define_fifo_input, input_buffer
+    $struct(input_buffer) n_pos, n_tempchar
+
+    $list input_create, input_delete, input_from_string
+    $list input_get_char, input_get_str
+
+# ----------------------------------------------
+fncode: input_create(FILE * f, n_buf_size)
+    $local struct input_buffer * b
+    $call fifo_create, b, n_buf_size
+    $call fifo_attach_file, b, f
+    b->n_pos=0
+    b->n_tempchar=0
+    return b
+
+fncode: input_from_string(s_buffer)
+    $local struct input_buffer * b
+    tn_size=strlen(s_buffer)
+    $if tn_size>0 && tn_size<1024
+	$call fifo_create, b, tn_size
+	strncpy(b->buffer, s_buffer, tn_size)
+	b->n_pos=0
+	b->n_end=tn_size
+	b->n_tempchar=0
+	return b
+    $else
+	print input_from_string: string too big!
+	exit(1)
+
+# -----------
+fncode: input_delete(struct input_buffer * b)
+    $call fifo_delete, b
+
+# ----- 
+fncode: input_get_char(struct input_buffer * b)
+    $return_type int
+    # print "input_get_char: pos %d, end %d\n", b->n_pos, b->n_end
+    $if b->n_tempchar
+	b->buffer[b->n_pos]=b->n_tempchar
+	b->n_tempchar=0
+    $if b->n_pos==b->n_end
+	$call fifo_input, b
+    tn_c=(int)(b->buffer[b->n_pos])
+    b->n_pos++
+    return tn_c
+
+fncode: input_get_str(struct input_buffer * b)
+    $if b->buffer[b->n_pos] && !b->n_tempchar
+	b->n_tempchar=b->buffer[b->n_pos]
+	b->buffer[b->n_pos]='\0'
+    return b->buffer+b->n_start
+
+# -----------
+subcode: input_start(b)
+    $(b)->n_start=$(b)->n_pos
+
+subcode: input_restart(b)
+    $(b)->n_pos=$(b)->n_start
+
+subcode: input_back_char(b)
+    $(b)->n_pos--
+
+subcode: input_debug(b)
+    tn_c=$(b)->buffer[$(b)->n_pos]
+    print "input_debug: %d - %d - %d [%d]\n", $(b)->n_start, $(b)->n_pos, $(b)->n_end, tn_c
