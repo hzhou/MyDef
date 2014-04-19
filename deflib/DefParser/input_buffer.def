@@ -5,53 +5,86 @@ subcode:: _autoload
     $list input_create, input_delete, input_from_string
     $list input_get_char, input_get_str
 
-# ----------------------------------------------
-fncode: input_create(FILE * f, n_buf_size)
+# #### ------------------------------------------
+fncode: input_create(FILE * f)
     $local struct input_buffer * b
-    $call fifo_create, b, n_buf_size
+    $call fifo_create, b, 1024
     $call fifo_attach_file, b, f
     b->n_pos=0
     b->n_tempchar=0
+    $call @on_input_create, b
     return b
 
-fncode: input_from_string(s_buffer)
+fncode: input_from_string(s)
     $local struct input_buffer * b
-    tn_size=strlen(s_buffer)
-    $if tn_size>0 && tn_size<1024
-	$call fifo_create, b, tn_size
-	strncpy(b->buffer, s_buffer, tn_size)
-	b->n_pos=0
-	b->n_end=tn_size
-	b->n_tempchar=0
-	return b
-    $else
-	print input_from_string: string too big!
-	exit(1)
+    $allocate b
+    b->n_size=strlen(s)
+    b->n_start=0
+    b->n_end=0
+    b->b_eof=2
+    b->buffer=s
+    $call @on_input_create, b
+    return b
 
 # -----------
 fncode: input_delete(struct input_buffer * b)
-    $call fifo_delete, b
+    $call @on_input_delete, b
+    $if b->b_eof==2
+	free(b)
+    $else
+	$call fifo_delete, b
 
-# ----- 
+# #### ------------------------------------------
 fncode: input_get_char(struct input_buffer * b)
     $return_type int
-    # print "input_get_char: pos %d, end %d\n", b->n_pos, b->n_end
-    $if b->n_tempchar
-	b->buffer[b->n_pos]=b->n_tempchar
-	b->n_tempchar=0
+    # ---- The Gateway ------------------------
+    $call input_check_tempchar, b
     $if b->n_pos==b->n_end
+	# ---- read, return eof on eof --------
 	$call fifo_input, b
     tn_c=(int)(b->buffer[b->n_pos])
     b->n_pos++
+    $call @input_char_filter, b, tn_c
     return tn_c
 
 fncode: input_get_str(struct input_buffer * b)
+    # ---- Returns the string scanned so far ------
     $if b->buffer[b->n_pos] && !b->n_tempchar
 	b->n_tempchar=b->buffer[b->n_pos]
 	b->buffer[b->n_pos]='\0'
     return b->buffer+b->n_start
 
-# -----------
+subcode: input_check_tempchar(b)
+    $if $(b)->n_tempchar
+	$(b)->buffer[$(b)->n_pos]=$(b)->n_tempchar
+	$(b)->n_tempchar=0
+
+# #### (line, col) support --------------------------
+subcode:: on_input_create(b)
+    $struct(input_buffer) char * s_file, n_line, n_line_start
+    $(b)->s_file=NULL
+    $(b)->n_line=1
+    $(b)->n_line_start=0
+
+subcode:: on_input_delete(b)
+    $if $(b)->s_file
+	free($(b)->s_file)
+	$(b)->s_file=NULL
+
+subcode:: input_char_filter(b, c)
+    $if $(c)=='\n' && $(b)->n_line_start<$(b)->n_pos
+	$(b)->n_line++
+	$(b)->n_line_start=$(b)->n_pos
+
+subcode: input_set_filepos(b, file, line)
+    $(b)->s_file=strdup($(file))
+    $(b)->n_line=$(line)
+    $(b)->n_line_start=$(b)->n_pos
+
+subcode: on_fifo_shift(b, shift)
+    $(b)->n_line_start-=$(shift)
+
+# #### macros --------------------------------------
 subcode: input_start(b)
     $(b)->n_start=$(b)->n_pos
 
@@ -59,7 +92,8 @@ subcode: input_restart(b)
     $(b)->n_pos=$(b)->n_start
 
 subcode: input_back_char(b)
-    $(b)->n_pos--
+    $if $(b)->n_pos>$(b)->n_start
+	$(b)->n_pos--
 
 subcode: input_debug(b)
     tn_c=$(b)->buffer[$(b)->n_pos]

@@ -5,103 +5,111 @@
 subcode: define_fifo(name, type)
     $struct($(name)) $(type) * buffer, n_size, n_start, n_end
 
+# -----------------------------------
+# convention: use b as in buffer
+# -----------------------------------
+subcode: fifo_create(b, size)
+    $allocate $(b)
+    $allocate($(size)) $(b)->buffer
+    $(b)->n_size=$(size)
+    $(b)->n_start=0
+    $(b)->n_end=0
+
+subcode: fifo_delete(b)
+    free($(b)->buffer)
+    free($(b))
+
+# -----------------------------------
+subcode: fifo_in(b, item)
+    $call fifo_check_space, $(b), 1, sizeof(*($(b)->buffer))
+    $(b)->buffer[$(b)->n_end] = $(item)
+    $(b)->n_end++
+
+subcode: fifo_out(b, n)
+    $(b)->n_start+=$(n)
+
+subcode: fifo_restart(b)
+    $(b)->n_pos=$(b)->n_start
+
+# -----------------------------------
+subcode: fifo_copy(mem, size)
+    $call fifo_check_space, $(b), $(size), 1
+    memcpy($(b)->buffer, $(mem), $(size))
+    $(b)->n_end+=$(size)
+
+# -----------------------------------
+subcode: fifo_check_space(b, more, typesize)
+    $(set:space=$(b)->n_size-$(b)->n_end)
+    $if $(space)<$(more)
+	$if $(b)->n_start>0
+	    $call fifo_shift, $(b), $(typesize)
+	$if $(space) <  $(more) + 1
+	    $call fifo_realloc, $(b), $(more), $(typesize)
+
+subcode: fifo_shift(b, typesize)
+    tn_size=$(b)->n_end-$(b)->n_start
+    $if tn_size>0
+	$(if:typesize=1)
+	    memmove($(b)->buffer, $(b)->buffer+$(b)->n_start, tn_size )
+	$(else)
+	    memmove($(b)->buffer, $(b)->buffer+$(b)->n_start, tn_size*$(typesize) )
+    $(b)->n_end-=$(b)->n_start
+    # input_buffer.def (line, col) support
+    $call @on_fifo_shift, $(b), $(b)->n_start
+    $(b)->n_pos-=$(b)->n_start
+    $(b)->n_start=0
+
+subcode: fifo_realloc(b, more, typesize)
+    tn_size=$(b)->n_end-$(b)->n_start + $(more) + 128
+    $(if:typesize=1)
+	$(b)->buffer=realloc($(b)->buffer, tn_size )
+    $(else)
+	$(b)->buffer=realloc($(b)->buffer, tn_size*$(typesize))
+    $(b)->n_size=tn_size
+
+# #### fifo used on file stream as char input buffer ----------
+
 subcode: define_fifo_input(name)
     $include string
     $struct($(name)) char * buffer, n_size, n_start, n_end
     $struct($(name)) FILE * f, b_eof, b_tty
 
-# -----------------------------------
-subcode: fifo_create(var, size)
-    $allocate $(var)
-    $allocate($(size)) $(var)->buffer
-    $(var)->n_size=$(size)
-    $(var)->n_start=0
-    $(var)->n_end=0
-
-    $(var)->f=NULL
-    $(var)->b_eof=1
-
-subcode: fifo_delete(var)
-    free($(var)->buffer)
-    free($(var))
-
-subcode: fifo_attach_file(var, f)
+subcode: fifo_attach_file(b, f)
     $if $(f)
-	$(var)->f=$(f)
-	$(var)->b_eof=0
-	$(var)->b_tty=isatty(fileno($(f)))
+	$(b)->f=$(f)
+	$(b)->b_eof=0
+	$(b)->b_tty=isatty(fileno($(f)))
+    $else
+	$(b)->f=NULL
+	$(b)->b_eof=1
 
-# -----------------------------------
-subcode: fifo_in(var, item)
-    $call fifo_check_space, $(var), 1, sizeof(*($(var)->buffer))
-    $(var)->buffer[$(var)->n_end] = $(item)
-    $(var)->n_end++
-
-subcode: fifo_out(var, n)
-    $(var)->n_start+=$(n)
-
-subcode: fifo_restart(var)
-    $(var)->n_pos=$(var)->n_start
-
-# -----------------------------------
-subcode: fifo_copy(mem, size)
-    $call fifo_check_space, $(var), $(size), 1
-    memcpy($(var)->buffer, $(mem), $(size))
-    $(var)->n_end+=$(size)
-
-subcode: fifo_input(var)
-    $if $(var)->b_eof
+subcode: fifo_input(b)
+    $if $(b)->b_eof
 	# ---- eof --------
 	return EOF
-    $elif $(var)->f==NULL
+    $elif $(b)->f==NULL
 	$call fifo_input_eof
     $else
-	$if $(var)->b_tty
+	$if $(b)->b_tty
 	    # ---- interactive input, fgetc --------
-	    $call fifo_check_space, $(var), 1, 1
-	    tn_c=fgetc($(var)->f)
+	    $call fifo_check_space, $(b), 1, 1
+	    tn_c=fgetc($(b)->f)
 	    $if tn_c==EOF
 		$call fifo_input_eof
-	    $(var)->buffer[$(var)->n_end]=(char)tn_c
-	    $(var)->n_end++
+	    $(b)->buffer[$(b)->n_end]=(char)tn_c
+	    $(b)->n_end++
 	$else
 	    # ---- input from file, fread --------
-	    tn_size=$(var)->n_size-$(var)->n_end
-	    $if tn_size<128
-		$call fifo_check_space, $(var), 128, 1
-		tn_size=$(var)->n_size-$(var)->n_end
-	    tn_ret=fread($(var)->buffer+$(var)->n_end, 1, tn_size, $(var)->f)
+	    $(set:space=$(b)->n_size-$(b)->n_end)
+	    $if $(space)<128
+		$call fifo_check_space, $(b), 128, 1
+	    tn_ret=fread($(b)->buffer+$(b)->n_end, 1, $(space), $(b)->f)
 	    $if tn_ret==0
 		$call fifo_input_eof
 	    $else
-		$(var)->n_end+=tn_ret
+		$(b)->n_end+=tn_ret
 
 subcode: fifo_input_eof
-    $(var)->b_eof=1
+    $(b)->b_eof=1
     return EOF
-# -----------------------------------
-subcode: fifo_check_space(var, more, typesize)
-    $if $(var)->n_size-$(var)->n_end<$(more)
-	$if $(var)->n_start>0
-	    $call fifo_shift, $(var), $(typesize)
-	$if $(var)->n_size < $(var)->n_end-$(var)->n_start + $(more) + 1
-	    $call fifo_realloc, $(var), $(more), $(typesize)
-
-subcode: fifo_shift(var, typesize)
-    tn_size=$(var)->n_end-$(var)->n_start
-    $if tn_size>0
-	$(if:typesize=1)
-	    memmove($(var)->buffer, $(var)->buffer+$(var)->n_start, tn_size )
-	$(else)
-	    memmove($(var)->buffer, $(var)->buffer+$(var)->n_start, tn_size*$(typesize) )
-    $(var)->n_end-=$(var)->n_start
-    $(var)->n_start=0
-
-subcode: fifo_realloc(var, more, typesize)
-    tn_size=$(var)->n_end-$(var)->n_start + $(more) + 128
-    $(if:typesize=1)
-	$(var)->buffer=realloc($(var)->buffer, tn_size )
-    $(else)
-	$(var)->buffer=realloc($(var)->buffer, tn_size*$(typesize))
-    $(var)->n_size=tn_size
 
