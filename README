@@ -18,27 +18,29 @@ For courageous people, one could try "./bootstrap.sh" and then skip the first 3 
 
     The purpose is to install into one's home directory rather than system folders. I assume it is understood that /home/hzhou should be replaced with your own home directory on your specific computer.
 
-2. The real source of MyDef is in MyDef, but you need MyDef installed to compile the source. So I put a version of MyDef perl code in cmp folder. It is there also for the rescue when we messed up with the source code and MyDef stops compile.
-    cd cmp
+2. The real source of MyDef is in MyDef, but you need MyDef installed to compile the source. So I put a version of MyDef perl code in bootstrap folder. It is there also for the rescue when we messed up with the source code and MyDef stops compile.
+    cd bootstrap
     pmake
     make
     make install
     cd ..
 
-3. Now we try compile MyDef, which is the real source that is up-to-date
+3. Next, we need install the standard def library into $MYDEFLIB folder
+    perl install_def.pl
+
+4. Now we try compile MyDef, which is the real source that is up-to-date
     mydef_make.pl 
     # a couple file in the newly created MyDef directory need be overwritten
     touch perlmake.def mydef.def
     make
 
-    cd MyDef # It is the output folder, cmp was copied from there
+    cd MyDef # It is the output folder, bootstrap was copied from there
 
-    ln -s ../deflib .
     pmake 
     make
     make install
 
-4. Now we could goto tests folder and run some tests.
+5. Now we could goto tests folder and run some tests.
     cd tests
     perl test.pl general_test.def 
     perl test.pl c_structures.def
@@ -48,7 +50,7 @@ For courageous people, one could try "./bootstrap.sh" and then skip the first 3 
 
     The win32 and apple test still need to be compiled over using visual studio and xcode to complete the final check.
 
-5. In general, say you want to work on some source code using MyDef, first make a empty directory, then in that directory run
+6. In general, say you want to work on some source code using MyDef, first make a empty directory, then in that directory run
     mydef_make.pl
 
     It will ask for module type and output directory and writes a config file. Then you could just start writing .def files there.
