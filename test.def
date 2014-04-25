@@ -16,7 +16,7 @@ subcode: scan_f
 
 
 page: test
-    output_dir: ../tests
+    output_dir: ./tests
     subcode: main
 	$call setup
 	my $f=$ARGV[0];
