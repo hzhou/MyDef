@@ -61,8 +61,9 @@ subcode: socket_getaddr(host, port)
     $(if:flag_listen=1)
 	addrhint.ai_flags=AI_PASSIVE
     $local struct addrinfo * p_addr = NULL
-    $call sprint, "%d", $(port)
-    tn_ret=getaddrinfo($(host), $(s), &addrhint, &p_addr)
+    $call tempstr_init
+    $call tempstr_add_int, $(port)
+    tn_ret=getaddrinfo($(host), $(tempstr), &addrhint, &p_addr)
     $call assert, tn_ret==0
 
 subcode: socket_listen_new

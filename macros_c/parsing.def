@@ -203,8 +203,12 @@ subcode: parsecode_func
     $elsif $func eq "typedef"
 	add_typedef($param)
 	return
-    $elsif $func eq "global" or $func eq "local" or $func eq "my" or $func eq "symbol"
-	$call check_autoload_h
+    $elsif $func eq "global" or $func eq "local" or $func eq "my" or $func eq "symbol" or $func eq "auto_global"
+	$if $func eq "auto_global"
+	    $call check_autoload_h_direct
+	    $func eq "global"
+	$else
+	    $call check_autoload_h
 	$if $func eq "global" and $autoload_h
 	    $func="symbol"
 

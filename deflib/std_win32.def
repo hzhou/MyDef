@@ -55,8 +55,11 @@ subcode: on_paint
     return 0
 
 ###############################################################
+subcode:: autoload_symbols
+    $symbol s_printf_buffer[100], n_printf_length=0
+    
 subcode: sprint(@fmt)
-    $global s_printf_buffer[100], n_printf_length=0
+    $auto_global s_printf_buffer[100], n_printf_length=0
     $eval parse_fmt, $(fmt)
     n_printf_length=_snprintf(s_printf_buffer, 100, $(fmt))
     $if n_printf_length<0

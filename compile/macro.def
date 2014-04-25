@@ -1,24 +1,4 @@
 subcode:: preproc_elifs
-    $elsif $preproc=~/^reset:\s*(\w+)([+])?=(.*)/
-	my ($v, $op, $d)=($1, $2, $3, $4)
-	expand_macro_recurse(\$d)
-	my $i=$#$deflist;
-	$while $i>0 and !defined $deflist->[$i]->{$v}
-	    $i--;
-	$if $op
-	    $deflist->[$i]->{$v}=calc_op($deflist->[$i]->{$v}, $op, $d)
-	$else
-	    $deflist->[$i]->{$v}=$d;
-    $elsif $preproc=~/^unset:\s*(\w+)/
-	my $v=$1
-	my $i=$#$deflist;
-	$while $i>0 and !defined $deflist->[$i]->{$v}
-	    $i--;
-	delete $deflist->[$i]->{$v}
-    $elsif $preproc=~/^eval:\s*(\w+)=(.*)/
-	my ($t1,$t2)=($1,$2)
-	expand_macro_recurse(\$t2)
-	$deflist->[-1]->{$t1}=eval($t2)
     $elsif $preproc=~/^set:\s*(.*)/
 	set_macro($deflist->[-1], $1)
     $elsif $preproc=~/^export:\s*(.*)/
@@ -43,6 +23,34 @@ subcode:: preproc_elifs
 	foreach my $tt(split /,/, $t){
 	    $deflist->[-1]->{$tt}="$preset$tt";
 	}
+    $elsif $preproc=~/^reset:\s*(\w+)([+])?=(.*)/
+	my ($v, $op, $d)=($1, $2, $3, $4)
+	expand_macro_recurse(\$d)
+	my $i=$#$deflist;
+	$while $i>0 and !defined $deflist->[$i]->{$v}
+	    $i--;
+	$if $op
+	    $deflist->[$i]->{$v}=calc_op($deflist->[$i]->{$v}, $op, $d)
+	$else
+	    $deflist->[$i]->{$v}=$d;
+    $elsif $preproc=~/^unset:\s*(\w+)/
+	my $v=$1
+	my $i=$#$deflist;
+	$while $i>0 and !defined $deflist->[$i]->{$v}
+	    $i--;
+	delete $deflist->[$i]->{$v}
+    $elsif $preproc=~/^eval:\s*(\w+)=(.*)/
+	my ($t1,$t2)=($1,$2)
+	expand_macro_recurse(\$t2)
+	$deflist->[-1]->{$t1}=eval($t2)
+    $elif $preproc=~/^split:\s*(\w+)/
+	my $p="\$($1)"
+	expand_macro_recurse(\$p)
+	my @tlist=MyDef::utils::proper_split($p)
+	my $n=@tlist
+	$deflist->[-1]->{p_n}=$n
+	$for $i=1:$n+1
+	    $deflist->[-1]->{"p_$i"}=$tlist[$i-1]
 
 subcode:: support_subs
     $sub calc_op($v, $op, $d)
@@ -144,6 +152,9 @@ subcode: expand_macro_seg
 	    $elif $p eq "len"
 		# $(macro:len)
 		$segs[$j]=length($t)
+	    $elif $p eq "strlen"
+		$if $t=~/^".*"$/
+		    eval "\$segs[\$j]=length($t)"
 	    $elif $p=~/list:(.*)/
 		my $pattern=$1
 		my @tlist=split /,\s*/, $t

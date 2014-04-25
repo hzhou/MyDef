@@ -1,34 +1,44 @@
+macros:
+    tempstr: tempstr_buffer
+    tempstr_size: sizeof(tempstr_buffer)
+    tempstr_len: tempstr_len
+
 # --------------------------------
 subcode: tempstr_init
-    $global char tempstr_buffer[1024]
-    $global int tempstr_size=1024
-    $global int tempstr_len=0
-    tempstr_len=0
-    tempstr_size=sizeof(tempstr_buffer)
-    tempstr_buffer[0]=0
-    tempstr_buffer[tempstr_size-1]=0
+    $global char $(tempstr)[1024]
+    $global int $(tempstr_len)=0
+    memset($(tempstr), 0, $(tempstr_len))
+    $(tempstr_len)=0
 
 subcode: tempstr_size(n)
     # in case we need bigger tempstr buffer
-    $global char tempstr_buffer[$(n)]
+    $global char $(tempstr)[$(n)]
 
+
+# If re-entrant is necessary, redefine above macros
+# ==================================================
 
 subcode: tempstr_add_char(c)
-    $if tempstr_len+1<tempstr_size
-	tempstr_buffer[tempstr_len++]=$(c)
-	tempstr_buffer[tempstr_len]=0
+    $if $(tempstr_len)+1<$(tempstr_size)
+	$(tempstr)[$(tempstr_len)++]=$(c)
+	$(tempstr)[$(tempstr_len)]=0
 
 subcode: tempstr_add(s)
     $(if:s~')
 	$call tempstr_add_char, $(s)
+    $(elif:s~")
+	tn_len=$(s:strlen)
+	$if $(tempstr_len)+tn_len<$(tempstr_size)
+	    strcpy($(tempstr)+$(tempstr_len), $(s))
+	$(tempstr_len)+=tn_len
     $(else)
 	tn_len=strlen($(s))
-	$if tempstr_len+tn_len<tempstr_size
-	    strcpy(tempstr_buffer+tempstr_len, $(s))
-	tempstr_len+=tn_len
+	$if $(tempstr_len)+tn_len<$(tempstr_size)
+	    strcpy($(tempstr)+$(tempstr_len), $(s))
+	$(tempstr_len)+=tn_len
 
 subcode: tempstr_join(sep, s)
-    $if tempstr_len>0
+    $if $(tempstr_len)>0
 	$(if:sep~')
 	    $call tempstr_add_char, $(sep)
 	$(elif:sep~")
@@ -38,20 +48,16 @@ subcode: tempstr_join(sep, s)
 # ---- sprintf ------------
 perlcode: parse_fmt
     my ($n, $fmt)=fmt_string($param)
+    MyDef::compileutil::set_current_macro("fmt_n", $n)
     MyDef::compileutil::set_current_macro("fmt", $fmt)
 
-subcode: sprint(@fmt)
+subcode: tempstr_addf(@fmt)
     $eval parse_fmt, $(fmt)
-    tempstr_size=sizeof(tempstr_buffer)
-    tn_ret=snprintf(tempstr_buffer, tempstr_size-1, $(fmt))
-    $(export:tempstr=tempstr_buffer)
-
-subcode: sprint_append(@fmt)
-    $eval parse_fmt, $(fmt)
-    tempstr_size=sizeof(tempstr_buffer)
-    tn_ret=snprintf(tempstr_buffer+tempstr_len, tempstr_size-tempstr_len-1, $(fmt))
-    tempstr_len+=tn_ret
-    $(export:tempstr=tempstr_buffer)
+    $(if:fmt_n>0)
+	tn_ret=snprintf($(tempstr)+$(tempstr_len), $(tempstr_size)-$(tempstr_len)-1, $(fmt))
+	$(tempstr_len)+=tn_ret
+    $(else)
+	$call tempstr_add, $(fmt)
 
 # ---------------------------------
 subcode: tempstr_add_int(n)

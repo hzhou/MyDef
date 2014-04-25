@@ -203,48 +203,69 @@ subcode:: c_support_subs
 # -------------------------------------
 subcode:: c_support_subs
     $sub fmt_string($str)
-	# $if $str=~/^\w+$/
-	#     return (0, $str)
-	$if $str=~/^\s*\"(.*)\"\s*,(.*)$/
-	    return (1, "\"$1\", $2")
+	my @pre_list
+	$if $str=~/^\s*\"(.*)\"\s*,\s*(.*)$/
+	    $str=$1
+	    @pre_list=MyDef::utils::proper_split($2)
 	$elif $str=~/^\s*\"(.*)\"\s*$/
 	    $str=$1
 
-	my @segs=split /(\$\w+)/, $str
-	my @vlist
-	my $vcnt=0
-	my $color_escape=0
-	$for $j=0:@segs
-	    $if $segs[$j]=~/^\$(\w+)/
-		my $v=$1
-		$call fmt_string_check_escape
-		$call fmt_string_check_trailing
-		$vcnt++
-		$if $v=~/^(red|green|yellow|blue|magenta|cyan)$/
-		    my %colors=(red=>31,green=>32,yellow=>33,blue=>34,magenta=>35,cyan=>36)
-		    $segs[$j]="\\x1b[$colors{$1}m"
-		    $color_escape=1
+	my %colors=(red=>31,green=>32,yellow=>33,blue=>34,magenta=>35,cyan=>36)
+
+	my @fmt_list
+	my @arg_list
+
+	my @group
+	&call parse_loop, $str
+	    &call if_lex, %
+		&call if_lex, %
+		    push @fmt_list, '%%'
+		&call if_lex, [-+ #]*[0-9]*(\.\d+)?[diufFeEgGxXoscpaAn]
+		    push @arg_list, shift @pre_list
+		    push @fmt_list, "%$&"
 		$else
-		    push @vlist, $v
-		    $segs[$j]=get_var_fmt($v, 1)
-	$if $color_escape
-	    push @segs, "\\x1b[0m"
-	$if $vcnt>0
-	    return ($vcnt, '"'.join('',@segs).'", '.join(', ', @vlist))
+		    push @fmt_list, '%%'
+	    &call if_lex, \$
+		&call if_lex, (red|green|yellow|blue|magenta|cyan)
+		    push @fmt_list, "\\x1b[$colors{$1}m"
+		    &call if_lex, \{
+			push @group, $1
+		&call if_lex, \$(\w+)
+		    push @arg_list, $1
+		    push @fmt_list, get_var_fmt($1, 1)
+		    &call if_lex, -
+			# print $var-follow ----
+		$else
+		    push @fmt_list, '$'
+	    &call if_lex, \\\$
+		push @fmt_list, '$'
+	    &call if_lex, \}
+		$if @group
+		    pop @group
+		    $if !@group
+			push @fmt_list, "\\x1b[0m"
+		    $else
+			my $c=$group[-1]
+			push @fmt_list, "\\x1b[$colors{$c}m"
+		$else
+		    push @fmt_list, '}'
+	    &call if_lex, [^%\$\}]+
+		push @fmt_list, $&
+
+	$if @pre_list
+	    warn "Extra fmt arg list: ", join(", ", @pre_list), "\n"
+
+	my $tail=$fmt_list[-1]
+	$if $tail=~/(.*)-$/
+	    $fmt_list[-1]=$1
+	$elif $tail!~/\\n$/
+	    push @fmt_list, "\\n"
+
+	$if !@arg_list
+	    return (0, '"'.join('',@fmt_list).'"')
 	$else
-	    return (0, '"'. join('', @segs).'"')
-
-subcode: fmt_string_check_escape
-    # print \$something ----
-    $if $j>0 and $segs[$j-1]=~/(\\+)$/
-	$if length($1)%2==1
-	    $segs[$j-1]=~s/\\$//
-	    next
-
-subcode: fmt_string_check_trailing
-    # print $var-follow ----
-    $if $segs[$j+1]=~/^\\-\w/
-	$segs[$j+1]=~s/^\\-//
+	    my $vcnt=@arg_list
+	    return ($vcnt, '"'.join('',@fmt_list).'", '.join(', ', @arg_list))
 
 # -------------------------------------
 subcode:: c_support_subs
