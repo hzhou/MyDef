@@ -2,7 +2,7 @@ subcode:: _autoload
     $call define_fifo_input, input_buffer
     $struct(input_buffer) n_pos, n_tempchar
 
-    $list input_create, input_delete, input_from_string
+    $list input_create, input_delete, input_from_string, input_from_sized_string
     $list input_get_char, input_get_str
 
 # #### ------------------------------------------
@@ -25,6 +25,18 @@ fncode: input_from_string(s)
     b->buffer=s
     $call @on_input_create, b
     return b
+
+fncode: input_from_sized_string(s, n_len)
+    $local struct input_buffer * b
+    $allocate b
+    b->n_size=n_len
+    b->n_start=0
+    b->n_end=0
+    b->b_eof=2
+    b->buffer=s
+    $call @on_input_create, b
+    return b
+
 
 # -----------
 fncode: input_delete(struct input_buffer * b)

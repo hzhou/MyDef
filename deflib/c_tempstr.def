@@ -13,6 +13,7 @@ subcode: tempstr_init
 subcode: tempstr_size(n)
     # in case we need bigger tempstr buffer
     $global char $(tempstr)[$(n)]
+    $global int $(tempstr_len)=0
 
 
 # If re-entrant is necessary, redefine above macros

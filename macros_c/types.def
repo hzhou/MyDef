@@ -203,6 +203,7 @@ subcode:: c_support_subs
 # -------------------------------------
 subcode:: c_support_subs
     $sub fmt_string($str)
+	# print "fmt_string: [$str]\n"
 	my @pre_list
 	$if $str=~/^\s*\"(.*)\"\s*,\s*(.*)$/
 	    $str=$1
@@ -230,7 +231,7 @@ subcode:: c_support_subs
 		    push @fmt_list, "\\x1b[$colors{$1}m"
 		    &call if_lex, \{
 			push @group, $1
-		&call if_lex, \$(\w+)
+		&call if_lex, (\w+)
 		    push @arg_list, $1
 		    push @fmt_list, get_var_fmt($1, 1)
 		    &call if_lex, -
@@ -251,6 +252,7 @@ subcode:: c_support_subs
 		    push @fmt_list, '}'
 	    &call if_lex, [^%\$\}]+
 		push @fmt_list, $&
+	    # print "parse_loop pos: ", pos($str), "\n"
 
 	$if @pre_list
 	    warn "Extra fmt arg list: ", join(", ", @pre_list), "\n"

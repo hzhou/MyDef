@@ -50,7 +50,7 @@ subcode: topdown_loop(name, top)
 # -- Parser -------------------
 subcode: parse_loop(l)
     $while 1
-	$if $(l)=~/\G$/
+	$if $(l)=~/\G$/gc
 	    last
 	BLOCK
 

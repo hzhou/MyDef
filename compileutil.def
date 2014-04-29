@@ -97,8 +97,7 @@ subcode: compile
 
     #---- autoload
     $global $in_autoload
-    $if $page->{autoload} eq "h"
-	$in_autoload=1
+    $in_autoload=1
 
     my $codelist=$MyDef::def->{codes};
     $foreach my $codename  in keys %$codelist

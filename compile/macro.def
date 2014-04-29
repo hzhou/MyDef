@@ -1,6 +1,14 @@
+
+# -------------------------------------------------------
+#  $deflist=[$MyDef::def, $MyDef::def->{macros}, $page];
+
 subcode:: preproc_elifs
     $elsif $preproc=~/^set:\s*(.*)/
+	# immediate macros
 	set_macro($deflist->[-1], $1)
+    $elsif $preproc=~/^set([012]):\s*(.*)/
+	# standard macros: def, macros, page
+	set_macro($deflist->[$1], $2)
     $elsif $preproc=~/^export:\s*(.*)/
 	my $t=$1;
 	$if $t=~/^\w+,/
@@ -154,7 +162,7 @@ subcode: expand_macro_seg
 		$segs[$j]=length($t)
 	    $elif $p eq "strlen"
 		$if $t=~/^".*"$/
-		    eval "\$segs[\$j]=length($t)"
+		    $segs[$j]=eval "length($t)"
 	    $elif $p=~/list:(.*)/
 		my $pattern=$1
 		my @tlist=split /,\s*/, $t

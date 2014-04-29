@@ -71,7 +71,6 @@ page: output_c, output_main
 
 	$if $page->{autoload} eq "h"
 	    $includes{"\"autoload.h\""}=1
-	    #unshift @$out, "#include \"autoload.h\""
 
 	$call c_dump_init
 
