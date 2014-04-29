@@ -162,12 +162,9 @@ subcode: parsecode_func
 	$cur_function->{ret_type}=$param;
 	return
     $elsif $func eq "parameter"
-	my @plist=split /,\s*/, $param;
-	my $fplist=$cur_function->{param_list};
-	$foreach my $p in @plist
-	    push @$fplist, $p;
-	    $if $p=~/(.*)\s+(\w+)\s*$/
-		$cur_function->{var_type}->{$2}=$1;
+	my $param_list=$cur_function->{param_list}
+	my $var_type=$cur_function->{var_type}
+	$call open_function_params
 	return
     $elsif $func eq "include"
 	$call add_include, $param

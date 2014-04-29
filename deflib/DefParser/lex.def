@@ -2,6 +2,9 @@ include: DefParser/c_fifo.def
 include: DefParser/input_buffer.def
 
 subcode:: _autoload
+    $global struct input_buffer * $(input)
+
+subcode:: _autoload
     $include ctype
     $list skip_space, match_eof
     $list match_char, match_char_class, match_keyword

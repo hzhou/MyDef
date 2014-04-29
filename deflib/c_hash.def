@@ -31,11 +31,16 @@ subcode: hash_set(p_hash, key, val)
     p=hash_lookup($(p_hash), $(key))
     $call hash_set_val, p, $(val)
 
-# -------------------------------------
-subcode: hash(var)
+# ---- macros ---------------------------------
+subcode: local_hash(var)
     $local struct hash * $(var)
     $(var)=hash_new(100)
 
+subcode: global_hash(var)
+    $global struct hash * $(var)
+    $(var)=hash_new(1000)
+
+# -------------------------------------
 fncode: hash_new(tn_initial_size)
     $local struct hash * p_hash
     $allocate p_hash

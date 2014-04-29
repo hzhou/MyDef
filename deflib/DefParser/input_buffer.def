@@ -6,6 +6,7 @@ subcode:: _autoload
     $list input_get_char, input_get_str
 
 # #### ------------------------------------------
+# ----- input reading stream ------
 fncode: input_create(FILE * f)
     $local struct input_buffer * b
     $call fifo_create, b, 1024
@@ -15,6 +16,7 @@ fncode: input_create(FILE * f)
     $call @on_input_create, b
     return b
 
+# ----- input from static string ------
 fncode: input_from_string(s)
     $local struct input_buffer * b
     $allocate b
@@ -23,8 +25,25 @@ fncode: input_from_string(s)
     b->n_end=0
     b->b_eof=2
     b->buffer=s
+    b->n_pos=0
+    b->n_tempchar=0
     $call @on_input_create, b
     return b
+
+# ---- input for local parsing -----
+subcode: local_input(input, s)
+    $(set:b=local_input_buffer)
+    $local struct input_buffer $(b)
+
+    $(input)=&local_input_buffer
+
+    $(b).n_size=strlen($(s))
+    $(b).n_start=0
+    $(b).n_end=$(b).n_size
+    $(b).b_eof=2
+    $(b).buffer=$(s)
+    $(b).n_pos=0
+    $(b).n_tempchar=0
 
 # -----------
 fncode: input_delete(struct input_buffer * b)
