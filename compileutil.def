@@ -96,12 +96,15 @@ subcode: compile
     $deflist=[$MyDef::def, $MyDef::def->{macros}, $page];
 
     #---- autoload
+    $global $in_autoload
+    $if $page->{autoload} eq "h"
+	$in_autoload=1
+
     my $codelist=$MyDef::def->{codes};
-    $page->{_autoload}=1
     $foreach my $codename  in keys %$codelist
 	$if $codename=~/_autoload$/
 	    parse_code($codelist->{$codename});
-    $page->{_autoload}=0
+    $in_autoload=0
 
     #---- main
     my $maincode=$page->{codes}->{main};

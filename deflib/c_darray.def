@@ -14,8 +14,6 @@ subcode: global_darray(type, var)
     $global $(type) * $(var)=NULL
     $global int $(var)_len=0
     $global int $(var)_size=0
-    $(block:main_init)
-	$call darray_init, $(var)
 
 subcode: use_darray(var)
     $(export:len=$(var)_len)

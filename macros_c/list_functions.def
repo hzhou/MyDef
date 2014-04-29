@@ -1,12 +1,3 @@
-subcode: parsecode_post
-    $global @list_function_list
-
-    $call check_autoload_h
-    $if !$autoload_h
-	$while my $f=shift @list_function_list
-	    $call parse_function_list_item, $f
-	    $call add_to_autoload_h, "function-$f"
-
 # ------------------------------------
 subcode:: parsecode_func_other
     $elsif $func eq "function"
@@ -21,6 +12,7 @@ subcode:: parsecode_func_other
 	$call add_list_functions, $param
 	return
     $elsif $func eq "fcall"
+	$call check_autoload_h
 	$if $param=~/(\w+)\(/
 	    $call add_list_function, $1
 	    $l=$param
@@ -32,16 +24,26 @@ subcode:: parsecode_func_other
 subcode: add_list_functions(param)
     $global %list_function_hash
 
-    my @tlist=split /,\s*/, $(param)
-    $foreach $f in @tlist
-	$call add_list_function, $f
+    $call check_autoload_h
+    $if !$autoload_h
+	my @tlist=split /,\s*/, $(param)
+	$foreach $f in @tlist
+	    $call add_list_function, $f
 
 subcode: add_list_function(f)
     $if !$list_function_hash{$(f)}
 	$list_function_hash{$(f)}=1
 	push @list_function_list, $(f)
+	$call add_to_autoload_h, "function-$(f)"
     $else
 	$list_function_hash{$(f)}++
+
+# #### -------------------------------
+subcode: parsecode_post
+    $global @list_function_list
+
+    $while my $f=shift @list_function_list
+	$call parse_function_list_item, $f
 
 # ------------------------------------
 subcode: parse_function_list_item(f)
@@ -84,6 +86,8 @@ subcode: parse_function
 	    $paramline=$1
 
 	my $name=MyDef::utils::uniq_name($fname, \%list_function_hash)
+	$call add_to_autoload_h, "function-$name"
+
 	my $block=[]
 
 	my $fidx=open_function($name, $paramline)
@@ -92,7 +96,6 @@ subcode: parse_function
 	push @$block, "BLOCK";
 	push @$block, "SOURCE_DEDENT";
 	push @$block, "PARSE:\$function_end"
-	$call add_to_autoload_h, "function-$name"
 
 	$lamda_functions{$name}=$block
 	$call add_list_function, $name
@@ -107,15 +110,4 @@ subcode: parse_function_end
     my $level=@function_stack
     $if $level==0
 	$call case_reset
-
-# == legacy ======================================
-
-subcode: parse_function_list
-    $call check_autoload_h
-    $if !$autoload_h
-	my @tlist=split /,\s*/, $param
-	$foreach $f in @tlist
-	    $call parse_function_list_item, $f
-	    $call add_to_autoload_h, "function-$f"
-
 

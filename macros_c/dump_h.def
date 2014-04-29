@@ -53,17 +53,24 @@ subcode: dump_h_files
 
 # -----------------------------------------
 subcode: check_autoload_h
-    my $autoload
-    my $autoload_h=0
-    $if $page->{_autoload}
-	$if $page->{autoload} eq "write_h"
-	    $if !$h_hash{"autoload"}
-		$autoload=[]
-		$h_hash{"autoload"}=$autoload
-	    $else
-		$autoload=$h_hash{"autoload"}
-	$elif $page->{autoload} eq "h"
-	    $autoload_h=1
+    $if $MyDef::compileutil::in_autoload
+	$call check_autoload_h_direct
+    $else
+	$autoload=undef
+	$autoload_h=0
+
+subcode: check_autoload_h_direct
+    $global $autoload, $autoload_h
+    $autoload=undef
+    $autoload_h=0
+    $if $page->{autoload} eq "write_h"
+	$if !$h_hash{"autoload"}
+	    $autoload=[]
+	    $h_hash{"autoload"}=$autoload
+	$else
+	    $autoload=$h_hash{"autoload"}
+    $elif $page->{autoload} eq "h"
+	$autoload_h=1
 
 subcode: add_to_autoload_h(key)
     $if $autoload

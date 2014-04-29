@@ -46,3 +46,15 @@ subcode: topdown_loop(name, top)
 	$if !$$(name)_hash{$$(name)}
 	    $$(name)_hash{$$(name)}=1
 	    BLOCK
+
+# -- Parser -------------------
+subcode: parse_loop(l)
+    $while 1
+	$if $(l)=~/\G$/
+	    last
+	BLOCK
+
+subcode: if_lex(@pattern)
+    $(allow_recurse:10)
+    $case $(l)=~/\G$(pattern)/gc
+	BLOCK
