@@ -1,7 +1,10 @@
+include: DefParser/c_fifo.def
+
 subcode:: _autoload
     $call define_fifo_input, input_buffer
     $struct(input_buffer) n_pos, n_tempchar
 
+    $include stdio
     $list input_create, input_delete, input_from_string
     $list input_get_char, input_get_str
 
