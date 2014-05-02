@@ -1,6 +1,7 @@
 include: std_c.def
 include: ext.def
-include: win32_gdi.def
+include: win32/windows.def
+include: win32/gdi.def
 
 # GUI needs Model View Controller
 # think about the editor: 

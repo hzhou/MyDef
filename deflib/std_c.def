@@ -1,6 +1,5 @@
-#include: ref_counting.def
-include: c_slist.def
-include: c_tempstr.def
+include: c/slist.def
+include: c/tempstr.def
 
 ## frame
 subcode: basic_frame
