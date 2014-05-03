@@ -5,7 +5,10 @@ sub proper_split {
     my @closure_stack;
     my @tlist;
     my $t;
-    if(!$param){
+    if($param eq "0"){
+        return (0);
+    }
+    elsif(!$param){
         return @tlist;
     }
     while(1){
@@ -76,6 +79,19 @@ sub proper_split {
             push @tlist, $t;
             return @tlist;
         }
+    }
+}
+sub uniq_name {
+    my ($name, $hash)=@_;
+    if(!$hash->{$name}){
+        return $name;
+    }
+    else{
+        my $i=2;
+        while($hash->{"$name$i"}){
+            $i++;
+        }
+        return "$name$i";
     }
 }
 1;

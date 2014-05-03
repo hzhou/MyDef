@@ -109,7 +109,8 @@ sub parsecode {
         my $name=new_class($1, $2);
         push @$MyDef::output_c::out, "DUMP_STUB CLASS-$name";
         push @$MyDef::output_c::out, "BLOCK";
-        return "NEWBLOCK-\$class_end";
+        push @$MyDef::output_c::out, "PARSE:\$class_end";
+        return "NEWBLOCK";
     }
     elsif($l=~/^\$class_end/){
         undef $cur_class;

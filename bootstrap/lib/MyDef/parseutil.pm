@@ -316,7 +316,7 @@ sub import_file {
                             $macros->{$k}.=", ", $v;
                         }
                         else{
-                            print STDERR " Overriden macro $k\n" if $debug>1;
+                            print STDERR " Denied overwriting macro $k\n" if $debug>1;
                         }
                     }
                     else{

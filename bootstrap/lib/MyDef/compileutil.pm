@@ -6,6 +6,7 @@ our @callback_block_stack;
 our %index_name_hash;
 our @mode_stack=("sub");
 our $cur_mode;
+our $in_autoload;
 my ($cur_file, $cur_line);
 our $f_init;
 our $f_parse;
@@ -38,6 +39,20 @@ my $ogdl_path_index_base;
 my %ogdl_path_index;
 my %list_list;
 my %list_hash;
+sub init_output {
+    @output_list=([]);
+    set_output($output_list[0]);
+}
+sub new_output {
+    my $new_out=[];
+    push @output_list, $new_out;
+    my $nidx=$#output_list;
+    return $nidx;
+}
+sub fetch_output {
+    my $n=shift;
+    return $output_list[$n];
+}
 our %named_blocks;
 sub set_named_block {
     my ($name, $block)=@_;
@@ -57,20 +72,6 @@ sub get_named_block {
         $named_blocks{$name}=[];
     }
     return $named_blocks{$name};
-}
-sub init_output {
-    @output_list=([]);
-    set_output($output_list[0]);
-}
-sub new_output {
-    my $new_out=[];
-    push @output_list, $new_out;
-    my $nidx=$#output_list;
-    return $nidx;
-}
-sub fetch_output {
-    my $n=shift;
-    return $output_list[$n];
 }
 sub test_op {
     my ($a, $test)=@_;
@@ -565,18 +566,14 @@ sub parseblock {
                 }
                 elsif($msg=~/^NEWBLOCK/){
                     $callback_output=$out;
-                    if($'=~/-(.*)/){
-                        $callback_tail= $1;
-                    }
-                    else{
-                        $callback_tail="NOOP";
-                    }
                 }
                 elsif($msg=~/^SKIPBLOCK/){
                     grabblock($block, \$lindex);
+                    last;
                 }
                 elsif($msg=~/^SET:(\w+)=(.*)/){
                     $deflist->[-1]->{$1}=$2;
+                    last;
                 }
                 elsif($msg=~/^PARSE:(.*)/){
                     $l=$1;
@@ -589,13 +586,22 @@ sub parseblock {
                     set_output($output_list[$n]);
                     parseblock({source=>$subblock, name=>"BLOCK_$n"});
                     set_output($temp);
+                    my $n_end_parse=0;
                     for(my $i=$idx;$i<$#$callback_output+1;$i++){
                         if($callback_output->[$i]=~/^BLOCK$/){
                             $callback_output->[$i]="BLOCK_$n";
                         }
+                        elsif($callback_output->[$i]=~/^PARSE:(.*)/){
+                            $n_end_parse++;
+                            $f_parse->($1);
+                            $callback_output->[$i]="NOOP";
+                        }
                     }
-                    if($callback_tail){
-                        $f_parse->($callback_tail);
+                    if($n_end_parse==0){
+                        my $temp=$out;
+                        set_output($output_list[$n]);
+                        $f_parse->("NOOP");
+                        set_output($temp);
                     }
                 }
             }
@@ -691,35 +697,11 @@ sub parseblock {
                         $context="switch_on";
                     }
                 }
-                elsif($preproc=~/^reset:\s*(\w+)([+])?=(.*)/){
-                    my ($v, $op, $d)=($1, $2, $3, $4);
-                    expand_macro_recurse(\$d);
-                    my $i=$#$deflist;
-                    while($i>0 and !defined $deflist->[$i]->{$v}){
-                        $i--;
-                    }
-                    if($op){
-                        $deflist->[$i]->{$v}=calc_op($deflist->[$i]->{$v}, $op, $d);
-                    }
-                    else{
-                        $deflist->[$i]->{$v}=$d;
-                    }
-                }
-                elsif($preproc=~/^unset:\s*(\w+)/){
-                    my $v=$1;
-                    my $i=$#$deflist;
-                    while($i>0 and !defined $deflist->[$i]->{$v}){
-                        $i--;
-                    }
-                    delete $deflist->[$i]->{$v};
-                }
-                elsif($preproc=~/^eval:\s*(\w+)=(.*)/){
-                    my ($t1,$t2)=($1,$2);
-                    expand_macro_recurse(\$t2);
-                    $deflist->[-1]->{$t1}=eval($t2);
-                }
                 elsif($preproc=~/^set:\s*(.*)/){
                     set_macro($deflist->[-1], $1);
+                }
+                elsif($preproc=~/^set([012]):\s*(.*)/){
+                    set_macro($deflist->[$1], $2);
                 }
                 elsif($preproc=~/^export:\s*(.*)/){
                     my $t=$1;
@@ -750,6 +732,43 @@ sub parseblock {
                     my $t=$2;
                     foreach my $tt(split /,/, $t){
                         $deflist->[-1]->{$tt}="$preset$tt";
+                    }
+                }
+                elsif($preproc=~/^reset:\s*(\w+)([+])?=(.*)/){
+                    my ($v, $op, $d)=($1, $2, $3, $4);
+                    expand_macro_recurse(\$d);
+                    my $i=$#$deflist;
+                    while($i>0 and !defined $deflist->[$i]->{$v}){
+                        $i--;
+                    }
+                    if($op){
+                        $deflist->[$i]->{$v}=calc_op($deflist->[$i]->{$v}, $op, $d);
+                    }
+                    else{
+                        $deflist->[$i]->{$v}=$d;
+                    }
+                }
+                elsif($preproc=~/^unset:\s*(\w+)/){
+                    my $v=$1;
+                    my $i=$#$deflist;
+                    while($i>0 and !defined $deflist->[$i]->{$v}){
+                        $i--;
+                    }
+                    delete $deflist->[$i]->{$v};
+                }
+                elsif($preproc=~/^eval:\s*(\w+)=(.*)/){
+                    my ($t1,$t2)=($1,$2);
+                    expand_macro_recurse(\$t2);
+                    $deflist->[-1]->{$t1}=eval($t2);
+                }
+                elsif($preproc=~/^split:\s*(\w+)/){
+                    my $p="\$($1)";
+                    expand_macro_recurse(\$p);
+                    my @tlist=MyDef::utils::proper_split($p);
+                    my $n=@tlist;
+                    $deflist->[-1]->{p_n}=$n;
+                    for(my $i=1;$i<$n+1;$i++){
+                        $deflist->[-1]->{"p_$i"}=$tlist[$i-1];
                     }
                 }
                 elsif($preproc=~/^ogdl_/){
@@ -907,18 +926,14 @@ sub parseblock {
                             }
                             elsif($msg=~/^NEWBLOCK/){
                                 $callback_output=$out;
-                                if($'=~/-(.*)/){
-                                    $callback_tail= $1;
-                                }
-                                else{
-                                    $callback_tail="NOOP";
-                                }
                             }
                             elsif($msg=~/^SKIPBLOCK/){
                                 grabblock($block, \$lindex);
+                                last;
                             }
                             elsif($msg=~/^SET:(\w+)=(.*)/){
                                 $deflist->[-1]->{$1}=$2;
+                                last;
                             }
                             elsif($msg=~/^PARSE:(.*)/){
                                 $l=$1;
@@ -931,13 +946,22 @@ sub parseblock {
                                 set_output($output_list[$n]);
                                 parseblock({source=>$subblock, name=>"BLOCK_$n"});
                                 set_output($temp);
+                                my $n_end_parse=0;
                                 for(my $i=$idx;$i<$#$callback_output+1;$i++){
                                     if($callback_output->[$i]=~/^BLOCK$/){
                                         $callback_output->[$i]="BLOCK_$n";
                                     }
+                                    elsif($callback_output->[$i]=~/^PARSE:(.*)/){
+                                        $n_end_parse++;
+                                        $f_parse->($1);
+                                        $callback_output->[$i]="NOOP";
+                                    }
                                 }
-                                if($callback_tail){
-                                    $f_parse->($callback_tail);
+                                if($n_end_parse==0){
+                                    my $temp=$out;
+                                    set_output($output_list[$n]);
+                                    $f_parse->("NOOP");
+                                    set_output($temp);
                                 }
                             }
                         }
@@ -1117,6 +1141,11 @@ sub expand_macro {
                     }
                     elsif($p eq "len"){
                         $segs[$j]=length($t);
+                    }
+                    elsif($p eq "strlen"){
+                        if($t=~/^".*"$/){
+                            $segs[$j]=eval "length($t)";
+                        }
                     }
                     elsif($p=~/list:(.*)/){
                         my $pattern=$1;
@@ -1338,14 +1367,14 @@ sub compile {
         $MyDef::var->{$k}=$v;
     }
     $deflist=[$MyDef::def, $MyDef::def->{macros}, $page];
+    $in_autoload=1;
     my $codelist=$MyDef::def->{codes};
-    $page->{_autoload}=1;
     foreach my $codename (keys %$codelist){
         if($codename=~/_autoload$/){
             parse_code($codelist->{$codename});
         }
     }
-    $page->{_autoload}=0;
+    $in_autoload=0;
     my $maincode=$page->{codes}->{main};
     if(!$maincode){
         $maincode=$MyDef::def->{codes}->{main};

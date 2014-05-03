@@ -1,9 +1,10 @@
+use strict;
+package output_js;
 use MyDef::dumpout;
-package MyDef::output_js;
-my $debug;
-my $mode;
-my $out;
-my $page;
+our $debug;
+our $mode;
+our $page;
+our $out;
 sub get_interface {
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
 }
@@ -20,7 +21,7 @@ sub set_output {
     $out = shift;
 }
 sub modeswitch {
-    ($mode, $in)=@_;
+    my ($mode, $in)=@_;
 }
 sub parsecode {
     my $l=shift;

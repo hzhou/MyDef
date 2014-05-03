@@ -249,7 +249,8 @@ sub parsecode {
                 push @$out, "SOURCE_INDENT";
                 push @$out, "BLOCK";
                 push @$out, "SOURCE_DEDENT";
-                return "NEWBLOCK-\$script_end";
+                push @$out, "PARSE:\$script_end";
+                return "NEWBLOCK";
             }
             elsif($func eq "script_end"){
                 MyDef::compileutil::modepop();
@@ -486,15 +487,11 @@ sub single_block {
 sub single_block_pre_post {
     my ($pre, $post)=@_;
     if($pre){
-        foreach my $l (@$pre){
-            push @$out, $l;
-        }
+        push @$out, @$pre;
     }
     push @$out, "BLOCK";
     if($post){
-        foreach my $l (@$post){
-            push @$out, $l;
-        }
+        push @$out, @$post;
     }
     return "NEWBLOCK";
 }

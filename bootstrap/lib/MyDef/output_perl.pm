@@ -99,9 +99,7 @@ sub parsecode {
         push @$out, "BLOCK";
         push @$out, "DEDENT";
         push @$out, "}";
-        if(!$case_wrap){
-            $case_wrap=[];
-        }
+        push @$out, "PARSE:CASEPOP";
         push @case_stack, {state=>"if", wrap=>$case_wrap};
         undef $case_state;
         undef $case_wrap;
@@ -109,7 +107,7 @@ sub parsecode {
             my $level=@case_stack;
             print "Entering case [$level]: $l\n";
         }
-        return "NEWBLOCK-CASEPOP";
+        return "NEWBLOCK";
     }
     elsif($l=~/^\&case\s+(.*)/){
         if(!$case_state){
@@ -132,11 +130,12 @@ sub parsecode {
             push @$out, "DEDENT";
             push @$out, "}";
             push @$out, "DEDENT";
+            if(!$case_wrap){
+                $case_wrap=[];
+            }
             push @$case_wrap, "}";
         }
-        if(!$case_wrap){
-            $case_wrap=[];
-        }
+        push @$out, "PARSE:CASEPOP";
         push @case_stack, {state=>"if", wrap=>$case_wrap};
         undef $case_state;
         undef $case_wrap;
@@ -144,21 +143,19 @@ sub parsecode {
             my $level=@case_stack;
             print "Entering case [$level]: $l\n";
         }
-        return "NEWBLOCK-CASEPOP";
+        return "NEWBLOCK";
     }
     elsif($l=~/^\$else/){
         if(!$case_state and $l!~/NoWarn/i){
             my $pos=MyDef::compileutil::curfile_curline();
-            warn "[$pos]Dangling \$else .\n";
+            print "[$pos]Dangling \$else \n";
         }
         push @$out, "else{";
         push @$out, "INDENT";
         push @$out, "BLOCK";
         push @$out, "DEDENT";
         push @$out, "}";
-        if(!$case_wrap){
-            $case_wrap=[];
-        }
+        push @$out, "PARSE:CASEPOP";
         push @case_stack, {state=>undef, wrap=>$case_wrap};
         undef $case_state;
         undef $case_wrap;
@@ -166,7 +163,7 @@ sub parsecode {
             my $level=@case_stack;
             print "Entering case [$level]: $l\n";
         }
-        return "NEWBLOCK-CASEPOP";
+        return "NEWBLOCK";
     }
     elsif($l!~/^SUBBLOCK/){
         undef $case_state;
@@ -307,15 +304,11 @@ sub single_block {
 sub single_block_pre_post {
     my ($pre, $post)=@_;
     if($pre){
-        foreach my $l (@$pre){
-            push @$out, $l;
-        }
+        push @$out, @$pre;
     }
     push @$out, "BLOCK";
     if($post){
-        foreach my $l (@$post){
-            push @$out, $l;
-        }
+        push @$out, @$post;
     }
     return "NEWBLOCK";
 }
