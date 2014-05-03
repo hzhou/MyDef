@@ -1,4 +1,4 @@
-include: c_darray.def
+include: c/darray.def
 
 subcode: memtrack_start(n)
     $call global_darray, void *, memtrack

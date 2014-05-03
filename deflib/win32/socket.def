@@ -1,4 +1,4 @@
-include: c_darray.def
+include: c/darray.def
 
 # ---- SOCKET Select ---------------------------------------
 #   maintains a table of socket
