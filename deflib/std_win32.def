@@ -23,6 +23,8 @@ subcode: win32_autoload
 
     $define(snprintf) sprintf_s
 
+    $global hwnd_main
+
 subcode: basic_frame
     $call main_fn_list
     $list WinMain
@@ -32,7 +34,6 @@ fncode: WinMain
     $call win_loop
 
 subcode: win_main(mainname)
-    $global hwnd_main
     $call register_wndclass, "$(mainname)", WndProc_main
     $call create_window, hwnd_main, "$(mainname)"
     $call win_show, hwnd_main
