@@ -1,4 +1,4 @@
-include: c_regex.def
+include: c/regex.def
 
 page: test
     subcode: main

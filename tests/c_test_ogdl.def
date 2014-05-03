@@ -1,5 +1,5 @@
-include: c_ogdl.def
-include: c_regex.def
+include: c/ogdl.def
+include: c/regex.def
 
 page: test
     subcode: main
