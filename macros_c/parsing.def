@@ -68,7 +68,10 @@ subcode: parsecode_func_param
     $elsif $func eq "register_include"
 	$param2=~s/^\s+//;
 	$param2=~s/\s+$//;
-	$type_include{$param1}.=",$param2";
+	$if $type_include{$param1}
+	    $type_include{$param1}.=",$param2";
+	$else
+	    $type_include{$param1}.="$param2";
 	return
     $elif $func eq "get_type"
 	my $type=get_var_type($param2);

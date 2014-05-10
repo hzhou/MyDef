@@ -45,6 +45,8 @@ subcode: parsecode_post
     $while my $f=shift @list_function_list
 	$call parse_function_list_item, $f
 
+    @list_function_list=()
+
 # ------------------------------------
 subcode: parse_function_list_item(f)
     my $funcname=$(f)
