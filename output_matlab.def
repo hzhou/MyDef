@@ -1,0 +1,92 @@
+include: output.def
+
+page: output_matlab, output_main
+    type: pm
+    output_dir: lib/MyDef
+    ext: m
+    init_mode: sub
+    package: MyDef::output_matlab
+    interface_type: matlab
+
+# -----
+subcode: case_matlab_style
+    push @$out, "$case $cond"
+    push @$out, "INDENT"
+    push @$out, "BLOCK"
+    push @$out, "DEDENT"
+    $if $case eq "if"
+	$if !$case_wrap
+	    $case_wrap=[]
+	push @$case_wrap, "end"
+
+subcode: else_matlab_style
+    push @$out, "else"
+    push @$out, "INDENT"
+    push @$out, "BLOCK"
+    push @$out, "DEDENT"
+
+subcode: parsecode
+    $global $case_flag="\b_flag_case"
+    $global $case_flag_set="b_flag_case=1;"
+    $global $case_flag_reset="b_flag_case=0;"
+
+    $call parsecode_case_support, if, elseif, matlab_style
+    $if $l=~/^\s*\$(\w+)\s*(.*)$/
+	my $func=$1;
+	my $param=$2;
+	$if $func =~ /^(while|for)$/
+	    return single_block("$1 $param", "end")
+	$elif $func=~/^input/
+	    $global @func_input
+	    @func_input=split /,\s*/, $param
+	    return 0
+	$elif $func=~/^return/
+	    $global @func_return
+	    $global $func_varargout
+	    $if $param=~/^\s*varargout(.*)/
+		$func_varargout=1
+		$param=$1
+		$param=~s/^\s*[:,]?\s*//
+	    $if $param
+		push @func_return, split /,\s*/, $param
+	    return 0
+
+    $call check_termination
+    push @$out, $l
+    return 0;
+
+subcode: dumpout
+    parsecode("NOOP")
+    # ----------------
+    my $return
+    $if @func_return
+	$if $func_varargout
+	    $return="varargout"
+	$elif @func_return>1
+	    $return="[".join(", ", @func_return)."]"
+	$else
+	    $return=$func_return[0]
+	my $fline="function $return=".$page->{pagename}."(".join(", ", @func_input).")"
+	push @$f, "$fline\n\n"
+
+    $if $func_varargout
+	push @$out, "if nargout<=1\n"
+	push @$out, "    varargout{1}=[".join(", ", @func_return)."];\n"
+	push @$out, "else\n"
+	$for $i=0:@func_return
+	    my $idx=$i+1
+	    push @$out, "    varargout{$idx}=$func_return[$i];\n"
+	push @$out, "end\n"
+
+subcode: check_termination
+    #$l=~s/^\|//;
+    $if $l=~/^\s*$/
+	# NOOP
+    $elif $l=~/(for|while|if|elseif)\s*\(.*\)\s*$/
+	# NOOP
+    $elif $l!~/[,:\(\[\{;]\s*$/
+	#print "[$l]appending ;\n";
+	$l.=";";
+    $else
+	#print "[$l]\n";
+
