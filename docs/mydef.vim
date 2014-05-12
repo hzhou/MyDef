@@ -7,8 +7,10 @@
 :syntax match xCode /^\s*\(sub\|fn\|js\|perl\|php\)code:/
 :syntax match xStage /^\(subpage\|page\|form\|table\|fields\|macros\|resource\):/
 " Comments with #. Caution with cases CSS color, Perl $#
-:syntax match xComment /^\s*#.*/ " Leading # 
-:syntax match xComment /\s#\s.*$/ " Trailing [ ]#
+:syntax match xComment /^\s*#[^-].*/ " Leading # 
+:syntax match xComment /\s#\s[^-].*$/ " Trailing [ ]#
+:syntax match xCommentImportant /^\s*#-.*/  
+:syntax match xCommentImportant /\s# -.*$/ " Trailing [ ]# 
 :syntax region xComment start=/\/\*/ end=/\*\//
 :syntax region dString start=/"/ skip=/\\"/ end=/"/  oneline
 :syntax region sString start=/'/ skip=/\\'/ end=/'/  oneline

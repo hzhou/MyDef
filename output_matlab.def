@@ -8,6 +8,16 @@ page: output_matlab, output_main
     package: MyDef::output_matlab
     interface_type: matlab
 
+    subcode: init_page
+	$global @func_input
+	$global @func_return
+	$global $func_varargout
+	$global $func_varargin
+	undef @func_input
+	undef @func_return
+	undef $func_varargout
+	undef $func_varargin
+
 # -----
 subcode: case_matlab_style
     push @$out, "$case $cond"
@@ -38,7 +48,13 @@ subcode: parsecode
 	    return single_block("$1 $param", "end")
 	$elif $func=~/^input/
 	    $global @func_input
-	    @func_input=split /,\s*/, $param
+	    $global $func_varargin
+	    $if $param=~/^\s*varargin(.*)/
+		$func_varargin=1
+		$param=$1
+		$param=~s/^\s*[:,]?\s*//
+	    $if $param
+		@func_input=split /,\s*/, $param
 	    return 0
 	$elif $func=~/^return/
 	    $global @func_return
@@ -58,18 +74,56 @@ subcode: parsecode
 subcode: dumpout
     parsecode("NOOP")
     # ----------------
-    my $return
+    my ($input, $return, @vararg)
     $if @func_return
+	$if !@func_input
+	    $input="varargin"
+	$else
+	    my $idx=0
+	    my (@arg_1, @arg_2, @arg_v)
+	    my $flag_varargin
+	    $foreach $a in @func_input
+		$idx++
+		$if !$flag_varargin
+		    $if $a=~/(\w+)=/
+			$flag_varargin=$idx
+			push @arg_1, "varargin"
+		    $else
+			push @arg_1, $a
+		$if $flag_varargin
+		    $if $a=~/(\w+)=(.*)/
+			push @arg_2, $1
+			push @arg_v, $2
+		    $else
+			push @arg_2, $a
+			push @arg_v, "0"
+	    $input=join(", ", @arg_1)
+	    $for $i=0:@arg_2
+		my $var=$arg_2[$i]
+		my $val=$arg_v[$i]
+		my $i1=$i+1
+		my $i2=$i+$flag_varargin
+		push @vararg, "if nargin>=$i2\n"
+		push @vararg, "    $var=varargin\{$i1\};\n"
+		push @vararg, "else\n"
+		push @vararg, "    $var=$val;\n"
+		push @vararg, "end\n"
+
 	$if $func_varargout
 	    $return="varargout"
 	$elif @func_return>1
 	    $return="[".join(", ", @func_return)."]"
 	$else
 	    $return=$func_return[0]
-	my $fline="function $return=".$page->{pagename}."(".join(", ", @func_input).")"
+	my $fline="function $return=".$page->{pagename}."($input)"
 	push @$f, "$fline\n\n"
+	$if @vararg
+	    push @$f, @vararg
+	    push @$f, "\n"
+
 
     $if $func_varargout
+	push @$out, "\n"
 	push @$out, "if nargout<=1\n"
 	push @$out, "    varargout{1}=[".join(", ", @func_return)."];\n"
 	push @$out, "else\n"
