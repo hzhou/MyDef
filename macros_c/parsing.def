@@ -337,7 +337,10 @@ subcode:: c_support_subs
 	    my $t="\$"."(macro_hash_cond:$1,$2)"
 	    MyDef::compileutil::expand_macro_recurse(\$t)
 	    return $t
-	$elsif $param!~/^\(.*\)$/ and $param=~/[^!><='"]=[^=]/
+	$elif $param=~/^\w+\s*=\s*\w+\(.*\)\s*$/
+	    # if $var=fcall_get_var()
+	    return $param
+	$elif $param!~/^\(.*\)$/ and $param=~/[^!><='"]=[^=]/
 	    my $pre=$`
 	    $if $pre!~/['"]/
 		# ... unless left is quoted

@@ -70,7 +70,8 @@ fncode: match_char(tn_char)
     $if tn_c==tn_char
 	return 1
     $else
-	$call input_back_char
+	$if tn_c>0
+	    $call input_back_char
 	return 0
 
 # ---------------------------------
