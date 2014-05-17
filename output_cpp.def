@@ -1,0 +1,23 @@
+include: output.def
+
+page: output_cpp, inherit_c
+    type: pm
+    output_dir: lib/MyDef
+    ext: cpp
+    init_mode: sub
+    package: MyDef::output_cpp
+
+subcode: on_dumpout
+    my $cnt=0
+    $while my ($k, $t)=each %includes
+	$if $k=~/<(iostream|string|bitset|deque|list|map|queue|set|stack|vector)/
+	    push @dump_out, "#include <$1>\n";
+	$elif $k=~/<(stdio|stdlib|string|math|time)\.h>/
+	    push @dump_out, "#include <c$1>\n";
+	$else
+	    push @$dump_out, "#include $k\n";
+	$cnt++
+    $if $cnt>0
+	push @$dump_out, "\n";
+    %includes=()
+
