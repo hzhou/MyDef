@@ -47,13 +47,28 @@ subcode: on_dumpout
 	@$(C)global_list=@t
 
     # ---- xs_start -------------------
+    $call init_xs
+
+subcode: init_xs
     my $block=MyDef::compileutil::get_named_block("xs_start")
-    $call init_xs, $block
+    push @$block, "#include \"EXTERN.h\"\n";
+    push @$block, "#include \"perl.h\"\n";
+    push @$block, "#include \"XSUB.h\"\n";
+    push @$block, "\n";
+    push @$block, "#include \"ppport.h\"\n";
+    push @$block, "\n";
+    $foreach my $l in @xs_globals
+	push @$block, $l;
+    push @$block, "\n";
+    my $pagename=$(Cpage)->{pagename}
+    push @$block, "MODULE = $pagename\t\tPACKAGE = $pagename\n";
+    push @$block, "\n";
 
 # *** Custom syntax ***
 subcode: on_parsecode
     my $out=$(Cout)
     $if $l=~/^XS_START/
+	$(C)parsecode("NOOP POST_MAIN")
 	$global $xs_started
 	$l= "DUMP_STUB xs_start"
 	$$(C)function_flags{"xs_mode"}= 1
@@ -178,20 +193,6 @@ subcode:: support_subs
 	    return $l;
 
 ################################################
-subcode: init_xs(block)
-    push @$(block), "#include \"EXTERN.h\"\n";
-    push @$(block), "#include \"perl.h\"\n";
-    push @$(block), "#include \"XSUB.h\"\n";
-    push @$(block), "\n";
-    push @$(block), "#include \"ppport.h\"\n";
-    push @$(block), "\n";
-    $foreach my $l in @xs_globals
-	push @$(block), $l;
-    push @$(block), "\n";
-    my $pagename=$(Cpage)->{pagename}
-    push @$(block), "MODULE = $pagename\t\tPACKAGE = $pagename\n";
-    push @$(block), "\n";
-
 subcode: process_function_xs
     my (@t0, @t1, @pre, @post);
     $func->{openblock}=\@t0;

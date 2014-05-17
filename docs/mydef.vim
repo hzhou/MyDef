@@ -1,3 +1,6 @@
+:syntax match CallPlace /^\s*\$call\s+@\i\+/
+:highlight link CallPlace Special
+
 :syntax match xKey /^\s*\$\i\+/
 :syntax match xPrefix /\$\./
 :syntax match xKey /^\s*&call/
@@ -7,8 +10,10 @@
 :syntax match xCode /^\s*\(sub\|fn\|js\|perl\|php\)code:/
 :syntax match xStage /^\(subpage\|page\|form\|table\|fields\|macros\|resource\):/
 " Comments with #. Caution with cases CSS color, Perl $#
-:syntax match xComment /^\s*#.*/ " Leading # 
-:syntax match xComment /\s#\s.*$/ " Trailing [ ]#
+:syntax match xComment /^\s*#[^-].*/ " Leading # 
+:syntax match xComment /\s#\s[^-].*$/ " Trailing [ ]#
+:syntax match xCommentImportant /^\s*#[-#].*/  
+:syntax match xCommentImportant /\s# -.*$/ " Trailing [ ]# 
 :syntax region xComment start=/\/\*/ end=/\*\//
 :syntax region dString start=/"/ skip=/\\"/ end=/"/  oneline
 :syntax region sString start=/'/ skip=/\\'/ end=/'/  oneline
@@ -29,7 +34,8 @@
 :highlight link xCSS Underlined
 :highlight link xCode Statement
 :highlight link xStage Statement
-:highlight link xComment Comment
+:highlight link xComment NonText
+:highlight link xCommentImportant Comment
 :highlight link xInclude Include
 :highlight link xHTML Special
 

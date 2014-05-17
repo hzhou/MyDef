@@ -249,6 +249,9 @@ subcode: parsecode_case_support(if, elif, style)
 	my $cond=$2
 	my $case
 	$if $1 eq "if"
+	    $if $case_wrap
+		push @$out, @$case_wrap
+		undef $case_wrap
 	    $case=$case_if
 	$elif $1 eq "case"
 	    $if !$case_state
