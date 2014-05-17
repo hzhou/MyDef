@@ -66,6 +66,16 @@ page: output_c, output_main
 	$call dump_Makefile
 
 	# ---- Header stuff --------------------------
+	$if $page->{pageext} eq "cpp" 
+	    $if $MyDef::def->{"macros"}->{"use_std"}
+		$includes{"<iostream>"}=1
+		$includes{"<string>"}=1
+		my @tlist=split /,\s*/, $MyDef::def->{macros}->{use_std}
+		$foreach $t in @tlist
+		    $if $t =~/[a-z]\w+/
+			$includes{"<$t>"}=1
+		unshift @$out, "using namespace std;"
+
 	unshift @$out, "\n/**** END GLOBAL INIT ****/\n"
 	unshift @$out, "DUMP_STUB global_init"
 
