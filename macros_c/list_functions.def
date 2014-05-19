@@ -46,6 +46,7 @@ subcode: parsecode_post
 	$call parse_function_list_item, $f
 
     @list_function_list=()
+    %list_function_hash=()
 
 # ------------------------------------
 subcode: parse_function_list_item(f)

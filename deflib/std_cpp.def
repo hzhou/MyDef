@@ -2,7 +2,6 @@
 subcode: basic_frame
     $include iostream
     $include string
-    using namespace std
 
     $call @global
     $(if:hascode:n_main)

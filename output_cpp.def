@@ -9,15 +9,20 @@ page: output_cpp, inherit_c
 
 subcode: on_dumpout
     my $cnt=0
-    $while my ($k, $t)=each %includes
+    my $cnt_std=0
+    $while my ($k, $t)=each %$(C)includes
 	$if $k=~/<(iostream|string|bitset|deque|list|map|queue|set|stack|vector)/
-	    push @dump_out, "#include <$1>\n";
+	    push @$f, "#include <$1>\n"
+	    $cnt_std++
 	$elif $k=~/<(stdio|stdlib|string|math|time)\.h>/
-	    push @dump_out, "#include <c$1>\n";
+	    push @$f, "#include <c$1>\n"
 	$else
-	    push @$dump_out, "#include $k\n";
+	    push @$f, "#include $k\n"
 	$cnt++
     $if $cnt>0
-	push @$dump_out, "\n";
-    %includes=()
+	$if $cnt_std>0
+	    push @$f, "using namespace std;\n"
+	push @$f, "\n"
+
+    %$(C)includes=()
 

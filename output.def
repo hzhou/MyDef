@@ -88,7 +88,7 @@ subcode: inherit_c
 
     $sub parsecode($l)
 	$call parsecode_eval
-	$call on_parsecode
+	$call @on_parsecode
 	return $(C)parsecode($l)
 
     $sub dumpout($f, $out, $pagetype)

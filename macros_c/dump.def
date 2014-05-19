@@ -32,6 +32,8 @@ subcode: add_include(l)
 	    $key="\"$f\""
 	$elif $f=~/^".*"$/
 	    $key=$f
+	$elif $f=~/^<.*>$/
+	    $key=$f
 	$else
 	    $key="<$f.h>"
 	$includes{$key}=1
