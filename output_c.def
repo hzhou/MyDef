@@ -10,7 +10,6 @@ include: macros_c/dump.def
 include: macros_c/dump_h.def
 # include: macros_c/regex.def
 
-include: macros_c/allocate.def
 include: macros_c/list_functions.def
 
 
@@ -38,13 +37,17 @@ page: output_c, output_main
 	$call @c_init
 
     subcode: parsecode
-	$global $case_flag="b_flag_case"
-	$global $case_flag_set="b_flag_case=1;"
-	$global $case_flag_reset="b_flag_case=0;"
-	global_add_var($case_flag)
 	$(set:parse_condition=1)
 	$call parsecode_case_support, if, else if, c_style
 	$call parsecode_common
+
+    subcode: case_flag_set
+	$global $case_flag="b_flag_case"
+	global_add_var($case_flag)
+	push @$out, "b_flag_case=1;"
+
+    subcode: case_flag_reset
+	push @$out, "b_flag_case=0;"
 
     subcode: dumpout
 	# ----  Main Function -------------------

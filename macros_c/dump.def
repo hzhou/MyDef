@@ -10,12 +10,19 @@ subcode: c_dump_init
     $call dump_defines
     $call dump_enums
     $call dump_typedefs
+    $call @dump_classes
     $call dump_structs
     $call dump_function_declares
     $call dump_declares
     $call dump_structs_functions
     $call dump_globals
     $call dump_code_list
+
+subcode: dump_classes
+    $global $dump_classes
+    $if $dump_classes
+	$foreach $l in @$dump_classes
+	    push @$dump_out, $l
 
 # ---- Includes ----
 subcode:: c_init
@@ -188,13 +195,13 @@ subcode:: c_init
     @struct_list=()
 
 subcode: dump_structs
-    $foreach my $name in @struct_list
-	$call dump_struct, $name
+    $foreach $name in @struct_list
+	$call dump_struct
 
-subcode: dump_struct(k)
-    push @$dump_out, "struct $(k) {\n";
-    my $s_list=$structs{$(k)}->{list}
-    my $s_hash=$structs{$(k)}->{hash}
+subcode: dump_struct
+    push @$dump_out, "struct $name {\n";
+    my $s_list=$structs{$name}->{list}
+    my $s_hash=$structs{$name}->{hash}
     my $i=0;
     $foreach my $p in @$s_list
 	$i++;
@@ -204,18 +211,25 @@ subcode: dump_struct(k)
 	    push @$dump_out, "\t$s_hash->{$p} $p;\n";
     push @$dump_out, "};\n\n";
 
+#---- Simple Constructors/Destructors ----------------------------------------
 subcode: dump_structs_functions
     my $cnt=0
-    $foreach my $name in @struct_list
-	my $s_hash=$structs{$name}->{hash}
-	my $s_init=$s_hash->{"-init"}
-	$if @$s_init
-	    push @$dump_out, "void $name\_constructor(struct $name* p){\n";
-	    foreach my $l(@$s_init){
-		push @$dump_out, "    $l\n";
-	    }
+    $foreach $name in @struct_list
+	my ($param, $init)=get_struct_constructor($name)
+	$if defined $init
+	    $if !@$param
+		push @$dump_out, "void $name\_constructor(struct $name* p){\n";
+	    $else
+		my $param_line=join(", ", @$param)
+		push @$dump_out, "void $name\_constructor(struct $name* p, $param_line){\n";
+
+	    $foreach $l in @$init
+		push @$dump_out, "    p->$l;\n"
 	    push @$dump_out, "}\n";
 	    $cnt++
+	#------------------------------
+	my $s_list=$structs{$name}->{list}
+	my $s_hash=$structs{$name}->{hash}
 	my $s_exit=$s_hash->{"-exit"}
 	$if @$s_exit
 	    push @$dump_out, "void $name\_destructor(struct $name* p){\n";

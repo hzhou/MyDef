@@ -98,6 +98,18 @@ subcode:: c_support_subs
 	    my $type=get_var_type($val)
 	    return $type
 
+    $sub type_default($type)
+	$if $type=~/\*$/
+	    return "NULL"
+	$elif $type=~/float|double/
+	    return "0.0"
+	$elif $type=~/char|signed|int/
+	    return "0"
+	$else
+	    return undef
+
+
+subcode:: c_support_subs
     $sub get_c_type_word
 	my $name=shift;
 	$if $debug eq "type"

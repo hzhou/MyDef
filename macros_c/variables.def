@@ -1,4 +1,41 @@
-# -----------------------------------------------------------------
+# subcode:: parsecode_func_param_other
+subcode:: parsecode_func_other
+    $elif $func eq "global" or $func eq "local" or $func eq "my" or $func eq "symbol" or $func eq "auto_global"
+	$if $func eq "auto_global"
+	    $call check_autoload_h_direct
+	    $func eq "global"
+	$else
+	    $call check_autoload_h
+	$if $func eq "global" and $autoload_h
+	    $func="symbol"
+
+	$param=~s/\s*;\s*$//
+	my @vlist=split /,\s+/, $param;
+	$foreach $v in @vlist
+	    $if $func eq "global"
+		my $name=global_add_var($v)
+		$call add_to_autoload_h, "global-$name"
+	    $elif $func eq "symbol"
+		global_add_symbol($v)
+	    $elif $func eq "my" and !$page->{disable_scope}
+		scope_add_var($v)
+	    $else
+		func_add_var($v, "local");
+	return
+    $elif $func eq "globalinit"
+	global_add_var($param);
+	return
+    $elif $func eq "localinit"
+	func_add_var($param, "local");
+	return
+    $elif $func eq "myinit"
+	$if $page->{disable_scope}
+	    func_add_var($param, "local");
+	$else
+	    scope_add_var($param)
+	return
+
+#-----------------------------------------------------------------
 subcode:: c_support_subs
     $sub func_add_var($name, $type, $value)
 	my $scope
@@ -198,7 +235,11 @@ subcode:: c_support_subs
     $sub get_var_type
 	my $name=shift
 	$if $name=~/^(\w+)(.*)/
-	    return get_sub_type(get_var_type_direct($1), $2)
+	    my $tail=$2
+	    my $base_type=get_var_type_direct($1)
+	    $base_type=~s/\s*&$//
+	    #---- undef if not found -----
+	    return get_sub_type($base_type, $tail)
 	return "void";
 
     $sub get_sub_type

@@ -285,7 +285,7 @@ subcode: parsecode_case_support(if, elif, style)
 	    $call case_pop
 	    return 0
 	$elif $l=~/^CASEEXIT/
-	    push @$out, $case_flag_reset
+	    $call @case_flag_reset
 	    return 0
 
     $if $case_wrap and !$case_state
@@ -309,7 +309,30 @@ subcode: else_c_style
 
 # -----
 subcode: case_flag_if
-    push @$out, $case_flag_set
+    $(if:hascode:case_flag_if_$(style))
+	$call case_flag_if_$(style)
+    $(else)
+	my $case=$case_if
+	my $cond=$1
+	$call case_$(style)
+
+
+subcode: case_flag_elif
+    $(if:hascode:case_flag_elif_$(style))
+	$call case_flag_elif_$(style)
+    $(else)
+	my $case=$case_elif
+	my $cond=$1
+	$call case_$(style)
+
+subcode: case_flag_else
+    $(if:hascode:case_flag_else_$(style))
+	$call case_flag_else_$(style)
+    $(else)
+	$call else_$(style)
+
+subcode: case_flag_if_c_style
+    $call case_flag_set
     MyDef::compileutil::call_sub($1, "\$call")
     push @$out, "if($case_flag){"
     push @$out, "INDENT"
@@ -317,10 +340,10 @@ subcode: case_flag_if
     push @$out, "DEDENT"
     push @$out, "}"
 
-subcode: case_flag_elif
+subcode: case_flag_elif_c_style
     push @$out, "else{"
     push @$out, "INDENT"
-    push @$out, $case_flag_set
+    $call case_flag_set
     MyDef::compileutil::call_sub($1, "\$call")
     push @$out, "if($case_flag){"
     push @$out, "INDENT"
@@ -333,7 +356,7 @@ subcode: case_flag_elif
 	$case_wrap=[]
     push @$case_wrap, "}"
 
-subcode: case_flag_else
+subcode: case_flag_else_c_style
     push @$out, "else{"
     push @$out, "INDENT"
     push @$out, "BLOCK"

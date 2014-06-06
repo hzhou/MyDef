@@ -14,7 +14,25 @@ subcode:: c_init
     $global @scope_stack
     @scope_stack=()
 
-# -----------------------------------------------------------------
+subcode:: c_support_subs
+    my $cur_scope
+    $sub open_scope
+	push @scope_stack, $cur_scope
+	$cur_scope={var_list=>[], var_type=>{}, var_decl=>{}}
+
+    $sub close_scope($scopename)
+	my $var_decl=$cur_scope->{var_decl};
+	my $var_list=$cur_scope->{var_list};
+	$if @$var_list
+	    my $block=MyDef::compileutil::get_named_block($scopename)
+	    #unshift @$block, "{"
+	    $foreach my $v in @$var_list
+		push @$block, "$var_decl->{$v};";
+	    #push @$out, "}"
+
+	$cur_scope=pop @scope_stack
+
+#-----------------------------------------------------------------
 subcode:: c_support_subs
     $sub open_function($fname, $param)
 	# -- var_list: list of local variables
@@ -76,26 +94,10 @@ subcode: open_function_api
 		$param=$3
 # -----------------------------------------------------------------
 subcode:: c_support_subs
-    my $cur_scope
-    $sub open_scope
-	push @scope_stack, $cur_scope
-	$cur_scope={var_list=>[], var_type=>{}, var_decl=>{}}
-
-    $sub close_scope($scopename)
-	my $var_decl=$cur_scope->{var_decl};
-	my $var_list=$cur_scope->{var_list};
-	$if @$var_list
-	    my $block=MyDef::compileutil::get_named_block($scopename)
-	    #unshift @$block, "{"
-	    $foreach my $v in @$var_list
-		push @$block, "$var_decl->{$v};";
-	    #push @$out, "}"
-
-	$cur_scope=pop @scope_stack
-#-------------------------------------------------------------
-subcode:: c_support_subs
     $sub func_return
 	my ($l, $out)=@_;
+	MyDef::compileutil::trigger_block_post()
+
 	$if !$cur_function->{ret_type}
 	    $if $l=~/return\s+(.*)/
 		my $t=$1;
