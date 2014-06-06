@@ -39,13 +39,13 @@ subcode:: package_global
 
 
 # --------------------------------
-subcode:: package_global	
-    our %named_blocks;   # $(block: name)
+subcode:: support_subs	
+    # our %named_blocks;   # $(block: name)
+    $global %named_blocks
     $sub set_named_block($name, $block)
 	$named_blocks{$name}=$block
 
-    $sub get_named_block
-	my $name=shift
+    $sub get_named_block($name)
 	$if $name eq "_post"
 	    my $cur_idx=$block_stack[-1]->{eindex}
 	    $name="block$cur_idx\_post"
@@ -56,6 +56,15 @@ subcode:: package_global
 	$if !$named_blocks{$name}
 	    $named_blocks{$name}=[]
 	return $named_blocks{$name}
+
+    $sub trigger_block_post
+	my $cur_idx=$block_stack[-1]->{eindex}
+	my $name="block$cur_idx\_post"
+	$if $named_blocks{$name}
+	    my $new_name=$name.'_'
+	    push @$out, "DUMP_STUB $new_name"
+	    $named_blocks{$new_name}=$named_blocks{$name}
+	    undef $named_blocks{$name}
 
 subcode: with_named_block(name)
     my $output=get_named_block($(name))

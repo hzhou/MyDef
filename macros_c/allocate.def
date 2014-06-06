@@ -1,5 +1,21 @@
+subcode:: parsecode_func_param_other
+    $elif $func eq "allocate"
+	allocate($param1, $param2);
+	return
+    $elif $func eq "local_allocate"
+	local_allocate($param1, $param2);
+	return
+    $elif $func eq "global_allocate"
+	# at main_exit: DUMP_STUB global_cleanup
+	global_allocate($param1, $param2);
+	return
 
-# ---- allocate ----
+subcode:: parsecode_func_other
+    $elif $func eq "allocate"
+	allocate(1, $param);
+	return
+
+#------------------------------------------ 
 subcode: allocate_dimension
     my $init_value;
     $if $dim=~/(.*),\s*(.*)/

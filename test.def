@@ -1,5 +1,5 @@
 subcode: setup
-    $ENV{MYDEFLIB}="../MyDef/deflib";
+    $ENV{MYDEFLIB}="../deflib";
     $ENV{PERL5LIB}="../MyDef/blib/lib";
 
     $if !-d "out"

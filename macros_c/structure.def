@@ -24,6 +24,39 @@ subcode:: c_support_subs
 
 	$call declare_struct_elements
 
+    $sub get_struct_constructor($name)
+	my $s_list=$structs{$name}->{list}
+	my $s_hash=$structs{$name}->{hash}
+	my $s_init=$s_hash->{"-init"}
+	$if $s_init and @$s_init
+	    my @param_list
+	    my @initializer
+	    my %init_hash
+	    $foreach $l in @$s_init
+		$if $l=~/^(\w+)=\$(\w+)/ and $s_hash->{$1}
+		    my $dummy=$2
+		    push @param_list, $s_hash->{$1}." $dummy"
+		    push @initializer, "$1=$dummy"
+		    $init_hash{$1}=1
+		$elif $l=~/^(\w+)=(.*)/ and $s_hash->{$1}
+		    $if $2 eq "\$"
+			my $dummy="dummy_$1"
+			push @param_list, $s_hash->{$1}." $dummy"
+			push @initializer, "$1=$dummy"
+		    $else
+			push @initializer, "$1=$2"
+		    $init_hash{$1}=1
+		$else
+		    #- not supported
+	    $foreach $m in @$s_list
+		$if !$init_hash{$m}
+		    my $default=type_default($s_hash->{$m})
+		    $if $default
+			push @initializer, "$m=$default"
+	    return (\@param_list, \@initializer)
+	$else
+	    return (undef, undef)
+
 subcode: declare_struct_elements
     my @plist=split /,\s+/, $param;
     $foreach my $p in @plist
@@ -48,9 +81,10 @@ subcode: declare_struct_elements
 	    $needfree=1
 	    $p=$';
 
+	#--------
 	$if $p=~/(.*?)(\S+)\s*=\s*(.*)/
 	    $p="$1$2";
-	    push @$s_init, "p->$2=$3;";
+	    push @$s_init, "$2=$3";
 
 	$if $p=~/(.*\S)\s+(\S+)\s*$/
 	    $type=$1;
@@ -62,6 +96,10 @@ subcode: declare_struct_elements
 	$else
 	    $m_name=$p;
 	    $if $p=~/^(next|prev)$/
+		#---- linked list ----
+		$type="struct $name *"
+	    $elif $p=~/^(left|right)$/
+		#---- binary tree ----
 		$type="struct $name *"
 	    $elif $fntype{$p}
 		$type="function";

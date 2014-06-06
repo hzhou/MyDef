@@ -1,6 +1,7 @@
+#---------------------------------------- 
+#- parseblock()
 subcode:: support_subs
-    $sub parseblock
-	my ($code)=@_;
+    $sub parseblock($code)
 	my $block=$code->{source}
 
 	my $indent=0
@@ -87,13 +88,16 @@ subcode: parse_stack_push
     $block_index++
     my $blk= {out=>$out, index=>$block_index, eindex=>$block_index, file=>$cur_file, line=>$cur_line, code=>$code}
     push @block_stack, $blk
-    # SUBBLOCK messages to enable block scopes ------
-    $f_parse->("SUBBLOCK BEGIN $block_index")
+    $if $code->{"scope"}
+	# SUBBLOCK messages to enable block scopes ------
+	$blk->{scope}=1
+	$f_parse->("SUBBLOCK BEGIN $block_index")
 
 subcode: parse_stack_pop
     my $blk=pop @block_stack;
-    # SUBBLOCK messages to enable block scopes ------
-    $f_parse->("SUBBLOCK END $blk->{index}")
+    $if $blk->{scope}
+	# SUBBLOCK messages to enable block scopes ------
+	$f_parse->("SUBBLOCK END $blk->{index}")
     $cur_file=$blk->{file}
     $cur_line=$blk->{line}
     my $idx=$blk->{index}
@@ -190,18 +194,6 @@ subcode: parse_line
 	# single_block and $method
 	$if $callback_output
 	    $call check_callback
-
-subcode: old_callback_tail_support
-	$elsif $msg=~/^NEWBLOCK/
-	    $if $'=~/-(.*)/
-		$callback_tail= $1
-	    $else
-		# allow case_support to wrap
-		$callback_tail="NOOP"
-	$if $callback_output
-	    $call check_callback
-	    $if $callback_tail
-		$f_parse->($callback_tail)
 
 subcode: check_callback
     my $n=new_output()

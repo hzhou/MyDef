@@ -29,7 +29,7 @@ subcode: dump_h_files
 	$foreach $k in @{$ghash{"define"}}
 	    $call dump_define, $k
 	$foreach $k in @{$ghash{"struct"}}
-	    $call dump_struct, $k
+	    $call dump_struct
 	$foreach $k in @{$ghash{"typedef"}}
 	    $call dump_typedef, $k
 	$foreach $k in @{$ghash{"function"}}
