@@ -80,7 +80,7 @@ subcode: check_termination
 	    $l="last;"
 	$elif $l eq "continue"
 	    $l="next;"
-    $elif $l=~/(for|while|if|else if)\s*\(.*\)\s*$/
+    $elif $l=~/^\s*(for|while|if|else if)\s*\(.*\)\s*$/
 	# NOOP
     $elif $l=~/^\s*}/
 	# Check the formal blockend

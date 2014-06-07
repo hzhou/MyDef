@@ -11,16 +11,21 @@ subcode: check_text_includes
 	$if $l=~/$k/
 	    $call add_include, $v
 
+subcode: debug_scope
+    $if $debug eq "DUMP"
+	my ($code, $file, $line)=MyDef::compileutil::get_cur_code()
+	push @$out, "printf(\"subcode: $file - $line - $code->{name}\\n\");";
+
 subcode: parsecode_special
-    $if $l=~/^SUBBLOCK BEGIN (\d+)/
-	push @$out, "DUMP_STUB SUBBLOCK_$1"
-	$if $debug eq "DUMP"
-	    my ($code, $file, $line)=MyDef::compileutil::get_cur_code()
-	    push @$out, "printf(\"subcode: $file - $line - $code->{name}\\n\");";
-	open_scope("SUBBLOCK_$1")
+    $if $l=~/^SUBBLOCK BEGIN (\d+) (.*)/
+	my ($blk, $scope)=($1, $2)
+	push @$out, "DUMP_STUB SUBBLOCK_$blk"
+	#$call @debug_scope
+	open_scope("SUBBLOCK_$blk")
 	return
-    $elif $l=~/^SUBBLOCK END (\d+)/
-	close_scope("SUBBLOCK_$1")
+    $elif $l=~/^SUBBLOCK END (\d+) (.*)/
+	my ($blk, $scope)=($1, $2)
+	close_scope("SUBBLOCK_$blk")
 	return
     $elif $l=~/^NOOP POST_MAIN/
 	$call parsecode_post

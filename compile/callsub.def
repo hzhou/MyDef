@@ -151,7 +151,7 @@ subcode:: support_subs
 		&call call_sub_block
 		    my $np=@pre_plist;
 		    $if $calltype eq "\$list"
-			$codelib->{"scope"}=1
+			$codelib->{"scope"}="function"
 			parseblock($codelib)
 		    $elif $calltype eq "\$map"
 			$call call_sub_map
