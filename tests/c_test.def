@@ -1,0 +1,29 @@
+page: test, basic_frame
+    subcode: main
+	# $call test_case
+	$call test_case_compound
+
+subcode: test_case
+    $local pn[10]
+    $for i=0:1
+	$if i==0
+	    pn[i]=0
+    $case i==1
+	print i = $i
+
+subcode: test_case_compound
+    n=5
+    $if 0>1
+	print impossible
+    &case case_test, 5
+	print $n < 5
+    $elif n==5
+	print $n is 5
+    &case case_test, 10
+	print 5<=$n<10
+    $else
+	print All is lost
+
+subcode: case_test(n)
+    $if n>=$(n)
+	CASEEXIT
