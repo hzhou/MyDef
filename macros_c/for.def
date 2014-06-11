@@ -1,0 +1,55 @@
+subcode:: parsecode_func_other
+    $elsif $func eq "for"
+	$call parsecode_for_support, c_style_protect
+	return
+    $elif $func eq "foreach"
+	$if $param=~/(\w+)\s+in\s+(\w+)/
+	    my ($t, $v)=($1, $2)
+	    $call foreach_array
+	$elif $param=~/^(\S+)\s*$/
+	    my ($t, $v)=("t", $1)
+	    $call foreach_array
+
+#---------------------------------------- 
+subcode: for_i0_i1_step
+    $if $step eq "1"
+	$step="++"
+    $elif $step eq "-1"
+	$step="--"
+    $else
+	$step= "+=$step"
+
+    $var=temp_add_var($var, "int")
+    protect_var($var)
+
+    $param="$var=$i0; $var $i1; $var$step"
+
+subcode: for_c_style_protect
+    $(if:type=asis)
+	return single_block("for($param){", "}", "for")
+    $(else)
+	my $end="PARSE:\$unprotect_var $var"
+	return single_block_pre_post(["for($param){", "INDENT"], ["DEDENT", "}",$end], "for")
+
+#---------------------------------------- 
+subcode: foreach_array
+    my $var=find_var($v)
+    my $dim
+
+    $if defined $var->{dimension}
+	$dim=$var->{dimension}
+    $elif defined $var->{array}
+	$dim=$var->{array}
+
+    print "foreach_array, $v, $var->{name}, $dim ...\n"
+
+    $if defined $dim
+	$call foreach_single, $dim
+   
+subcode: foreach_single(range)
+    my $type=pointer_type($var->{type})
+    my $i=temp_add_var("i", "int")
+    MyDef::compileutil::set_current_macro($t, "$v\[$i\]")
+    my $end="PARSE:\$unprotect_var $i"
+    return single_block_pre_post(["for($i=0;$i<$(range);$i++){", "INDENT"], ["DEDENT", "}",$end], "for")
+

@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 use strict;
-$ENV{MYDEFLIB}="../MyDef/deflib";
+$ENV{MYDEFLIB}="../deflib";
 $ENV{PERL5LIB}="../MyDef/blib/lib";
 if(!-d "out"){
     mkdir "out" or die "Can't mkdir out\n";

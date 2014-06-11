@@ -137,7 +137,7 @@ subcode:: support_subs
 
 	    modepop()
 
-    $sub call_sub($param, $calltype)
+    $sub call_sub($param, $calltype, $scope)
 	$call call_sub_param
 	$if $codelib
 	    $if $codelib->{type} eq "perl" && $interface_type ne "perl"
@@ -149,6 +149,8 @@ subcode:: support_subs
 	    $else
 		$call split_sub_param
 		&call call_sub_block
+		    $if $scope
+			$codelib->{"scope"}=$scope
 		    my $np=@pre_plist;
 		    $if $calltype eq "\$list"
 			parseblock($codelib)

@@ -6,7 +6,6 @@ page: output_win32
     package: MyDef::output_win32
 
     subcode: main
-	use MyDef::dumpout;
 	use MyDef::output_c;
 
 	$sub get_interface

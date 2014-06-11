@@ -4,9 +4,9 @@ page: test
 	# $call test_read_file
 	# $call test_sub
 	# $call test_for
-	# $call test_case, 1
+	$call test_case, 1
 	# $call test_case, 2
-	$call test_case_compound
+	# $call test_case_compound
 
     subcode: test_read_file
 	print "Test \&call open_r ...\n"

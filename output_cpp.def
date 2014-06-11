@@ -7,7 +7,8 @@ page: output_cpp, inherit_c
     init_mode: sub
     package: MyDef::output_cpp
 
-subcode: on_dumpout
+#---- includes -------------------------------------------------------
+subcode:: on_dumpout
     my $cnt=0
     my $cnt_std=0
     $while my ($k, $t)=each %$(C)includes
@@ -25,4 +26,46 @@ subcode: on_dumpout
 	push @$f, "\n"
 
     %$(C)includes=()
+
+#---- structs/classes -------------------------------------------------------
+subcode:: on_dumpout
+    my @class_dump
+    $$(C)dump_classes=\@class_dump
+
+    $foreach $name in @$(C)struct_list
+	$call dump_struct
+
+    @$(C)struct_list=()
+
+subcode: dump_struct
+    push @class_dump, "struct $name {\n";
+    my $s_list=$$(C)structs{$name}->{list}
+    my $s_hash=$$(C)structs{$name}->{hash}
+    my $i=0;
+    $foreach $p in @$s_list
+	$i++;
+	$if $s_hash->{$p} eq "function"
+	    push @class_dump, "\t".$$(C)fntype{$p}.";\n";
+	$else
+	    push @class_dump, "\t$s_hash->{$p} $p;\n";
+    $call dump_struct_constructor
+    push @class_dump, "};\n\n";
+
+subcode: dump_struct_constructor
+    my ($param, $init)=$(C)get_struct_constructor($name)
+    $if defined $init
+	my $param_line=join(", ", @$param)
+	my @init_list
+	$foreach $a in @$init
+	    $if $a=~/(\w+)=(.*)/
+		push @init_list, "$1($2)"
+	my $init_line=join(", ", @init_list)
+	push @class_dump, "\t$name($param_line) : $init_line {}\n";
+
+    my $s_exit=$s_hash->{"-exit"}
+    $if $s_exit and @$s_exit
+	push @class_dump, "\t~$name(){\n";
+	$foreach $l in @$s_exit
+	    push @class_dump, "\t    $l\n";
+	push @class_dump, "\t}\n";
 

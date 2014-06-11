@@ -1,10 +1,46 @@
-# dynamic array ----------------------------------------------------
-#     function does  not work because we want flexible element types
+subcode:: _autoload
+    $provide(darray) dynamic array
 
-#    LESSON: 
+#--- dynamic array ----------------------------
+#    Consideration:: 
 # 	do not over worry about global name collision
 #       rather, work on how to get program detect name collisions
 
+#---------------------------------------- 
+#-   $my darray P of int
+subcode: darray_init(var, type, scope)
+    $$(scope) $(type)* $(var)
+    $$(scope) int $(var)_len=0
+    $$(scope) int $(var)_size=0
+
+subcode: darray_exit(var)
+    $if $(var)_size>0
+	free($(var))
+
+subcode: darray_resize(var, n)
+    $(if:n=0)
+	$if $(var)_size>0
+	    free($(var))
+	    $(var)_len=0
+	    $(var)_size=0
+    $(else)
+	$call darray_check_n, $(var), $(n)-$(var)_len
+	$(var)_len=$(n)
+
+#- P.push ("me", 30)
+subcode: darray_push(var, @p)
+    $call darray_check, $(var)
+    $var_assign $(var)[$(var)_len], $(p)
+    $(var)_len++
+
+macros:
+    darray_index_negative: $1[$1_len-$2]
+
+subcode: darray_pop(var, @p)
+    $(var)_len--
+    $var_assign_inverse $(var)[$(var)_len], $(p)
+
+#---------------------------------------- 
 subcode: local_darray(type, var)
     $local $(type) * $(var)=NULL
     $local int $(var)_len=0
@@ -35,11 +71,11 @@ subcode: darray_check(var)
     $(export:size=$(var)_size)
 
     $if $(len)+1>$(size)
-	$my tn_temp
-	tn_temp=(int)($(size)*2/3)
-	$if tn_temp<64
-	    tn_temp=64
-	$call darray_expand_n, $(var), tn_temp
+	$temp int temp
+	temp=(int)($(size)*2/3)
+	$if temp<64
+	    temp=64
+	$call darray_expand_n, $(var), temp
 
 subcode: darray_check_n(var, n)
     $if $(var)_len+$(n)>$(var)_size

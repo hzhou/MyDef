@@ -25,6 +25,23 @@ subcode: die(msg)
     fprintf(stderr, $(msg))
     exit(-1)
 
+#---- useful ------------
+subcode: swap(a, b)
+    $get_type(type) $(a)
+    $temp $(type) temp
+
+    $(temp)=$(a)
+    $(a)=$(b)
+    $(b)=$(temp)
+
+subcode: update_max(max, a)
+    $if $(max)<$(a)
+	$(max)=$(a)
+
+subcode: update_min(min, a)
+    $if $(min)>$(a)
+	$(min)=$(a)
+
 ## FILE IO
 subcode: mmap(filename, strname, strsize)
     $include sys/mman

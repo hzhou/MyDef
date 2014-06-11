@@ -8,9 +8,6 @@ page: dumpout
 	$call dump_main
 
 subcode: dump_main
-    use MyDef::compileutil;
-
-    ################################
     # Function list
     #   maintain a function list so we can use OPEN_FUNC block structure
     my @func_list;
