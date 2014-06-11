@@ -14,7 +14,6 @@ include: macros_c/list_functions.def
 
 
 subcode:: package_globals
-    use MyDef::dumpout;
     my $cur_indent;
     ## -------------------------------------------------
     $global %misc_vars;

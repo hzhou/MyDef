@@ -26,9 +26,12 @@ subcode: on_init
 subcode: on_dumpout
     # ---- process_function ------------------------
     my $funclist=MyDef::dumpout::get_func_list()
+    my $funchash=\%$(C)list_function_hash
     $foreach $func in @$funclist
-	$if $func->{xs_mode}
+	# $if $func->{xs_mode}
+	$if $funchash->{$func->{name}}
 	    $call process_function_xs
+	    $func->{skip_declare}=1
 	    $func->{processed}=1
 
     # ---- xs globals ----------------
@@ -37,7 +40,7 @@ subcode: on_dumpout
     my $cnt
     my $ghash=$$(C)global_hash
     $foreach $name in @$(C)global_list
-	my $v=$ghash->{$name}
+	my $v=$ghash->{$name}->{declare}
 	$if $v=~/^[SHA]V/
 	    push @xs_globals, "$v;\n";
 	    $cnt++
@@ -68,12 +71,14 @@ subcode: init_xs
 subcode: on_parsecode
     my $out=$(Cout)
     $if $l=~/^XS_START/
+	#---- flush out C functions ----
 	$(C)parsecode("NOOP POST_MAIN")
-	$global $xs_started
+	#---- 
 	$l= "DUMP_STUB xs_start"
-	$$(C)function_flags{"xs_mode"}= 1
-	$$(C)function_flags{"skip_declare"}= 1
-	$xs_started=1
+	#$$(C)function_flags{"xs_mode"}= 1
+	#$$(C)function_flags{"skip_declare"}= 1
+	#$global $xs_started
+	#$xs_started=1
     $elif $l=~/^\s*(\$if|while|elif|elsif|elseif)\s*(.*)/
 	$l="$1 ".translate_perl_cond($2, $out);
     $elsif $l=~/^\$foreach\s+(\w+)\s+in\s+(av_\w+)/
@@ -221,15 +226,16 @@ subcode: process_function_xs
 	    push @pre, "DEDENT";
 
     # ---- Local Variables ---------------------------
-    my $var_decl=$func->{var_decl};
-    my $var_list=$func->{'var_list'};
+    my $var_hash=$func->{var_hash}
+    my $var_list=$func->{var_list}
     $if @$var_list
 	push @pre, "PREINIT:";
 	push @pre, "INDENT";
 	$foreach my $v in @$var_list
-	    $if $$(C)global_type->{$v}
+	    $if $$(C)global_hash->{$v}
 		print "  [warning] In $name: local variable $v with exisiting global\n"
-	    push @pre, "$var_decl->{$v};";
+	    my $decl=$var_hash->{$v}->{declare}
+	    push @pre, "$decl;";
 	push @pre, "DEDENT";
     push @pre, "PPCODE:";
     push @pre, "INDENT";

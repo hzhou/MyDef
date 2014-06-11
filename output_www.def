@@ -15,7 +15,6 @@ page: output_www, output_main
     package: MyDef::output_www
 
 subcode:: package_globals
-    use MyDef::compileutil;
     use Term::ANSIColor qw(:constants);
     # ------ global variables
     my $php;

@@ -1,55 +1,55 @@
 subcode:: parsecode_func_other
     $elsif $func eq "for"
-	$call c_parse_for
+	$call parsecode_for_support, c_style_protect
 	return
-    $elif $func eq "endfor"
-	$call c_parse_for_end
-
     $elif $func eq "foreach"
 	$if $param=~/(\w+)\s+in\s+(\w+)/
-	    my ($iv, $v)=($1, $2)
-	    return list_foreach($out, $iv, $v)
+	    my ($t, $v)=($1, $2)
+	    $call foreach_array
+	$elif $param=~/^(\S+)\s*$/
+	    my ($t, $v)=("t", $1)
+	    $call foreach_array
 
-subcode: c_parse_for
-    $global %protected_var
-    $if $param=~/(\w+)\s*=\s*(.*?):(.*?)(:.*)?$/
-	my ($var, $i0, $i1, $step)=($1, $2, $3, $4);
-	$call protect_var, $var
-	func_add_var($var, undef, $i0);
-	my $stepclause;
-	$if $step
-	    my $t=substr($step, 1);
-	    $if $t eq "-1"
-		$stepclause="$var=$i0;$var>$i1;$var--";
-	    $elsif $t=~/^-/
-		$stepclause="$var=$i0;$var>$i1;$var=$var$t";
-	    $elsif $t eq "1"
-		$stepclause="$var=$i0;$var<$i1;$var++";
-	    $else
-		$stepclause="$var=$i0;$var<$i1;$var+=$t";
-	$else
-	    # CAUTION
-	    # I would like to have $i=n:0 be the reverse of $i=0:n
-	    # Infact I would to symmetry between $i=$a:$b:$step and $i=$b:$a:-$step, TO BE DONE
-	    $if $i1 eq "0"
-		$stepclause="$var=$i0-1;$var>=0;$var--";
-	    $elif $i1=~/^-?\d+/ and $i0=~/^-?\d+/ and $i1<$i0
-		$stepclause="$var=$i0;$var>$i1;$var--";
-	    $else
-		$stepclause="$var=$i0;$var<$i1;$var++";
-	my $end="PARSE:\$endfor $var"
-	return single_block_pre_post(["for($stepclause){", "INDENT"], ["DEDENT", "}",$end])
+#---------------------------------------- 
+subcode: for_i0_i1_step
+    $if $step eq "1"
+	$step="++"
+    $elif $step eq "-1"
+	$step="--"
     $else
-	return single_block("for($param){", "}")
+	$step= "+=$step"
 
-subcode: c_parse_for_end
-    $protected_var{$param}--
-    return
+    $var=temp_add_var($var, "int")
+    protect_var($var)
 
-subcode: protect_var(v)
-    $if $protected_var{$var}
-	my $curfile=MyDef::compileutil::curfile_curline()
-	print "[$curfile] Variable $var protected\n"
-	$protected_var{$var}++
-    $else
-	$protected_var{$var}=1
+    $param="$var=$i0; $var $i1; $var$step"
+
+subcode: for_c_style_protect
+    $(if:type=asis)
+	return single_block("for($param){", "}", "for")
+    $(else)
+	my $end="PARSE:\$unprotect_var $var"
+	return single_block_pre_post(["for($param){", "INDENT"], ["DEDENT", "}",$end], "for")
+
+#---------------------------------------- 
+subcode: foreach_array
+    my $var=find_var($v)
+    my $dim
+
+    $if defined $var->{dimension}
+	$dim=$var->{dimension}
+    $elif defined $var->{array}
+	$dim=$var->{array}
+
+    print "foreach_array, $v, $var->{name}, $dim ...\n"
+
+    $if defined $dim
+	$call foreach_single, $dim
+   
+subcode: foreach_single(range)
+    my $type=pointer_type($var->{type})
+    my $i=temp_add_var("i", "int")
+    MyDef::compileutil::set_current_macro($t, "$v\[$i\]")
+    my $end="PARSE:\$unprotect_var $i"
+    return single_block_pre_post(["for($i=0;$i<$(range);$i++){", "INDENT"], ["DEDENT", "}",$end], "for")
+

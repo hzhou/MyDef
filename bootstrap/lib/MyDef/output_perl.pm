@@ -264,7 +264,7 @@ sub parsecode {
             $l="next;";
         }
     }
-    elsif($l=~/(for|while|if|else if)\s*\(.*\)\s*$/){
+    elsif($l=~/^\s*(for|while|if|else if)\s*\(.*\)\s*$/){
     }
     elsif($l=~/^\s*}/){
     }

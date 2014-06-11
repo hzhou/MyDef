@@ -27,7 +27,9 @@ subcode: die(msg)
 
 #---- useful ------------
 subcode: swap(a, b)
-    $temp_var $(a)
+    $get_type(type) $(a)
+    $temp $(type) temp
+
     $(temp)=$(a)
     $(a)=$(b)
     $(b)=$(temp)

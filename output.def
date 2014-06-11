@@ -1,10 +1,8 @@
 include: macros_util/debug.def
 include: macros_output/case.def
+include: macros_output/for.def
 
 subcode: output_main
-    use MyDef::dumpout
-    use MyDef::utils
-
     our $debug;
     our $mode;
     our $page;

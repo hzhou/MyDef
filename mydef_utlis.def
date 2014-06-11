@@ -11,47 +11,42 @@ subcode:: package_subs
     $(set:in_quote=$closure_stack[-1] eq "'" or $closure_stack[-1] eq '"')
     $(set:not_in_quote=$closure_stack[-1] ne "'" and $closure_stack[-1] ne '"')
     $sub proper_split($param)
-	my @closure_stack
 	my @tlist
-	my $t
 	$if $param eq "0"
 	    return (0)
 	$elif !$param
 	    return @tlist
 	# print "proper_split [$param]\n"
-	$while 1
-	    $if $param=~/\G(\s+)/gc
+	my @closure_stack
+	my $t
+	&call parse_loop, $param
+	    &call if_lex, \s+
 		$if @closure_stack
 		    $t.=$1
+		$else
+		    #-skip
 	    $elif $param=~/\G(,)/gc
 		$if @closure_stack
 		    $t.=$1
 		$else
 		    push @tlist, $t
-		    $t=""
+		    undef $t
 	    $elif $param=~/\G([^"'\(\[\{\)\]\},]+)/gc
 		$t.=$1
-	    $elif $param=~/\G(['"])/gc
+	    $elif $param=~/\G("([^"\\]|\\.)*")/gc
 		$t.=$1
-		$if !@closure_stack
-		    push @closure_stack, $1
-		$elif $closure_stack[-1] eq $1
-		    pop @closure_stack
-		$elif $(in_quote)
-		    # pass
-		$else
-		    push @closure_stack, $1
+	    $elif $param=~/\G('([^'\\]|\\.)*')/gc
+		$t.=$1
 	    $elif $param=~/\G([\(\[\{])/gc
 		$t.=$1
-		$if !@closure_stack or $(not_in_quote)
-		    push @closure_stack, $1
+		push @closure_stack, $1
 	    $elif $param=~/\G([\)\]\}])/gc
 		$t.=$1
-		$if @closure_stack and $(not_in_quote)
+		$if @closure_stack
 		    $call proper_split_close_bracket
-	    $else
-		push @tlist, $t
-		return @tlist
+	$if $t or @tlist
+	    push @tlist, $t
+	return @tlist
 
 subcode: proper_split_close_bracket
     my $match
@@ -68,7 +63,7 @@ subcode: proper_split_close_bracket
     $if $pos>=0
 	splice(@closure_stack, $pos)
     $else
-	# possible error
+	warn "proper_split: unbalanced [$param]\n"
 
 # ---------------------------------------------------------
 subcode:: package_subs
@@ -77,6 +72,8 @@ subcode:: package_subs
 	    return $name
 	$else
 	    my $i=2
+	    $if $name=~/[0-9_]/
+		$name.="_"
 	    $while $hash->{"$name$i"}
 		$i++
 	    return "$name$i"

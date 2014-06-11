@@ -75,8 +75,6 @@ subcode:: package_globals
 subcode:: c_support_subs
     $sub infer_c_type
 	my $val=shift;
-	$if $debug eq "type"
-	    print "infer_c_type: [$val]\n"
 	$if $val=~/^\((float|int|char|unsigned .*|.+\*)\)/
 	    return $1
 	$elif $val=~/^\((.*)/
@@ -110,25 +108,26 @@ subcode:: c_support_subs
 
 
 subcode:: c_support_subs
-    $sub get_c_type_word
-	my $name=shift;
-	$if $debug eq "type"
-	    print "get_c_type_word: [$name] -> $type_prefix{$name}\n";
-	$if $type_prefix{$name}
-	    my $type=$type_prefix{$name}
-	    return $type
-	$elsif substr($name, 0, 1) eq "t"
-	    return get_c_type_word(substr($name,1));
-	$elsif substr($name, 0, 1) eq "p"
-	    return get_c_type_word(substr($name,1)).'*';
-	$elsif $name=~/^st(\w+)/
-	    return "struct $1";
-	$elif $name=~/^([a-z0-9]+)/
-	    my $prefix=$1;
-	    $if $type_prefix{$prefix}
-		return $type_prefix{$prefix};
-	    $elif $prefix=~/^(.*?)\d+$/ and $type_prefix{$1}
-		return $type_prefix{$1};
+    $sub get_c_type_word($name)
+	$if $name
+	    $if $type_prefix{$name}
+		my $type=$type_prefix{$name}
+		return $type
+
+	    $if $name=~/^([a-z0-9]+)/
+		my $prefix=$1;
+		$if $type_prefix{$prefix}
+		    return $type_prefix{$prefix};
+		$elif $prefix=~/^(.*?)\d+$/ and $type_prefix{$1}
+		    return $type_prefix{$1};
+		$elif $structs{$1}
+		    return "struct $1"
+
+	    $if substr($name, 0, 1) eq "t"
+		return get_c_type_word(substr($name,1));
+	    $elif substr($name, 0, 1) eq "p"
+		return get_c_type_word(substr($name,1)).'*';
+	return undef
 
     $sub get_c_type
 	my $name=shift;
@@ -140,24 +139,22 @@ subcode:: c_support_subs
 	$if $type_name{$name}
 	    $type= $type_name{$name};
 	$elsif $name=~/(\w+?)_(.*)/
-	    my $t1=$1;
-	    my $t2=$2;
-	    my $t=get_c_type_word($t1);
-	    $if !$t
-		$if $t1=~/^\w+$/
-		    $type=get_c_type_word($t2);
-	    $elsif $t=~/^\*/
-		$type=get_c_type_word($t2).$t;
+	    my ($t1, $t2)=($1, $2)
+	    my $t=get_c_type_word($t1)
+	    $if $t1 eq "t" or $t1 eq "temp"
+		$type=get_c_type_word($t2)
+	    $elif $t1 eq "p" or $t1 eq "tp"
+		$type=get_c_type_word($t2).'*'
 	    $else
-		$type=$t;
+		$type=get_c_type_word($t1)
 	$else
-	    $type=get_c_type_word($name);
+	    $type=get_c_type_word($name)
 
 	$if !$type
 	    $type="void";
-	$elsif $type =~/^\*/
+	$elif $type =~/^\*/
 	    $type="void";
-	# --
+	#----------------------------------------  
 	$if $type_include{$type}
 	    $call add_include, $type_include{$type}
 	# --
@@ -165,7 +162,7 @@ subcode:: c_support_subs
 	    $type=pointer_type($type);
 	# --
 	$if $debug eq "type"
-	    print "get_c_type:   $name: $type\n";
+	    print "    get_c_type:   $name: $type\n";
 	return $type;
 
     $sub name_with_prefix($name)
@@ -178,8 +175,7 @@ subcode:: c_support_subs
 	return 0
 
 subcode:: c_support_subs
-    $sub pointer_type
-	my ($t)=@_;
+    $sub pointer_type($t)
 	$t=~s/\s*\*\s*$//;
 	return $t;
 

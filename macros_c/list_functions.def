@@ -1,10 +1,13 @@
+subcode:: c_init
+    $global @function_stack
+    @function_stack=()
+
 # ------------------------------------
 subcode:: parsecode_func_other
     $elsif $func eq "function"
 	$call parse_function
 	return
     $elsif $func eq "function_end"
-	# automatically generated from compileutil
 	$call parse_function_end
 	return
     $elsif $func eq "list"
@@ -68,7 +71,12 @@ subcode: parse_function_list_item(f)
 		$funcname="main";
 
 	$if defined $paramline
+	    push @function_stack, $cur_function
 	    my $fidx=open_function($funcname, $paramline);
+
+	    push @scope_stack, $cur_scope
+	    $cur_scope=$cur_function
+
 	    push @$out, "OPEN_FUNC_$fidx";
 	    $cur_indent=1
 	    push @$out, "SOURCE_INDENT"
@@ -110,6 +118,7 @@ subcode: parse_function
 
 subcode: parse_function_end
     $cur_function=pop @function_stack
+    $cur_scope=pop @scope_stack
     my $level=@function_stack
     $if $level==0
 	$call case_reset

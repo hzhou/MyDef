@@ -1,11 +1,10 @@
 subcode: check_termination
-    if($l=~/^\s*$/){
-    }
-    elsif($l=~/(for|while|if|else if)\s*\(.*\)\s*$/){
-    }
-    elsif($l!~/[:\{\};,]\s*$/){
-	$l.=";";
-    }
+    $if $l=~/^\s*$/
+	# NOOP
+    $elif $l=~/^\s*(for|while|if|else if)\s*\(.*\)\s*$/
+	# NOOP
+    $elif $l!~/[:\(\{\};,]\s*$/
+	$l.=";"
 
 subcode: check_exponential
     # x^4
@@ -28,25 +27,52 @@ subcode: check_functioncall
 	    $l="$fn($t);";
 
 subcode: check_assignment
-    $if $debug eq "type"
-	print "check_assignment: $l\n"
-    $if $cur_function and $l=~/^[^'"\(]*=/
-	my $tl=$l;
-	$tl=~s/;+\s*$//;
-	$if $tl=~/^\s*\((.*?\w)\)\s*=\s*\((.*)\)/
-	    # -- multi-assignment --
-	    my ($left, $right)=($1, $2);
-	    my @left=split /,\s*/, $left;
-	    my @right=comma_split($right);
-	    $for $i=0:$#left+1
-		do_assignment($left[$i], $right[$i], $out);
-	    return
-	$elif $tl=~/^\s*(.*?\w)\s*=\s*([^=].*)/
-	    my ($left, $right)=($1, $2);
-	    do_assignment($left, $right, $out);
-	    return
+    $if $l=~/^[^'"]*=/
+	$if $debug eq "type"
+	    print "check_assignment: $l\n"
+	$if $cur_function and $l=~/^[^'"\(]*=/
+	    my $tl=$l;
+	    $tl=~s/;+\s*$//;
+	    $if $tl=~/^\s*\((.*?\w)\)\s*=\s*\((.*)\)/
+		# -- multi-assignment --
+		my ($left, $right)=($1, $2);
+		my @left=split /,\s*/, $left;
+		my @right=comma_split($right);
+		$for $i=0:$#left+1
+		    do_assignment($left[$i], $right[$i]);
+		return
+	    $elif $tl=~/^\s*(.*?\w)\s*=\s*([^=].*)/
+		my ($left, $right)=($1, $2);
+		do_assignment($left, $right);
+		return
 
+#---------------------------------------- 
+subcode:: c_support_subs
+    $sub do_assignment($left, $right)
+	$if $debug eq "type"
+	    print "do_assignment: $left = $right\n"
 
+	my $type;
+	$if $left=~/^(.*?)\s+(\S+)$/
+	    $type=$1;
+	    $left=$2;
+
+	$if $left=~/^\w+$/
+	    my $var=find_var($left)
+	    $if $var
+		$call done_assignment
+	    $else
+		func_add_var($left, $type, $right)
+	$else
+	    # ToDo, complex left value
+
+	$call done_assignment
+
+subcode: done_assignment
+    push @$out, "$left=$right;";
+    return
+
+#---------------------------------------- 
 subcode:: c_support_subs
     $sub comma_split
 	my $l=shift;
@@ -83,18 +109,6 @@ subcode:: c_support_subs
 	$if $n>$i0
 	    push @t, substr($l, $i0, $n-$i0)
 	return @t
-    $sub do_assignment
-	my ($left, $right, $out)=@_;
-	$if $debug eq "type"
-	    print "do_assignment: $left = $right\n"
-	my $type;
-	$if $left=~/^(.*?)\s+(\S+)$/
-	    $type=$1;
-	    $left=$2;
-	$if $left=~/^\w+$/
-	    $if !$global_type->{$left}
-		func_add_var($left, $type, $right);
-	push @$out, "$left=$right;";
 
     $sub last_exp($l)
 	my $tlen=length($l);

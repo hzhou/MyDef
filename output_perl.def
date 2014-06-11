@@ -39,23 +39,44 @@ subcode: parsecode
 		    $globals{$v}=1
 		    push @globals, $v
 	    return 0
+	$elif $func eq "sub"
+	    $if $param=~/^(\w+)\((.*)\)/
+		return single_block_pre_post(["sub $1 {", "INDENT", "my ($2)=\@_;"], ["DEDENT", "}"], "sub")
+	    $else
+		return single_block("sub $param {", "}", "sub")
 
 	$elif $func =~ /^(while)$/
 	    return single_block("$1($param){", "}")
-	$elif $func eq "sub"
-	    $if $param=~/^(\w+)\((.*)\)/
-		return single_block_pre_post(["sub $1 {", "INDENT", "my ($2)=\@_;"], ["DEDENT", "}"])
-	    $else
-		return single_block("sub $param {", "}")
-
-	$elif $func eq "for" or $func eq "foreach"
-	    $call parse_for
+	$elif $func eq "for"
+	    $call parsecode_for_support, c_style
+	$elif $func eq "foreach"
+	    $call parsecode_foreach
 
     $call check_termination
     push @$out, $l
 
     return 0;
+#---------------------------------------- 
+subcode: for_i0_i1_step
+    $if $step eq "1"
+	$step="++"
+    $elif $step eq "-1"
+	$step="--"
+    $else
+	$step= "+=$step"
+    $call loop_var, $var
+    $param="my $var=$i0; $var $i1; $var$step"
 
+subcode: parsecode_foreach
+    $if $param=~/(\S+)\s+in\s+(.*)/
+	my ($var, $list)=($1, $2)
+	$call loop_var, $var
+	return single_block("foreach my $var ($list){", "}", "foreach")
+
+subcode: loop_var(var)
+    $if $(var)=~/^(\w+)/
+	$(var)='$'.$(var)
+#---------------------------------------- 
 subcode: dumpout
     # needed for wrapping up &case support
     parsecode("NOOP")
@@ -91,32 +112,3 @@ subcode: check_termination
     $else
 	#print "[$l]\n";
 
-subcode: parse_for
-    $if $param=~/(\$\w+)=(.*?):(.*?)(:.*)?$/
-	my ($var, $i0, $i1, $step)=($1, $2, $3, $4);
-	my $stepclause;
-	$if $step
-	    my $t=substr($step, 1);
-	    $if $t eq "-1"
-		$stepclause="my $var=$i0;$var>$i1;$var--";
-	    $elif $t=~/^-/
-		$stepclause="my $var=$i0;$var>$i1;$var=$var$t";
-	    $else
-		$stepclause="my $var=$i0;$var<$i1;$var+=$t";
-	$else
-	    $if $i1 eq "0"
-		$stepclause="my $var=$i0-1;$var>=0;$var--";
-	    $elif $i1=~/^-?\d+/ and $i0=~/^-?\d+/ and $i1<$i0
-		$stepclause="my $var=$i0;$var>$i1;$var--";
-	    $else
-		$stepclause="my $var=$i0;$var<$i1;$var++";
-	return single_block("for($stepclause){", "}")
-
-    $elif $param=~/(\$\w+)\s+(in\s+)?(.*)/
-	my ($var, $list)=($1, $3)
-	$if $list!~/^(@|keys|sort)/ and $list!~/,/ 
-	    warn "  foreach ($list) -- does not look like an array\n"
-	return single_block("foreach my $var ($list){", "}")
-
-    $else
-	return single_block("$func($param){", "}")

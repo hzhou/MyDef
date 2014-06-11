@@ -1,5 +1,6 @@
 include: macros_c/allocate.def
 include: macros_c/for.def
+include: macros_c/expression.def
 
 subcode:: package_globals
     our $anonymous_count=0
@@ -11,17 +12,11 @@ subcode: check_text_includes
 	$if $l=~/$k/
 	    $call add_include, $v
 
-subcode: debug_scope
-    $if $debug eq "DUMP"
-	my ($code, $file, $line)=MyDef::compileutil::get_cur_code()
-	push @$out, "printf(\"subcode: $file - $line - $code->{name}\\n\");";
-
 subcode: parsecode_special
     $if $l=~/^SUBBLOCK BEGIN (\d+) (.*)/
 	my ($blk, $scope)=($1, $2)
 	push @$out, "DUMP_STUB SUBBLOCK_$blk"
-	#$call @debug_scope
-	open_scope("SUBBLOCK_$blk")
+	open_scope("SUBBLOCK_$blk", $scope)
 	return
     $elif $l=~/^SUBBLOCK END (\d+) (.*)/
 	my ($blk, $scope)=($1, $2)
@@ -30,16 +25,20 @@ subcode: parsecode_special
     $elif $l=~/^NOOP POST_MAIN/
 	$call parsecode_post
 	return
-    $elif $l=~/^\s*print\s+(.*)$/i
+    $elif $l=~/^print\b(.*)$/i
 	my $t=$1
-	$if $t=~/usesub:\s*(\w+)/
-	    $print_type=$1
+	$if !$t
+	    push @$out, "puts(\"\");"
 	$else
-	    my ($n, $fmt)=fmt_string($t)
-	    $if $print_type==1
-		push @$out, "printf($fmt);"
-	    $elif $print_type
-		MyDef::compileutil::call_sub("$print_type, $fmt")
+	    $t=~s/^\s+//
+	    $if $t=~/usesub:\s*(\w+)/
+		$print_type=$1
+	    $else
+		my ($n, $fmt)=fmt_string($t)
+		$if $print_type==1
+		    push @$out, "printf($fmt);"
+		$elif $print_type
+		    MyDef::compileutil::call_sub("$print_type, $fmt")
 	return
 
 subcode: parsecode_func_param
@@ -126,15 +125,9 @@ subcode: parsecode_func_param
 subcode: parsecode_func
     ## All the functions
     $if $func eq "block"
-	return single_block("$param\{", "}")
-    $elif $func eq "pack"
-	data_pack($param)
-	return
-    $elif $func eq "unpack"
-	data_unpack($param)
-	return
+	return single_block("$param\{", "}", "block")
     $elif $func =~/^except/
-	return single_block("$except\{", "}")
+	return single_block("$except\{", "}", "else")
     $elif $func =~ /^(while|switch)$/
 	my $name=$1;
 	$param=parse_condition($param)
@@ -142,31 +135,12 @@ subcode: parsecode_func
     $elsif $func =~/^dowhile/
 	$param=parse_condition($param)
 	return single_block("do{", "}while($param);")
-    $elsif $func =~/^whiletrue/
-	push @$out, "while($param);"
+    #---------------------------------------- 
+    $elif $func eq "pack"
+	data_pack($param)
 	return
-    $elsif $func eq "return_type"
-	$cur_function->{ret_type}=$param;
-	return
-    $elsif $func eq "parameter"
-	my $param_list=$cur_function->{param_list}
-	my $var_type=$cur_function->{var_type}
-	$call open_function_params
-	return
-    $elif $func eq "temp_var"
-	my $type=get_var_type($param)
-	$if !$type
-	    $type=$param
-	my $name="temp"
-	my $suffix=1
-	my $exist=$cur_function->{var_type}->{$name}
-	$while $exist and $exist ne $type
-	    $suffix++
-	    $name="temp_".$suffix
-	    $exist=$cur_function->{var_type}->{$name}
-	$if !$exist
-	    func_add_var($name, $type)
-	MyDef::compileutil::set_current_macro("temp", $name)
+    $elif $func eq "unpack"
+	data_unpack($param)
 	return
     $elsif $func eq "include"
 	$call add_include, $param
@@ -231,13 +205,13 @@ subcode: parsecode_other
     $elsif $l=~/^SOURCE_DEDENT/
 	$cur_indent--;
 
-    $call check_text_includes
-    $call check_exponential
-    $call check_functioncall
-    $call check_termination
+    #$call check_text_includes
+    #$call check_exponential
+    #$call check_assignment
 
-    $if $l=~/^[^'"]*=/
-	$call check_assignment
+    $call check_functioncall
+    $call check_expression, $l
+    $call check_termination
 
 # ----------------------------------------------
 # ---- called from output.def -----------------

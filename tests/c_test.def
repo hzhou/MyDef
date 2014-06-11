@@ -14,12 +14,17 @@ fncode: test
     pn_test=do_something()
     $for i=0:10
 	printf("%d: %d\n", i, pn_test[i])
+
 fncode: do_something
     $allocate(10) pn_test
     $local s_buffer[100]
     $for i=0:10 
-	pn_test[i]=i*i
+	$my j
+	j=i+1
+	pn_test[i]=i*j
+
     $if 0
+	$my j
 	# empty case
     $elsif 1
 	printf("empty if case test ok\n")
