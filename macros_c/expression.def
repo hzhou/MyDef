@@ -1,0 +1,142 @@
+subcode: check_expression(l)
+    my ($assign, $left)
+    $call check_expression_parse_stack
+    $call check_expression_parse
+    my $right=join(" ", @stack)
+    $if $assign
+	$if $assign eq "="
+	    do_assignment($left, $right)
+	    return
+	$else
+	    $(l)="$left $assign $right"
+    $else
+	$(l)=$right
+
+subcode: check_expression_parse
+    $while 1
+	my $atom
+	my $op
+	$if $(l)=~/\G$/gc
+	    last
+	#----  atom ------
+	$elif $(l)=~/\G("([^"\\]|\\.)*")/gc
+	    $atom=$1
+	$elif $(l)=~/\G('([^'\\]|\\.)*')/gc
+	    $atom=$1
+	$elif $(l)=~/\G(\d[0-9\.a-zA-Z]*)/gc
+	    $atom=$1
+	    $if $stack[-1] eq "^" and $atom<10 and $atom>1
+		$call check_exp_exponential
+	$elif $(l)=~/\G(\w+)/gc
+	    $atom=$1
+	    $if $types[-1] eq "op" && $stack[-1] eq "." or $stack[-1] eq "->"
+		$if $types[-2] ne "atom"
+		    #error
+		$atom=join(" ", splice(@stack, -2)).$atom
+		splice(@types, -2)
+	#----  bracket ------
+	$elif $(l)=~/\G([\(\[\{])/gc
+	    $call exp_push, $1, undef
+	$elif $(l)=~/\G([\)\]\}])/gc
+	    $call check_exp_bracket
+	#---- skip ----
+	$elif $(l)=~/\G(\s+)/gc
+	    # skip
+	#---- operator ----
+	$elif $(l)=~/\G([=+\-\*\/%\^\&\|><\?,\.!~]+)/gc
+	    $op=$1
+	$else
+	    last
+
+	#---------------------------------------- 
+	$if !@stack
+	    $if $atom
+		$call exp_push, $atom, "atom"
+	    $elif $op
+		$call exp_push, $op, "op"
+	$elif $op
+	    $if $op eq "++" or $op eq "--"
+		#---- postfix
+		$call exp_pop, $exp
+		$call exp_push, "$exp $op", "atom"
+	    $elif $op=~/^(.*)=$/
+		$assign=$op
+		$left=join(" ", splice(@stack))
+	    $else
+		$call exp_push, $op, "op"
+	$elif $atom
+	    $if $types[-1] eq "op" && $types[-2] ne "atom"
+		#---- unary
+		$call exp_pop, $op
+		$call exp_push, "$op $atom", "atom"
+	    $else
+		$call exp_push, $atom, "atom"
+
+
+subcode: check_exp_bracket
+    my $close=$1
+    my $open
+    $if $close eq ')'
+	$open='('
+    $if $close eq ']'
+	$open='['
+    $if $close eq '}'
+	$open='{'
+
+    my @atom
+
+    my $n=@stack
+    my $found
+    $for $i=$n:0
+	$if $stack[$i] eq $open
+	    $found=$i
+	    break
+    $if defined $found and $stack[$found] eq $open
+	$atom=join(" ", splice(@stack, $found+1))
+	pop @stack
+	splice(@types, $found)
+	$if $types[-1] eq "atom" and $stack[-1]!~/^[0-9'"]/
+	    my $primary=pop @stack
+	    pop @types
+	    my $processed
+	    $if $open eq '('
+		$call check_exp_fcall, $primary, $atom
+	    $elif $open eq '['
+		$call check_exp_subscript, $primary, $atom
+	    $elif $open eq '{'
+		$call check_exp_dict, $primary, $atom
+	    $if !$processed
+		$atom=$primary.$open.$atom.$close
+	$else
+	    $atom=$open.$atom.$close
+    $else
+	print "Error checking expression $(l), unbalanced brackets\n"
+	$atom=join(" ", @stack)
+
+
+subcode: check_exp_exponential
+    $call exp_pop, undef
+    $call exp_pop, $primary
+    $atom=$primary. (" * $primary" x ($atom-1))
+
+subcode: check_exp_fcall(primary, atom)
+    print "fcall: $(primary)  $(atom)\n"
+subcode: check_exp_subscript(primary, atom)
+subcode: check_exp_dict(primary, atom)
+
+#--------------------------------------
+subcode: check_expression_parse_stack
+    my @stack
+    my @types
+
+subcode: exp_push(exp, type)
+    push @stack, $(exp)
+    push @types, $(type)
+
+subcode: exp_pop(assign)
+    $(if:assign=undef)
+	pop @stack
+	pop @types
+    $(else)
+	my $(assign)=pop @stack
+

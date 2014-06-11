@@ -1,0 +1,30 @@
+page: test, basic_frame
+    subcode: main
+	# $call test_foreach_static
+	# $call test_foreach_dynamic
+	$call test_darray
+
+
+subcode: test_foreach_static
+    $block
+	print "\ntest foreach pn_test ..."
+	$my pn_test[10]
+	$foreach pn_test
+	    $(t)=$(i)*2+1
+	    print "    %d: %d", $(i), $(t)
+
+subcode: test_foreach_dynamic
+    $block
+	n=10
+	$local_allocate(n) pn_test
+	$foreach pn_test
+	    $(t)=$(i)*2
+	    print "    %d: %d", $(i), $(t)
+
+#---------------------------------------- 
+subcode: test_darray
+    $my @P:char
+    P.resize(10)
+    $foreach P
+	$(t)=$(i)+'a'
+	print "    %d: %c", $(i), $(t)
