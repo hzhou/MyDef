@@ -1,0 +1,53 @@
+subcode: parsecode_for_support(style)
+    $if $param=~/(.*);(.*);(.*)/
+	$(set:type=asis)
+	$call for_$(style)
+	return "NEWBLOCK-for"
+    $else
+	my $var="i"
+	$if $param=~/^(\S+)\s*=\s*(.*)/
+	    $var=$1
+	    $param=$2
+	my @tlist=split /:/, $param
+	my ($i0, $i1, $step)
+	$call parsecode_for_convention
+	$call @for_i0_i1_step
+	$(set:type=i0_i1_step)
+	$call for_$(style)
+	return "NEWBLOCK-for"
+
+#---------------------------------------- 
+subcode: parsecode_for_convention
+    $if @tlist==1
+	$i0="0"
+	$i1="< $param"
+	$step="1"
+    $elif @tlist==2
+	$if $tlist[1] eq "0"
+	    # CAUTION
+	    #   $i=n:0 be the reverse of $i=0:n
+	    $i0="$tlist[0]-1"
+	    $i1=">= $tlist[1]"
+	    $step="-1"
+	$else
+	    # $for i0:i1
+	    $i0=$tlist[0]
+	    $i1="< $tlist[1]"
+	    $step="1"
+    $elif @tlist==3
+	$i0=$tlist[0]
+	$step=$tlist[2]
+	$if $step=~/^-/
+	    # Counting down is not zero based
+	    $i1=">= $tlist[1]"
+	$else
+	    # we're used to zero based counting up
+	    $i1="< $tlist[1]"
+
+#---------------------------------------- 
+subcode:@ for_c_style
+    single_block("for($param){", "}")
+
+subcode:@ for_i0_i1_step
+    $param="$var=$i0; $var $i1; $var += $step"
+    print "Provide \"subcode: for_i0_i1_step \" to support \$for\n"
