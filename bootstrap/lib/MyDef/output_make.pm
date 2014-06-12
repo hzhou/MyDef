@@ -1,7 +1,5 @@
 use strict;
 package MyDef::output_make;
-use MyDef::dumpout;
-use MyDef::utils;
 our $debug;
 our $mode;
 our $page;
@@ -95,16 +93,21 @@ sub dumpout {
     MyDef::dumpout::dumpout($dump);
 }
 sub single_block {
-    my ($t1, $t2)=@_;
+    my ($t1, $t2, $scope)=@_;
     push @$out, "$t1";
     push @$out, "INDENT";
     push @$out, "BLOCK";
     push @$out, "DEDENT";
     push @$out, "$t2";
-    return "NEWBLOCK";
+    if($scope){
+        return "NEWBLOCK-$scope";
+    }
+    else{
+        return "NEWBLOCK";
+    }
 }
 sub single_block_pre_post {
-    my ($pre, $post)=@_;
+    my ($pre, $post, $scope)=@_;
     if($pre){
         push @$out, @$pre;
     }
@@ -112,6 +115,11 @@ sub single_block_pre_post {
     if($post){
         push @$out, @$post;
     }
-    return "NEWBLOCK";
+    if($scope){
+        return "NEWBLOCK-$scope";
+    }
+    else{
+        return "NEWBLOCK";
+    }
 }
 1;

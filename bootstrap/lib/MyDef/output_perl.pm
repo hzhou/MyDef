@@ -1,15 +1,11 @@
 use strict;
 package MyDef::output_perl;
-our $case_flag="\$b_flag_case";
-our $case_flag_set="my \$b_flag_case=1;";
-our $case_flag_reset="\$b_flag_case=0;";
 our $case_if="if";
 our $case_elif="elsif";
 our @case_stack;
 our $case_state;
 our $case_wrap;
-use MyDef::dumpout;
-use MyDef::utils;
+our $case_flag="\$b_flag_case";
 our $debug;
 our $mode;
 our $page;
@@ -79,9 +75,12 @@ sub parsecode {
     }
     if($l=~/^\$(if|elif|elsif|elseif|case)\s+(.*)$/){
         my $cond=$2;
-        my $case;
+        my $case=$case_if;
         if($1 eq "if"){
-            $case=$case_if;
+            if($case_wrap){
+                push @$out, @$case_wrap;
+                undef $case_wrap;
+            }
         }
         elsif($1 eq "case"){
             if(!$case_state){
@@ -94,11 +93,7 @@ sub parsecode {
         else{
             $case=$case_elif;
         }
-        push @$out, "$case($cond){";
-        push @$out, "INDENT";
-        push @$out, "BLOCK";
-        push @$out, "DEDENT";
-        push @$out, "}";
+        single_block("$case($cond){", "}");
         push @$out, "PARSE:CASEPOP";
         push @case_stack, {state=>"if", wrap=>$case_wrap};
         undef $case_state;
@@ -107,28 +102,36 @@ sub parsecode {
             my $level=@case_stack;
             print "Entering case [$level]: $l\n";
         }
-        return "NEWBLOCK";
+        return "NEWBLOCK-if";
+    }
+    elsif($l=~/^\$else/){
+        if(!$case_state and $l!~/NoWarn/i){
+            my $pos=MyDef::compileutil::curfile_curline();
+            print "[$pos]Dangling \$else \n";
+        }
+        single_block("else{", "}");
+        push @$out, "PARSE:CASEPOP";
+        push @case_stack, {state=>undef, wrap=>$case_wrap};
+        undef $case_state;
+        undef $case_wrap;
+        if($debug eq "case"){
+            my $level=@case_stack;
+            print "Entering case [$level]: $l\n";
+        }
+        return "NEWBLOCK-else";
     }
     elsif($l=~/^\&case\s+(.*)/){
         if(!$case_state){
-            push @$out, $case_flag_set;
+            push @$out, "my \$b_flag_case=1;";
             MyDef::compileutil::call_sub($1, "\$call");
-            push @$out, "if($case_flag){";
-            push @$out, "INDENT";
-            push @$out, "BLOCK";
-            push @$out, "DEDENT";
-            push @$out, "}";
+            single_block("if($case_flag){", "}");
         }
         else{
             push @$out, "else{";
             push @$out, "INDENT";
-            push @$out, $case_flag_set;
+            push @$out, "my \$b_flag_case=1;";
             MyDef::compileutil::call_sub($1, "\$call");
-            push @$out, "if($case_flag){";
-            push @$out, "INDENT";
-            push @$out, "BLOCK";
-            push @$out, "DEDENT";
-            push @$out, "}";
+            single_block("if($case_flag){", "}");
             push @$out, "DEDENT";
             if(!$case_wrap){
                 $case_wrap=[];
@@ -143,27 +146,7 @@ sub parsecode {
             my $level=@case_stack;
             print "Entering case [$level]: $l\n";
         }
-        return "NEWBLOCK";
-    }
-    elsif($l=~/^\$else/){
-        if(!$case_state and $l!~/NoWarn/i){
-            my $pos=MyDef::compileutil::curfile_curline();
-            print "[$pos]Dangling \$else \n";
-        }
-        push @$out, "else{";
-        push @$out, "INDENT";
-        push @$out, "BLOCK";
-        push @$out, "DEDENT";
-        push @$out, "}";
-        push @$out, "PARSE:CASEPOP";
-        push @case_stack, {state=>undef, wrap=>$case_wrap};
-        undef $case_state;
-        undef $case_wrap;
-        if($debug eq "case"){
-            my $level=@case_stack;
-            print "Entering case [$level]: $l\n";
-        }
-        return "NEWBLOCK";
+        return "NEWBLOCK-if";
     }
     elsif($l!~/^SUBBLOCK/){
         undef $case_state;
@@ -180,13 +163,15 @@ sub parsecode {
             return 0;
         }
         elsif($l=~/^CASEEXIT/){
-            push @$out, $case_flag_reset;
+            push @$out, "my \$b_flag_case=0;";
             return 0;
         }
     }
-    if($case_wrap and !$case_state){
-        push @$out, @$case_wrap;
-        undef $case_wrap;
+    if(!$case_state){
+        if($case_wrap){
+            push @$out, @$case_wrap;
+            undef $case_wrap;
+        }
     }
     if($l=~/^\s*\$(\w+)\s*(.*)$/){
         my $func=$1;
@@ -202,55 +187,81 @@ sub parsecode {
             }
             return 0;
         }
+        elsif($func eq "sub"){
+            if($param=~/^(\w+)\((.*)\)/){
+                return single_block_pre_post(["sub $1 {", "INDENT", "my ($2)=\@_;"], ["DEDENT", "}"], "sub");
+            }
+            else{
+                return single_block("sub $param {", "}", "sub");
+            }
+        }
         elsif($func =~ /^(while)$/){
             return single_block("$1($param){", "}");
         }
-        elsif($func eq "sub"){
-            if($param=~/^(\w+)\((.*)\)/){
-                return single_block_pre_post(["sub $1 {", "INDENT", "my ($2)=\@_;"], ["DEDENT", "}"]);
+        elsif($func eq "for"){
+            if($param=~/(.*);(.*);(.*)/){
+                single_block("for($param){", "}");
+                return "NEWBLOCK-for";
             }
             else{
-                return single_block("sub $param {", "}");
-            }
-        }
-        elsif($func eq "for" or $func eq "foreach"){
-            if($param=~/(\$\w+)=(.*?):(.*?)(:.*)?$/){
-                my ($var, $i0, $i1, $step)=($1, $2, $3, $4);
-                my $stepclause;
-                if($step){
-                    my $t=substr($step, 1);
-                    if($t eq "-1"){
-                        $stepclause="my $var=$i0;$var>$i1;$var--";
-                    }
-                    elsif($t=~/^-/){
-                        $stepclause="my $var=$i0;$var>$i1;$var=$var$t";
+                my $var="i";
+                if($param=~/^(\S+)\s*=\s*(.*)/){
+                    $var=$1;
+                    $param=$2;
+                }
+                my @tlist=split /:/, $param;
+                my ($i0, $i1, $step);
+                if(@tlist==1){
+                    $i0="0";
+                    $i1="< $param";
+                    $step="1";
+                }
+                elsif(@tlist==2){
+                    if($tlist[1] eq "0"){
+                        $i0="$tlist[0]-1";
+                        $i1=">= $tlist[1]";
+                        $step="-1";
                     }
                     else{
-                        $stepclause="my $var=$i0;$var<$i1;$var+=$t";
+                        $i0=$tlist[0];
+                        $i1="< $tlist[1]";
+                        $step="1";
                     }
+                }
+                elsif(@tlist==3){
+                    $i0=$tlist[0];
+                    $step=$tlist[2];
+                    if($step=~/^-/){
+                        $i1=">= $tlist[1]";
+                    }
+                    else{
+                        $i1="< $tlist[1]";
+                    }
+                }
+                if($step eq "1"){
+                    $step="++";
+                }
+                elsif($step eq "-1"){
+                    $step="--";
                 }
                 else{
-                    if($i1 eq "0"){
-                        $stepclause="my $var=$i0-1;$var>=0;$var--";
-                    }
-                    elsif($i1=~/^-?\d+/ and $i0=~/^-?\d+/ and $i1<$i0){
-                        $stepclause="my $var=$i0;$var>$i1;$var--";
-                    }
-                    else{
-                        $stepclause="my $var=$i0;$var<$i1;$var++";
-                    }
+                    $step= "+=$step";
                 }
-                return single_block("for($stepclause){", "}")
-            }
-            elsif($param=~/(\$\w+)\s+(in\s+)?(.*)/){
-                my ($var, $list)=($1, $3);
-                if($list!~/^(@|keys|sort)/ and $list!~/,/){
-                    warn "  foreach ($list) -- does not look like an array\n";
+                if($var=~/^(\w+)/){
+                    $var='$'.$var;
                 }
-                return single_block("foreach my $var ($list){", "}");
+                $param="my $var=$i0; $var $i1; $var$step";
+                single_block("for($param){", "}");
+                return "NEWBLOCK-for";
             }
-            else{
-                return single_block("$func($param){", "}");
+        }
+        elsif($func eq "foreach"){
+            if($param=~/(\S+)\s+in\s+(.*)/){
+                my ($var, $list)=($1, $2);
+                if($var=~/^(\w+)/){
+                    $var='$'.$var;
+                }
+                return single_block("foreach my $var ($list){", "}", "foreach");
             }
         }
     }
@@ -293,16 +304,21 @@ sub dumpout {
     MyDef::dumpout::dumpout($dump);
 }
 sub single_block {
-    my ($t1, $t2)=@_;
+    my ($t1, $t2, $scope)=@_;
     push @$out, "$t1";
     push @$out, "INDENT";
     push @$out, "BLOCK";
     push @$out, "DEDENT";
     push @$out, "$t2";
-    return "NEWBLOCK";
+    if($scope){
+        return "NEWBLOCK-$scope";
+    }
+    else{
+        return "NEWBLOCK";
+    }
 }
 sub single_block_pre_post {
-    my ($pre, $post)=@_;
+    my ($pre, $post, $scope)=@_;
     if($pre){
         push @$out, @$pre;
     }
@@ -310,6 +326,11 @@ sub single_block_pre_post {
     if($post){
         push @$out, @$post;
     }
-    return "NEWBLOCK";
+    if($scope){
+        return "NEWBLOCK-$scope";
+    }
+    else{
+        return "NEWBLOCK";
+    }
 }
 1;

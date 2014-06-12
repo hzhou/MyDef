@@ -6,13 +6,10 @@ our @mode_stack;
 our $cur_mode="html";
 our %plugin_statement;
 our %plugin_condition;
-use MyDef::dumpout;
-use MyDef::utils;
 our $debug;
 our $mode;
 our $page;
 our $out;
-use MyDef::compileutil;
 use Term::ANSIColor qw(:constants);
 my $php;
 my $style_sheets;
@@ -276,7 +273,7 @@ sub parsecode {
                     return single_block("$1($param){", "}");
                 }
                 elsif($func =~ /^(el|els|else)if$/){
-                    return single_block("else if($param){", "}")
+                    return single_block("else if($param){", "}");
                 }
                 elsif($func eq "else"){
                     return single_block("else{", "}");
@@ -308,7 +305,7 @@ sub parsecode {
                                 $stepclause="var $var=$i0;$var<$i1;$var++";
                             }
                         }
-                        return single_block("for($stepclause){", "}")
+                        return single_block("for($stepclause){", "}");
                     }
                     else{
                         return single_block("$func($param){", "}");
@@ -317,30 +314,30 @@ sub parsecode {
             }
             elsif($cur_mode eq "php"){
                 if($func eq "if"){
-                    return single_block("if($param){", "}")
+                    return single_block("if($param){", "}");
                 }
                 elsif($func eq "ifz"){
                     if($param=~/(\$\w+)\[(^[\]]*)\]/){
-                        return single_block("if(!(array_key_exists($2, $1) and $param)){", "}")
+                        return single_block("if(!(array_key_exists($2, $1) and $param)){", "}");
                     }
                     else{
-                        return single_block("if(empty($param)){", "}")
+                        return single_block("if(empty($param)){", "}");
                     }
                 }
                 elsif($func eq "ifnz"){
                     if($param=~/(\$\w+)\[(^[\]]*)\]/){
-                        return single_block("if((array_key_exists($2, $1) and $param)){", "}")
+                        return single_block("if((array_key_exists($2, $1) and $param)){", "}");
                     }
                     else{
-                        return single_block("if(!empty($param)){", "}")
+                        return single_block("if(!empty($param)){", "}");
                     }
                 }
                 elsif($func =~ /^(el|els|else)if$/){
                     if($cur_mode eq 'html' or $cur_mode eq 'js'){
-                        return single_block("else if($param){", "}")
+                        return single_block("else if($param){", "}");
                     }
                     else{
-                        return single_block("elseif($param){", "}")
+                        return single_block("elseif($param){", "}");
                     }
                 }
                 elsif($func eq "else"){
@@ -476,16 +473,21 @@ sub dumpout {
     MyDef::dumpout::dumpout($dump);
 }
 sub single_block {
-    my ($t1, $t2)=@_;
+    my ($t1, $t2, $scope)=@_;
     push @$out, "$t1";
     push @$out, "INDENT";
     push @$out, "BLOCK";
     push @$out, "DEDENT";
     push @$out, "$t2";
-    return "NEWBLOCK";
+    if($scope){
+        return "NEWBLOCK-$scope";
+    }
+    else{
+        return "NEWBLOCK";
+    }
 }
 sub single_block_pre_post {
-    my ($pre, $post)=@_;
+    my ($pre, $post, $scope)=@_;
     if($pre){
         push @$out, @$pre;
     }
@@ -493,7 +495,12 @@ sub single_block_pre_post {
     if($post){
         push @$out, @$post;
     }
-    return "NEWBLOCK";
+    if($scope){
+        return "NEWBLOCK-$scope";
+    }
+    else{
+        return "NEWBLOCK";
+    }
 }
 sub custom_dump {
     my ($f, $rl)=@_;

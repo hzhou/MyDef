@@ -1,6 +1,5 @@
 use strict;
 package MyDef::output_xs;
-our $xs_started;
 our @xs_globals;
 use MyDef::output_c;
 sub get_interface {
@@ -35,10 +34,8 @@ sub parsecode {
     }
     my $out=$MyDef::output_c::out;
     if($l=~/^XS_START/){
+        MyDef::output_c::parsecode("NOOP POST_MAIN");
         $l= "DUMP_STUB xs_start";
-        $MyDef::output_c::function_flags{"xs_mode"}= 1;
-        $MyDef::output_c::function_flags{"skip_declare"}= 1;
-        $xs_started=1;
     }
     elsif($l=~/^\s*(\$if|while|elif|elsif|elseif)\s*(.*)/){
         $l="$1 ".translate_perl_cond($2, $out);
@@ -121,8 +118,9 @@ sub parsecode {
 sub dumpout {
     my ($f, $out, $pagetype)=@_;
     my $funclist=MyDef::dumpout::get_func_list();
+    my $funchash=\%MyDef::output_c::list_function_hash;
     foreach my $func (@$funclist){
-        if($func->{xs_mode}){
+        if($funchash->{$func->{name}}){
             my (@t0, @t1, @pre, @post);
             $func->{openblock}=\@t0;
             $func->{closeblock}=\@t1;
@@ -150,16 +148,17 @@ sub dumpout {
                     push @pre, "DEDENT";
                 }
             }
-            my $var_decl=$func->{var_decl};
-            my $var_list=$func->{'var_list'};
+            my $var_hash=$func->{var_hash};
+            my $var_list=$func->{var_list};
             if(@$var_list){
                 push @pre, "PREINIT:";
                 push @pre, "INDENT";
                 foreach my $v (@$var_list){
-                    if($MyDef::output_c::global_type->{$v}){
+                    if($MyDef::output_c::global_hash->{$v}){
                         print "  [warning] In $name: local variable $v with exisiting global\n";
                     }
-                    push @pre, "$var_decl->{$v};";
+                    my $decl=$var_hash->{$v}->{declare};
+                    push @pre, "$decl;";
                 }
                 push @pre, "DEDENT";
             }
@@ -175,6 +174,7 @@ sub dumpout {
                 push @post, "DEDENT";
                 push @t1, "NEWLINE";
             }
+            $func->{skip_declare}=1;
             $func->{processed}=1;
         }
     }
@@ -182,7 +182,7 @@ sub dumpout {
     my $cnt;
     my $ghash=$MyDef::output_c::global_hash;
     foreach my $name (@MyDef::output_c::global_list){
-        my $v=$ghash->{$name};
+        my $v=$ghash->{$name}->{declare};
         if($v=~/^[SHA]V/){
             push @xs_globals, "$v;\n";
             $cnt++;

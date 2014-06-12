@@ -1,6 +1,5 @@
 use strict;
 package MyDef::dumpout;
-use MyDef::compileutil;
 my @func_list;
 my $func_index=-1;
 sub init_funclist {
