@@ -1,18 +1,19 @@
-subcode: check_expression(l)
-    my ($assign, $left)
-    $call check_expression_parse_stack
-    $call check_expression_parse
-    my $right=join(" ", @stack)
-    $if $assign
-	$if $assign eq "="
-	    do_assignment($left, $right)
-	    return
+subcode:: c_support_subs
+    $sub check_expression($l, $type)
+	my ($assign, $left)
+	$call check_expression_parse_stack
+	$call check_expression_parse, $l
+	my $right=join(" ", @stack)
+	$if $assign
+	    $if $assign eq "="
+		do_assignment($left, $right)
+		return
+	    $else
+		return "$left $assign $right"
 	$else
-	    $(l)="$left $assign $right"
-    $else
-	$(l)=$right
+	    return $right
 
-subcode: check_expression_parse
+subcode: check_expression_parse(l)
     $while 1
 	my $atom
 	my $op
@@ -32,8 +33,18 @@ subcode: check_expression_parse
 	    $if $types[-1] eq "op" && $stack[-1] eq "." or $stack[-1] eq "->"
 		$if $types[-2] ne "atom"
 		    #error
-		$atom=join(" ", splice(@stack, -2)).$atom
+		$atom=join("", splice(@stack, -2)).$atom
 		splice(@types, -2)
+	#---- special --------
+	$elif $(l)=~/\G\$(\w+)/gc
+	    $if $stack[-1] eq "." and $stack[-2]
+		my $name=$stack[-2]
+		my $arg=$'
+		my $var=find_var($name)
+		$if $var->{class}
+		    my $subname=$var->{class}."_".$1
+		    MyDef::compileutil::call_sub("$subname, $name, $arg")
+		    return
 	#----  bracket ------
 	$elif $(l)=~/\G([\(\[\{])/gc
 	    $call exp_push, $1, undef
@@ -120,8 +131,15 @@ subcode: check_exp_exponential
     $atom=$primary. (" * $primary" x ($atom-1))
 
 subcode: check_exp_fcall(primary, atom)
-    print "fcall: $(primary)  $(atom)\n"
+    # print "fcall: $(primary)  $(atom)\n"
 subcode: check_exp_subscript(primary, atom)
+    $if $(atom)<0
+	my $var=find_var($(primary))
+	$(atom)=-$(atom)
+	$if $var and $var->{class}
+	    $atom="\$($var->{class}_index_negative:$(primary),$(atom)\)"
+	    compileutil::expand_macro_recurse(\$atom)
+
 subcode: check_exp_dict(primary, atom)
 
 #--------------------------------------

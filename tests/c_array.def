@@ -1,3 +1,5 @@
+include: c/darray.def
+
 page: test, basic_frame
     subcode: main
 	# $call test_foreach_static
@@ -23,8 +25,10 @@ subcode: test_foreach_dynamic
 
 #---------------------------------------- 
 subcode: test_darray
-    $my @P:char
-    P.resize(10)
+    $my darray P:char
+    P.$resize 10
     $foreach P
 	$(t)=$(i)+'a'
 	print "    %d: %c", $(i), $(t)
+
+    print "last item: %d", P[-1]

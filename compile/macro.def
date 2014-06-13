@@ -139,14 +139,16 @@ subcode: expand_macro_seg
 	    die "Failed perl $outdir/perl-$defname.pl\n"
 	$updated++;
     $elif $s=~/^\$\((\w+):(.*)\)/
+	#---- all kinds of annotations --------
 	my $t=$macros->{$1};
 	my $p=$2;
 	$if $t
 	    $updated++;
 	    $if $p=~/(\d+)-(\d+)/
-		# $(macro:0-3)
+		#-- substr, e.g. $(macro:0-3) ----
 		$segs[$j]=substr($t, $1, $2-$1+1);
 	    $elif $p=~/(\d+):(\d+|word|number)/
+		#-- substr with regex predicate ----
 		my $s=substr($t, $1)
 		$if $2 eq "word"
 		    $if $s=~/^\s*(\w+)/
@@ -158,22 +160,21 @@ subcode: expand_macro_seg
 		    $s=substr($s, 0, $2)
 		$segs[$j]=$s
 	    $elif $p eq "len"
-		# $(macro:len)
+		#-- strlen, e.g. $(macro:len)------
 		$segs[$j]=length($t)
 	    $elif $p eq "strlen"
+		#-- literal strlen -----
 		$if $t=~/^".*"$/
 		    $segs[$j]=eval "length($t)"
 	    $elif $p=~/list:(.*)/
-		my $pattern=$1
+		my $idx=$1
 		my @tlist=split /,\s*/, $t
-		my @rlist
-		$foreach $t2 in @tlist
-		    my $t3=$pattern
-		    $t3=~s/\$1/$t2/g
-		    push @rlist, $t3
-		$segs[$j]=join(', ', @rlist)
+		$if $idx eq "n"
+		    $segs[$j]=@tlist
+		$elif $idx=~/(\d+)/
+		    $segs[$j]=$tlist[$1]
 	    $else
-		# INLINE macro -- $(macro:p1,p2,p3)
+		#--INLINE macro -- $(macro:p1,p2,p3)
 		my @plist=split /,/, $p;
 		my $i=1;
 		$foreach $pp in @plist

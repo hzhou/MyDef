@@ -1,6 +1,3 @@
-subcode:: _autoload
-    $provide(darray) dynamic array
-
 #--- dynamic array ----------------------------
 #    Consideration:: 
 # 	do not over worry about global name collision
@@ -8,8 +5,9 @@ subcode:: _autoload
 
 #---------------------------------------- 
 #-   $my darray P of int
-subcode: darray_init(var, type, scope)
+subcode: darray_init(var, scope, type)
     $$(scope) $(type)* $(var)
+    $set_var_attr $(var), class=darray, dimension=$(var)_len
     $$(scope) int $(var)_len=0
     $$(scope) int $(var)_size=0
 
@@ -24,7 +22,9 @@ subcode: darray_resize(var, n)
 	    $(var)_len=0
 	    $(var)_size=0
     $(else)
-	$call darray_check_n, $(var), $(n)-$(var)_len
+	$if $(var)_size<$(n)
+	    $(var)_size=$(n)
+	    $call darray_expand, $(var) 
 	$(var)_len=$(n)
 
 #- P.push ("me", 30)
@@ -56,6 +56,7 @@ subcode: use_darray(var)
     $(export:size=$(var)_size)
 
 # ----------------------------------------------------
+/*
 subcode: darray_init(var)
     $(var)=NULL
     $(var)_len=0
@@ -64,7 +65,7 @@ subcode: darray_init(var)
 subcode: darray_clear(var)
     free($(var))
     $call darray_init, $(var)
-
+*/
 # ----------------------------------------------------
 subcode: darray_check(var)
     $(export:len=$(var)_len)
@@ -75,15 +76,16 @@ subcode: darray_check(var)
 	temp=(int)($(size)*2/3)
 	$if temp<64
 	    temp=64
-	$call darray_expand_n, $(var), temp
+	$(var)_size+=temp
+	$call darray_expand, $(var)
 
 subcode: darray_check_n(var, n)
     $if $(var)_len+$(n)>$(var)_size
-	$call darray_expand_n, $(var), $(var)_len+$(n)-$(var)_size
+	$(var)_size=$(var)_len+$(n)
+	$call darray_expand, $(var)
     
-subcode: darray_expand_n(var, n)
+subcode: darray_expand(var)
     $get_pointer_type(type) $(var)
-    $(var)_size+=$(n)
     $(var)=($(type) *)realloc($(var), $(var)_size*sizeof($(type)))
     $call @assert, $(var)
 

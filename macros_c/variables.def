@@ -1,6 +1,7 @@
 # subcode:: parsecode_func_param_other
 subcode:: parsecode_func_other
     $elif $func eq "global" or $func eq "symbol" or $func eq "auto_global"
+	$call check_var_special
 	$if $func eq "auto_global"
 	    $call check_autoload_h_direct
 	    $func eq "global"
@@ -17,6 +18,7 @@ subcode:: parsecode_func_other
 		global_add_symbol($v)
 	return
     $elif $func eq "local" or $func eq "my"
+	$call check_var_special
 	&call each_param_v
 	    $if $func eq "my" and !$page->{disable_scope}
 		my_add_var($v)
@@ -27,12 +29,36 @@ subcode:: parsecode_func_other
 	&call each_param_v
 	    temp_add_var($v)
 	return
+    $elif $func eq "set_var_attr"
+	my @plist=split /,\s*/, $param
+	my $name=shift @plist
+	my $var=find_var($name)
+	$if $var
+	    $foreach $a in @plist
+		$if $a=~/(\w+)=(.*)/
+		    $var->{$1}=$2
+	return
 
 subcode: each_param_v
     $param=~s/\s*;\s*$//
     my @vlist=MyDef::utils::proper_split($param)
     $foreach $v in @vlist
 	BLOCK
+
+subcode: check_var_special
+    print "check_var_special: $param\n"
+    $if $param=~/^(\w+)\s+(\w+)(:.*)?/
+	my $name=$1."_init"
+	$if $MyDef::def->{codes}->{"$name"} or $MyDef::page->{codes}->{"$name"}
+	    my $var=$2
+	    my $type=$3
+	    $if $type
+		$type=~s/^://
+	    $else
+		$type="int"
+	    print "call_sub: $name, $var, $func, $type\n"
+	    MyDef::compileutil::call_sub("$name, $var, $func, $type")
+	    return
 
 #---------------------------------------- 
 #- Scopes:   

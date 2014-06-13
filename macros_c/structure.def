@@ -1,4 +1,21 @@
+subcode:: parsecode_func_other
+    $elif $func eq "struct"
+	my $name
+	$global %tuple_hash
+	$if $tuple_hash{$param}
+	    $name=$tuple_hash{$param}
+	$else
+	    $name=MyDef::uniq_name("T", \%structs)
+	    declare_struct($name, $param)
+	my $type="struct $name"
+	MyDef::compileutil::set_current_macro("type", $type)
 
+subcode:: parsecode_func_param_other
+    $elif $func eq "struct"
+	declare_struct($param1, $param2)
+	return
+
+#-----------------------------------------
 subcode:: c_support_subs
     $sub declare_struct 
 	my ($name, $param)=@_;

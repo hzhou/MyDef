@@ -26,6 +26,7 @@ subcode: parsecode_special
 	$call parsecode_post
 	return
     $elif $l=~/^print\b(.*)$/i
+	print "print deprecated, use \$print\n"
 	my $t=$1
 	$if !$t
 	    push @$out, "puts(\"\");"
@@ -79,9 +80,6 @@ subcode: parsecode_func_param
 	    MyDef::compileutil::set_current_macro($param1, "$param2.")
 	$else
 	    die "get_var_type: $param2 returns type $type\n"
-	return
-    $elsif $func eq "struct"
-	declare_struct($param1, $param2);
 	return
     $elsif $func eq "define"
 	add_define($param1, $param2)
@@ -210,8 +208,11 @@ subcode: parsecode_other
     #$call check_assignment
 
     $call check_functioncall
-    $call check_expression, $l
-    $call check_termination
+    $l=check_expression($l)
+    $if $l
+	$call check_termination
+    $else
+	return
 
 # ----------------------------------------------
 # ---- called from output.def -----------------
