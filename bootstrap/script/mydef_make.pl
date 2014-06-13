@@ -5,7 +5,7 @@ our $config_outputdir_make=0;
 our $config_filetype;
 my @master_config;
 my $module="www";
-my %module_type=(perl=>"pl", www=>"html", win32=>"c", apple=>"m", general=>"txt");
+my %module_type=(perl=>"pl", www=>"html", win32=>"c", apple=>"m", general=>"txt", matlab=>"m", cpp=>"cpp");
 my %macros;
 my @include_folders;
 my $script=$0;

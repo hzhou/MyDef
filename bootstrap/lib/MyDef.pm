@@ -3,8 +3,10 @@ package MyDef;
 our $def;
 our $page;
 our $var={};
+use MyDef::utils;
 use MyDef::parseutil;
 use MyDef::compileutil;
+use MyDef::dumpout;
 import_config("config");
 my @include_path=split /:/, $var->{include_path};
 if($ENV{MYDEFLIB}){
@@ -76,6 +78,14 @@ sub init {
     elsif($module eq "ino"){
         require MyDef::output_ino;
         MyDef::compileutil::set_interface(MyDef::output_ino::get_interface());
+    }
+    elsif($module eq "matlab"){
+        require MyDef::output_matlab;
+        MyDef::compileutil::set_interface(MyDef::output_matlab::get_interface());
+    }
+    elsif($module eq "cpp"){
+        require MyDef::output_cpp;
+        MyDef::compileutil::set_interface(MyDef::output_cpp::get_interface());
     }
     else{
         die "Undefined module type $module\n";
