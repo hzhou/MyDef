@@ -1,0 +1,38 @@
+page: test
+    type: pl
+    subcode: main
+	my $n=5
+	print "\$n = 5\n"
+
+	$call test_for, 10, $i
+	$call test_for, $n:0, $i
+	$call test_for, $n:10, $i
+
+	print "\n---- i0:i1:step ----\n"
+	$call test_for, j=10:0, $j
+	$call test_for, j=10:0:-1, $j
+	$call test_for, j=0:10:1, $j
+
+	$call test_for, k=0:100:$n, $k
+	$call test_for, k=100:0:-$n, $k
+
+	$call test_foreach, $t in 1, $t
+
+subcode: test_for(param, var)
+    $(if:param~\$)
+	print "\nTest \$for \$(param) ...\n    "
+    $(else)
+	print "\nTest \$for $(param) ...\n    "
+    $for $(param)
+	print "$(var) "
+    print "\n"
+
+subcode: test_foreach(param, var)
+    $(if:param~\$)
+	print "\nTest \$foreach \$(param) ...\n    "
+    $(else)
+	print "\nTest \$foreach $(param) ... ...\n    "
+    $foreach $(param)
+	print "$(var) "
+    print "\n"
+

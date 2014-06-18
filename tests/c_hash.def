@@ -1,0 +1,11 @@
+include: c/hash.def
+
+page: test, basic_frame
+    subcode: main
+	$call test_hash
+
+subcode: test_hash
+    $my hash H: int
+    H{34}=43
+    H{68}=86
+    $print "  34: %d", H{34}
