@@ -41,7 +41,7 @@ subcode: foreach_array
     $elif defined $var->{array}
 	$dim=$var->{array}
 
-    print "foreach_array, $v, $var->{name}, $dim ...\n"
+    # print "foreach_array, $v, $var->{name}, $dim ...\n"
 
     $if defined $dim
 	$call foreach_single, $dim

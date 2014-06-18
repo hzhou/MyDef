@@ -38,6 +38,14 @@ subcode:: parsecode_func_other
 		$if $a=~/(\w+)=(.*)/
 		    $var->{$1}=$2
 	return
+    $elif $func eq "get_var_attr"
+	my @plist=split /,\s*/, $param
+	my $name=shift @plist
+	my $var=find_var($name)
+	$if $var
+	    $foreach $a in @plist
+		MyDef::compileutil::set_current_macro($a, $var->{a})
+	return
 
 subcode: each_param_v
     $param=~s/\s*;\s*$//
@@ -45,20 +53,28 @@ subcode: each_param_v
     $foreach $v in @vlist
 	BLOCK
 
+#---------------------------------------- 
+subcode:: parsecode_func_other
+    $elif $func eq "class"
+	$global %class_names
+	my @tlist=split /,\s*/, $param
+	$foreach $t in @tlist
+	    $class_names{$t}=1
+
 subcode: check_var_special
-    print "check_var_special: $param\n"
-    $if $param=~/^(\w+)\s+(\w+)(:.*)?/
-	my $name=$1."_init"
-	$if $MyDef::def->{codes}->{"$name"} or $MyDef::page->{codes}->{"$name"}
-	    my $var=$2
-	    my $type=$3
-	    $if $type
-		$type=~s/^://
-	    $else
-		$type="int"
-	    print "call_sub: $name, $var, $func, $type\n"
-	    MyDef::compileutil::call_sub("$name, $var, $func, $type")
-	    return
+    # print "check_var_special: $param\n"
+    $if $param=~/^(\w+)\s+(.*)$/
+	$if $class_names{$1}
+	    my ($class, $param)=$2
+	    my $initname=$class."_init"
+	    $if $param=~/^(\w+)\s*$/
+		$if $(hascode:$initname)
+		    MyDef::compileutil::call_sub("$initname, $1, $scope, default")
+		    return
+	    $elif $param=~/^(\w+)\s*:\s*(.*)/
+		$if $(hascode:$initname)
+		    MyDef::compileutil::call_sub("$initname, $1, $scope, $2")
+		    return
 
 #---------------------------------------- 
 #- Scopes:   
@@ -185,7 +201,7 @@ subcode:: c_support_subs
 subcode: debug_add_var
     $if $debug eq "type"
 	my $curfile=MyDef::compileutil::curfile_curline()
-	print "[$curfile]", "\033[33m", "add_var: $type - $name ($array) - $init ($value)\n", "\033[m"
+	$print "[$curfile]$yellow add_var: $type - $name ($array) - $init ($value)"
 
 
 # ----

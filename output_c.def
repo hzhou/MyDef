@@ -4,7 +4,7 @@ include: macros_c/last_checks.def
 include: macros_c/structure.def
 include: macros_c/functions.def
 include: macros_c/variables.def
-include: macros_c/hash_and_list.def
+# include: macros_c/hash_and_list.def
 include: macros_c/types.def
 include: macros_c/dump.def
 include: macros_c/dump_h.def

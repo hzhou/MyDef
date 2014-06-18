@@ -51,6 +51,8 @@ subcode: parsecode
 	    $call parsecode_for_support, c_style
 	$elif $func eq "foreach"
 	    $call parsecode_foreach
+	$elif $func eq "print"
+	    $call parsecode_print
 
     $call check_termination
     push @$out, $l
@@ -112,3 +114,56 @@ subcode: check_termination
     $else
 	#print "[$l]\n";
 
+#---------------------------------------- 
+subcode: parsecode_print
+    my $str=$param
+    $if $str=~/^\s*\"(.*)\"\s*$/
+	$str=$1
+
+    my %colors=(red=>31,green=>32,yellow=>33,blue=>34,magenta=>35,cyan=>36)
+
+    my @fmt_list
+    my @arg_list
+
+    my @group
+    my $n_escape=0
+    &call parse_loop, $str
+	&call if_lex, \$
+	    &call if_lex, (red|green|yellow|blue|magenta|cyan)
+		#---------------------------------------- 
+		#- $print $green ---------
+		push @fmt_list, "\\x1b[$colors{$1}m"
+		$n_escape++
+		&call if_lex, \{
+		    push @group, $1
+	    $else
+		push @fmt_list, '$'
+	&call if_lex, \\\$
+	    push @fmt_list, '$'
+	&call if_lex, \}
+	    #---------------------------------------- 
+	    #- $print $green{some text}
+	    $if @group
+		pop @group
+		$if !@group
+		    push @fmt_list, "\\x1b[0m"
+		    $n_escape=0
+		$else
+		    my $c=$group[-1]
+		    push @fmt_list, "\\x1b[$colors{$c}m"
+		    $n_escape++
+	    $else
+		push @fmt_list, '}'
+	&call if_lex, [^\$\}]+
+	    push @fmt_list, $&
+
+    my $tail=$fmt_list[-1]
+    $if $tail=~/(.*)-$/
+	$fmt_list[-1]=$1
+    $elif $tail!~/\\n$/
+	push @fmt_list, "\\n"
+    $if $n_escape
+	push @fmt_list, "\\x1b[0m"
+
+    push @$out, 'print "'.join('',@fmt_list).'";'
+    return

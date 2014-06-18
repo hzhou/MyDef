@@ -1,3 +1,6 @@
+subcode:: _autoload
+    $class darray
+
 #--- dynamic array ----------------------------
 #    Consideration:: 
 # 	do not over worry about global name collision
@@ -5,8 +8,13 @@
 
 #---------------------------------------- 
 #-   $my darray P of int
-subcode: darray_init(var, scope, type)
-    $$(scope) $(type)* $(var)
+subcode: darray_init(var, scope, @type)
+    $(if:$(type:list:n)=1)
+	$$(scope) $(type)* $(var)=NULL
+    $(else)
+	$tuple $(type)
+	$$(scope) struct $(T) * $(var)=NULL
+
     $set_var_attr $(var), class=darray, dimension=$(var)_len
     $$(scope) int $(var)_len=0
     $$(scope) int $(var)_size=0
@@ -19,6 +27,7 @@ subcode: darray_resize(var, n)
     $(if:n=0)
 	$if $(var)_size>0
 	    free($(var))
+	    $(var)=NULL
 	    $(var)_len=0
 	    $(var)_size=0
     $(else)
@@ -30,17 +39,52 @@ subcode: darray_resize(var, n)
 #- P.push ("me", 30)
 subcode: darray_push(var, @p)
     $call darray_check, $(var)
-    $var_assign $(var)[$(var)_len], $(p)
+    $var_assign($(var)[$(var)_len]) $(p)
     $(var)_len++
 
 macros:
     darray_index_negative: $1[$1_len-$2]
 
-subcode: darray_pop(var, @p)
+subcode: darray_pop(var)
     $(var)_len--
-    $var_assign_inverse $(var)[$(var)_len], $(p)
+    $yield $(var)[$(var)_len]
 
-#---------------------------------------- 
+#----------------------------------------------------
+subcode: darray_check(var)
+    $(export:len=$(var)_len)
+    $(export:size=$(var)_size)
+
+    $if $(len)+1>$(size)
+	$get_pointer_type(type) $(var)
+	$fcall $(var)=f_darray_expand($(var), sizeof($(type)), &$(var)_size)
+
+subcode: darray_expand(var)
+    $get_pointer_type(type) $(var)
+    $(var)=($(type) *)realloc($(var), $(var)_size*sizeof($(type)))
+    $call @assert, $(var)
+
+fncode: f_darray_expand(void * P, n_rec_size, pn_size)
+    $return_type void *
+    tn_temp=(*pn_size)*2/3
+    $if tn_temp<64
+	tn_temp=64
+    (*pn_size)+=tn_temp
+    P=realloc(P, (*pn_size)*n_rec_size)
+    $call @assert, P
+    return P
+
+#----------------------------------------------------
+/*
+subcode: darray_init(var)
+    $(var)=NULL
+    $(var)_len=0
+    $(var)_size=0
+
+subcode: darray_clear(var)
+    free($(var))
+    $call darray_init, $(var)
+
+#----------------------------------------------------
 subcode: local_darray(type, var)
     $local $(type) * $(var)=NULL
     $local int $(var)_len=0
@@ -55,41 +99,7 @@ subcode: use_darray(var)
     $(export:len=$(var)_len)
     $(export:size=$(var)_size)
 
-# ----------------------------------------------------
-/*
-subcode: darray_init(var)
-    $(var)=NULL
-    $(var)_len=0
-    $(var)_size=0
-
-subcode: darray_clear(var)
-    free($(var))
-    $call darray_init, $(var)
-*/
-# ----------------------------------------------------
-subcode: darray_check(var)
-    $(export:len=$(var)_len)
-    $(export:size=$(var)_size)
-
-    $if $(len)+1>$(size)
-	$temp int temp
-	temp=(int)($(size)*2/3)
-	$if temp<64
-	    temp=64
-	$(var)_size+=temp
-	$call darray_expand, $(var)
-
-subcode: darray_check_n(var, n)
-    $if $(var)_len+$(n)>$(var)_size
-	$(var)_size=$(var)_len+$(n)
-	$call darray_expand, $(var)
-    
-subcode: darray_expand(var)
-    $get_pointer_type(type) $(var)
-    $(var)=($(type) *)realloc($(var), $(var)_size*sizeof($(type)))
-    $call @assert, $(var)
-
-# ----------------------------------------------------
+#---------------------------------------- 
 subcode: da_push(var, @val)
     $call darray_check, $(var)
     $get_pointer_type(type) $(var)
@@ -100,3 +110,4 @@ subcode: da_push(var, @val)
 subcode: da_pop(var)
     $(var)_len--
     $(export:item=$(var)[$(var)_len])
+*/

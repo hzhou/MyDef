@@ -227,11 +227,10 @@ subcode: dump_structs_functions
 	my $s_list=$structs{$name}->{list}
 	my $s_hash=$structs{$name}->{hash}
 	my $s_exit=$s_hash->{"-exit"}
-	$if @$s_exit
+	$if $s_exit and @$s_exit
 	    push @$dump_out, "void $name\_destructor(struct $name* p){\n";
-	    foreach my $l(@$s_exit){
+	    $foreach $l in @$s_exit
 		push @$dump_out, "    $l\n";
-	    }
 	    push @$dump_out, "}\n";
 	    $cnt++
 	# ------------------------

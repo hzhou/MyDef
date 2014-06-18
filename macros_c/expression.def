@@ -1,9 +1,21 @@
+subcode:: parsecode_func_other
+    $elif $func eq "yield"
+	$global $yield
+	$yield=$param
+	return
+
 subcode:: c_support_subs
-    $sub check_expression($l, $type)
-	my ($assign, $left)
+    $sub check_expression($l, $context)
+	my ($assign, $left, $right)
+	#- %cache, for parsing hash: T{key}
+	my %cache
 	$call check_expression_parse_stack
 	$call check_expression_parse, $l
-	my $right=join(" ", @stack)
+	$if @stack==1 and $types[0] eq "atom-("
+	    $right=substr($stack[0], 1, -1)
+	$else
+	    $right=join("", @stack)
+
 	$if $assign
 	    $if $assign eq "="
 		do_assignment($left, $right)
@@ -13,41 +25,38 @@ subcode:: c_support_subs
 	$else
 	    return $right
 
+#---------------------------------------- 
 subcode: check_expression_parse(l)
     $while 1
-	my $atom
-	my $op
+	my ($token, $type)
 	$if $(l)=~/\G$/gc
 	    last
 	#----  atom ------
 	$elif $(l)=~/\G("([^"\\]|\\.)*")/gc
-	    $atom=$1
+	    $token=$1
+	    $type="atom-string"
 	$elif $(l)=~/\G('([^'\\]|\\.)*')/gc
-	    $atom=$1
+	    $token=$1
+	    $type="atom-char"
 	$elif $(l)=~/\G(\d[0-9\.a-zA-Z]*)/gc
-	    $atom=$1
-	    $if $stack[-1] eq "^" and $atom<10 and $atom>1
+	    $token=$1
+	    $type="atom-number"
+	    $if $stack[-1] eq "^" and $token<10 and $token>1
 		$call check_exp_exponential
+	    $elif $stack[-1] eq "."
+		$call check_exp_tuple_member
 	$elif $(l)=~/\G(\w+)/gc
-	    $atom=$1
-	    $if $types[-1] eq "op" && $stack[-1] eq "." or $stack[-1] eq "->"
-		$if $types[-2] ne "atom"
-		    #error
-		$atom=join("", splice(@stack, -2)).$atom
-		splice(@types, -2)
+	    $token=$1
+	    $type="atom-identifier"
+	    $call check_exp_member
 	#---- special --------
 	$elif $(l)=~/\G\$(\w+)/gc
-	    $if $stack[-1] eq "." and $stack[-2]
-		my $name=$stack[-2]
-		my $arg=$'
-		my $var=find_var($name)
-		$if $var->{class}
-		    my $subname=$var->{class}."_".$1
-		    MyDef::compileutil::call_sub("$subname, $name, $arg")
-		    return
+	    my $method=$1
+	    $call check_exp_callsub
 	#----  bracket ------
 	$elif $(l)=~/\G([\(\[\{])/gc
 	    $call exp_push, $1, undef
+	    next
 	$elif $(l)=~/\G([\)\]\}])/gc
 	    $call check_exp_bracket
 	#---- skip ----
@@ -55,34 +64,58 @@ subcode: check_expression_parse(l)
 	    # skip
 	#---- operator ----
 	$elif $(l)=~/\G([=+\-\*\/%\^\&\|><\?,\.!~]+)/gc
-	    $op=$1
+	    $token=$1
+	    $type="operator"
 	$else
 	    last
 
 	#---------------------------------------- 
+	check_exp_precedence:
 	$if !@stack
-	    $if $atom
-		$call exp_push, $atom, "atom"
-	    $elif $op
-		$call exp_push, $op, "op"
-	$elif $op
-	    $if $op eq "++" or $op eq "--"
-		#---- postfix
+	    $call exp_push, $token, $type
+	$elif $type=~/^op/
+	    $if $token eq "++" or $token eq "--"
+		#---- postfix -----------------
 		$call exp_pop, $exp
-		$call exp_push, "$exp $op", "atom"
-	    $elif $op=~/^(.*)=$/
-		$assign=$op
-		$left=join(" ", splice(@stack))
+		$call exp_push, "$exp$token", "atom-exp"
+	    $elif $token=~/^(.*)=$/
+		#---- assignment --------------
+		$assign=$token
+		$if $left
+		    $print $red Chained assignment not supported!
+		$if !$1 and @stack==1 and $types[0] eq "atom-("
+		    $left=substr($stack[0], 1, -1)
+		    $call exp_pop, undef
+		$else
+		    $left=join("", @stack)
+		    @stack=()
+		    @types=()
 	    $else
-		$call exp_push, $op, "op"
-	$elif $atom
-	    $if $types[-1] eq "op" && $types[-2] ne "atom"
-		#---- unary
-		$call exp_pop, $op
-		$call exp_push, "$op $atom", "atom"
+		#---- other op ----------------
+		$call exp_push, $token, $type
+	$elif $type=~/^atom/
+	    $if $types[-1] =~/^op/
+		$if $types[-2] !~/^atom/
+		    #---- unary -------------
+		    $call exp_pop, $op
+		    $token=$op.$token
+		    $type="atom-exp"
+		    goto check_exp_precedence
+		$else
+		    #---- binary -------------
+		    $if $stack[-1] eq ","
+			$stack[-1]="$stack[-1] "
+		    $else
+			$stack[-1]=" $stack[-1] "
+		    $call exp_push, $token, $type
+	    $elif $types[-1] =~/^atom/
+		$if $stack[-1]=~/\w$/
+		    $stack[-1].=" $token"
+		$else
+		    $stack[-1].=$token
 	    $else
-		$call exp_push, $atom, "atom"
-
+		#---- open bracket ---------
+		$call exp_push, $token, $type
 
 subcode: check_exp_bracket
     my $close=$1
@@ -94,8 +127,6 @@ subcode: check_exp_bracket
     $if $close eq '}'
 	$open='{'
 
-    my @atom
-
     my $n=@stack
     my $found
     $for $i=$n:0
@@ -103,44 +134,107 @@ subcode: check_exp_bracket
 	    $found=$i
 	    break
     $if defined $found and $stack[$found] eq $open
-	$atom=join(" ", splice(@stack, $found+1))
+	my $exp=join("", splice(@stack, $found+1))
 	pop @stack
 	splice(@types, $found)
-	$if $types[-1] eq "atom" and $stack[-1]!~/^[0-9'"]/
-	    my $primary=pop @stack
-	    pop @types
+	$if $types[-1] =~/^atom/ and $stack[-1]!~/^[0-9'"]/
+	    $call exp_pop, $primary
 	    my $processed
+	    $type="atom-exp"
 	    $if $open eq '('
-		$call check_exp_fcall, $primary, $atom
+		$call check_exp_fcall, $primary, $exp
 	    $elif $open eq '['
-		$call check_exp_subscript, $primary, $atom
+		$call check_exp_subscript, $primary, $exp
 	    $elif $open eq '{'
-		$call check_exp_dict, $primary, $atom
+		$call check_exp_dict, $primary, $exp
 	    $if !$processed
-		$atom=$primary.$open.$atom.$close
+		$token=$primary.$open.$exp.$close
 	$else
-	    $atom=$open.$atom.$close
+	    $token=$open.$exp.$close
+	    $type="atom-$open"
     $else
-	print "Error checking expression $(l), unbalanced brackets\n"
-	$atom=join(" ", @stack)
+	$print Error checking expression $(l), unbalanced brackets
+	print join(" -- ", @stack), "\n"
+	$token=join("", @stack)
+	$type="atom-broken"
 
-
+#---------------------------------------- 
 subcode: check_exp_exponential
     $call exp_pop, undef
     $call exp_pop, $primary
-    $atom=$primary. (" * $primary" x ($atom-1))
+    $token=$primary. (" * $primary" x ($token-1))
+    $type="atom-exp"
 
-subcode: check_exp_fcall(primary, atom)
-    # print "fcall: $(primary)  $(atom)\n"
-subcode: check_exp_subscript(primary, atom)
-    $if $(atom)<0
+subcode: check_exp_member
+    $if $types[-1] =~/^op/ && $stack[-1] eq "." or $stack[-1] eq "->"
+	$if $types[-2] !~/^atom/
+	    #error
+	$token=join("", splice(@stack, -2)).$token
+	$type="atom-exp"
+	splice(@types, -2)
+
+subcode: check_exp_tuple_member
+    $if $types[-2] !~/^atom/
+	#error
+    $token=join("", splice(@stack, -2))."a$token"
+    $type="atom-exp"
+    splice(@types, -2)
+
+#---------------------------------------- 
+subcode: check_exp_callsub
+    $if $stack[-1] eq "." and $stack[-2]
+	my $varname=$stack[-2]
+	my $arg=$'
+	&call if_lex, \((.*)\)
+	    $arg=$2
+	my $var=find_var($varname)
+	$if $var->{class}
+	    my $subname=$var->{class}."_".$method
+	    my $call_line="$subname, $varname"
+	    $arg=~s/^\s+//
+	    $if length($arg)>0
+		$call_line .= ", $arg"
+	    undef $yield
+	    MyDef::compileutil::call_sub($call_line)
+	    $if $yield
+		$call exp_pop, undef
+		$call exp_pop, undef
+		$call exp_push, $yield, "atom"
+		last
+	    $else
+		return
+
+#---------------------------------------- 
+subcode: check_exp_fcall(primary, token)
+    # print "fcall: $(primary)  $(token)\n"
+
+subcode: check_exp_subscript(primary, token)
+    # print "subscript: $(primary)  $(token)\n"
+    $if $(token)<0
 	my $var=find_var($(primary))
-	$(atom)=-$(atom)
+	$(token)=-$(token)
+	# $print "$yellow$var: class: $var->{class}"
 	$if $var and $var->{class}
-	    $atom="\$($var->{class}_index_negative:$(primary),$(atom)\)"
-	    compileutil::expand_macro_recurse(\$atom)
+	    $token="\$($var->{class}_index_negative:$(primary),$(token)\)"
+	    MyDef::compileutil::expand_macro_recurse(\$token)
+	    $type="atom"
+	    $call exp_pop, undef
+	    $call exp_pop, undef
+	    $processed=1
 
-subcode: check_exp_dict(primary, atom)
+
+subcode: check_exp_dict(primary, token)
+    my $var=find_var($(primary))
+    # $print "$yellow$var: class: $var->{class}"
+    $if $var and $var->{class}
+	my $call_line=$var->{class}."_lookup, $(primary), $(token)"
+	undef $yield
+	MyDef::compileutil::call_sub($call_line)
+	$token=$yield
+	$type="atom"
+	$call exp_pop, undef
+	$call exp_pop, undef
+	$processed=1
 
 #--------------------------------------
 subcode: check_expression_parse_stack
@@ -157,4 +251,5 @@ subcode: exp_pop(assign)
 	pop @types
     $(else)
 	my $(assign)=pop @stack
+	pop @types
 

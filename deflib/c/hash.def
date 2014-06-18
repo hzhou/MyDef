@@ -1,7 +1,126 @@
 subcode:: _autoload
+    $class hash
     $include stdlib
     $include string
     $call hash_functions
+
+#---------------------------------------- 
+subcode: hash_init(var, scope, @type)
+    $struct(hash_key) unsigned char keylen, unsigned char * key, next
+    $(set:hash=struct hash_key * p_key, n_size, n_top, n_val_size)
+    $struct(hash) $(hash), char * p_val
+    $tuple $(type)
+    $(if:$(type:list:n)=1)
+	$struct(hash$(T)) $(hash), $(type) * p_val
+    $(else)
+	$struct(hash$(T)) $(hash), struct $(T) * p_val
+	$(set:type=struct $(T))
+
+    $$(scope) struct hash$(T) $(var)
+    $set_var_attr $(var), class=hash, member_count=$(type:list:n)
+
+    memset(&$(var), 0, sizeof($(var)))
+    $(var).n_val_size=sizeof($(type))
+
+#---------------------------------------- 
+subcode: hash_lookup(var, key)
+    $(if:key~^")
+	$(set:keylen=$(key:strlen))
+    $(else)
+	$(set:keylen=strlen($(key)))
+    $(set:k=f_hash_lookup($(var), $(keylen), $(key)))
+    $yield $(var).p_val[$(k)]
+
+subcode: hash_lookup_left(var, key)
+    $temp int k
+    $(k)=-1
+    $while $(k)<0
+	$(if:key~^")
+	    $(set:keylen=$(key:strlen))
+	$(else)
+	    $temp int l
+	    $(l)=strlen($(key))
+	    $(set:keylen=$(l))
+	$(k)=f_hash_lookup($(var), $(keylen), $(key))
+
+	$if $(k)<0
+	    f_hash_resize($(var), 0)
+
+    $if $(var).p_key[$(k)].keylen==0
+	$(var).p_key[$(k)].keylen=$(keylen)
+	$(var).p_key[$(k)].key=malloc($(keylen))
+	memcpy($(var).p_key[$(k)].key, $(key), $(keylen))
+
+    $yield $(var).p_val[$(k)]
+
+#---------------------------------------- 
+subcode: hash_resize(var, n)
+    f_hash_resize($(var), $(n))
+
+fncode: f_hash_resize(struct hash * h, n_size)
+    $if n_size==0
+	n_size+=n_size*2/3
+    $elif n_size<=h->n_size
+	return
+
+    $fcall n_size=f_hash_prime(n_size)
+
+    $local struct hash_key * tp_key=h->p_key
+    $local char * tp_val=h->p_val
+    tn_old_size=h->n_size
+    $(set:n=p->h_val_size)
+
+    $allocate(n_size) h->p_key
+    memset(h->p_key, 0, n_size*sizeof(struct hash_key))
+    $allocate(n_size*$(n)) h->p_val
+
+    h->n_size=n_size
+    h->n_top=n_size-1
+    $for i=0:tn_old_size
+	tn_i=f_hash_lookup(h, tp_key[i].keylen, tp_key[i].key)
+	h->p_key[tn_i].keylen=tp_key[i].keylen
+	h->p_key[tn_i].key=tp_key[i].key
+	tn_off=tn_i*$(n)
+	memcpy(h->p_val+tn_off, tp_val+tn_off, $(n))
+
+fncode: f_hash_lookup(struct hash * h, char keylen, pc_key)
+    $return_type int
+    tn_h=0
+    tn_prime=h->n_size
+    $for i=0:keylen
+	tn_h=tn_h<<1+pc_key[i]
+	$while tn_h>tn_prime
+	    tn_h-=tn_prime
+    $local struct hash_key * p
+    p=h->p_key+tn_h
+    $while 1
+	$if p->keylen==0
+	    return p-h->p_key
+	$elif p->keylen==keylen && memcmp(p->key, pc_key, keylen)==0
+	    return p-h->p_key
+	$elif p->next
+	    p=h->p_key+p->next
+	$else
+	    $(set:top=h->p_key[h->n_top])
+	    $while $(top).keylen>0 && h->n_top>=0
+		h->n_top--
+	    p->next=h->n_top
+	    return h->n_top
+
+fncode: f_hash_prime(n)
+    $if n<13
+	return 13
+
+    $if n%2==0
+	n++
+    $while 1
+	$(for:factor in 3, 5, 7, 11)
+	    $if n%$(factor)==0
+		n+=2
+		continue
+    return n
+
+subcode: hash_key_lookup(var, key)
 
 # HASH ----------------------------------------------
 subcode: hash_functions

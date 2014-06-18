@@ -1,19 +1,38 @@
 subcode:: parsecode_func_other
-    $elif $func eq "struct"
-	my $name
-	$global %tuple_hash
-	$if $tuple_hash{$param}
-	    $name=$tuple_hash{$param}
-	$else
-	    $name=MyDef::uniq_name("T", \%structs)
-	    declare_struct($name, $param)
-	my $type="struct $name"
-	MyDef::compileutil::set_current_macro("type", $type)
+    $elif $func eq "tuple"
+	declare_tuple($param)
+	return
 
 subcode:: parsecode_func_param_other
     $elif $func eq "struct"
 	declare_struct($param1, $param2)
 	return
+
+#-----------------------------------------
+subcode:: c_support_subs
+    $sub declare_tuple($param) 
+	$global %tuple_hash
+	my $name
+	$if $tuple_hash{$param}
+	    $name=$tuple_hash{$param}
+	$else
+	    $name=MyDef::utils::uniq_name("T", \%structs)
+	    $tuple_hash{$param}=$name
+	MyDef::compileutil::set_current_macro("T", $name)
+
+	my $s_list=[]
+	my $s_hash={}
+	$structs{$name}={list=>$s_list, hash=>$s_hash}
+	push @struct_list, $name
+	my @plist=split /,\s+/, $param;
+	my $i=0
+	$foreach $p in @plist
+	    $i++
+	    my $m_name="a$i"
+	    push @$s_list, $m_name
+	    $s_hash->{$m_name}=$p
+
+	return $name
 
 #-----------------------------------------
 subcode:: c_support_subs
@@ -78,11 +97,13 @@ subcode:: c_support_subs
 
 subcode: declare_struct_elements
     my @plist=split /,\s+/, $param;
-    $foreach my $p in @plist
+    my $i=0
+    $foreach $p in @plist
 	my ($m_name, $type, $needfree);
 	$if $p=~/^\s*$/
 	    next;
 	$elif $p=~/(-\w+)=>(.*)/
+	    #---- {-init}, {-exit}, ...
 	    $s_hash->{$1}=$2
 	    next;
 	$elif $p=~/class (\w+)/
@@ -100,6 +121,7 @@ subcode: declare_struct_elements
 	    $needfree=1
 	    $p=$';
 
+	$i++
 	#--------
 	$if $p=~/(.*?)(\S+)\s*=\s*(.*)/
 	    $p="$1$2";
@@ -112,6 +134,10 @@ subcode: declare_struct_elements
 		$type.=" $1"
 		$m_name=$2
 	    $p=$m_name
+	$elif $basic_types{$p} or $p=~/\*$/
+	    #--- anonymous member --
+	    $m_name="a$i"
+	    $type=$p
 	$else
 	    $m_name=$p;
 	    $if $p=~/^(next|prev)$/
@@ -124,6 +150,7 @@ subcode: declare_struct_elements
 		$type="function";
 	    $else
 		$type=get_c_type($p);
+
 	#---------------------------------------- 
 	$if !$s_hash->{$m_name}
 	    push @$s_list, $m_name

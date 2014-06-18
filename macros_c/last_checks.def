@@ -6,16 +6,6 @@ subcode: check_termination
     $elif $l!~/[:\(\{\};,]\s*$/
 	$l.=";"
 
-subcode: check_exponential
-    # x^4
-    $while $l=~/\^([234])/
-	my $t_p=$1;
-	my $t_tail=$';
-	my ($t_head, $t_exp)=last_exp($`);
-	my $t_trunk="$t_exp*" x ($t_p-1);
-	$t_trunk.=$t_exp;
-	$l="$t_head($t_trunk)$t_tail";
-
 subcode: check_functioncall
     $if $l=~/^(\w+)\s+(.*)$/
 	# print "check_functioncall: $1\n"
@@ -26,31 +16,27 @@ subcode: check_functioncall
 	    $t=~s/\s+$//;
 	    $l="$fn($t);";
 
-subcode: check_assignment
-    $if $l=~/^[^'"]*=/
-	$if $debug eq "type"
-	    print "check_assignment: $l\n"
-	$if $cur_function and $l=~/^[^'"\(]*=/
-	    my $tl=$l;
-	    $tl=~s/;+\s*$//;
-	    $if $tl=~/^\s*\((.*?\w)\)\s*=\s*\((.*)\)/
-		# -- multi-assignment --
-		my ($left, $right)=($1, $2);
-		my @left=split /,\s*/, $left;
-		my @right=comma_split($right);
-		$for $i=0:$#left+1
-		    do_assignment($left[$i], $right[$i]);
-		return
-	    $elif $tl=~/^\s*(.*?\w)\s*=\s*([^=].*)/
-		my ($left, $right)=($1, $2);
-		do_assignment($left, $right);
-		return
-
 #---------------------------------------- 
+subcode:: parsecode_func_param_other
+    $if $func eq "var_assign"
+	do_assignment($param1, $param2)
+	return
+
 subcode:: c_support_subs
     $sub do_assignment($left, $right)
+	$if !defined $right
+	    my $type=get_var_type($left)
+	    $if $type and $type ne "void"
+		$right=type_default($type)
+		$call done_assignment
+	    return
+	$if !defined $left
+	    return
+
 	$if $debug eq "type"
-	    print "do_assignment: $left = $right\n"
+	    $print $cyan do_assignment: $left = $right
+
+	$call @check_tuple_assignment
 
 	my $type;
 	$if $left=~/^(.*?)\s+(\S+)$/
@@ -69,98 +55,60 @@ subcode:: c_support_subs
 	$call done_assignment
 
 subcode: done_assignment
-    push @$out, "$left=$right;";
+    push @$out, "$left = $right;";
     return
 
-#---------------------------------------- 
-subcode:: c_support_subs
-    $sub comma_split
-	my $l=shift;
-	my @t
-	my $i0=0
-	my $n=length($l);
-	my @wait_stack;
-	my $cur_wait;
-	my %pairlist=("'"=>"'", '"'=>'"', '('=>')', '['=>']', '{'=>'}')
-	$for $i=0:$n
-	    my $c=substr($l, $i, 1)
-	    $if $c eq "\\"
-		$i++
-		next
-	    $if $cur_wait
-		$if $c eq $cur_wait
-		    $cur_wait=pop @wait_stack
-		    next
-		$if $c =~ /['"\(\[\{]/ 
-		    $cur_wait=$pairlist{$c}
-		    push @wait_stack, $cur_wait
-		    next
+subcode: check_tuple_assignment
+    my @left_list=MyDef::utils::proper_split($left)
+    my @right_list=MyDef::utils::proper_split($right)
+
+    $if @left_list>1 or @right_list>1
+	$if @left_list==1
+	    my $type=get_var_type($left)
+	    $if $type=~/^struct (\w+)$/
+		$call assign_to_struct, $1, 0
+	    $elif $type=~/^struct (\w+)\s*\*$/
+		$call assign_to_struct, $1, 1
+	    $elif $type=~/^(.*?)\s*\*$/ 
+		$for $i=0:@right_list
+		    do_assignment("$left\[$i\]", $right_list[$i])
 	    $else
-		$if $c =~ /['"\(\[\{]/ 
-		    $cur_wait=$pairlist{$c}
-		    next
-		$if $c eq ","
-		    $if $i>$i0
-			push @t, substr($l, $i0, $i-$i0)
-		    $else
-			push @t, ""
-		    $i0=$i+1
-		    next
-	$if $n>$i0
-	    push @t, substr($l, $i0, $n-$i0)
-	return @t
-
-    $sub last_exp($l)
-	my $tlen=length($l);
-	my $i=$tlen-1;
-	$if substr($l, $i, 1) eq ')'
-	    my $level=1;
-	    while($i>1){
-		$i--;
-		if(substr($l, $i, 1) eq ')'){$level++;}
-		if(substr($l, $i, 1) eq '('){$level--;}
-		if($level==0){last;}
-	    }
+		# Error
+		do_assignment($left, $right_list[0])
+	$elif @right_list=1
+	    my $type=get_var_type($right)
+	    $if $type=~/^struct (\w+)$/
+		$call assign_from_struct, $1, 0
+	    $elif $type=~/^struct (\w+)\s*\*$/
+		$call assign_from_struct, $1, 1
+	    $elif $type=~/^(.*?)\s*\*$/ 
+		$for $i=0:@right_list
+		    do_assignment($left_list[$i], "$right\[$i\]")
+	    $else
+		# Error
+		$for $i=0:@right_list
+		    do_assignment($left_list[$i], $right)
 	$else
-	    while($i>0){
-		if(substr($l, $i, 1) eq ']'){
-		    my $level=1;
-		    while($i>1){
-			$i--;
-			if(substr($l, $i, 1) eq ']'){$level++;}
-			if(substr($l, $i, 1) eq '['){$level--;}
-			if($level==0){last;}
-		    }
-		    $i--;
-		    next;
-		}
-		elsif(substr($l, $i-1, 2) eq '->'){
-		    $i-=2;
-		    next;
-		}
-		elsif(substr($l, $i, 1)=~/[0-9a-zA-Z_.]/){
-		    $i--;
-		    next;
-		}
-		last;
-	    }
-	    if(substr($l, $i, 1)!~/[a-zA-Z_.]/){
-		$i++;
-	    }
+	    $for $i=0:@left_list
+		do_assignment($left_list[$i], $right_list[$i])
+	return
 
-	my $t0=substr($l, 0, $i);
-	my $t3=substr($l, $i, $tlen-$i);
-	return ($t0, $t3);
+subcode: assign_to_struct($name, $is_ref)
+    my $s_list=$structs{$1}->{list}
+    my $i=0
+    $foreach $p in @$s_list
+	$(if:is_ref=1)
+	    do_assignment("$left->$p", $right_list[$i])
+	$(else)
+	    do_assignment("$left.$p", $right_list[$i])
+	$i++
 
-# -----------------------
-	/*
-	    # $type=get_var_type_direct($left);
-	    # func_var_assign($type, $left, $right, $out);
-	$elsif $left=~/^(\w+\S+)$/
-	    # -- complex case --
-	    # $type=get_var_type($1)
-	    # func_var_assign($type, $left, $right, $out);
-	$else
-	    push @$out, "$left=$right;";
-	    */
-
+subcode: assign_from_struct($name, $is_ref)
+    my $s_list=$structs{$1}->{list}
+    my $i=0
+    $foreach $p in @$s_list
+	$(if:is_ref=1)
+	    do_assignment($left_list[$i], "$right->$p")
+	$(else)
+	    do_assignment($left_list[$i], "$right.$p")
+	$i++

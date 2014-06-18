@@ -168,14 +168,14 @@ subcode: expand_macro_seg
 		    $segs[$j]=eval "length($t)"
 	    $elif $p=~/list:(.*)/
 		my $idx=$1
-		my @tlist=split /,\s*/, $t
+		my @tlist=MyDef::utils::proper_split($t)
 		$if $idx eq "n"
 		    $segs[$j]=@tlist
 		$elif $idx=~/(\d+)/
 		    $segs[$j]=$tlist[$1]
 	    $else
 		#--INLINE macro -- $(macro:p1,p2,p3)
-		my @plist=split /,/, $p;
+		my @plist=MyDef::utils::proper_split($p)
 		my $i=1;
 		$foreach $pp in @plist
 		    $t=~s/\$$i/$pp/g

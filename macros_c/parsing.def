@@ -1,6 +1,7 @@
 include: macros_c/allocate.def
 include: macros_c/for.def
 include: macros_c/expression.def
+include: macros_c/print.def
 
 subcode:: package_globals
     our $anonymous_count=0
@@ -27,20 +28,6 @@ subcode: parsecode_special
 	return
     $elif $l=~/^print\b(.*)$/i
 	print "print deprecated, use \$print\n"
-	my $t=$1
-	$if !$t
-	    push @$out, "puts(\"\");"
-	$else
-	    $t=~s/^\s+//
-	    $if $t=~/usesub:\s*(\w+)/
-		$print_type=$1
-	    $else
-		my ($n, $fmt)=fmt_string($t)
-		$if $print_type==1
-		    push @$out, "printf($fmt);"
-		$elif $print_type
-		    MyDef::compileutil::call_sub("$print_type, $fmt")
-	return
 
 subcode: parsecode_func_param
     $if $func eq "dump"
@@ -176,22 +163,6 @@ subcode: parsecode_func
 	return
     $elsif $func eq "dump"
 	debug_dump($param, undef, $out);
-	return
-    $elif $func eq "push"
-	$if $param=~/(\w+),\s*(.*)/
-	    list_push($out, $1, $2);
-	return
-    $elif $func eq "unshift"
-	$if $param=~/(\w+),\s*(.*)/
-	    list_unshift($out, $1, $2);
-	return
-    $elif $func eq "pop"
-	$if $param=~/(\w+)/
-	    list_pop($out, $1);
-	return
-    $elif $func eq "shift"
-	$if $param=~/(\w+)/
-	    list_shift($out, $1);
 	return
     $call @parsecode_func_other
 
