@@ -51,6 +51,9 @@ subcode: output_main
 	    $else
 		$debug=$1
 	    return
+	$elif $l=~/^\$warn (.*)/
+	    $call warn, $1
+	    return
 	$call parsecode_eval
 	$call parsecode
 
@@ -113,12 +116,7 @@ subcode: parsecode_eval
     $case $l=~/^\$eval\s+(\w+)(.*)/
 	my ($codename, $param)=($1, $2)
 	$param=~s/^\s*,\s*//
-	my $t=MyDef::compileutil::eval_sub($codename)
-	#print "eval [$t]\n\n"
-	eval $t
-	$if $@
-	    print "Error [$l]: $@\n"
-	    print "  $t\n"
+	$call parsecode_run_eval, $codename
 	return
 
 subcode: parsecode_common
@@ -130,14 +128,14 @@ subcode: parsecode_common
 	# $function(param1) param2 ---------------------------
 	my ($func, $param1, $param2)=($1, $2, $3)
 	$call parsecode_plugin
+	# $call parsecode_check_plugin
 	$call parsecode_func_param
-	$call parsecode_check_plugin
     $elif $l=~/^\s*\$(\w+)\s*(.*)$/
 	# $function param  -----------------------------------
 	my ($func, $param)=($1, $2)
 	$if $param !~ /^=/
-	    $call parsecode_func
 	    $call parsecode_check_plugin
+	    $call parsecode_func
 
     $call @parsecode_other
 
@@ -184,24 +182,26 @@ subcode: parsecode_plugin
 	    $plugin_statement{$param1}=$param2
 	return
 
-subcode: parsecode_run_eval
-    my $codename=$plugin_statement{$func}
+subcode: parsecode_run_eval(code)
+    $(if:code!=$codename)
+	my $codename=$(code)
     my $t=MyDef::compileutil::eval_sub($codename)
     eval $t
-    $if $@
-	print "plugin - $func\n"
+    $if $@ and !$MyDef::compileutil::eval_sub_error{$codename}
+	$MyDef::compileutil::eval_sub_error{$codename}=1
+	print "evalsub - $codename\n"
 	print "[$t]\n"
 	print "eval error: [$@]\n"
 
 subcode: parsecode_check_plugin
     $if $plugin_statement{$func}
-	$call parsecode_run_eval
+	$call parsecode_run_eval, $plugin_statement{$func}
 	return
 
 subcode: parse_condition_check_plugin
     $if $plugin_condition{$func}
 	my $condition
-	$call parsecode_run_eval
+	$call parsecode_run_eval, $plugin_condition{$func}
 	return $condition
 
 # -------------------------------------------
@@ -222,4 +222,10 @@ subcode: parse_condition_map
     $else
 	return $pre . $param
 
-# -------------------------------------------
+#---------------------------------------- 
+#- utility subcode
+
+subcode: warn(@msg)
+    my $curfile=MyDef::compileutil::curfile_curline()
+    $print "[$curfile]$yellow $(msg)" 
+

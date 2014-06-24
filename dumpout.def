@@ -8,33 +8,6 @@ page: dumpout
 	$call dump_main
 
 subcode: dump_main
-    # Function list
-    #   maintain a function list so we can use OPEN_FUNC block structure
-    my @func_list;
-    my $func_index=-1;
-
-    $sub init_funclist
-	@func_list=();
-	$func_index=-1;
-
-    $sub add_function($func)
-	$func_index++;
-	$func_list[$func_index]=$func;
-	return $func_index;
-
-    $sub get_function($fidx)
-	return $func_list[$fidx]
-
-    $sub get_func_list
-	return \@func_list;
-
-    $sub get_func_index
-	return $func_index;
-
-    $sub get_cur_func
-	return $func_list[$func_index];
-
-    ################################
     $sub dumpout
 	my $dump=shift;
 	my $f=$dump->{f};
@@ -53,12 +26,6 @@ subcode: dumpout
     my $indentation=0
     my @indentation_stack
 
-    my @openblock;
-    my @closeblock;
-    my @preblock;
-    my @postblock;
-    my $blockstack=0;
-
     $while 1
 	my $l;
 	$if @$out
@@ -76,7 +43,7 @@ subcode: dumpout
 	    $out=$dump->{$1}
 	$elif $l =~ /^DUMP_STUB\s+(\w+)/
 	    my $source=$MyDef::compileutil::named_blocks{$1};
-	    # print "DUMP_STUB $1 : $source\n"
+	    # $print "DUMP_STUB $1 : $source"
 	    $if $source
 		push @source_stack, $out;
 		$out=$source;
@@ -98,30 +65,12 @@ subcode: dumpout
 		unshift @$out, $l;
 		next;
 	$elif $l=~/^\s*SOURCE_INDENT/
-	    $if $blockstack==0
-		push @openblock, [];
-		push @closeblock, [];
-		push @preblock, [];
-		push @postblock, [];
-	    push @source_stack, $out;
-	    push @source_stack, pop(@preblock);
-	    $out=pop(@openblock);
-	    push @$out, "INDENT";
+	    $indentation++;
 	$elif $l=~/^\s*SOURCE_DEDENT/
-	    push @source_stack, $out;
-	    push @source_stack, pop(@closeblock);
-	    $out=pop(@postblock);
-	    push @$out, "DEDENT";
+	    $indentation-- if $indentation;
 	$elif $l=~/^\s*BLOCK_(\d+)/
 	    push @source_stack, $out;
 	    $out=MyDef::compileutil::fetch_output($1);
-	$elif $l=~/^\s*OPEN_FUNC_(\d+)/
-	    my $func=$func_list[$1];
-	    push @openblock, $func->{openblock};
-	    push @closeblock, $func->{closeblock};
-	    push @preblock, $func->{preblock};
-	    push @postblock, $func->{postblock};
-	    $blockstack=1;
 	#$elif $l=~/^SCOPE:/
 	$elif $l=~/^SUBBLOCK (BEGIN|END)/
 	    # messages from compileutil.pm
@@ -129,11 +78,6 @@ subcode: dumpout
 	    # messages from compileutil.pm
 	$else
 	    $call print_line
-
-	$if $blockstack==1
-	    $blockstack=2;
-	$else
-	    $blockstack=0;
 
 subcode: print_line
     $if $l=~/^\s*$/

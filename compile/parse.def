@@ -89,19 +89,23 @@ subcode: parse_stack_push
     my $blk= {out=>$out, index=>$block_index, eindex=>$block_index, file=>$cur_file, line=>$cur_line, code=>$code}
     push @block_stack, $blk
     $if $code->{"scope"}
+	my $idx=$block_index
 	my $scope=$code->{scope}
 	# SUBBLOCK messages to enable block scopes ------
 	$blk->{scope}=$scope
-	$f_parse->("SUBBLOCK BEGIN $block_index $scope")
+	$f_parse->("SUBBLOCK BEGIN $idx $scope")
+	push @$out, "DUMP_STUB block$idx\_pre"
 
 subcode: parse_stack_pop
-    my $blk=pop @block_stack;
+    my $blk=$block_stack[-1]
+    my $idx=$blk->{index}
     $if $blk->{scope}
 	# SUBBLOCK messages to enable block scopes ------
 	$f_parse->("SUBBLOCK END $blk->{index} $blk->{scopes}")
+    pop @block_stack
+
     $cur_file=$blk->{file}
     $cur_line=$blk->{line}
-    my $idx=$blk->{index}
     $if $named_blocks{"block$idx\_post"}
 	push @$out, "DUMP_STUB block$idx\_post"
 
@@ -139,7 +143,7 @@ subcode: parse_filter_meta
     # -- maintain indent level
     $if $l eq "SOURCE_INDENT" 
 	$indent++; 
-    $elsif $l eq "SOURCE_DEDENT" 
+    $elif $l eq "SOURCE_DEDENT" 
 	$indent-- if $indent>0; 
 
 subcode: parse_catch_meta

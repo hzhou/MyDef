@@ -1,4 +1,9 @@
 subcode:: parsecode_func_other
+    $elif $func eq "fmt"
+	my ($n, $fmt)=fmt_string($param)
+	MyDef::compileutil::set_current_macro("fmt_n", $n)
+	MyDef::compileutil::set_current_macro("fmt", $fmt)
+	return
     $elif $func eq "print"
 	$if !$param
 	    push @$out, "puts(\"\");"
@@ -7,16 +12,22 @@ subcode:: parsecode_func_other
 	    $if $param=~/usesub:\s*(\w+)/
 		$print_type=$1
 	    $else
-		my ($n, $fmt)=fmt_string($param)
+		#--- fmt_string, add newline
+		my ($n, $fmt)=fmt_string($param, 1)
 		$if $print_type==1
-		    push @$out, "printf($fmt);"
+		    $if $n==0
+			push @$out, "puts($fmt);"
+		    $elif $fmt=~/^"%s\\n", (.*)/
+			push @$out, "puts($1);"
+		    $else
+			push @$out, "printf($fmt);"
 		$elif $print_type
 		    MyDef::compileutil::call_sub("$print_type, $fmt")
 	return
 
 #---------------------------------------- 
 subcode:: c_support_subs
-    $sub fmt_string($str)
+    $sub fmt_string($str, $add_newline)
 	# print "fmt_string: [$str]\n"
 	my @pre_list
 	$if $str=~/^\s*\"(.*)\"\s*,\s*(.*)$/
@@ -52,11 +63,20 @@ subcode:: c_support_subs
 			push @group, $1
 		&call if_lex, (\w+)
 		    #---------------------------------------- 
+		    my $v=$1
+		    &call if_lex, (\[.*?\])
+			$v.=$1
+		    &call if_lex, (\{.*?\})
+			$v.=$1
+			$v=check_expression($v)
 		    #- $print $var ---------
-		    push @arg_list, $1
-		    push @fmt_list, get_var_fmt($1, 1)
+		    push @arg_list, $v
+		    push @fmt_list, get_var_fmt($v, 1)
 		    &call if_lex, -
 			# print $var-follow ----
+		&call if_lex, \{(.*?)\}
+		    push @arg_list, $1
+		    push @fmt_list, get_var_fmt($1, 1)
 		$else
 		    push @fmt_list, '$'
 	    &call if_lex, \\\$
@@ -79,10 +99,11 @@ subcode:: c_support_subs
 	$if @pre_list
 	    warn "Extra fmt arg list: ", join(", ", @pre_list), "\n"
 
-	my $tail=$fmt_list[-1]
-	$if $tail=~/(.*)-$/
-	    $fmt_list[-1]=$1
-	$elif $tail!~/\\n$/
+	$if $add_newline
+	    my $tail=$fmt_list[-1]
+	    $if $tail=~/(.*)-$/
+		$fmt_list[-1]=$1
+	    $elif $tail!~/\\n$/
 	    push @fmt_list, "\\n"
 
 	$if !@arg_list

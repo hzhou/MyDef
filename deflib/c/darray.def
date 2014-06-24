@@ -10,12 +10,13 @@ subcode:: _autoload
 #-   $my darray P of int
 subcode: darray_init(var, scope, @type)
     $(if:$(type:list:n)=1)
-	$$(scope) $(type)* $(var)=NULL
+	$$(scope) $(type) * $(var)=NULL
     $(else)
 	$tuple $(type)
 	$$(scope) struct $(T) * $(var)=NULL
 
     $set_var_attr $(var), class=darray, dimension=$(var)_len
+    $set_var_attr $(var), exit=darray_exit
     $$(scope) int $(var)_len=0
     $$(scope) int $(var)_size=0
 
@@ -73,41 +74,3 @@ fncode: f_darray_expand(void * P, n_rec_size, pn_size)
     $call @assert, P
     return P
 
-#----------------------------------------------------
-/*
-subcode: darray_init(var)
-    $(var)=NULL
-    $(var)_len=0
-    $(var)_size=0
-
-subcode: darray_clear(var)
-    free($(var))
-    $call darray_init, $(var)
-
-#----------------------------------------------------
-subcode: local_darray(type, var)
-    $local $(type) * $(var)=NULL
-    $local int $(var)_len=0
-    $local int $(var)_size=0
-
-subcode: global_darray(type, var)
-    $global $(type) * $(var)=NULL
-    $global int $(var)_len=0
-    $global int $(var)_size=0
-
-subcode: use_darray(var)
-    $(export:len=$(var)_len)
-    $(export:size=$(var)_size)
-
-#---------------------------------------- 
-subcode: da_push(var, @val)
-    $call darray_check, $(var)
-    $get_pointer_type(type) $(var)
-    $(var)[$(var)_len]=($(type))$(val) ;
-    $(var)_len++
-    # $(export:item=$(var)[$(var)_len-1])
-
-subcode: da_pop(var)
-    $(var)_len--
-    $(export:item=$(var)[$(var)_len])
-*/

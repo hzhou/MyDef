@@ -2,8 +2,7 @@ include: output.def
 
 /*
     xscode: xs_main 
-	-- function_flags: xs_mode, skip_declare
-	-- DUMP_START xs_start on xscode: xs_main
+	-- DUMP_STUB xs_start on XS_START
 	    ---- dumps xs_globals
     on_init:
     on_parsecode:
@@ -24,11 +23,12 @@ subcode: on_init
     $$(C)type_prefix{"sv"}= "SV*"
 
 subcode: on_dumpout
-    # ---- process_function ------------------------
-    my $funclist=MyDef::dumpout::get_func_list()
+    #---- process_function ------------------------
+    #-- XS_START -> NOOP POST_MAIN -> flushes list_function_hash
+    #--    so all that in list_function_hash is xs functions
+    my $funclist=\@$(C)function_list
     my $funchash=\%$(C)list_function_hash
     $foreach $func in @$funclist
-	# $if $func->{xs_mode}
 	$if $funchash->{$func->{name}}
 	    $call process_function_xs
 	    $func->{skip_declare}=1
@@ -75,10 +75,6 @@ subcode: on_parsecode
 	$(C)parsecode("NOOP POST_MAIN")
 	#---- 
 	$l= "DUMP_STUB xs_start"
-	#$$(C)function_flags{"xs_mode"}= 1
-	#$$(C)function_flags{"skip_declare"}= 1
-	#$global $xs_started
-	#$xs_started=1
     $elif $l=~/^\s*(\$if|while|elif|elsif|elseif)\s*(.*)/
 	$l="$1 ".translate_perl_cond($2, $out);
     $elsif $l=~/^\$foreach\s+(\w+)\s+in\s+(av_\w+)/
@@ -199,53 +195,43 @@ subcode:: support_subs
 
 ################################################
 subcode: process_function_xs
-    my (@t0, @t1, @pre, @post);
-    $func->{openblock}=\@t0;
-    $func->{closeblock}=\@t1;
-    $func->{preblock}=\@pre;
-    $func->{postblock}=\@post;
+    $(C)process_function_std($func)
+    my $open=$func->{openblock}
+    my $close=$func->{closeblock}
+    my $pre=$func->{preblock}
+    my $post=$func->{postblock}
+
     my $name=$func->{name};
+    #---- ret_type and parameters ------------------
+    @$open=()
+    my $ret_type=$func->{'ret_type'};
+    my $paramlist=$func->{'param_list'};
+    my @param_name_list;
+    $foreach $p in @$paramlist
+	$if $p=~/(\w+)\s*$/
+	    push @param_name_list, $1
+    my $param_name_list_str=join(",", @param_name_list);
 
-    # ---- ret_type and parameters ------------------
-    $if $name
-	my $ret_type=$func->{'ret_type'};
-	if(!$ret_type){$ret_type="void";}
-	my $paramlist=$func->{'param_list'};
-	my @param_name_list;
-	$foreach $p in @$paramlist
-	    $if $p=~/(\w+)\s*$/
-		push @param_name_list, $1
-	my $param_name_list_str=join(",", @param_name_list);
+    push @$open, "$ret_type";
+    push @$open, "$name($param_name_list_str)";
+    $if @$paramlist
+	push @$open, "INDENT";
+	push @$open, "INDENT";
+	$foreach my $p in @$paramlist
+	    push @$open, "$p;";
+	push @$open, "DEDENT";
 
-	push @t0, "$ret_type";
-	push @t0, "$name($param_name_list_str)";
-	$if @$paramlist
-	    push @pre, "INDENT";
-	    $foreach my $p in @$paramlist
-		push @pre, "$p;";
-	    push @pre, "DEDENT";
-
-    # ---- Local Variables ---------------------------
-    my $var_hash=$func->{var_hash}
+    #---- Local Variables ---------------------------
     my $var_list=$func->{var_list}
     $if @$var_list
-	push @pre, "PREINIT:";
-	push @pre, "INDENT";
-	$foreach my $v in @$var_list
-	    $if $$(C)global_hash->{$v}
-		print "  [warning] In $name: local variable $v with exisiting global\n"
-	    my $decl=$var_hash->{$v}->{declare}
-	    push @pre, "$decl;";
-	push @pre, "DEDENT";
-    push @pre, "PPCODE:";
-    push @pre, "INDENT";
+	push @$open, "PREINIT:";
+	#---- actual variable declaration in preblock ----- 
+	push @$pre, "DEDENT";
+    push @$pre, "PPCODE:";
+    push @$pre, "INDENT";
 
-    # ---- init and finish --------------------------
-    $foreach my $tl in @{$func->{init}}
-	push @pre, $tl;
-    $foreach my $tl in @{$func->{finish}}
-	push @post, $tl;
-    $if $name
-	push @post, "DEDENT";
-	push @t1, "NEWLINE";
+    #---- init and finish --------------------------
+    @$close=()
+    push @$close, "DEDENT";
+    push @$close, "NEWLINE";
 

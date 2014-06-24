@@ -3,6 +3,9 @@ subcode: c_dump_init
     $dump->{block_init}=\@dump_init
     unshift @$out, "INCLUDE_BLOCK block_init"
 
+    $if %objects
+	push @dump_init, "/* link: $lib_list $obj_list */\n"
+
     $call dump_h_files
 
     my $dump_out=\@dump_init

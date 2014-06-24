@@ -44,7 +44,7 @@ subcode:: parsecode_func_other
 	my $var=find_var($name)
 	$if $var
 	    $foreach $a in @plist
-		MyDef::compileutil::set_current_macro($a, $var->{a})
+		MyDef::compileutil::set_current_macro($a, $var->{$a})
 	return
 
 subcode: each_param_v
@@ -60,13 +60,16 @@ subcode:: parsecode_func_other
 	my @tlist=split /,\s*/, $param
 	$foreach $t in @tlist
 	    $class_names{$t}=1
+	return
 
 subcode: check_var_special
     # print "check_var_special: $param\n"
     $if $param=~/^(\w+)\s+(.*)$/
 	$if $class_names{$1}
-	    my ($class, $param)=$2
+	    my $scope=$func
+	    my ($class, $param)=($1, $2)
 	    my $initname=$class."_init"
+	    # $print "$red{$class} - $param"
 	    $if $param=~/^(\w+)\s*$/
 		$if $(hascode:$initname)
 		    MyDef::compileutil::call_sub("$initname, $1, $scope, default")
@@ -189,10 +192,12 @@ subcode:: c_support_subs
 	    $var->{attr}=join(" ", @attrs)
 	$if $array
 	    $var->{array}=$array
-	    $if $type!~/\*$/ or $type_given
-		#- $local pn_test[10]: int* --> same
-		#- $local n_test[10]:  int  --> int*
-		#- $local int * P[10]: int* --> int**
+	    #- $local pn_test[10]: int* --> same
+	    $if $type!~/\*$/
+		#- $local n_test[10]:  int  --> int *
+		$var->{type}.=" *"
+	    $elif $type_given
+		#- $local int * P[10]: int * --> int **
 		$var->{type}.="*"
 	$call debug_add_var
 	return $var
@@ -200,8 +205,7 @@ subcode:: c_support_subs
 #---------------------------------------- 
 subcode: debug_add_var
     $if $debug eq "type"
-	my $curfile=MyDef::compileutil::curfile_curline()
-	$print "[$curfile]$yellow add_var: $type - $name ($array) - $init ($value)"
+	$call warn, add_var: type:[$type] - $name ($array) - $init ($value)
 
 
 # ----
@@ -308,11 +312,10 @@ subcode:: c_support_subs
 	    return get_sub_type($type, $tail)
 	$elif $tail=~/^\[.*?\](.*)/
 	    $tail=$1;
-	    $if $type0=~/(.*)\s*\*\s*$/
-		return get_sub_type($1, $tail)
+	    $if $type0=~/\*$/
+		return get_sub_type(pointer_type($type0), $tail)
 	    $else
-		my $curfile=MyDef::compileutil::curfile_curline()
-		warn "[$curfile] error in dereferencing pointer type $type0\n"
+		$call warn, error in dereferencing pointer type $type0
 		return "void"
 	$else
 	    return $type0
@@ -388,8 +391,7 @@ subcode:: c_support_subs
     $global %protected_var
     $sub protect_var($var)
 	$if $protected_var{$var}
-	    my $curfile=MyDef::compileutil::curfile_curline()
-	    print "[$curfile] Variable $var protected\n"
+	    $call warn, Variable $var protected
 	    $protected_var{$var}++
 	$else
 	    $protected_var{$var}=1

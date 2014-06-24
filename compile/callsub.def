@@ -141,9 +141,10 @@ subcode:: support_subs
 	$call call_sub_param
 	$if $codelib
 	    $if $codelib->{type} eq "perl" && $interface_type ne "perl"
-		my $t=eval_sub_string($codelib)
+		my $t=eval_sub($codename)
 		eval $t
-		$if $@
+		$if $@ and !$eval_sub_error{$codename}
+		    $eval_sub_error{$codename}=1
 		    print STDERR "    [$cur_file:$cur_line] Code eval error: [$@]\n";
 		    print STDERR "  $t\n"
 	    $else
@@ -180,10 +181,16 @@ subcode:: support_subs
 
 subcode:: support_subs
     $sub eval_sub($codename)
-	my $codelib=get_def_attr("codes", $codename);
-	$if !$codelib
-	    warn "    eval_sub: Code $codename not found\n"
-	return eval_sub_string($codelib)
+	$global %eval_sub_cache, %eval_sub_error
+	$if $eval_sub_cache{$codename}
+	    return $eval_sub_cache{$codename}
+	$else
+	    my $codelib=get_def_attr("codes", $codename);
+	    $if !$codelib
+		warn "    eval_sub: Code $codename not found\n"
+	    my $t= eval_sub_string($codelib)
+	    $eval_sub_cache{$codename}=$t
+	    return $t
 
     $sub eval_sub_string($codelib)
 	require MyDef::output_perl

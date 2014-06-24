@@ -46,18 +46,21 @@ subcode:: support_subs
 	$named_blocks{$name}=$block
 
     $sub get_named_block($name)
-	$if $name eq "_post"
-	    my $cur_idx=$block_stack[-1]->{eindex}
-	    $name="block$cur_idx\_post"
-	$elif $name =~ /_post(\d+)/
-	    my $idx=$block_stack[-$1]->{eindex}
-	    #print "fetching $name idx : $idx\n"
-	    $name="block$idx\_post"
+	$if $name=~/^_(post|pre)(\d*)$/
+	    my $idx
+	    $if !$2
+		$idx=$block_stack[-1]->{eindex}
+	    $else
+		$idx=$block_stack[-$2]->{eindex}
+	    $name="block$idx\_$1"
+
 	$if !$named_blocks{$name}
 	    $named_blocks{$name}=[]
+
 	return $named_blocks{$name}
 
     $sub trigger_block_post
+	#-- reference parse_stack_pop in compile/parse.def --------
 	my $cur_idx=$block_stack[-1]->{eindex}
 	my $name="block$cur_idx\_post"
 	$if $named_blocks{$name}

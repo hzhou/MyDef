@@ -215,6 +215,6 @@ subcode:: c_support_subs
 	    return "\%c";
 	$else
 	    $if $warn
-		print "get_var_fmt: unhandled $v - $type\n";
+		$call warn, get_var_fmt: unhandled $v - $type
 	    return undef
 

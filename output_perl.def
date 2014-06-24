@@ -86,7 +86,8 @@ subcode: dumpout
     $if !defined $pagetype or $pagetype eq "pl"
 	push @$f, "#!/usr/bin/perl\n"
 
-    push @$f, "use strict;\n"
+    $if $pagetype ne "eval"
+	push @$f, "use strict;\n"
 
     $if $MyDef::page->{package}
 	push @$f, "package ".$MyDef::page->{package}.";\n"

@@ -1,14 +1,13 @@
-
 subcode: parse_preproc
     expand_macro_recurse(\$preproc)
+    # $print "parse_preproc: $preproc"
     $if $preproc=~/^for:\s*(\S+)\s+in\s+(.*)/
 	my $vname=$1;
 	my $vparam=$2;
 	my @tlist;
 	$if $vparam=~/(\d+)\.\.(\d+)/
-	    for(my $i=$1;$i<=$2; $i++){
+	    $for my $i=$1;$i<=$2;$i++
 		push @tlist, $i
-	    }
 	$else
 	    @tlist=split /,\s*/, $vparam;
 
@@ -22,28 +21,21 @@ subcode: parse_preproc
 	my $subblock=grabblock($block, \$lindex);
 	my $plist=$deflist->[-1]->{plist}
 	$if $plist
-	    my @plist=split /,\s*/, $plist
+	    my @plist=MyDef::utils::proper_split($plist)
 	    $foreach $p in @plist
 		my $macro={"p"=>$p};
 		push @$deflist, $macro;
 		parseblock({source=>$subblock, name=>"\${foreach}"})
 		pop @$deflist;
+	$else
+	    $call warn, \$(foreach:p) missing \$(plist)
     $elsif $preproc=~/^if:\s*(.*)/
 	my $subblock=grabblock($block, \$lindex);
-	$if testcondition($1)
-	    parseblock({source=>$subblock, name=>"\${if:}"})
-	    $context="switch_off";
-	$else
-	    $context="switch_on";
+	$call parse_preproc_if
     $elsif $preproc=~/^els?e?if:\s*(.*)/
 	my $subblock=grabblock($block, \$lindex);
 	$if $context eq "switch_on"
-	    $if testcondition($1)
-		#foreach my $t(@$subblock){ print "\t[$t]\n"; }
-		parseblock({source=>$subblock, name=>"\${elif:}"})
-		$context="switch_off";
-	    $else
-		$context="switch_on";
+	    $call parse_preproc_if
     $elsif $preproc=~/^else/
 	my $subblock=grabblock($block, \$lindex);
 	$if $context eq "switch_on"
@@ -91,9 +83,21 @@ subcode: parse_preproc
     $else
 	goto NormalParse
 
-# --------------------------------
+#---------------------------------------- 
+subcode: parse_preproc_if
+    $if testcondition($1)
+	parseblock({source=>$subblock, name=>"\${if:}"})
+	$context="switch_off";
+    $else
+	$context="switch_on";
+    $if $debug eq "preproc"
+	$print parse_preproc_if: ($1) -> $context
+
+#---------------------------------------- 
 subcode:: support_subs
     $sub test_op($a, $test)
+	$if $debug eq "preproc"
+	    $print "preproc test_op: $a: $test"
 	$if $test=~/^:(\d+)/
 	    $test=$'
 	    $a=substr($a, 0, $1);
@@ -124,8 +128,9 @@ subcode:: support_subs
 		return 1
 	return 0
 
-    $sub testcondition
-	my ($cond)=@_;
+    $sub testcondition($cond)
+	$if $debug eq "preproc"
+	    $print "preproc testcondition: $cond"
 	$if !$cond
 	    return 0;
 	$call @testcondition_elifs

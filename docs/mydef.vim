@@ -4,7 +4,9 @@
 :syntax match xKey /^\s*\$\i\+/
 :syntax match xPrefix /\$\./
 :syntax match xKey /^\s*&call/
+:syntax match xKey /^\s*\$(set:.*)/
 :syntax match xKey /\$([^)]*)/
+
 :syntax match xCode /^\s*\$\(subclass\|method\)\s/
 :syntax match xHTML /HTML_\I\+/
 :syntax match xCode /^\s*\(sub\|fn\|js\|perl\|php\)code:/

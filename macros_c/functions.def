@@ -8,32 +8,69 @@ subcode:: c_init
     $cur_scope={var_list=>$global_list, var_hash=>$global_hash, name=>"global"}
 
     $global %functions, $cur_function
+    $global @function_list
     %functions=()
     undef $cur_function
 
 subcode:: c_support_subs
-    $sub open_scope($blk_name, $name)
+    #--------------------------------------------------- 
+    #- block scope: variable declaration and exit ------
+    $sub open_scope($blk_idx, $scope_name)
 	push @scope_stack, $cur_scope
-	$cur_scope={var_list=>[], var_hash=>{}, name=>$name}
+	$cur_scope={var_list=>[], var_hash=>{}, name=>$scope_name}
+	#---------------------------------------- 
+	#- embed init block just as function.
 
-    $sub close_scope($blk_name)
-	my $var_hash=$cur_scope->{var_hash};
-	my $var_list=$cur_scope->{var_list};
+    $sub close_scope($blk, $pre, $post)
+	my ($var_hash, $var_list)
+	$if ref($blk) eq "HASH"
+	    $var_hash=$blk->{var_hash};
+	    $var_list=$blk->{var_list};
+	$else
+	    $var_hash=$cur_scope->{var_hash};
+	    $var_list=$cur_scope->{var_list};
+	my @exit_calls
 	$if @$var_list
-	    my $block=MyDef::compileutil::get_named_block($blk_name)
+	    $if !$pre
+		$pre=MyDef::compileutil::get_named_block("_pre")
 	    $foreach $v in @$var_list
-		my $decl=var_declare($var_hash->{$v})
-		push @$block, "$decl;";
+		$if $global_hash->{$v}
+		    $call warn, In $blk->{name}: local variable $v has existing global
+		my $var=$var_hash->{$v}
+		my $decl=var_declare($var)
+		push @$pre, "$decl;";
+
+		$if $var->{exit}
+		    push @exit_calls, "$var->{exit}, $v"
+
+	$if @exit_calls
+	    $if !$post
+		$post=MyDef::compileutil::get_named_block("_post")
+	    my $out_save=$out
+	    MyDef::compileutil::set_output($post)
+	    $foreach $call_line in @exit_calls
+		$if $call_line=~/free, (.*)/
+		    push @$out, "if($1)free($1);"
+		$else
+		    # $print "exit_call: $call_line"
+		    MyDef::compileutil::call_sub($call_line)
+	    MyDef::compileutil::set_output($out_save)
+
+	$if $blk->{return}
+	    $if !$post
+		$post=MyDef::compileutil::get_named_block("_post")
+	    push @$post, $blk->{return}
 
 	$cur_scope=pop @scope_stack
 
 #-----------------------------------------------------------------
 subcode:: c_support_subs
     $sub open_function($fname, $param)
-	my $func= {param_list=>[], var_list=>[], var_hash=>{}, init=>[], finish=>[]};
+	my $func= {param_list=>[], var_list=>[], var_hash=>{}, init=>[], finish=>[], openblock=>[], closeblock=>[], preblock=>[], postblock=>[]};
+	#---- reserve fn_init and fn_finish for user def use.----
 	MyDef::compileutil::set_named_block("fn_init", $func->{init})
 	MyDef::compileutil::set_named_block("fn_finish", $func->{finish})
-
+	#---------
 	$func->{name}=$fname;
 	# -- parsing param list
 	$if $param eq "api"
@@ -46,10 +83,7 @@ subcode:: c_support_subs
 	    push @function_declare_list, $name;
 	    $functions{$name}=$func;
 	# --
-	$cur_function=$func;
-
-	my $fidx=MyDef::dumpout::add_function($func);
-	return $fidx;
+	return $func
 
 subcode: open_function_params
     my $param_list=$func->{param_list}
@@ -108,62 +142,47 @@ subcode:: c_support_subs
 	$if $cur_indent<=1
 	    $cur_function->{has_return}=1;
 
-    $sub func_var_assign($type, $name, $val)
-	$if $debug eq "type"
-	    print "func_var_assign: $type $name = $val\n"
-	#---- ToDo: instead of fucn_var_hooks, check for operator overload in subcodes
-	my $done_out;
-	$if !$done_out
-	    push @$out, "$name=$val;";
-
 # -----------------------------------------------------------------
 subcode:: support_subs
     $sub process_function_std($func)
 	my $name=$func->{name};
 
+	my $open=$func->{openblock}
+	my $close=$func->{closeblock}
+	my $pre=$func->{preblock}
+	my $post=$func->{postblock}
+
+	my $ret_type=$func->{ret_type};
+	$if !$ret_type
+	    $ret_type="void"
+	    $func->{ret_type}=$ret_type
+
 	# ---- open block ------------------
-	$if !$func->{openblock}
-	    my $declare=$func->{declare}
-	    $if !$declare
-		my $ret_type=$func->{ret_type};
-		if(!$ret_type){$ret_type="void";}
-		my $param_list=$func->{"param_list"};
-		my $param=join(', ', @$param_list);
-		$declare="$ret_type $name($param)"
-		$func->{declare}=$declare
-	    $func->{openblock}=[$declare."{"]
+	my $declare=$func->{declare}
+	$if !$declare
+	    my $param_list=$func->{"param_list"};
+	    my $param=join(', ', @$param_list);
+	    $declare="$ret_type $name($param)"
+	    $func->{declare}=$declare
+	push @$open, $declare
+	push @$open, "{"
 
 	# ---- close block ----------------------
-	$if !$func->{closeblock}
-	    my @t
-	    push @t, "}";
-	    push @t, "NEWLINE";
-	    $func->{closeblock}=\@t
+	push @$close, "}";
+	push @$close, "NEWLINE";
 
-	my (@pre, @post);
-	$func->{preblock}=\@pre;
-	$func->{postblock}=\@post;
+	#---------------------------------------- 
+	close_scope($func, $pre, $post)
 
 	# ---- pre block -----------------------
-	my $var_hash=$func->{var_hash};
-	my $var_list=$func->{var_list};
-	$if @$var_list
-	    $foreach my $v in @$var_list
-		$if $global_hash->{$v}
-		    print "  [warning] In $name: local variable $v has existing global\n"
-		my $decl=var_declare($var_hash->{$v})
-		push @pre, "$decl;";
-	    push @pre, "NEWLINE";
+	$if @{$func->{var_list}}
+	    push @$pre, "NEWLINE";
 
-	$foreach my $tl in @{$func->{init}}
-	    push @pre, $tl;
+	$foreach $t in @{$func->{init}}
+	    push @$pre, $t
 
 	# ---- post block ----------------------- 
-	$if !$func->{has_return}
-	    $cur_function=$func
-	    # func_var_release(\@post);
-
-	$foreach my $tl in @{$func->{finish}}
-	    push @post, $tl;
+	$foreach $t in @{$func->{finish}}
+	    push @$post, $t
 
 

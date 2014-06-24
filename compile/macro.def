@@ -221,8 +221,12 @@ subcode:: support_subs
 	    $while $$lref=~/(\$\([^()]+\))/g
 		$if substr($`, -1) ne "\\"
 		    warn "[$cur_file:$cur_line] Macro $1 not defined in $$lref\n"
+	return !$hasmacro
 
     $sub get_macro($name)
 	my $t='$'."($name)"
-	expand_macro_recurse(\$t)
-	return $t
+	my $ret=expand_macro_recurse(\$t, 1)
+	$if $ret
+	    return $t
+	$else
+	    return undef
