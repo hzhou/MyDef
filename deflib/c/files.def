@@ -109,7 +109,6 @@ subcode: each_glob(@pat)
     $if temp_string_len>0
 	#---- tuple of pat_pos, path_pos, DIR
 	$local string s_path
-	$local darray glob:int, int, DIR*
 	$local tn_pat, tn_path, DIR* p_dir
 
 	$if temp_string[0]=='/'
@@ -122,15 +121,52 @@ subcode: each_glob(@pat)
 	    tn_pat=0
 	    tn_path=1
 
-	glob.$push tn_pat, tn_path
-	$call find_path_component
-	s=temp_string+tn_pat
-	$if *s
+	$local darray glob_stack:int, int, DIR*
+
+	$while 1
+	    $if temp_string[tn_pat]=='\0'
+		#- done
+		BLOCK
+		$if glob_stack_len>0
+		    tn_pat, tn_path, p_dir= glob_stack.$pop
+		    continue
+		else
+		    break
+	    $else
+		$call find_path_component
+		s=temp_string+tn_pat
+		$if *s=='\0'
+		    tn_pat=tn_next
+		    continue
+		$elif !tb_flag_regex
+		    s_path.$add s
+		    tn_pat=tn_next
+		    continue
+		$else
+		    $if !p_dir
+			$if tn_path==0
+			    p_dir=opendir(".")
+			$else
+			    p_dir=opendir(s_path)
+		    $my struct dirent * p_file
+		    tb_flag_notfound=1
+		    $while p_file=readdir(p_dir)
+			$if f_glob_match(p_file->d_name, s)
+			    glob_stack.$push tn_pat, s_path_len, p_dir
+			    s_path.$add p_file->d_name
+			    tn_pat=tn_next
+			    tb_flag_notfound=0
+			    break
+		    $if tb_flag_notfound
+			break
+		    $else
+			continue
 
 subcode: find_path_component
     s=temp_string+tn_pat
     tn_next=0
-    tb_flag=0
+    tb_flag_escape=0
+    tb_flag_regex=0
     $while 1
 	$if *s=='\0'
 	    tn_next=s-temp_string
@@ -138,7 +174,7 @@ subcode: find_path_component
 	$elif *s=='\\'
 	    $if s[1]
 		s+=2
-		tb_flag=1
+		tb_flag_escape=1
 		continue
 	    $else
 		tn_next=s+1-temp_string
@@ -147,9 +183,11 @@ subcode: find_path_component
 	    *s='\0'
 	    tn_next=s+1-temp_string
 	    break
+	$elif *s=='*' || *s=='?'
+	    tb_flag_regex=1
 	s++
     #---- clear the escape ----
-    $if tb_flag
+    $if tb_flag_escape
 	s=temp_string+tn_pat
 	$while *s
 	    $if *s=='\\'
