@@ -1,5 +1,9 @@
 subcode:: _autoload
     $class string
+    #---------------------------------------- 
+macros:
+    string_param: 
+    string_ref: $1, &$1_len, &$1_size
 
 subcode: string_init(var, scope, @type)
     $include string
@@ -20,31 +24,38 @@ subcode: string_empty(var)
     $(var)_len=0
     memset($(var), 0, $(var)_size)
 
-subcode: string_resize(var, n)
-    $(if:n=0)
-	$if $(var)_size>0
-	    free($(var))
-	    $(var)=NULL
-	    $(var)_len=0
-	    $(var)_size=0
-    $(else)
-	$if $(var)_size<$(n)
-	    $(var)_size=$(n)
-	    $(var)=realloc($(var), $(var)_size)
-	    $call @assert, $(var)
-	    memset($(var)+$(var)_len, 0, $(var)_size-$(var)_len)
-	$elif $(var)_len>$(n)
-	    $(var)_len=$(n)
-	    memset($(var)+$(var)_len, 0, $(var)_size-$(var)_len)
-
 subcode: string_clear(var)
-    $call string_resize, $(var), 0
+    $(var)_len=0
+    memset($(var), 0, $(var)_size)
+
+subcode: string_resize(var, n)
+    $(set:string=$(var), &$(var)_len, &$(var)_size)
+    $fcall $(var)=f_string_resize($(string), $(n))
+
+fncode: f_string_resize(s, pn_len, pn_size, n)
+    $(mset:len=*pn_len, size=*pn_size)
+    $if n==0
+	$if $(size)>0
+	    free(s)
+	    s=NULL
+	    $(len)=0
+	    $(size)=0
+    $else
+	$if $(size)<n
+	    $(size)=n
+	    *p_s=realloc(s, $(size))
+	    $call @assert, s
+	    memset(s+$(len), 0, $(size)-$(len))
+	$elif $(len)>n
+	    $(len)=n
+	    memset(s+$(len), 0, $(size)-$(len))
+    return s
 
 #---------------------------------------- 
 subcode: string_append(var, s)
     $(set:string=$(var), &$(var)_len, &$(var)_size)
     $(if:s~")
-	$fcall $(var)=f_string_append($(string), $(s:strlen), $(s))
+	$fcall $(var)=f_string_append($(string), $(s),$(s:strlen))
     $(else)
 	$get_type(type) $(s)
 	$(if:type=int or type=char or type=unsigned)
@@ -57,7 +68,7 @@ subcode: string_append(var, s)
 	    $get_var_attr $(s), strlen
 	    $(if:!strlen)
 		$(set:strlen=strlen($(s)))
-	    $fcall $(var)=f_string_append($(string), $(strlen), $(s))
+	    $fcall $(var)=f_string_append($(string), $(s), $(strlen))
 	$(else)
 	    $warn string format [$(type)] not recognized
 
@@ -85,7 +96,7 @@ subcode: string_replace(var, i0, i1, @replace)
     $call string_append, temp_string
     
 #---------------------------------------- 
-fncode: f_string_append(s, pn_len, pn_size, int len, char * src)
+fncode: f_string_append(s, pn_len, pn_size, char * src, int len)
     $call string_expand, s, *pn_len, *pn_size, len
     memcpy(s+*pn_len, src, len)
     *pn_len+=len
