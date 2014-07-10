@@ -55,7 +55,7 @@ page: mydef_make
 
 subcode:: package_global
     my @master_config;
-    my $module="www";
+    my $module="perl";
     my %module_type=($(module_type))
     my %macros;
     my @include_folders;
@@ -107,8 +107,8 @@ subcode: copy_master_config
 subcode: create_new_config
     $config_outputdir=prompt("Please enter the path to compile into:");
     print Out "output_dir: $config_outputdir\n";
-    $module=prompt("Please enter module type [www]:");
-    if(!$module){$module="www";}
+    $module=prompt("Please enter module type [perl]:");
+    if(!$module){$module="perl";}
     print Out "module: $module\n";
 
 subcode: read_config
@@ -229,7 +229,7 @@ subcode: check_eachfile
 		    $call check_file_notinpage
 	    close In;
 	    $if $output_path
-		$for my $page in @page_list
+		$foreach $page in @page_list
 		    $if !$page->{output_dir}
 			$page->{output_dir}=$output_path
 
@@ -407,7 +407,7 @@ subcode: write_rule_pages
 subcode: write_rule_submake
     # ---- recursive make rule
     $if @make_folders
-	$for my $f in @make_folders
+	$foreach  $f in @make_folders
 	    $if !$nosub
 		print Out "$f: force_look\n";
 		print Out "\t cd $f; make\n";
@@ -442,10 +442,10 @@ subcode: module_specific
 			$if $h->{type} eq "pm"
 			    $pm_count++
 		    $if $pm_count>0
-			print "Running h2xs ... ...\n";
+			print "Running h2xs -X $config_outputdir... ...\n";
 			system "h2xs -X $config_outputdir";
 		$else
-		    print "Running h2xs ... ...\n";
+		    print "Running h2xs -n $config_outputdir... ...\n";
 		    system "h2xs -n $config_outputdir";
 
 subcode: create_outputdir

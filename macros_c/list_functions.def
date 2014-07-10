@@ -40,13 +40,13 @@ subcode: add_list_function(f)
 
 # #### -------------------------------
 subcode: parsecode_post
+    #---- NOOP POST_MAIN: called at end of parse or 
+    #-      end of each parse group as in output_xs.def
+    
     $global @list_function_list
 
     $while my $f=shift @list_function_list
 	$call parse_function_list_item, $f
-
-    @list_function_list=()
-    %list_function_hash=()
 
 # ------------------------------------
 subcode: parse_function_list_item(f)
@@ -68,45 +68,13 @@ subcode: parse_function_list_item(f)
 		$funcname="main";
 
 	$if defined $paramline
-	    push @function_stack, $cur_function
-	    my $func=open_function($funcname, $paramline);
-	    $cur_function=$func
-
-	    push @scope_stack, $cur_scope
-	    $cur_scope=$cur_function
 	    &call function_block
-		$cur_indent=1
-		MyDef::compileutil::set_current_macro("FunctionName", $funcname)
 		MyDef::compileutil::call_sub($codename, "\$list")
 		$if $out->[-1]=~/^return/
 		    $func->{return}=pop @$out
-		$call parse_function_end
+	    $call function_pop
 
-#--------
-subcode: parse_function_end
-    $cur_function=pop @function_stack
-    $cur_scope=pop @scope_stack
-    my $level=@function_stack
-    $if $level==0
-	$call case_reset
-
-#---------------------------------------- 
-subcode: function_block
-    push @function_list, $func
-    my $fidx=$#function_list
-    MyDef::compileutil::set_named_block("fn$fidx\_open", $func->{openblock})
-    MyDef::compileutil::set_named_block("fn$fidx\_pre", $func->{preblock})
-    MyDef::compileutil::set_named_block("fn$fidx\_post", $func->{postblock})
-    MyDef::compileutil::set_named_block("fn$fidx\_close", $func->{closeblock})
-    push @$out, "DUMP_STUB fn$fidx\_open"
-    push @$out, "INDENT"
-    push @$out, "DUMP_STUB fn$fidx\_pre"
-    BLOCK
-    push @$out, "DUMP_STUB fn$fidx\_post"
-    push @$out, "DEDENT"
-    push @$out, "DUMP_STUB fn$fidx\_close"
-
-#---- Direct $function ------------------
+# ---- Direct $function ------------------
 subcode: parse_function
     $global %lamda_functions
     $call check_autoload_h
@@ -117,23 +85,66 @@ subcode: parse_function
 	$elif $paramline=~/^\s*,\s*(.*)/
 	    $paramline=$1
 
-	my $name=MyDef::utils::uniq_name($fname, \%list_function_hash)
-	$call add_to_autoload_h, "function-$name"
+	my $funcname=MyDef::utils::uniq_name($fname, \%list_function_hash)
+	$call add_to_autoload_h, "function-$funcname"
 
 	my $block=[]
-
-	my $func=open_function($name, $paramline)
-	$cur_function=$func
 	my $out_save=$out
 	MyDef::compileutil::set_output($block)
+
 	&call function_block
 	    push @$block, "BLOCK";
 
-	$lamda_functions{$name}=$block
-	$call add_list_function, $name
-	MyDef::compileutil::set_current_macro("lamda", $name)
+	MyDef::compileutil::set_output($out_save)
 
+	$lamda_functions{$funcname}=$block
+	$call add_list_function, $funcname
+	MyDef::compileutil::set_current_macro("lamda", $funcname)
+
+	push @$block, "PARSE:\$function_pop"
 	return $block
     $else
 	return "SKIPBLOCK"
+
+#---------------------------------------- 
+subcode: function_block
+    my $func=open_function($funcname, $paramline);
+    $call function_push
+    #------------------
+    push @function_list, $func
+    my $fidx=$#function_list
+    MyDef::compileutil::set_named_block("fn$fidx\_open", $func->{openblock})
+    MyDef::compileutil::set_named_block("fn$fidx\_pre", $func->{preblock})
+    MyDef::compileutil::set_named_block("fn$fidx\_post", $func->{postblock})
+    MyDef::compileutil::set_named_block("fn$fidx\_close", $func->{closeblock})
+    push @$out, "DUMP_STUB fn$fidx\_open"
+    push @$out, "INDENT"
+    push @$out, "DUMP_STUB fn$fidx\_pre"
+
+    $cur_indent=1
+    MyDef::compileutil::set_current_macro("FunctionName", $funcname)
+    BLOCK
+
+    push @$out, "DUMP_STUB fn$fidx\_post"
+    push @$out, "DEDENT"
+    push @$out, "DUMP_STUB fn$fidx\_close"
+
+subcode: function_push
+    push @function_stack, $cur_function
+    $cur_function=$func
+
+    push @scope_stack, $cur_scope
+    $cur_scope=$cur_function
+
+subcode:: parsecode_func_other
+    $elsif $func eq "function_pop"
+	$call function_pop
+	return
+
+subcode: function_pop
+    $cur_function=pop @function_stack
+    $cur_scope=pop @scope_stack
+    my $level=@function_stack
+    $if $level==0
+	$call case_reset
 

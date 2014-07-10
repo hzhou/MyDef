@@ -1,197 +1,37 @@
-include: c/darray.def
 include: c/string.def
-#---------------------------------------- 
-#- &call each_glob, $home/*
+include: c/file_glob.def
 
-subcode: each_glob(@pat)
-    $local string temp_string
-    temp_string.$clear
-    temp_string.$fmt $(pat)
-    $if temp_string_len>0
-	$call split_path
-	$local string ts_file
-	ts_file.$clear
-	$(set:size=tpn_path[$1+1]-tpn_path[$1])
-
-	$my s, tn_len
-	$set_var_attr s, strlen=tn_len
-	$if tpn_path[0]==0
-	    ts_file.$add "/"
-	    s=temp_string+1
-	    tn_len=tpn_path[1]-1
-	$else
-	    ts_file.$add "."
-	    s=temp_string
-	    tn_len=tpn_path[1]
-	i=0
-	$while i<=n
-	    $call each_glob_check_s
-
-subcode: split_path
-    $(set:n=20)
-    $local tpn_path[$(n)]
-    n=0
-    tb_escape=0
-    $for i=0:temp_string_len
-	$if tb_escape
-	    tb_escape=0
-	    next
-	$if temp_string[i]=='\\'
-	    tb_escape=1
-	$elif temp_string[i]=='/'
-	    temp_string[i]='\0'
-	    tpn_path[n++]=i
-	    $call assert, n<$(n)
-    tpn_path[n++]=temp_string_len
-
-subcode: each_glob_check_s
-    $temp i
-    tb_flag_escape=0
-    tb_flag_regex=0
-    $(i)=0
-    $while $(i)<tn_len
-	$if s[$(i)]=='\\'
-	    $(i)+=2
-	    tb_flag_escape++
-	    next
-	$elif s[$(i)]=='*' || s[$(i)]=='?'
-	    tb_flag_regex=1
-	$(i)++
-    $if !tb_flag_regex
-	$if tb_flag_escape
-	    $call each_glob_check_s_unescape
-	$if temp_string_len==1 && temp_string[0]=='.'
-	    temp_string.$clear
-	    temp_string.$add s
-	$elif temp_string_len==1 && temp_string[0]=='/'
-	    temp_string.$add s
-	$else
-	    temp_string.$add "/", s
+subcode: open_r_line(file)
+    $call fmt_filename, $(file)
+    file_in=fopen($(f), "r")
+    $if file_in==NULL
+        fprintf(stderr, "Can't open %s\n", $(f))
     $else
-	$call each_glob_check_s_pattern
-
-subcode: each_glob_check_s_unescape
-    $(i)=0
-    $while $(i)<tn_len
-	$if s[$(i)]=='\\'
-	    $for j=$(i):tn_len-1
-		s[$(j)]=s[$(j)+1]
-	    tn_len--
-	$(i)++
-
-subcode: each_glob_check_s_pattern
-    $include dirent
-    $my DIR *  p_dir
-    p_dir=opendir(ts_file)
-    $if p_dir
-	$my struct dirent * p_file
-	$while p_file=readdir(p_dir)
-	    $list f_glob_match
-	    $if f_glob_match(p_file->d_name, s)
-		ts_file.$add p_file->d_name
-
-fncode: f_glob_one(DIR * p_dir, char * glob, s_curpat, s_nextpat, s_path, pn_len, pn_size)
-    $my struct dirent * p_file
-    $while p_file=readdir(p_dir)
-	$list f_glob_match
-	$if f_glob_match(p_file->d_name, s_curpat)
-	    $(set:string=s_path, pn_len, pn_size)
-	    s_path=f_string_append($(string), p_file->d_name, strlen(p_file->d_name))
-
-    return s_path
-
+	$my string line
+	line.$resize(1000)
+	$while fgets(line, 1000, file_in)
+	    $(set:l=line)
+	    BLOCK
+        fclose(file_in)
 
 #---------------------------------------- 
-subcode: each_glob(@pat)
+subcode: stat_file(file)
+    $call fmt_filename, $(file)
+    $local struct stat fstat
+    tn_ret=stat($(f), &fstat)
+    $(export:exist=tn_ret==0)
+    $(export:fsize=fstat.st_size)
+    $(export:ftime=fstat.st_mtime)
+
+subcode: if_exist(file)
+    $call stat_file, $(file)
+    $if $(exist)
+	BLOCK
+
+#---------------------------------------- 
+subcode: fmt_filename(file)
     $local string temp_string
-    temp_string.$clear
-    temp_string.$fmt $(pat)
-    $if temp_string_len>0
-	#---- tuple of pat_pos, path_pos, DIR
-	$local string s_path
-	$local tn_pat, tn_path, DIR* p_dir
-
-	$if temp_string[0]=='/'
-	    ts_start_dir="/"
-	    s_path.$add "/"
-	    tn_pat=1
-	    tn_path=1
-	$else
-	    ts_start_dir="."
-	    tn_pat=0
-	    tn_path=1
-
-	$local darray glob_stack:int, int, DIR*
-
-	$while 1
-	    $if temp_string[tn_pat]=='\0'
-		#- done
-		BLOCK
-		$if glob_stack_len>0
-		    tn_pat, tn_path, p_dir= glob_stack.$pop
-		    continue
-		else
-		    break
-	    $else
-		$call find_path_component
-		s=temp_string+tn_pat
-		$if *s=='\0'
-		    tn_pat=tn_next
-		    continue
-		$elif !tb_flag_regex
-		    s_path.$add s
-		    tn_pat=tn_next
-		    continue
-		$else
-		    $if !p_dir
-			$if tn_path==0
-			    p_dir=opendir(".")
-			$else
-			    p_dir=opendir(s_path)
-		    $my struct dirent * p_file
-		    tb_flag_notfound=1
-		    $while p_file=readdir(p_dir)
-			$if f_glob_match(p_file->d_name, s)
-			    glob_stack.$push tn_pat, s_path_len, p_dir
-			    s_path.$add p_file->d_name
-			    tn_pat=tn_next
-			    tb_flag_notfound=0
-			    break
-		    $if tb_flag_notfound
-			break
-		    $else
-			continue
-
-subcode: find_path_component
-    s=temp_string+tn_pat
-    tn_next=0
-    tb_flag_escape=0
-    tb_flag_regex=0
-    $while 1
-	$if *s=='\0'
-	    tn_next=s-temp_string
-	    break
-	$elif *s=='\\'
-	    $if s[1]
-		s+=2
-		tb_flag_escape=1
-		continue
-	    $else
-		tn_next=s+1-temp_string
-		break
-	$elif *s=='/'
-	    *s='\0'
-	    tn_next=s+1-temp_string
-	    break
-	$elif *s=='*' || *s=='?'
-	    tb_flag_regex=1
-	s++
-    #---- clear the escape ----
-    $if tb_flag_escape
-	s=temp_string+tn_pat
-	$while *s
-	    $if *s=='\\'
-		$for i=s-temp_string:tn_next-1
-		    temp_string[i]=temp_string[i+1]
-	    s++
+    temp_string.$empty
+    temp_string.$fmt $(file)
+    $(export:f=temp_string)
 

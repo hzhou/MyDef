@@ -29,6 +29,7 @@ subcode: on_dumpout
     my $funclist=\@$(C)function_list
     my $funchash=\%$(C)list_function_hash
     $foreach $func in @$funclist
+	# $print funclist : $func->{name}
 	$if $funchash->{$func->{name}}
 	    $call process_function_xs
 	    $func->{skip_declare}=1
@@ -39,15 +40,17 @@ subcode: on_dumpout
     my @t
     my $cnt
     my $ghash=$$(C)global_hash
-    $foreach $name in @$(C)global_list
-	my $v=$ghash->{$name}->{declare}
-	$if $v=~/^[SHA]V/
-	    push @xs_globals, "$v;\n";
+    $foreach $name in @$$(C)global_list
+	my $type=$ghash->{$name}->{type}
+	# $print  var $name, type $type
+	$if $type=~/^[SHA]V/
+	    my $decl = $(C)var_declare($ghash->{$name})
+	    push @xs_globals, "$decl;\n";
 	    $cnt++
 	$else
 	    push @t, $name
     $if $cnt>0
-	@$(C)global_list=@t
+	@$$(C)global_list=@t
 
     # ---- xs_start -------------------
     $call init_xs
@@ -73,6 +76,7 @@ subcode: on_parsecode
     $if $l=~/^XS_START/
 	#---- flush out C functions ----
 	$(C)parsecode("NOOP POST_MAIN")
+	%$(C)list_function_hash=()
 	#---- 
 	$l= "DUMP_STUB xs_start"
     $elif $l=~/^\s*(\$if|while|elif|elsif|elseif)\s*(.*)/
@@ -96,19 +100,21 @@ subcode: on_parsecode
 	return $(C)single_block_pre_post(\@pre, \@post)
     $elsif $l=~/^\$foreach\s+\((\w+),\s*(\w+)\)\s+in\s+(hv_\w+)/
 	my ($v_name, $v_val, $v_hv)=($1, $2, $3);
-	$(C)func_add_var("t_n");
+	my $tn=$(C)temp_add_var("tn", "I32");
+	$(C)protect_var($tn)
 	$(C)func_add_var($v_name);
 	$(C)func_add_var($v_val);
 	my $vartype=$(C)get_var_type($v_val);
 	$(C)func_add_var("t_sv");
 	my @pre;
-	push @pre, "t_n=hv_iterinit($v_hv);"
-	push @pre, "while((t_sv=hv_iternextsv($v_hv, &$v_name, &t_n))){";
+	push @pre, "$tn=hv_iterinit($v_hv);"
+	push @pre, "while((t_sv=hv_iternextsv($v_hv, &$v_name, &$tn))){";
 	push @pre, "INDENT"
 	translate_scalar(\@pre,$v_val,$vartype,"t_sv")
 	my @post
 	push @post, "DEDENT"
 	push @post, "}"
+	push @post, "PARSE:\$unprotect_var $tn"
 	return $(C)single_block_pre_post(\@pre, \@post)
     $elsif $l=~/^\$getparam\s+(.*)/
 	my @vlist=split /,\s+/, $1;
@@ -125,9 +131,7 @@ subcode: on_parsecode
 	    $key=$1;
 	my $keylen=length($key);
 
-	$if $var=~/^\w+$/
-	    $(C)func_add_var($var);
-	my $vartype=$(C)get_var_type($var);
+	$call infer_var
 
 	$(C)func_add_var("t_psv", "SV**");
 	push @$out, "t_psv=hv_fetch($hv, \"$key\", $keylen, 0);";
@@ -135,15 +139,18 @@ subcode: on_parsecode
 	return 
     $elif $l=~/(\S+)=(\w+)->\[(.*)\]/
 	my ($var, $av, $key)=($1, $2, $3);
-	my $vartype;
-	$if $var=~/^\w+$/
-	    $(C)func_add_var($var);
-	$vartype=$(C)get_var_type($var);
+
+	$call infer_var
 
 	$(C)func_add_var("t_psv", "SV**");
 	push @$out, "t_psv=av_fetch($av, $key, 0);";
 	translate_tpsv($out, $var, $vartype);
 	return
+
+subcode: infer_var
+    $(C)auto_add_var($var)
+    my $vartype=$(C)get_var_type($var);
+
 
 subcode:: support_subs
     # ---- Perl XS Specific -----------------------
@@ -214,8 +221,8 @@ subcode: process_function_xs
 
     push @$open, "$ret_type";
     push @$open, "$name($param_name_list_str)";
+    push @$open, "INDENT";
     $if @$paramlist
-	push @$open, "INDENT";
 	push @$open, "INDENT";
 	$foreach my $p in @$paramlist
 	    push @$open, "$p;";
@@ -226,7 +233,7 @@ subcode: process_function_xs
     $if @$var_list
 	push @$open, "PREINIT:";
 	#---- actual variable declaration in preblock ----- 
-	push @$pre, "DEDENT";
+    push @$pre, "DEDENT";
     push @$pre, "PPCODE:";
     push @$pre, "INDENT";
 

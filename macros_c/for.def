@@ -1,5 +1,5 @@
 subcode:: parsecode_func_other
-    $elsif $func eq "for"
+    $elif $func eq "for"
 	$call parsecode_for_support, c_style_protect
 	return
     $elif $func eq "foreach"
@@ -19,7 +19,10 @@ subcode: for_i0_i1_step
     $else
 	$step= "+=$step"
 
-    $var=temp_add_var($var, "int")
+    $if !$var
+	$var=temp_add_var("i", "int")
+    $else
+	$var=my_add_var($var, "int")
     protect_var($var)
 
     $param="$var=$i0; $var $i1; $var$step"
@@ -38,8 +41,6 @@ subcode: foreach_array
 
     $if defined $var->{dimension}
 	$dim=$var->{dimension}
-    $elif defined $var->{array}
-	$dim=$var->{array}
 
     # print "foreach_array, $v, $var->{name}, $dim ...\n"
 
@@ -49,7 +50,8 @@ subcode: foreach_array
 subcode: foreach_single(range)
     my $type=pointer_type($var->{type})
     my $i=temp_add_var("i", "int")
-    MyDef::compileutil::set_current_macro($t, "$v\[$i\]")
+    protect_var($i)
+    MyDef::compileutil::set_current_macro("t", "$v\[$i\]")
     my $end="PARSE:\$unprotect_var $i"
     return single_block_pre_post(["for($i=0;$i<$(range);$i++){", "INDENT"], ["DEDENT", "}",$end], "for")
 

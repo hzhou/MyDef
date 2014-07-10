@@ -61,6 +61,7 @@ subcode:: c_support_subs
 		$post=MyDef::compileutil::get_named_block("_post")
 	    push @$post, $blk->{return}
 
+	#- -- only applicable to block scopes ----
 	$cur_scope=pop @scope_stack
 
 #-----------------------------------------------------------------
@@ -126,19 +127,17 @@ subcode:: parsecode_func_other
 	return
 # -----------------------------------------------------------------
 subcode:: c_support_subs
-    $sub func_return($l)
+    $sub func_return($t)
 	MyDef::compileutil::trigger_block_post()
 
 	$if !$cur_function->{ret_type}
-	    $if $l=~/return\s+(.*)/
-		my $t=$1;
+	    $if $t
 		$if $t=~/(\w+)/
 		    $cur_function->{ret_var}=$1;
 		$cur_function->{ret_type}=infer_c_type($t)
 	    $else
 		$cur_function->{ret_type}="void";
-	    $if $debug eq "type"
-		print "Check ret_type: $cur_function->{name} [$l] -> $cur_function->{ret_type}\n";
+	    # print "Check ret_type: $cur_function->{name} [$t] -> $cur_function->{ret_type}\n";
 	$if $cur_indent<=1
 	    $cur_function->{has_return}=1;
 
@@ -164,8 +163,7 @@ subcode:: support_subs
 	    my $param=join(', ', @$param_list);
 	    $declare="$ret_type $name($param)"
 	    $func->{declare}=$declare
-	push @$open, $declare
-	push @$open, "{"
+	push @$open, $declare."{"
 
 	# ---- close block ----------------------
 	push @$close, "}";

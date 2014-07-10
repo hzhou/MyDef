@@ -19,12 +19,11 @@ subcode:: c_support_subs
 	    $type=$1;
 	    $left=$2;
 
-	$if $left=~/^\w+$/
-	    my $var=find_var($left)
-	    $if $var
-		$call done_assignment
-	    $else
-		func_add_var($left, $type, $right)
+	$if $left=~/^(\w+)(.*)/
+	    $if $protected_var{$1}
+		$call warn, Variable $1 protected (unmutable)
+	    $if !$2
+		auto_add_var($left, $type, $right)
 	$else
 	    # ToDo, complex left value
 

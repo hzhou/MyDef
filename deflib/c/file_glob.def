@@ -1,0 +1,126 @@
+include: c/darray.def
+include: c/string.def
+
+subcode: each_glob(@pat)
+    $include dirent
+    $local string temp_string
+    temp_string.$clear
+    temp_string.$fmt $(pat)
+    $if temp_string_len>0
+	#---- tuple of pat_pos, path_pos, DIR
+	$local string s_path
+	$local tn_pat, tn_path, DIR* p_dir
+
+	$if temp_string[0]=='/'
+	    s_path.$add "/"
+	    tn_pat=1
+	    tn_path=1
+	$else
+	    tn_pat=0
+	    tn_path=0
+	p_dir=NULL
+
+	$local darray glob_stack:int, int, DIR*
+
+	$while 1
+	    each_glob_start:
+	    $if temp_string[tn_pat]=='\0'
+		#- done
+		$(set:f=s_path)
+		BLOCK
+		$call @glob_pop
+	    $else
+		$my s, tn_next, tb_flag_regex, tb_flag_escape
+		$call find_path_component
+		s=temp_string+tn_pat
+		$if *s=='\0'
+		    tn_pat=tn_next
+		    continue
+		$elif !tb_flag_regex
+		    $call @glob_add_path, s
+		    continue
+		$else
+		    $if !p_dir
+			$if tn_path==0
+			    p_dir=opendir(".")
+			$else
+			    p_dir=opendir(s_path)
+		    $my struct dirent * p_file
+		    $while p_file=readdir(p_dir)
+			$list f_glob_match
+			$if (p_file->d_name $eq "." || p_file->d_name $eq "..") && p_file->d_name $ne s
+			    continue
+			$elif f_glob_match(p_file->d_name, s)
+			    #---------------------------------------- 
+			    glob_stack.$push tn_pat, s_path_len, p_dir
+			    $call @glob_add_path, p_file->d_name
+			    goto each_glob_start
+		    closedir(p_dir)
+		    $call @glob_pop
+
+subcode: glob_add_path(s)
+    $if tn_path>0
+	s_path.$add "/"
+    s_path.$add $(s)
+    tn_pat=tn_next
+    tn_path=s_path_len
+
+subcode: glob_pop
+    $if glob_stack_len>0
+	tn_pat, tn_path, p_dir= glob_stack.$pop
+	s_path.$resize tn_path
+	continue
+    $else
+	break
+
+subcode: find_path_component
+    s=temp_string+tn_pat
+    tn_next=0
+    tb_flag_escape=0
+    tb_flag_regex=0
+    $while 1
+	$if *s=='\0'
+	    tn_next=s-temp_string
+	    break
+	$elif *s=='\\'
+	    $if s[1]
+		s+=2
+		tb_flag_escape=1
+		continue
+	    $else
+		tn_next=s+1-temp_string
+		break
+	$elif *s=='/'
+	    *s='\0'
+	    tn_next=s+1-temp_string
+	    break
+	$elif *s=='*' || *s=='?'
+	    tb_flag_regex=1
+	s++
+    #---- clear the escape ----
+    $if tb_flag_escape
+	s=temp_string+tn_pat
+	$while *s
+	    $if *s=='\\'
+		$for i=s-temp_string:tn_next-1
+		    temp_string[i]=temp_string[i+1]
+	    s++
+
+#---------------------------------------- 
+fncode: f_glob_match(const char * s, const char * p)
+    $if p[0]=='\0'
+	$if s[0]=='\0'
+	    return 1
+	$else
+	    return 0
+    $elif p[0]=='*'
+	p+=1
+	$dowhile *s++
+	    $if f_glob_match(s, p)
+		return 1
+	return 0
+    $elif s[0] && (p[0]==s[0] || p[0]=='?')
+	return f_glob_match(s+1, p+1)
+    $else
+	return 0
+

@@ -23,7 +23,7 @@
 :syntax match perlKey /^\s*\(push\|shift\|unshift\|pop\|print\|return\|goto\|last\|next\|break\|continue\)\>/
 
 :syntax match perlKey /^\s*\i\+:/
-:syntax match xInclude /^include.*/
+:syntax match xInclude /^include:.*/
 :syntax match xCSS /CSS: .*/
 
 :syntax match perlVar /\(\$\|@\|%\)\i\+/
@@ -38,7 +38,10 @@
 :highlight link xStage Statement
 :highlight link xComment NonText
 :highlight link xCommentImportant Comment
-:highlight link xInclude Include
+
+" :highlight link xInclude Include
+:highlight xInclude term=underline cterm=bold ctermfg=81 guifg=#ff80ff
+
 :highlight link xHTML Special
 
 :highlight link perlVar Comment

@@ -30,11 +30,7 @@ subcode: split_sub_param
 	@pre_plist=MyDef::utils::proper_split($1)
     $param=~s/^\s*,?\s*//;
     $pline=$param;
-    $if $param=~/ \| /
-	# ---- ' | ' seperated param list
-	@plist=split /\s+\|\s+/, $param;
-    $else
-	@plist=MyDef::utils::proper_split($param)
+    @plist=MyDef::utils::proper_split($param)
 
 subcode: call_sub_map
     $if 1+@pre_plist!=@$params
@@ -141,12 +137,7 @@ subcode:: support_subs
 	$call call_sub_param
 	$if $codelib
 	    $if $codelib->{type} eq "perl" && $interface_type ne "perl"
-		my $t=eval_sub($codename)
-		eval $t
-		$if $@ and !$eval_sub_error{$codename}
-		    $eval_sub_error{$codename}=1
-		    print STDERR "    [$cur_file:$cur_line] Code eval error: [$@]\n";
-		    print STDERR "  $t\n"
+		$f_parse->("\$eval $codename, $param")
 	    $else
 		$call split_sub_param
 		&call call_sub_block

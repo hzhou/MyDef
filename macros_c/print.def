@@ -38,12 +38,17 @@ subcode:: c_support_subs
 	$elif $str=~/^\s*\"(.*)\"\s*$/
 	    $str=$1
 
+	$if $add_newline and $str=~/(.*)-$/
+	    $add_newline=0
+	    $str=$1
+
 	my %colors=(red=>31,green=>32,yellow=>33,blue=>34,magenta=>35,cyan=>36)
 
 	my @fmt_list
 	my @arg_list
 
 	my @group
+	my $flag_hyphen=0
 	&call parse_loop, $str
 	    &call if_lex, %
 		&call if_lex, %
@@ -99,12 +104,12 @@ subcode:: c_support_subs
 	$if @pre_list
 	    warn "Extra fmt arg list: ", join(", ", @pre_list), "\n"
 
-	$if $add_newline
+	$if @arg_list and $add_newline
 	    my $tail=$fmt_list[-1]
 	    $if $tail=~/(.*)-$/
 		$fmt_list[-1]=$1
 	    $elif $tail!~/\\n$/
-	    push @fmt_list, "\\n"
+		push @fmt_list, "\\n"
 
 	$if !@arg_list
 	    return (0, '"'.join('',@fmt_list).'"')

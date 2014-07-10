@@ -72,6 +72,7 @@ subcode:: package_globals
     );
 
     # TODO: limit to function call?
+    #-- deprecated, directly test in expression.def
     %text_include=(
 	"printf|perror"=>"stdio",
 	"malloc"=>"stdlib",

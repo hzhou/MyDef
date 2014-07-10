@@ -1,6 +1,3 @@
-include: c/slist.def
-include: c/tempstr.def
-
 ## frame
 subcode: basic_frame
     $include stdio
@@ -59,6 +56,7 @@ subcode: mmap(filename, strname, strsize)
 
 # --------------------------------
 subcode: open_w(file)
+    $include stdio
     file_out=fopen($(file), "wb")
     $if file_out==NULL
         fprintf(stderr, "Can't write %s\n", $(file))
@@ -67,6 +65,7 @@ subcode: open_w(file)
         fclose(file_out)
 
 subcode: open_r(file)
+    $include stdio
     file_in=fopen($(file), "rb")
     $if file_in==NULL
         fprintf(stderr, "Can't open %s\n", $(file))

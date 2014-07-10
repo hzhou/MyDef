@@ -166,6 +166,8 @@ subcode: expand_macro_seg
 		#-- literal strlen -----
 		$if $t=~/^".*"$/
 		    $segs[$j]=eval "length($t)"
+		$else
+		    $segs[$j]=length($t)
 	    $elif $p=~/list:(.*)/
 		my $idx=$1
 		my @tlist=MyDef::utils::proper_split($t)

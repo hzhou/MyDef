@@ -1,0 +1,24 @@
+subcode: parse_cmdline
+    i=1
+    $while i<argc
+	$(set:a=argv[i])
+	BLOCK
+	i++
+
+subcode: get_opt(c)
+    $case strcmp($(a), "-$(c)")==0
+	$global b_opt_$(c)=0
+	b_opt_$(c)=1
+
+subcode: get_arg(keyword)
+    $case strncmp($(a), "$(keyword)=", $(keyword:len)+1)==0
+	$global char * s_opt_$(keyword)=NULL
+	s_opt_$(keyword)=$(a)+$(keyword:len)+1
+    $case $(a) $eq "-$(keyword)"
+	i++
+	$if i<argc
+	    s_opt_$(keyword)=$(a)
+
+	
+
+

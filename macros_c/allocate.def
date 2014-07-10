@@ -40,7 +40,7 @@ subcode: allocate_block(auto)
 		$call allocate_array, $out
 	    $(if:auto=auto)
 		push @$post, "free($p);"
-	$call allocate_init
+    $call allocate_init
 
 #------------------------------------------ 
 subcode: allocate_dimension

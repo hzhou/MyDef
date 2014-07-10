@@ -135,7 +135,7 @@ subcode: sig_child
 	    $else
 		break
 
-# ---- Daemon ----
+#---- Daemon ---------------------------------
 subcode: daemon_start
     $include unistd
     $call daemon_fork
@@ -148,6 +148,7 @@ subcode: daemon_start
     chdir("/")
     $for i=0:3
 	close(i)
+    $include fcntl
     open("/dev/null", O_RDONLY)
     open("/dev/null", O_RDWR)
     open("/dev/null", O_RDWR)
@@ -157,12 +158,20 @@ subcode: daemon_start
 subcode: daemon_fork
     tn_pid=fork()
     $if tn_pid<0
-	print "daemon_fork failed!"
+	$print "daemon_fork failed!"
 	return -1
     $elif tn_pid>0
 	# parent
 	_exit(0)
 
+
+#---- syslog ------------------------------------
+subcode: syslog_start(prog)
+    $include syslog
+    openlog("$(prog)", LOG_NDELAY, LOG_USER)
+
+subcode: syslog(@msg)
+    syslog(LOG_INFO, $(msg))
 
 # ---- Wrapper -----------------------------------------------------
 subcode: Close(fd)
@@ -171,11 +180,9 @@ subcode: Close(fd)
 
 # ---- Signal handling ---------------------------
 subcode: signal(signo)
-    $(block:global_init)
-	void on_$(signo)(int signo){
-	    BLOCK
-	    return
-	}
+    $function on_$(signo)(int signo)
+	BLOCK
+	return
     $call signal_set, $(signo), on_$(signo)
 
 subcode: signal_ignore(signo)

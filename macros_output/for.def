@@ -4,7 +4,7 @@ subcode: parsecode_for_support(style)
 	$call for_$(style)
 	return "NEWBLOCK-for"
     $else
-	my $var="i"
+	my $var
 	$if $param=~/^(\S+)\s*=\s*(.*)/
 	    $var=$1
 	    $param=$2

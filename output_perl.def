@@ -66,7 +66,7 @@ subcode: for_i0_i1_step
 	$step="--"
     $else
 	$step= "+=$step"
-    $call loop_var, $var
+    $call loop_var
     $param="my $var=$i0; $var $i1; $var$step"
 
 subcode: parsecode_foreach
@@ -75,9 +75,11 @@ subcode: parsecode_foreach
 	$call loop_var, $var
 	return single_block("foreach my $var ($list){", "}", "foreach")
 
-subcode: loop_var(var)
-    $if $(var)=~/^(\w+)/
-	$(var)='$'.$(var)
+subcode: loop_var
+    $if !$var
+	$var="\$i"
+    $elif $var=~/^(\w+)/
+	$var='$'.$var
 #---------------------------------------- 
 subcode: dumpout
     # needed for wrapping up &case support

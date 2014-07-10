@@ -1,5 +1,6 @@
 include: macros_c/allocate.def
 include: macros_c/for.def
+include: macros_c/sumcode.def
 include: macros_c/expression.def
 include: macros_c/print.def
 include: macros_c/assignment.def
@@ -8,11 +9,6 @@ subcode:: package_globals
     our $anonymous_count=0
 
     our $print_type=1
-
-subcode: check_text_includes
-    $while my ($k, $v)=each %text_include
-	$if $l=~/$k/
-	    $call add_include, $v
 
 subcode: parsecode_special
     $if $l=~/^SUBBLOCK BEGIN (\d+) (.*)/
@@ -174,15 +170,8 @@ subcode: parsecode_other
     $elif $l=~/^SOURCE_DEDENT/
 	$cur_indent--;
 
-    #$call check_text_includes
-    #$call check_exponential
-    #$call check_assignment
-
     $call check_functioncall
     $l=check_expression($l)
-
-    $if $l=~/^return\b/
-	func_return($l);
 
     $if $l
 	$call check_termination

@@ -22,11 +22,11 @@ subcode: string_exit(var)
 
 subcode: string_empty(var)
     $(var)_len=0
-    memset($(var), 0, $(var)_size)
+    $if $(var)_size>0
+	memset($(var), 0, $(var)_size)
 
 subcode: string_clear(var)
-    $(var)_len=0
-    memset($(var), 0, $(var)_size)
+    $call string_empty, $(var)
 
 subcode: string_resize(var, n)
     $(set:string=$(var), &$(var)_len, &$(var)_size)
@@ -43,7 +43,7 @@ fncode: f_string_resize(s, pn_len, pn_size, n)
     $else
 	$if $(size)<n
 	    $(size)=n
-	    *p_s=realloc(s, $(size))
+	    s=realloc(s, $(size))
 	    $call @assert, s
 	    memset(s+$(len), 0, $(size)-$(len))
 	$elif $(len)>n
@@ -56,6 +56,8 @@ subcode: string_append(var, s)
     $(set:string=$(var), &$(var)_len, &$(var)_size)
     $(if:s~")
 	$fcall $(var)=f_string_append($(string), $(s),$(s:strlen))
+    $(elif:s~')
+	$fcall $(var)=f_string_append_char($(string), $(s))
     $(else)
 	$get_type(type) $(s)
 	$(if:type=int or type=char or type=unsigned)
@@ -70,20 +72,34 @@ subcode: string_append(var, s)
 		$(set:strlen=strlen($(s)))
 	    $fcall $(var)=f_string_append($(string), $(s), $(strlen))
 	$(else)
-	    $warn string format [$(type)] not recognized
+	    $warn string format $(s):$(type) not recognized
+	    $fcall $(var)=f_string_append($(string), $(s), strlen($(s)))
 
 subcode: string_add(var, @plist)
     $(foreach:p)
 	$call string_append, $(var), $(p)
 
-subcode: string_fmt(var, param)
+subcode: string_addchar(var, c)
+    $(set:string=$(var), &$(var)_len, &$(var)_size)
+    $fcall $(var)=f_string_append_char($(string), $(c))
+
+subcode: string_addhex(var, c)
+    $(set:string=$(var), &$(var)_len, &$(var)_size)
+    $fcall $(var)=f_string_append_hex($(string), $(c))
+
+subcode: string_fmt(var, @param)
     $fmt $(param)
     $call string_resize, $(var), 100
     $(if:fmt_n>0)
 	tn_ret=snprintf($(var)+$(var)_len, $(var)_size-$(var)_len-1, $(fmt))
 	$(var)_len+=tn_ret
     $(else)
-	$call tempstr_add, $(fmt)
+	$call string_add, $(var), $(fmt)
+
+#---------------------------------------- 
+subcode: string_set(var, s)
+    $call string_clear, $(var)
+    $call string_append, $(var), $(s)
 
 #---------------------------------------- 
 subcode: string_replace(var, i0, i1, @replace)
@@ -100,6 +116,27 @@ fncode: f_string_append(s, pn_len, pn_size, char * src, int len)
     $call string_expand, s, *pn_len, *pn_size, len
     memcpy(s+*pn_len, src, len)
     *pn_len+=len
+    return s
+
+fncode: f_string_append_char(s, pn_len, pn_size, c)
+    $call string_expand, s, *pn_len, *pn_size, 1
+    s[*pn_len]=c
+    *pn_len+=1
+    return s
+
+fncode: f_string_append_hex(s, pn_len, pn_size, c)
+    $call string_expand, s, *pn_len, *pn_size, 2
+    t_c=c>>4
+    $if t_c<10
+	s[*pn_len]=t_c+'0'
+    $else
+	s[*pn_len]=t_c-10+'a'
+    t_c=c&0xf
+    $if t_c<10
+	s[*pn_len+1]=t_c+'0'
+    $else
+	s[*pn_len+1]=t_c-10+'a'
+    *pn_len+=2
     return s
 
 fncode: f_string_append_int(s, pn_len, pn_size, int num)
@@ -200,12 +237,15 @@ subcode: ftoa_remove_zeros
     $while i>0 && s2[i-1]=='0'
 	i--
 	s2[i]='\0'
+
 #---------------------------------------- 
 subcode: string_expand(var, len, size, inc)
     $if $(len)+$(inc)>$(size)
 	$temp n
 	$if $(size)==0
 	    $(n)=100
+	$else
+	    $(n)=$(size)
 	$while $(len)+$(inc)>$(n)
 	    $(n)=$(n)*5/3
 	$(var)=realloc($(var), $(n)+1)

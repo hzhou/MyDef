@@ -28,7 +28,7 @@ subcode: parse_preproc
 		parseblock({source=>$subblock, name=>"\${foreach}"})
 		pop @$deflist;
 	$else
-	    $call warn, \$(foreach:p) missing \$(plist)
+	    warn "[$cur_file:$cur_line]\$(foreach:p) missing \$(plist)\n"
     $elsif $preproc=~/^if:\s*(.*)/
 	my $subblock=grabblock($block, \$lindex);
 	$call parse_preproc_if
@@ -174,7 +174,13 @@ subcode:: support_subs
 			return 1;
 	$elsif $cond=~/^\s*(\w+)(.*)/
 	    my $t=get_def($1);
-	    return test_op($t, $2)
+	    $if !$2
+		return defined $t
+	    $else
+		$if !defined $t
+		    return test_op($1, $2)
+		$else
+		    return test_op($t, $2)
 	$else
 	    return 0
 	return 0

@@ -63,7 +63,6 @@ subcode:: parsecode_func_other
 	return
 
 subcode: check_var_special
-    # print "check_var_special: $param\n"
     $if $param=~/^(\w+)\s+(.*)$/
 	$if $class_names{$1}
 	    my $scope=$func
@@ -99,11 +98,16 @@ subcode:: c_support_subs
 	my $var_list=$cur_function->{var_list}
 	my $var_hash=$cur_function->{var_hash}
 	$call add_var, $var_hash, $var_list
-	    
+
     $sub my_add_var($name, $type, $value)
 	my $var_list=$cur_scope->{var_list}
 	my $var_hash=$cur_scope->{var_hash}
 	$call add_var, $var_hash, $var_list
+
+    $sub auto_add_var($name, $type, $value)
+	my $var=find_var($name)
+	$if !$var
+	    func_add_var($name, $type, $value)
 
     $sub temp_add_var($name, $type, $value)
 	my $var=parse_var($name, $type, $value)
@@ -137,6 +141,7 @@ subcode: check_var_collision(exist)
     $if $var->{type} eq $exist->{type}
 	$if $var->{array} > $exist->{array}
 	    $exist->{array}=$var->{array}
+	    $exist->{dimension}=$var->{array}
 
 subcode: add_var(hash, list)
     my $var=parse_var($name, $type, $value)
@@ -148,6 +153,7 @@ subcode: add_var(hash, list)
 	$(if:list!=none)
 	    push @$(list), $name
 	$(hash)->{$name}=$var
+	# $call warn, add_var $(hash) $name
 	return $name
 
 #---------------------------------------- 
@@ -192,6 +198,7 @@ subcode:: c_support_subs
 	    $var->{attr}=join(" ", @attrs)
 	$if $array
 	    $var->{array}=$array
+	    $var->{dimension}=$array
 	    #- $local pn_test[10]: int* --> same
 	    $if $type!~/\*$/
 		#- $local n_test[10]:  int  --> int *
@@ -380,20 +387,26 @@ subcode: process_extern_binary
 #---------------------------------------- 
 subcode:: parsecode_func_other
     $elif $func eq "protect_var"
-	protect_var($param)
+	my @tlist=MyDef::utils::proper_split($param)
+	$foreach $t in @tlist
+	    protect_var($t)
 	return
     $elif $func eq "unprotect_var"
-	# print "unprotect_var $param\n"
-	$protected_var{$param}--
+	my @tlist=MyDef::utils::proper_split($param)
+	$foreach $t in @tlist
+	    # $call warn, unprotect_var $t: $protected_var{$t}
+	    $if $protected_var{$t}>0
+		$protected_var{$t}--
 	return
 
 subcode:: c_support_subs
     $global %protected_var
-    $sub protect_var($var)
-	$if $protected_var{$var}
-	    $call warn, Variable $var protected
-	    $protected_var{$var}++
+    $sub protect_var($v)
+	# $call warn,  protect_var $v
+	$if $protected_var{$v}
+	    $call warn, Variable $v protected: [$protected_var{$v}]
+	    $protected_var{$v}++
 	$else
-	    $protected_var{$var}=1
+	    $protected_var{$v}=1
 
 

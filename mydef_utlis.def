@@ -44,6 +44,11 @@ subcode:: package_subs
 		$t.=$1
 		$if @closure_stack
 		    $call proper_split_close_bracket
+	    $elif $param=~/\G(.)/gc
+		my $curfile=MyDef::compileutil::curfile_curline()
+		$print "[$curfile]proper_split: unmatched $1 [$param]"
+		$t.=$1
+
 	$if $t or @tlist
 	    push @tlist, $t
 	return @tlist
