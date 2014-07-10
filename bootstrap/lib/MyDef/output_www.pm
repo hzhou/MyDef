@@ -99,14 +99,21 @@ sub parsecode {
         }
         return;
     }
+    elsif($l=~/^\$warn (.*)/){
+        my $curfile=MyDef::compileutil::curfile_curline();
+        print "[$curfile]\x1b[33m $1\n\x1b[0m";
+        return;
+    }
     elsif($l=~/^\$eval\s+(\w+)(.*)/){
         my ($codename, $param)=($1, $2);
         $param=~s/^\s*,\s*//;
         my $t=MyDef::compileutil::eval_sub($codename);
         eval $t;
-        if($@){
-            print "Error [$l]: $@\n";
-            print "  $t\n";
+        if($@ and !$MyDef::compileutil::eval_sub_error{$codename}){
+            $MyDef::compileutil::eval_sub_error{$codename}=1;
+            print "evalsub - $codename\n";
+            print "[$t]\n";
+            print "eval error: [$@]\n";
         }
         return;
     }
@@ -165,21 +172,22 @@ sub parsecode {
         }
         elsif($cur_mode eq "php"){
         }
-        if($plugin_statement{$func}){
-            my $codename=$plugin_statement{$func};
-            my $t=MyDef::compileutil::eval_sub($codename);
-            eval $t;
-            if($@){
-                print "plugin - $func\n";
-                print "[$t]\n";
-                print "eval error: [$@]\n";
-            }
-            return;
-        }
     }
     elsif($l=~/^\s*\$(\w+)\s*(.*)$/){
         my ($func, $param)=($1, $2);
         if($param !~ /^=/){
+            if($plugin_statement{$func}){
+                my $codename=$plugin_statement{$func};
+                my $t=MyDef::compileutil::eval_sub($codename);
+                eval $t;
+                if($@ and !$MyDef::compileutil::eval_sub_error{$codename}){
+                    $MyDef::compileutil::eval_sub_error{$codename}=1;
+                    print "evalsub - $codename\n";
+                    print "[$t]\n";
+                    print "eval error: [$@]\n";
+                }
+                return;
+            }
             if($func =~ /^(tag|div|span|ol|ul|li|table|tr|td|th|h[1-5]|p|pre|html|head|body|form|label|fieldset|button|input|textarea|select|option|img|a|center|b|style)$/){
                 my @tt_list=split /,\s*/, $param;
                 my $is_empty_tag=0;
@@ -386,17 +394,6 @@ sub parsecode {
                     }
                 }
             }
-            if($plugin_statement{$func}){
-                my $codename=$plugin_statement{$func};
-                my $t=MyDef::compileutil::eval_sub($codename);
-                eval $t;
-                if($@){
-                    print "plugin - $func\n";
-                    print "[$t]\n";
-                    print "eval error: [$@]\n";
-                }
-                return;
-            }
         }
     }
     if($cur_mode eq "php"){
@@ -580,7 +577,7 @@ sub js_string {
     if($parts[0]=~/^$/){
         shift @parts;
     }
-    for(my $i=0;$i<@parts;$i++){
+    for(my $i=0; $i < @parts; $i++){
         if($parts[$i]=~/^\$(\w+)/){
             $parts[$i]=$1;
             while($parts[$i+1]=~/^(\[.*?\])/){

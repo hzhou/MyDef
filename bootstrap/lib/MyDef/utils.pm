@@ -71,6 +71,11 @@ sub proper_split {
                 }
             }
         }
+        elsif($param=~/\G(.)/gc){
+            my $curfile=MyDef::compileutil::curfile_curline();
+            print "[$curfile]proper_split: unmatched $1 [$param]\n";
+            $t.=$1;
+        }
     }
     if($t or @tlist){
         push @tlist, $t;

@@ -4,7 +4,7 @@ our $config_outputdir;
 our $config_outputdir_make=0;
 our $config_filetype;
 my @master_config;
-my $module="www";
+my $module="perl";
 my %module_type=(perl=>"pl", www=>"html", win32=>"c", apple=>"m", general=>"txt", matlab=>"m", cpp=>"cpp");
 my %macros;
 my @include_folders;
@@ -49,8 +49,8 @@ if(!-f "config"){
     else{
         $config_outputdir=prompt("Please enter the path to compile into:");
         print Out "output_dir: $config_outputdir\n";
-        $module=prompt("Please enter module type [www]:");
-        if(!$module){$module="www";};
+        $module=prompt("Please enter module type [perl]:");
+        if(!$module){$module="perl";};
         print Out "module: $module\n";
     }
     close Out;
@@ -430,12 +430,12 @@ if($config_outputdir){
                     }
                 }
                 if($pm_count>0){
-                    print "Running h2xs ... ...\n";
+                    print "Running h2xs -X $config_outputdir... ...\n";
                     system "h2xs -X $config_outputdir";
                 }
             }
             else{
-                print "Running h2xs ... ...\n";
+                print "Running h2xs -n $config_outputdir... ...\n";
                 system "h2xs -n $config_outputdir";
             }
         }

@@ -47,14 +47,21 @@ sub parsecode {
         }
         return;
     }
+    elsif($l=~/^\$warn (.*)/){
+        my $curfile=MyDef::compileutil::curfile_curline();
+        print "[$curfile]\x1b[33m $1\n\x1b[0m";
+        return;
+    }
     elsif($l=~/^\$eval\s+(\w+)(.*)/){
         my ($codename, $param)=($1, $2);
         $param=~s/^\s*,\s*//;
         my $t=MyDef::compileutil::eval_sub($codename);
         eval $t;
-        if($@){
-            print "Error [$l]: $@\n";
-            print "  $t\n";
+        if($@ and !$MyDef::compileutil::eval_sub_error{$codename}){
+            $MyDef::compileutil::eval_sub_error{$codename}=1;
+            print "evalsub - $codename\n";
+            print "[$t]\n";
+            print "eval error: [$@]\n";
         }
         return;
     }

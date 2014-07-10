@@ -33,6 +33,7 @@ sub dumpout {
     foreach my $i (keys %MyDef::output_c::objects){
         if($i=~/^lib(.*)/){
             push @$f, "#pragma comment(lib, \"$1\")\n";
+            $MyDef::output_c::objects{$i}=undef;
         }
     }
     MyDef::output_c::dumpout($f, $out);

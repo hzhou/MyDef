@@ -3,6 +3,8 @@ package MyDef::compileutil;
 our $out;
 our @output_list;
 our @callback_block_stack;
+our %eval_sub_cache;
+our %eval_sub_error;
 our %index_name_hash;
 our %named_blocks;
 our @mode_stack=("sub");
@@ -56,6 +58,9 @@ sub fetch_output {
 }
 sub test_op {
     my ($a, $test)=@_;
+    if($debug eq "preproc"){
+        print "preproc test_op: $a: $test\n";
+    }
     if($test=~/^:(\d+)/){
         $test=$';
         $a=substr($a, 0, $1);
@@ -102,6 +107,9 @@ sub test_in {
 }
 sub testcondition {
     my ($cond)=@_;
+    if($debug eq "preproc"){
+        print "preproc testcondition: $cond\n";
+    }
     if(!$cond){
         return 0;
     }
@@ -201,7 +209,17 @@ sub testcondition {
     }
     elsif($cond=~/^\s*(\w+)(.*)/){
         my $t=get_def($1);
-        return test_op($t, $2);
+        if(!$2){
+            return defined $t;
+        }
+        else{
+            if(!defined $t){
+                return test_op($1, $2);
+            }
+            else{
+                return test_op($t, $2);
+            }
+        }
     }
     else{
         return 0;
@@ -230,12 +248,7 @@ sub call_back {
         }
         $param=~s/^\s*,?\s*//;
         $pline=$param;
-        if($param=~/ \| /){
-            @plist=split /\s+\|\s+/, $param;
-        }
-        else{
-            @plist=MyDef::utils::proper_split($param);
-        }
+        @plist=MyDef::utils::proper_split($param);
         push @callback_block_stack, {source=>$subblock, name=>"BLOCK", cur_file=>$cur_file, cur_line=>$cur_line};
         push @callsub_stack, $codename;
         my $params=$codelib->{params};
@@ -301,12 +314,7 @@ sub call_sub {
     }
     if($codelib){
         if($codelib->{type} eq "perl" && $interface_type ne "perl"){
-            my $t=eval_sub_string($codelib);
-            eval $t;
-            if($@){
-                print STDERR "    [$cur_file:$cur_line] Code eval error: [$@]\n";
-                print STDERR "  $t\n";
-            }
+            $f_parse->("\$eval $codename, $param");
         }
         else{
             my (@pre_plist, $pline, @plist);
@@ -316,12 +324,7 @@ sub call_sub {
             }
             $param=~s/^\s*,?\s*//;
             $pline=$param;
-            if($param=~/ \| /){
-                @plist=split /\s+\|\s+/, $param;
-            }
-            else{
-                @plist=MyDef::utils::proper_split($param);
-            }
+            @plist=MyDef::utils::proper_split($param);
             if($codelib){
                 push @callsub_stack, $codename;
                 if($calltype=~/\$call-(\w+)/){
@@ -450,11 +453,18 @@ sub get_subcode {
 }
 sub eval_sub {
     my ($codename)=@_;
-    my $codelib=get_def_attr("codes", $codename);
-    if(!$codelib){
-        warn "    eval_sub: Code $codename not found\n";
+    if($eval_sub_cache{$codename}){
+        return $eval_sub_cache{$codename};
     }
-    return eval_sub_string($codelib);
+    else{
+        my $codelib=get_def_attr("codes", $codename);
+        if(!$codelib){
+            warn "    eval_sub: Code $codename not found\n";
+        }
+        my $t= eval_sub_string($codelib);
+        $eval_sub_cache{$codename}=$t;
+        return $t;
+    }
 }
 sub eval_sub_string {
     my ($codelib)=@_;
@@ -481,9 +491,11 @@ sub parseblock {
     my $blk= {out=>$out, index=>$block_index, eindex=>$block_index, file=>$cur_file, line=>$cur_line, code=>$code};
     push @block_stack, $blk;
     if($code->{"scope"}){
+        my $idx=$block_index;
         my $scope=$code->{scope};
         $blk->{scope}=$scope;
-        $f_parse->("SUBBLOCK BEGIN $block_index $scope");
+        $f_parse->("SUBBLOCK BEGIN $idx $scope");
+        push @$out, "DUMP_STUB block$idx\_pre";
     }
     my @last_line;
     my $context;
@@ -606,7 +618,7 @@ sub parseblock {
                     my $vparam=$2;
                     my @tlist;
                     if($vparam=~/(\d+)\.\.(\d+)/){
-                        for(my $i=$1;$i<=$2; $i++){
+                        for(my $i=$1;$i<=$2;$i++){
                             push @tlist, $i;
                         }
                     }
@@ -625,13 +637,16 @@ sub parseblock {
                     my $subblock=grabblock($block, \$lindex);
                     my $plist=$deflist->[-1]->{plist};
                     if($plist){
-                        my @plist=split /,\s*/, $plist;
+                        my @plist=MyDef::utils::proper_split($plist);
                         foreach my $p (@plist){
                             my $macro={"p"=>$p};
                             push @$deflist, $macro;
                             parseblock({source=>$subblock, name=>"\${foreach}"});
                             pop @$deflist;
                         }
+                    }
+                    else{
+                        warn "[$cur_file:$cur_line]\$(foreach:p) missing \$(plist)\n";
                     }
                 }
                 elsif($preproc=~/^if:\s*(.*)/){
@@ -643,16 +658,22 @@ sub parseblock {
                     else{
                         $context="switch_on";
                     }
+                    if($debug eq "preproc"){
+                        print "parse_preproc_if: ($1) -> $context\n";
+                    }
                 }
                 elsif($preproc=~/^els?e?if:\s*(.*)/){
                     my $subblock=grabblock($block, \$lindex);
                     if($context eq "switch_on"){
                         if(testcondition($1)){
-                            parseblock({source=>$subblock, name=>"\${elif:}"});
+                            parseblock({source=>$subblock, name=>"\${if:}"});
                             $context="switch_off";
                         }
                         else{
                             $context="switch_on";
+                        }
+                        if($debug eq "preproc"){
+                            print "parse_preproc_if: ($1) -> $context\n";
                         }
                     }
                 }
@@ -965,13 +986,14 @@ sub parseblock {
             }
         }
     }
-    my $blk=pop @block_stack;
+    my $blk=$block_stack[-1];
+    my $idx=$blk->{index};
     if($blk->{scope}){
         $f_parse->("SUBBLOCK END $blk->{index} $blk->{scopes}");
     }
+    pop @block_stack;
     $cur_file=$blk->{file};
     $cur_line=$blk->{line};
-    my $idx=$blk->{index};
     if($named_blocks{"block$idx\_post"}){
         push @$out, "DUMP_STUB block$idx\_post";
     }
@@ -1142,20 +1164,22 @@ sub expand_macro {
                         if($t=~/^".*"$/){
                             $segs[$j]=eval "length($t)";
                         }
+                        else{
+                            $segs[$j]=length($t);
+                        }
                     }
                     elsif($p=~/list:(.*)/){
-                        my $pattern=$1;
-                        my @tlist=split /,\s*/, $t;
-                        my @rlist;
-                        foreach my $t2 (@tlist){
-                            my $t3=$pattern;
-                            $t3=~s/\$1/$t2/g;
-                            push @rlist, $t3;
+                        my $idx=$1;
+                        my @tlist=MyDef::utils::proper_split($t);
+                        if($idx eq "n"){
+                            $segs[$j]=@tlist;
                         }
-                        $segs[$j]=join(', ', @rlist);
+                        elsif($idx=~/(\d+)/){
+                            $segs[$j]=$tlist[$1];
+                        }
                     }
                     else{
-                        my @plist=split /,/, $p;
+                        my @plist=MyDef::utils::proper_split($p);
                         my $i=1;
                         foreach my $pp (@plist){
                             $t=~s/\$$i/$pp/g;
@@ -1208,12 +1232,18 @@ sub expand_macro_recurse {
             }
         }
     }
+    return !$hasmacro;
 }
 sub get_macro {
     my ($name)=@_;
     my $t='$'."($name)";
-    expand_macro_recurse(\$t);
-    return $t;
+    my $ret=expand_macro_recurse(\$t, 1);
+    if($ret){
+        return $t;
+    }
+    else{
+        return undef;
+    }
 }
 sub get_ogdl {
     my ($name)=@_;
@@ -1271,13 +1301,15 @@ sub set_named_block {
 }
 sub get_named_block {
     my ($name)=@_;
-    if($name eq "_post"){
-        my $cur_idx=$block_stack[-1]->{eindex};
-        $name="block$cur_idx\_post";
-    }
-    elsif($name =~ /_post(\d+)/){
-        my $idx=$block_stack[-$1]->{eindex};
-        $name="block$idx\_post";
+    if($name=~/^_(post|pre)(\d*)$/){
+        my $idx;
+        if(!$2){
+            $idx=$block_stack[-1]->{eindex};
+        }
+        else{
+            $idx=$block_stack[-$2]->{eindex};
+        }
+        $name="block$idx\_$1";
     }
     if(!$named_blocks{$name}){
         $named_blocks{$name}=[];

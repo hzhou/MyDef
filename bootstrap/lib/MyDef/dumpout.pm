@@ -1,30 +1,5 @@
 use strict;
 package MyDef::dumpout;
-my @func_list;
-my $func_index=-1;
-sub init_funclist {
-    @func_list=();
-    $func_index=-1;
-}
-sub add_function {
-    my ($func)=@_;
-    $func_index++;
-    $func_list[$func_index]=$func;
-    return $func_index;
-}
-sub get_function {
-    my ($fidx)=@_;
-    return $func_list[$fidx];
-}
-sub get_func_list {
-    return \@func_list;
-}
-sub get_func_index {
-    return $func_index;
-}
-sub get_cur_func {
-    return $func_list[$func_index];
-}
 sub dumpout {
     my $dump=shift;
     my $f=$dump->{f};
@@ -36,11 +11,6 @@ sub dumpout {
     my @source_stack;
     my $indentation=0;
     my @indentation_stack;
-    my @openblock;
-    my @closeblock;
-    my @preblock;
-    my @postblock;
-    my $blockstack=0;
     while(1){
         my $l;
         if(@$out){
@@ -92,34 +62,14 @@ sub dumpout {
             }
         }
         elsif($l=~/^\s*SOURCE_INDENT/){
-            if($blockstack==0){
-                push @openblock, [];
-                push @closeblock, [];
-                push @preblock, [];
-                push @postblock, [];
-            }
-            push @source_stack, $out;
-            push @source_stack, pop(@preblock);
-            $out=pop(@openblock);
-            push @$out, "INDENT";
+            $indentation++;
         }
         elsif($l=~/^\s*SOURCE_DEDENT/){
-            push @source_stack, $out;
-            push @source_stack, pop(@closeblock);
-            $out=pop(@postblock);
-            push @$out, "DEDENT";
+            $indentation-- if $indentation;
         }
         elsif($l=~/^\s*BLOCK_(\d+)/){
             push @source_stack, $out;
             $out=MyDef::compileutil::fetch_output($1);
-        }
-        elsif($l=~/^\s*OPEN_FUNC_(\d+)/){
-            my $func=$func_list[$1];
-            push @openblock, $func->{openblock};
-            push @closeblock, $func->{closeblock};
-            push @preblock, $func->{preblock};
-            push @postblock, $func->{postblock};
-            $blockstack=1;
         }
         elsif($l=~/^SUBBLOCK (BEGIN|END)/){
         }
@@ -143,12 +93,6 @@ sub dumpout {
                     push @$f, "\n";
                 }
             }
-        }
-        if($blockstack==1){
-            $blockstack=2;
-        }
-        else{
-            $blockstack=0;
         }
     }
 }

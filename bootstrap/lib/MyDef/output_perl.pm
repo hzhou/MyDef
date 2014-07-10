@@ -58,14 +58,21 @@ sub parsecode {
         }
         return;
     }
+    elsif($l=~/^\$warn (.*)/){
+        my $curfile=MyDef::compileutil::curfile_curline();
+        print "[$curfile]\x1b[33m $1\n\x1b[0m";
+        return;
+    }
     elsif($l=~/^\$eval\s+(\w+)(.*)/){
         my ($codename, $param)=($1, $2);
         $param=~s/^\s*,\s*//;
         my $t=MyDef::compileutil::eval_sub($codename);
         eval $t;
-        if($@){
-            print "Error [$l]: $@\n";
-            print "  $t\n";
+        if($@ and !$MyDef::compileutil::eval_sub_error{$codename}){
+            $MyDef::compileutil::eval_sub_error{$codename}=1;
+            print "evalsub - $codename\n";
+            print "[$t]\n";
+            print "eval error: [$@]\n";
         }
         return;
     }
@@ -204,7 +211,7 @@ sub parsecode {
                 return "NEWBLOCK-for";
             }
             else{
-                my $var="i";
+                my $var;
                 if($param=~/^(\S+)\s*=\s*(.*)/){
                     $var=$1;
                     $param=$2;
@@ -247,7 +254,10 @@ sub parsecode {
                 else{
                     $step= "+=$step";
                 }
-                if($var=~/^(\w+)/){
+                if(!$var){
+                    $var="\$i";
+                }
+                elsif($var=~/^(\w+)/){
                     $var='$'.$var;
                 }
                 $param="my $var=$i0; $var $i1; $var$step";
@@ -258,11 +268,77 @@ sub parsecode {
         elsif($func eq "foreach"){
             if($param=~/(\S+)\s+in\s+(.*)/){
                 my ($var, $list)=($1, $2);
-                if($var=~/^(\w+)/){
+                if(!$var){
+                    $var="\$i";
+                }
+                elsif($var=~/^(\w+)/){
                     $var='$'.$var;
                 }
                 return single_block("foreach my $var ($list){", "}", "foreach");
             }
+        }
+        elsif($func eq "print"){
+            my $str=$param;
+            if($str=~/^\s*\"(.*)\"\s*$/){
+                $str=$1;
+            }
+            my %colors=(red=>31,green=>32,yellow=>33,blue=>34,magenta=>35,cyan=>36);
+            my @fmt_list;
+            my @arg_list;
+            my @group;
+            my $n_escape=0;
+            while(1){
+                if($str=~/\G$/gc){
+                    last;
+                }
+                elsif($str=~/\G\$/gc){
+                    if($str=~/\G(red|green|yellow|blue|magenta|cyan)/gc){
+                        push @fmt_list, "\\x1b[$colors{$1}m";
+                        $n_escape++;
+                        if($str=~/\G\{/gc){
+                            push @group, $1;
+                        }
+                    }
+                    else{
+                        push @fmt_list, '$';
+                    }
+                }
+                elsif($str=~/\G\\\$/gc){
+                    push @fmt_list, '$';
+                }
+                elsif($str=~/\G\}/gc){
+                    if(@group){
+                        pop @group;
+                        if(!@group){
+                            push @fmt_list, "\\x1b[0m";
+                            $n_escape=0;
+                        }
+                        else{
+                            my $c=$group[-1];
+                            push @fmt_list, "\\x1b[$colors{$c}m";
+                            $n_escape++;
+                        }
+                    }
+                    else{
+                        push @fmt_list, '}';
+                    }
+                }
+                elsif($str=~/\G[^\$\}]+/gc){
+                    push @fmt_list, $&;
+                }
+            }
+            my $tail=$fmt_list[-1];
+            if($tail=~/(.*)-$/){
+                $fmt_list[-1]=$1;
+            }
+            elsif($tail!~/\\n$/){
+                push @fmt_list, "\\n";
+            }
+            if($n_escape){
+                push @fmt_list, "\\x1b[0m";
+            }
+            push @$out, 'print "'.join('',@fmt_list).'";';
+            return;
         }
     }
     if($l=~/^\s*$/){
@@ -294,7 +370,9 @@ sub dumpout {
     if(!defined $pagetype or $pagetype eq "pl"){
         push @$f, "#!/usr/bin/perl\n";
     }
-    push @$f, "use strict;\n";
+    if($pagetype ne "eval"){
+        push @$f, "use strict;\n";
+    }
     if($MyDef::page->{package}){
         push @$f, "package ".$MyDef::page->{package}.";\n";
     }
