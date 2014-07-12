@@ -5,21 +5,150 @@ subcode: print_matrix(v)
     $get_var_attr $(v), dim1, dim2
     $print \nMatrix $(v): $(dim1) x $(dim2)
     $(mset:limit=8, skip=3, skip2=5)
+    
+    $(if:P)
+	$(set:M=$(v)[$(P)[$1]*$(dim2)+$2])
+	$call print_vector, $(P)
+	$print
+    $(else)
+	$(set:M=($v)[$1*$(dim2)+$2])
+
     $(if:dim1 and dim2)
-	k=0
 	$for i=0:$(dim1)
 	    $if $(dim1)>$(limit) && i==$(skip)
 		$print "      ... ..."
 		i+=$(dim1)-$(skip2)
-		k=i*($(dim2)+1)
 	    $else
 		$for j=0:$(dim2)
 		    $if $(dim2)>$(limit) && j==$(skip)
 			printf "  ...  "
 			j+=$(dim2)-$(skip2)
-			k=i*$(dim2)+j
 		    $else
-			printf " %6g ", $(v)[k]
+			printf " %6g ", $(M:i,j)
 		    k++
 		$print
+
+subcode: print_vector(v)
+    $print "\nVector $(v): -"
+    $get_var_attr $(v), dimension
+    $print "%g-", $(v)[0]
+    $for i=1:$(dimension)
+	$print ", %g-", $(v)[i]
+    $print
+
+#---------------------------------------- 
+
+subcode: matrix_init(var, scope, @init)
+    $call parse_matrix_init, $(init)
+    $$(scope) double $(var)[]={$(init_str)}
+    $set_var_attr $(var), dim1=$(dim1), dim2=$(dim2)
+
+perlcode: parse_matrix_init
+    my @rows=split /;/, $param
+    my $n_rows=@rows
+
+    my @t
+    my $n_cols
+    $foreach $r in @rows
+	my @cols=split /\s*,\s*/, $r
+	$if !$n_cols
+	    $n_cols=@cols
+	$else
+	    $if $n_cols != @cols
+		$print "parse_matrix_init: uneven rows [$param]\n"
+	push @t, @cols
+    my $init_str=join(",", @t)
+    MyDef::compileutil::set_current_macro("dim1", $n_rows)
+    MyDef::compileutil::set_current_macro("dim2", $n_cols)
+    MyDef::compileutil::set_current_macro("init_str", $init_str)
+
+
+#---------------------------------------- 
+subcode: matrix_LU(var)
+    $get_var_attr $(var), dim1, dim2
+    $(if:!$(P))
+	$(export:P=pn_matrix_row_permutation)
+	$allocate($(dim1)) $(P)
+
+	$sumcode $(P)[i]=i
+
+	$(set:M=$(var)[$(P)[$1]*$(dim2)+$2])
+
+	$for i=0:$(dim1)
+	    $call matrix_LU_find_pivot
+	    $if tn_pivot>i
+		$call swap, $(P)[i], $(P)[tn_pivot]
+	    $for j=i+1:$(dim1)
+		$my tf_l=$(M:j,i)/tf_max
+		$(M:j,i) = tf_l
+		$for k=i+1:$(dim2)
+		    $(M:j,k)-=tf_l*$(M:i,k)
+
+subcode: matrix_LU_find_pivot
+    $my tn_pivot=i, tf_max=$(M:i,i)
+    $for j=i+1:$(dim1)
+	$if tn_max<$(M:j,i)
+	    tn_pivot=j
+	    tn_max=$(M:j,i)
+
+subcode: matrix_LU_reset
+    $(if:$(P))
+	free($(P))
+	$(unset:P)
+
+#---------------------------------------- 
+subcode: matrix_det(var)
+    $call matrix_LU, $(var)
+
+    $get_var_attr $(var), dim1, dim2
+    $(set:M=$(var)[$(P)[$1]*$(dim2)+$2])
+
+    $my tf_det
+    tf_det=1.0
+    $for i=0:$(dim1)
+	tf_det *= $(M:i,i)
+
+    #- count P parity
+
+    $yield tf_det
+
+#---------------------------------------- 
+subcode: matrix_solve(var, b)
+    $call matrix_LU, $(var)
+
+    $get_var_attr $(var), dim1, dim2
+    $(set:M=$(var)[$(P)[$1]*$(dim2)+$2])
+    $(set:V=$(b)[$(P)[$1]])
+
+    $for i=0:$(dim1)-1
+	$for j=i+1:$(dim1)
+	    $(V:j)-=$(V:i)*$(M:j,i)
+
+    $for i=$(dim1)-2:0:-1
+	$(V:i)=1.0/$(M:i,i)
+	$for j=i-1:0:-1
+	    $(V:j)-=$(V:i)*$(M:j,i)
+
+#---------------------------------------- 
+subcode: matrix_inv(var)
+    $call matrix_LU, $(var)
+
+    $get_var_attr $(var), dim1, dim2
+    $(set:M=$(var)[$(P)[$1]*$(dim2)+$2])
+    $(set:V=$(b)[$(P)[$1]])
+
+    #--- Work in progress ----
+    $for j=1:$(dim1)
+	tf_sum=0.0
+	$for i=0:j
+	    tf_sum-=$(M:j,i)
+
+    $for i=0:$(dim1)-1
+	$for j=i+1:$(dim1)
+	    $(V:j)-=$(V:i)*$(M:j,i)
+
+    $for i=$(dim1)-2:0:-1
+	$(V:i)=1.0/$(M:i,i)
+	$for j=i-1:0:-1
+	    $(V:j)-=$(V:i)*$(M:j,i)
 
