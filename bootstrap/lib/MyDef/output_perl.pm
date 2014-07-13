@@ -220,18 +220,18 @@ sub parsecode {
                 my ($i0, $i1, $step);
                 if(@tlist==1){
                     $i0="0";
-                    $i1="< $param";
+                    $i1="<$param";
                     $step="1";
                 }
                 elsif(@tlist==2){
                     if($tlist[1] eq "0"){
                         $i0="$tlist[0]-1";
-                        $i1=">= $tlist[1]";
+                        $i1=">=$tlist[1]";
                         $step="-1";
                     }
                     else{
                         $i0=$tlist[0];
-                        $i1="< $tlist[1]";
+                        $i1="<$tlist[1]";
                         $step="1";
                     }
                 }
@@ -239,10 +239,10 @@ sub parsecode {
                     $i0=$tlist[0];
                     $step=$tlist[2];
                     if($step=~/^-/){
-                        $i1=">= $tlist[1]";
+                        $i1=">=$tlist[1]";
                     }
                     else{
-                        $i1="< $tlist[1]";
+                        $i1="<$tlist[1]";
                     }
                 }
                 if($step eq "1"){

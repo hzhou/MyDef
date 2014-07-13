@@ -870,7 +870,12 @@ sub parsecode {
                 if($var){
                     foreach my $a (@plist){
                         if($a=~/(\w+)=(.*)/){
-                            $var->{$1}=$2;
+                            if($2 eq "--"){
+                                delete $var->{$1};
+                            }
+                            else{
+                                $var->{$1}=$2;
+                            }
                         }
                     }
                 }
@@ -1106,18 +1111,18 @@ sub parsecode {
                     my ($i0, $i1, $step);
                     if(@tlist==1){
                         $i0="0";
-                        $i1="< $param";
+                        $i1="<$param";
                         $step="1";
                     }
                     elsif(@tlist==2){
                         if($tlist[1] eq "0"){
                             $i0="$tlist[0]-1";
-                            $i1=">= $tlist[1]";
+                            $i1=">=$tlist[1]";
                             $step="-1";
                         }
                         else{
                             $i0=$tlist[0];
-                            $i1="< $tlist[1]";
+                            $i1="<$tlist[1]";
                             $step="1";
                         }
                     }
@@ -1125,10 +1130,10 @@ sub parsecode {
                         $i0=$tlist[0];
                         $step=$tlist[2];
                         if($step=~/^-/){
-                            $i1=">= $tlist[1]";
+                            $i1=">=$tlist[1]";
                         }
                         else{
-                            $i1="< $tlist[1]";
+                            $i1="<$tlist[1]";
                         }
                     }
                     if($step eq "1"){
@@ -1147,7 +1152,7 @@ sub parsecode {
                         $var=my_add_var($var, "int");
                     }
                     protect_var($var);
-                    $param="$var=$i0; $var $i1; $var$step";
+                    $param="$var=$i0; $var$i1; $var$step";
                     my $end="PARSE:\$unprotect_var $var";
                     return single_block_pre_post(["for($param){", "INDENT"], ["DEDENT", "}",$end], "for");
                     return "NEWBLOCK-for";
@@ -1224,7 +1229,8 @@ sub parsecode {
                                     $dim=$var->{"dimension"};
                                 }
                                 else{
-                                    print "sumcode: var $v missing dimension 1\n";
+                                    my $curfile=MyDef::compileutil::curfile_curline();
+                                    print "[$curfile]\x1b[33m sumcode: var $v missing dimension 1\n\x1b[0m";
                                 }
                                 if(!$dim_hash{$idx}){
                                     push @left_idx, $idx;
@@ -1249,7 +1255,8 @@ sub parsecode {
                                         $dim=$var->{"dim$i"};
                                     }
                                     else{
-                                        print "sumcode: var $v missing dimension $i\n";
+                                        my $curfile=MyDef::compileutil::curfile_curline();
+                                        print "[$curfile]\x1b[33m sumcode: var $v missing dimension $i\n\x1b[0m";
                                     }
                                     if(!$dim_hash{$ii}){
                                         push @left_idx, $ii;
@@ -1293,7 +1300,8 @@ sub parsecode {
                                         $dim=$var->{"dimension"};
                                     }
                                     else{
-                                        print "sumcode: var $v missing dimension 1\n";
+                                        my $curfile=MyDef::compileutil::curfile_curline();
+                                        print "[$curfile]\x1b[33m sumcode: var $v missing dimension 1\n\x1b[0m";
                                     }
                                     if(!$dim_hash{$idx}){
                                         push @right_idx, $idx;
@@ -1318,7 +1326,8 @@ sub parsecode {
                                             $dim=$var->{"dim$i"};
                                         }
                                         else{
-                                            print "sumcode: var $v missing dimension $i\n";
+                                            my $curfile=MyDef::compileutil::curfile_curline();
+                                            print "[$curfile]\x1b[33m sumcode: var $v missing dimension $i\n\x1b[0m";
                                         }
                                         if(!$dim_hash{$ii}){
                                             push @right_idx, $ii;
@@ -1378,7 +1387,7 @@ sub parsecode {
                     foreach my $k (@klist){
                         if(substr($k_hash{$k}, 0, 1) eq $i){
                             my $t;
-                            for(my $j=0; $j < length($k)-1; $j++){
+                            for(my $j=0; $j <length($k)-1; $j++){
                                 my $ii=substr($k, $j, 1);
                                 if($loop_hash{$ii}){
                                     my $dim=$dim_hash{substr($k, $j+1, 1)};
@@ -1415,7 +1424,7 @@ sub parsecode {
                         foreach my $k (@klist){
                             if(substr($k_hash{$k}, 0, 1) eq $i){
                                 my $t;
-                                for(my $j=0; $j < length($k)-1; $j++){
+                                for(my $j=0; $j <length($k)-1; $j++){
                                     my $ii=substr($k, $j, 1);
                                     if($loop_hash{$ii}){
                                         my $dim=$dim_hash{substr($k, $j+1, 1)};
@@ -1499,8 +1508,8 @@ sub parsecode {
                     else{
                         my ($n, $fmt)=fmt_string($param, 1);
                         if($print_type==1){
-                            if($n==0){
-                                push @$out, "puts($fmt);";
+                            if($n==0 and $fmt=~/^"(.*)\\n"/){
+                                push @$out, "puts(\"$1\");";
                             }
                             elsif($fmt=~/^"%s\\n", (.*)/){
                                 push @$out, "puts($1);";
@@ -2217,12 +2226,7 @@ sub close_scope {
         my $out_save=$out;
         MyDef::compileutil::set_output($post);
         foreach my $call_line (@exit_calls){
-            if($call_line=~/free, (.*)/){
-                push @$out, "if($1)free($1);";
-            }
-            else{
-                MyDef::compileutil::call_sub($call_line);
-            }
+            MyDef::compileutil::call_sub($call_line);
         }
         MyDef::compileutil::set_output($out_save);
     }
@@ -2565,7 +2569,7 @@ sub find_var {
             print "$v, ";
         }
         print "\n";
-        for(my $i=$#scope_stack; $i >= 0; $i--){
+        for(my $i=$#scope_stack; $i >=0; $i--){
             print "  scope $i\[$scope_stack[$i]->{name}]: ";
             foreach my $v (@{$scope_stack[$i]->{var_list}}){
                 print "$v, ";
@@ -2576,7 +2580,7 @@ sub find_var {
     if($cur_scope->{var_hash}->{$name}){
         return $cur_scope->{var_hash}->{$name};
     }
-    for(my $i=$#scope_stack; $i >= 0; $i--){
+    for(my $i=$#scope_stack; $i >=0; $i--){
         if($scope_stack[$i]->{var_hash}->{$name}){
             return $scope_stack[$i]->{var_hash}->{$name};
         }
@@ -3079,7 +3083,7 @@ sub check_expression {
             }
             my $n=@stack;
             my $found;
-            for(my $i=$n-1; $i >= 0; $i--){
+            for(my $i=$n-1; $i >=0; $i--){
                 if($stack[$i] eq $open){
                     $found=$i;
                     last;
@@ -3121,6 +3125,9 @@ sub check_expression {
                     }
                     if(!$processed){
                         $token=$primary.$open.$exp.$close;
+                        if($open eq '['){
+                            $token=~s/ +//g;
+                        }
                     }
                 }
                 else{
@@ -3330,7 +3337,7 @@ sub check_expression {
                             }
                         }
                     }
-                    else{
+                    elsif($stack[-1]=~/^\S+$/){
                         $stack[-1]=" $stack[-1] ";
                     }
                     push @stack, $token;
@@ -3490,7 +3497,7 @@ sub fmt_string {
     if(@pre_list){
         warn "Extra fmt arg list: ", join(", ", @pre_list), "\n";
     }
-    if(@arg_list and $add_newline){
+    if($add_newline){
         my $tail=$fmt_list[-1];
         if($tail=~/(.*)-$/){
             $fmt_list[-1]=$1;
@@ -3584,7 +3591,7 @@ sub do_assignment {
                 }
             }
             elsif($type=~/^(.*?)\s*\*$/){
-                for(my $i=0; $i < @right_list; $i++){
+                for(my $i=0; $i <@right_list; $i++){
                     do_assignment("$left\[$i\]", $right_list[$i]);
                 }
             }
@@ -3613,20 +3620,20 @@ sub do_assignment {
                 }
             }
             elsif($type=~/^(.*?)\s*\*$/){
-                for(my $i=0; $i < @right_list; $i++){
+                for(my $i=0; $i <@right_list; $i++){
                     do_assignment($left_list[$i], "$right\[$i\]");
                 }
             }
             else{
                 my $curfile=MyDef::compileutil::curfile_curline();
                 print "[$curfile]\x1b[33m scalar assigned to tuple\n\x1b[0m";
-                for(my $i=0; $i < @right_list; $i++){
+                for(my $i=0; $i <@right_list; $i++){
                     do_assignment($left_list[$i], $right);
                 }
             }
         }
         else{
-            for(my $i=0; $i < @left_list; $i++){
+            for(my $i=0; $i <@left_list; $i++){
                 do_assignment($left_list[$i], $right_list[$i]);
             }
         }

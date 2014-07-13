@@ -314,6 +314,7 @@ sub call_sub {
     }
     if($codelib){
         if($codelib->{type} eq "perl" && $interface_type ne "perl"){
+            $param=~s/^\s*,\s*//;
             $f_parse->("\$eval $codename, $param");
         }
         else{
