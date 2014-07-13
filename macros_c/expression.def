@@ -152,7 +152,7 @@ subcode: check_expression_push
 		    $stack[-1]="$stack[-1] "
 		$elif $stack[-1]=~/^(eq|ne|lt|le|gt|ge)$/
 		    $call check_exp_string_op
-		$else
+		$elif $stack[-1]=~/^\S+$/
 		    $stack[-1]=" $stack[-1] "
 		$call exp_push, $token, $type
 	$elif $types[-1] =~/^atom/
@@ -200,6 +200,8 @@ subcode: check_exp_bracket
 		$call check_exp_dict, $primary, $exp
 	    $if !$processed
 		$token=$primary.$open.$exp.$close
+		$if $open eq '['
+		    $token=~s/ +//g
 	$else
 	    $token=$open.$exp.$close
 	    $type="atom-$open"

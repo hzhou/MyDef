@@ -35,7 +35,9 @@ if($f=~/([a-z0-9]+)_.*\.def$/){
             }
         }
         close In;
-        system "gcc -g test.c $lib -o test";
+        my $cmd="gcc -g test.c $lib -o test";
+        print "    $cmd\n";
+        system $cmd;
         if(-f "test"){
             print "$yellow*** Testing output ***$normal\n";
             system "./test";

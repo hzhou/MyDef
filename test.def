@@ -50,7 +50,9 @@ subcode: test_c
     &call open_r, test.c
 	$if /^\/\*\s*link: (.*)\*\//
 	    $lib=$1
-    system "gcc -g test.c $lib -o test";
+    my $cmd="gcc -g test.c $lib -o test"
+    $print "    $cmd"
+    system $cmd
     $if -f "test"
 	print "$yellow*** Testing output ***$normal\n";
 	system "./test";

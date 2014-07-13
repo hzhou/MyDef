@@ -25,7 +25,7 @@ subcode: for_i0_i1_step
 	$var=my_add_var($var, "int")
     protect_var($var)
 
-    $param="$var=$i0; $var $i1; $var$step"
+    $param="$var=$i0; $var$i1; $var$step"
 
 subcode: for_c_style_protect
     $(if:type=asis)

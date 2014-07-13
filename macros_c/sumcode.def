@@ -158,7 +158,7 @@ subcode: sumcode_idx(idx, i)
 	$elif $var->{"dimension"}
 	    $dim=$var->{"dimension"}
     $else
-	$print "sumcode: var $v missing dimension $(i)"
+	$call warn, sumcode: var $v missing dimension $(i)
 
     $if !$dim_hash{$(idx)}
 	push @$(left)_idx, $(idx)

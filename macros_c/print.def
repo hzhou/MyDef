@@ -15,8 +15,8 @@ subcode:: parsecode_func_other
 		#--- fmt_string, add newline
 		my ($n, $fmt)=fmt_string($param, 1)
 		$if $print_type==1
-		    $if $n==0
-			push @$out, "puts($fmt);"
+		    $if $n==0 and $fmt=~/^"(.*)\\n"/
+			push @$out, "puts(\"$1\");"
 		    $elif $fmt=~/^"%s\\n", (.*)/
 			push @$out, "puts($1);"
 		    $else
@@ -104,7 +104,7 @@ subcode:: c_support_subs
 	$if @pre_list
 	    warn "Extra fmt arg list: ", join(", ", @pre_list), "\n"
 
-	$if @arg_list and $add_newline
+	$if $add_newline
 	    my $tail=$fmt_list[-1]
 	    $if $tail=~/(.*)-$/
 		$fmt_list[-1]=$1

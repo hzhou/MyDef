@@ -39,6 +39,9 @@ subcode: update_min(min, a)
     $if $(min)>$(a)
 	$(min)=$(a)
 
+subcode: free(v)
+    free($(v))
+
 ## FILE IO
 subcode: mmap(filename, strname, strsize)
     $include sys/mman

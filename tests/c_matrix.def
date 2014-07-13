@@ -3,7 +3,8 @@ include: c/matrix.def
 page: test, basic_frame
     subcode: main
 	# $call test_a
-	$call test_matrix_mult
+	# $call test_matrix_mult
+	$call test_static
 
 subcode: test_a
     $local double a[100]
@@ -14,7 +15,7 @@ subcode: test_a
     $print "Sum of 1..100 is $sum"
 
     $call set_matrix, a, 10, 10
-    $call print_matrix, a
+    $call matrix_print, a
 
 subcode: test_matrix_mult
     $local double A[4]={2, 3, 4, 0}
@@ -29,6 +30,23 @@ subcode: test_matrix_mult
     $call set_matrix, C, 2, 2
 
     $sumcode C[i,j]=A[i,k]*B[k,j]
-    $call print_matrix, C
+    $call matrix_print, C
 
+macros: 
+    skip_pivot: 1
 
+subcode: test_static
+    $my matrix A:2,1,1;4,1,0;-2,2,1
+    A.$print
+    A.$LU
+    A.$print
+
+    tf_det=A.$det
+    $dump tf_det
+
+    $local double b[3]={8, 11, 3}
+    A.$solve b
+    $call vector_print, b
+
+    A.$inv
+    A.$print

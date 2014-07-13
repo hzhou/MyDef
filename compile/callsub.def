@@ -137,6 +137,7 @@ subcode:: support_subs
 	$call call_sub_param
 	$if $codelib
 	    $if $codelib->{type} eq "perl" && $interface_type ne "perl"
+		$param=~s/^\s*,\s*//
 		$f_parse->("\$eval $codename, $param")
 	    $else
 		$call split_sub_param

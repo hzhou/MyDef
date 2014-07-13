@@ -49,11 +49,7 @@ subcode:: c_support_subs
 	    my $out_save=$out
 	    MyDef::compileutil::set_output($post)
 	    $foreach $call_line in @exit_calls
-		$if $call_line=~/free, (.*)/
-		    push @$out, "if($1)free($1);"
-		$else
-		    # $print "exit_call: $call_line"
-		    MyDef::compileutil::call_sub($call_line)
+		MyDef::compileutil::call_sub($call_line)
 	    MyDef::compileutil::set_output($out_save)
 
 	$if $blk->{return}

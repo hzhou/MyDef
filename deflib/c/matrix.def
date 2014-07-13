@@ -1,47 +1,55 @@
+subcode:: _autoload
+    $class matrix
+
 subcode: set_matrix(v, m, n)
     $set_var_attr $(v), dim1=$(m), dim2=$(n)
+    $set_var_attr $(v), class=matrix
 
-subcode: print_matrix(v)
+#---------------------------------------- 
+subcode: matrix_print(v)
     $get_var_attr $(v), dim1, dim2
     $print \nMatrix $(v): $(dim1) x $(dim2)
-    $(mset:limit=8, skip=3, skip2=5)
     
-    $(if:P)
-	$(set:M=$(v)[$(P)[$1]*$(dim2)+$2])
-	$call print_vector, $(P)
-	$print
-    $(else)
-	$(set:M=($v)[$1*$(dim2)+$2])
+    $fcall f_matrix_print($(v), $(dim1), $(dim2))
 
-    $(if:dim1 and dim2)
-	$for i=0:$(dim1)
-	    $if $(dim1)>$(limit) && i==$(skip)
-		$print "      ... ..."
-		i+=$(dim1)-$(skip2)
-	    $else
-		$for j=0:$(dim2)
-		    $if $(dim2)>$(limit) && j==$(skip)
-			printf "  ...  "
-			j+=$(dim2)-$(skip2)
-		    $else
-			printf " %6g ", $(M:i,j)
-		    k++
-		$print
+fncode: f_matrix_print(double * A, m, n)
+    $(set:M=A[$1*n+$2])
+    $(mset:limit=8, skip=3, skip2=5)
+    $for i=0:m
+	$if m>$(limit) && i==$(skip)
+	    $print "      ... ..."
+	    i+=m-$(skip2)
+	$else
+	    $for j=0:n
+		$if n>$(limit) && j==$(skip)
+		    printf "  ...  "
+		    j+=n-$(skip2)
+		$else
+		    printf " %6g ", $(M:i,j)
+	    $print
 
-subcode: print_vector(v)
+#---------------------------------------- 
+subcode: vector_print(v)
     $print "\nVector $(v): -"
     $get_var_attr $(v), dimension
-    $print "%g-", $(v)[0]
-    $for i=1:$(dimension)
-	$print ", %g-", $(v)[i]
+    $fcall f_vector_print($(v), $(dimension))
+
+fncode: f_vector_print(double * V, m)
+    $(set:V=V[$1])
+    $print "%g-", $(V:0)
+    $for i=1:m
+	$if i>20
+	    $print " ... -"
+	    i=m-2
+	$else
+	    $print ", %g-", $(V:i)
     $print
 
 #---------------------------------------- 
-
 subcode: matrix_init(var, scope, @init)
     $call parse_matrix_init, $(init)
-    $$(scope) double $(var)[]={$(init_str)}
-    $set_var_attr $(var), dim1=$(dim1), dim2=$(dim2)
+    $$(scope) double $(var)[$(dimension)]={$(init_str)}
+    $call set_matrix, $(var), $(dim1), $(dim2)
 
 perlcode: parse_matrix_init
     my @rows=split /;/, $param
@@ -58,97 +66,168 @@ perlcode: parse_matrix_init
 		$print "parse_matrix_init: uneven rows [$param]\n"
 	push @t, @cols
     my $init_str=join(",", @t)
+    my $dimension=$n_rows*$n_cols
     MyDef::compileutil::set_current_macro("dim1", $n_rows)
     MyDef::compileutil::set_current_macro("dim2", $n_cols)
+    MyDef::compileutil::set_current_macro("dimension", $dimension)
     MyDef::compileutil::set_current_macro("init_str", $init_str)
 
 
 #---------------------------------------- 
 subcode: matrix_LU(var)
     $get_var_attr $(var), dim1, dim2
-    $(if:!$(P))
-	$(export:P=pn_matrix_row_permutation)
+    $(if:!P)
+	$(export:P=$(var)_P)
+	$local int * $(P)
 	$allocate($(dim1)) $(P)
+	$set_var_attr $(P), exit=free
 
-	$sumcode $(P)[i]=i
+	$(export:work=$(var)_work)
+	$local double * $(work)
+	$allocate($(dim1)) $(work)
+	$set_var_attr $(work), exit=free
 
-	$(set:M=$(var)[$(P)[$1]*$(dim2)+$2])
+	$fcall f_matrix_LU($(var), $(P), $(work), $(dim1), $(dim2))
 
-	$for i=0:$(dim1)
+fncode: f_matrix_LU(double * A, int * P, double * work, m, n)
+    $for i=0:m
+	P[i]=i
+
+    #$(set:M=A[P[$1]*n+$2])
+    $(set:M=A[$1*n+$2])
+
+    tn_row_size=n*sizeof(double)
+
+    $for i=0:m
+	$my tf_max
+	$(if:!skip_pivot)
 	    $call matrix_LU_find_pivot
 	    $if tn_pivot>i
-		$call swap, $(P)[i], $(P)[tn_pivot]
-	    $for j=i+1:$(dim1)
-		$my tf_l=$(M:j,i)/tf_max
-		$(M:j,i) = tf_l
-		$for k=i+1:$(dim2)
-		    $(M:j,k)-=tf_l*$(M:i,k)
+		$call swap, P[i], P[tn_pivot]
+	    $call matrix_row_swap, i, tn_pivot
+	    # $dump tn_pivot, tf_max
+	$(else)
+	    tf_max=$(M:i,i)
+	$for j=i+1:m
+	    $my tf_l=$(M:j,i)/tf_max
+	    $(M:j,i) = tf_l
+	    $for k=i+1:n
+		$(M:j,k)-=tf_l*$(M:i,k)
+
+subcode: matrix_row_swap(i,j)
+    memcpy(work, A+$(i)*n, tn_row_size)
+    memcpy(A+$(i)*n, A+$(j)*n, tn_row_size)
+    memcpy(A+$(j)*n, work, tn_row_size)
 
 subcode: matrix_LU_find_pivot
-    $my tn_pivot=i, tf_max=$(M:i,i)
-    $for j=i+1:$(dim1)
-	$if tn_max<$(M:j,i)
+    $my tn_pivot=i
+    tf_max=$(M:i,i)
+    $for j=i+1:m
+	$if tf_max<fabs($(M:j,i))
 	    tn_pivot=j
-	    tn_max=$(M:j,i)
+	    tf_max=fabs($(M:j,i))
 
-subcode: matrix_LU_reset
-    $(if:$(P))
+subcode: clear_pivots(var)
+    $(if:P)
 	free($(P))
+	$set_var_attr $(P), exit=--
 	$(unset:P)
+	
+	free($(work))
+	$set_var_attr $(work), exit=--
+
+fncode: f_pivot_vector(double * V, int * P, double * work, m)
+    memcpy(work, V, m*sizeof(double))
+    $for i=0:m
+	V[i]=work[P[i]]
 
 #---------------------------------------- 
 subcode: matrix_det(var)
     $call matrix_LU, $(var)
 
     $get_var_attr $(var), dim1, dim2
-    $(set:M=$(var)[$(P)[$1]*$(dim2)+$2])
 
     $my tf_det
     tf_det=1.0
     $for i=0:$(dim1)
-	tf_det *= $(M:i,i)
+	tf_det *= $(var)[i*$(dim1)+i]
 
-    #- count P parity
+    $list f_permutation_parity
+    $if f_permutation_parity($(P), $(dim1))
+	tf_det=-tf_det
 
     $yield tf_det
 
+fncode: f_permutation_parity(int * P, m)
+    $local_allocate(m, 0) pn_check
+    tn_count=0
+    $while 1
+	tn_start=-1
+	$for i=0:m
+	    $if pn_check[i]==0
+		tn_start=i
+		break
+	$if tn_start<0
+	    break
+
+	i=tn_start
+	pn_check[i]=1
+	$while P[i]!=tn_start
+	    i=P[i]
+	    pn_check[i]=1
+	    tn_count++
+    return tn_count%2
 #---------------------------------------- 
 subcode: matrix_solve(var, b)
-    $call matrix_LU, $(var)
-
     $get_var_attr $(var), dim1, dim2
-    $(set:M=$(var)[$(P)[$1]*$(dim2)+$2])
-    $(set:V=$(b)[$(P)[$1]])
 
+    $call matrix_LU, $(var)
+    $fcall f_pivot_vector(b, $(P), $(work), $(dim1))
+
+    $(set:M=$(var)[$1*$(dim2)+$2])
+    $(set:V=$(b)[$1])
+
+    #--- forward elimination ----
     $for i=0:$(dim1)-1
 	$for j=i+1:$(dim1)
 	    $(V:j)-=$(V:i)*$(M:j,i)
-
-    $for i=$(dim1)-2:0:-1
-	$(V:i)=1.0/$(M:i,i)
-	$for j=i-1:0:-1
-	    $(V:j)-=$(V:i)*$(M:j,i)
+    # $call vector_print, $(b)
+    #--- backward substitution ----
+    $for i=$(dim1):0
+	$(V:i) /= $(M:i,i)
+	$for j=i:0
+	    $(V:j) -= $(V:i)*$(M:j,i)
 
 #---------------------------------------- 
 subcode: matrix_inv(var)
     $call matrix_LU, $(var)
 
     $get_var_attr $(var), dim1, dim2
-    $(set:M=$(var)[$(P)[$1]*$(dim2)+$2])
-    $(set:V=$(b)[$(P)[$1]])
+    $(set:M=$(var)[($1)*$(dim2)+$2])
 
-    #--- Work in progress ----
-    $for j=1:$(dim1)
-	tf_sum=0.0
-	$for i=0:j
-	    tf_sum-=$(M:j,i)
-
-    $for i=0:$(dim1)-1
+    #--- forward elimination ----
+    $for i=1:$(dim1)
+	k=i-1
+	$(M:i,k)=-$(M:i,k)
+	$for j=k:0
+	    $(M:i,j)=-$(M:i,j)+$(M:i,j+1)*$(M:i-1,j)
+    $(var).$print 
+    #--- backward substitution ----
+    $for i=0:$(dim1)
+	$(M:i,i)=1.0/$(M:i,i)
+	$for j=0:i
+	    $(M:i,j) *= $(M:i,i)
 	$for j=i+1:$(dim1)
-	    $(V:j)-=$(V:i)*$(M:j,i)
+	    $(M:i,j) *= $(M:i,i)
 
-    $for i=$(dim1)-2:0:-1
-	$(V:i)=1.0/$(M:i,i)
-	$for j=i-1:0:-1
-	    $(V:j)-=$(V:i)*$(M:j,i)
+	$for k=0:i
+	    $for j=0:i
+		$(M:k,j) -= $(M:k,i)*$(M:i,j)
+	    $for j=i+1:$(dim1)
+		$(M:k,j) -= $(M:k,i)*$(M:i,j)
+	    $(M:k,i) = -$(M:k,i)*$(M:i,i)
+
+    $for i=0:$(dim1)
+	$fcall f_pivot_vector($(var)+i*$(dim1), $(P), $(work), $(dim1))
+
 
