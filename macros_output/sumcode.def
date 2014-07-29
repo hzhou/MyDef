@@ -1,0 +1,224 @@
+subcode: parsecode_sum_support(style)
+    # $call sumcode, sum = A[i]
+    $call sumcode_init_style, $(style)
+
+    $call sumcode_parse
+    my @klist=sort keys %k_hash
+    my @allidx=(@left_idx, @right_idx)
+    $call sumcode_process_k
+    $call sumcode_generate
+    MyDef::compileutil::parseblock({source=>\@code, name=>"sumcode"})
+    return
+
+#---------------------------------------- 
+#- '$' is not an operator, so if it appears, let's assume it is 
+#-     part of variable name
+#---------------------------------------- 
+subcode: sumcode_init_style(style)
+    $(if:style=c)
+	$(export:mytype=\$my $type)
+	$(export:my=\$my int)
+	$(mexport:sum=sum,i=i,k=k)
+    $(elif:style=perl)
+	$(export:mytype=my)
+	$(export:my=my)
+	$(mexport:sum=\$sum,i=\$i,k=\$k)
+subcode: sumcode_gen_sumvar_c
+    $sum="sum"
+    push @code, "\$my $type $sum=0"
+
+subcode: sumcode_gen_sumvar_perl
+    $sum="\$sum"
+    push @code, "my $sum = 0"
+
+#############################################################
+subcode: sumcode_generate
+    my @code
+    my %loop_i_hash
+    my %loop_k_hash
+    $call sumcode_init_each_k
+    &call sumcode_loop, left
+	$if @right_idx
+	    my $sum
+	    $if $left=~/^(\$?\w+)$/
+		$sum=$1
+		push @code, "$sum = 0"
+	    $else
+		$sum="$(sum)"
+		push @code, "$(mytype) $sum=0"
+	    &call sumcode_loop, right
+		push @code, "$sum += $right"
+	    $if $left ne $sum
+		push @code, "$left = $sum"
+	$elif $right
+	    push @code, "$left = $right"
+	$else
+	    push @code, $left
+
+subcode: sumcode_loop(left)
+    $(allow_recurse:2)
+    $foreach $i in @$(left)_idx
+	$loop_i_hash{$i}=1
+	push @code, "\$for $(i)_$i=0:$dim_hash{$i}"
+	push @code, "SOURCE_INDENT"
+	$call sumcode_set_each_k
+    BLOCK
+    $foreach $i in reverse @$(left)_idx
+	$call sumcode_inc_each_k
+	push @code, "SOURCE_DEDENT"
+
+#---------------------------------------- 
+subcode: sumcode_process_k
+    my %k_calc_hash
+    my %k_inc_hash
+    my %k_init_hash
+    EACH_K:
+    $foreach $k in @klist
+	my $pos
+	my $i=$#allidx
+	$while $i>=0
+	    $pos=index($k, $allidx[$i])
+	    $if $pos>=0
+		break
+	    $i--
+	$if index(substr($k, $pos+1), $allidx[$i])>=0
+	    #--- repeated index such as k_ii
+	    $k_calc_hash{"$k-$allidx[$i]"}=1
+	    next EACH_K
+	$else
+	    $k_inc_hash{"$k-$allidx[$i]"}=1
+
+	    $pos--
+	    $i--
+	    $while $pos>=0 and $i>=0 and substr($k, $pos, 1) eq $allidx[$i]
+		$if index(substr($k, $pos+1), $allidx[$i])>=0 or index(substr($k, 0, $pos-1), $allidx[$i])>=0
+		    $k_calc_hash{"$k-$allidx[$i]"}=1
+		    next EACH_K
+		$else
+		    $pos--
+		    $i--
+
+	    $if $i>=0
+		$k_calc_hash{"$k-$allidx[$i]"}=1
+	    $else
+		$k_init_hash{$k}=1
+
+#---------------------------------------- 
+subcode: sumcode_init_each_k
+    $foreach $k in @klist
+	$if $k_init_hash{$k}
+	    push @code, "$(my) $(k)_$k"
+	    push @code, "$(k)_$k = 0"
+	    $loop_k_hash{$k}=1
+
+subcode: sumcode_set_each_k
+    $foreach $k in @klist
+	$if $k_calc_hash{"$k-$i"}
+	    $call sumcode_calc_k
+
+subcode: sumcode_inc_each_k
+    $foreach $k in @klist
+	$if $k_inc_hash{"$k-$i"}
+	    $call sumcode_inc_k
+
+#---------------------------------------- 
+subcode: sumcode_inc_k
+    $if substr($k, -1, 1) eq $i
+	push @code, "$(k)_$k++"
+    $else
+	my $dim=$dim_hash{$i}
+	push @code, "$(k)_$k += $dim"
+
+subcode: sumcode_calc_k
+    $if !$loop_k_hash{$k}
+	push @code, "$(my) $(k)_$k"
+	$loop_k_hash{$k}=1
+
+    #- k_ij = i*n+j
+    my $t
+    $for $j=0:length($k)-1
+	my $ii=substr($k, $j, 1)
+	$if $loop_i_hash{$ii}
+	    my $dim=$dim_hash{substr($k, $j+1, 1)}
+	    $if !$t
+		$t = "$(i)_$ii*$dim"
+	    $else
+		$t = "($t+$(i)_$ii)*$dim"
+    my $ii=substr($k, -1, 1)
+    $if $loop_i_hash{$ii}
+	$t.="+$(i)_$ii"
+
+    $if !$t
+	$t = "0"
+    push @code, "$(k)_$k = $t"
+
+#########################################
+subcode: sumcode_parse
+    my ($left, $right)
+    $if $param=~/(.*?)\s*(?<![\+\-\*\/%&\|><=])=(?!=)\s*(.*)/
+	($left, $right)=($1, $2)
+    $else
+	$left=$param
+
+    my $type
+    my %k_hash
+    my %dim_hash
+
+    my %var_hash
+    my (@left_idx, @right_idx)
+    $call sumcode_get_idx, left
+    $if $right
+	$call sumcode_get_idx, right
+
+subcode: sumcode_get_idx(left)
+    my @segs=split /(\w+\[[ijkl,]*?\])/, $$(left)
+    $foreach $s in @segs
+	$if $s=~/^(\w+)\[([ijkl,]*?)\]$/
+	    $if $var_hash{$s}
+		$s=$var_hash{$s}
+	    $else
+		#---- translate var, populate $type, %k_hash, %dim_hash ----
+		$call sumcode_var
+		$var_hash{$s}=$t
+		$s=$t
+    $$(left)=join '', @segs
+    $$(left)=~s/\b([ijkl])\b/$(i)_\1/g
+
+subcode: sumcode_var
+    my $t
+    my ($v, $idx)=($1, $2)
+    my $var=find_var($v)
+    $(if:style=c)
+	$if !$type
+	    $type=pointer_type($var->{type})
+
+    my @idxlist=split /,/, $idx
+    $if @idxlist==1
+	$call sumcode_idx, $idx, 1
+	$t="$v\[$(i)_$idx\]"
+    $else
+	my $k=join('', @idxlist)
+	$k_hash{$k}=1
+	$t="$v\[$(k)_$k\]"
+	my $i=0
+	$foreach $ii in @idxlist
+	    $i++
+	    $call sumcode_idx, $ii, $i
+
+subcode: sumcode_idx(idx, i)
+    my ($dim, $inc)
+    $if $var->{"dim$(i)"}
+	$dim=$var->{"dim$(i)"}
+    $(if:i=1)
+	$elif $var->{"dimension"}
+	    $dim=$var->{"dimension"}
+    $else
+	$call warn, sumcode: var $v missing dimension $(i)
+
+    $if !$dim_hash{$(idx)}
+	push @$(left)_idx, $(idx)
+	$dim_hash{$(idx)}=$dim
+    $else
+	$if $dim_hash{$(idx)} ne $dim
+	    $print "sumcode dimesnion mismatch: $dim_hash{$(idx)} != $dim"
+
