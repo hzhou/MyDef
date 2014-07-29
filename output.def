@@ -1,15 +1,18 @@
 include: macros_util/debug.def
-include: macros_output/case.def
-include: macros_output/for.def
+#---- common features -----------
+#- include: macros_output/case.def
+#- include: macros_output/for.def
+#- include: macros_output/scope.def
+#- include: macros_output/sumcode.def
 
 macros:
     hascode: $MyDef::def->{codes}->{"$1"} or $MyDef::page->{codes}->{"$1"}
 
 subcode: output_main
-    our $debug;
-    our $mode;
-    our $page;
-    our $out;
+    $global $debug
+    $global $out
+    $global $mode
+    $global $page
     $call @package_globals
 
     $sub get_interface
@@ -19,10 +22,13 @@ subcode: output_main
 	    my $interface_type="general"
 	return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout, $interface_type);
 
-    $sub init_page
-	($page)=@_;
+    $sub init_page($t_page)
+	$page=$t_page
 	# ---- Set output file extension
-	my $ext="$(ext)"
+	$(if:ext)
+	    my $ext="$(ext)"
+	$(else)
+	    my $ext
 	$if $MyDef::var->{filetype}
 	    $ext=$MyDef::var->{filetype}
 	$if $page->{type}
@@ -119,6 +125,7 @@ subcode: parsecode_eval
 	$call parsecode_run_eval, $codename
 	return
 
+#---------------------------------------- 
 subcode: parsecode_common
     # print "parsecode_common: input [$l]\n"
     $if $MyDef::compileutil::cur_mode eq "PRINT"

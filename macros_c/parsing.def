@@ -1,30 +1,26 @@
 include: macros_c/allocate.def
 include: macros_c/for.def
-include: macros_c/sumcode.def
 include: macros_c/expression.def
 include: macros_c/print.def
 include: macros_c/assignment.def
+
+#- include: macros_c/sumcode.def
+include: macros_output/sumcode.def
+
+subcode:: parsecode_func_other
+    $case $func eq "sumcode"
+	$call parsecode_sum_support, c
 
 subcode:: package_globals
     our $anonymous_count=0
 
     our $print_type=1
 
-subcode: parsecode_special
-    $if $l=~/^SUBBLOCK BEGIN (\d+) (.*)/
-	# my ($blk_idx, $scope_name)=($1, $2)
-	open_scope($1, $2)
-	return
-    $elif $l=~/^SUBBLOCK END (\d+) (.*)/
-	# my ($blk_idx, $scope)=($1, $2)
-	$if $out->[-1]=~/^(return|break)/
-	    $cur_scope->{return}=pop @$out
-	close_scope($cur_scope)
-	return
-    $elif $l=~/^NOOP POST_MAIN/
+subcode:: parsecode_special
+    $case $l=~/^NOOP POST_MAIN/
 	$call parsecode_post
 	return
-    $elif $l=~/^print\b(.*)$/i
+    $case $l=~/^print\b(.*)$/i
 	print "print deprecated, use \$print\n"
 
 subcode: parsecode_func_param

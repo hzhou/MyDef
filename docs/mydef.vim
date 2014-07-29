@@ -5,7 +5,7 @@
 :syntax match xPrefix /\$\./
 :syntax match xKey /^\s*&call/
 :syntax match xKey /^\s*\$(set:.*)/
-:syntax match xKey /\$([^)]*)/
+:syntax match xMacro /\$([^)]*)/
 
 :syntax match xCode /^\s*\$\(subclass\|method\)\s/
 :syntax match xHTML /HTML_\I\+/
@@ -17,7 +17,7 @@
 :syntax match xCommentImportant /^\s*#[-#].*/  
 :syntax match xCommentImportant /\s# -.*$/ " Trailing [ ]# 
 :syntax region xComment start=/\/\*/ end=/\*\//
-:syntax region dString start=/"/ skip=/\\"/ end=/"/  oneline
+:syntax region dString start=/"/ skip=/\\"/ end=/"/  oneline contains=xMacro
 :syntax region sString start=/'/ skip=/\\'/ end=/'/  oneline
 
 :syntax match perlKey /^\s*\(push\|shift\|unshift\|pop\|print\|return\|goto\|last\|next\|break\|continue\)\>/
@@ -33,6 +33,7 @@
 :highlight link dString String
 :highlight link sString String
 :highlight link xKey Type
+:highlight link xMacro Type
 :highlight link xCSS Underlined
 :highlight link xCode Statement
 :highlight link xStage Statement

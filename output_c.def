@@ -7,10 +7,10 @@ include: macros_c/variables.def
 include: macros_c/types.def
 include: macros_c/dump.def
 include: macros_c/dump_h.def
-# include: macros_c/regex.def
 
 include: macros_c/list_functions.def
 
+include: macros_output/case.def
 
 subcode:: package_globals
     my $cur_indent;

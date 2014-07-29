@@ -8,7 +8,7 @@ subcode:: parsecode_func_param_other
 
 subcode:: parsecode_func_other
     $elif $func eq "allocate"
-	allocate(1, $param);
+	allocate("1", $param);
 	return
 
 subcode:: c_support_subs
@@ -31,10 +31,17 @@ subcode: allocate_block(auto)
 		$if !$var
 		    func_add_var($p)
 		    $var=find_var($p)
-		$if $dim!=1
-		    $var->{dimension}=$dim
+		$var->{dimension}=$dim
+		$if $dim=~/\*/
+		    my @parts=split /\s*\*\s*/, $dim
+		    my $i=0
+		    $foreach $d in @parts
+			$i++
+			$var->{"dim$i"}=$d
+		    $if $i==2
+			$var->{"class"}="matrix"
 	    my $type=pointer_type(get_var_type($p))
-	    $if $dim == 1
+	    $if $dim eq "1"
 		$call allocate_one, $out
 	    $else 
 		$call allocate_array, $out

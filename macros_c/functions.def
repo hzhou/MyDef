@@ -1,3 +1,5 @@
+include: macros_output/scope.def
+
 subcode:: c_init
     $global @scope_stack, $cur_scope
     @scope_stack=()
@@ -12,53 +14,50 @@ subcode:: c_init
     %functions=()
     undef $cur_function
 
-subcode:: c_support_subs
-    #--------------------------------------------------- 
-    #- block scope: variable declaration and exit ------
-    $sub open_scope($blk_idx, $scope_name)
-	push @scope_stack, $cur_scope
-	$cur_scope={var_list=>[], var_hash=>{}, name=>$scope_name}
-	#---------------------------------------- 
-	#- embed init block just as function.
+#--------------------------------------------------- 
+#- block scope: variable declaration and exit ------
+subcode:: parsecode_special
+    $call parsecode_scope
 
-    $sub close_scope($blk, $pre, $post)
-	my ($var_hash, $var_list)
-	$if ref($blk) eq "HASH"
-	    $var_hash=$blk->{var_hash};
-	    $var_list=$blk->{var_list};
-	$else
-	    $var_hash=$cur_scope->{var_hash};
-	    $var_list=$cur_scope->{var_list};
-	my @exit_calls
-	$if @$var_list
-	    $if !$pre
-		$pre=MyDef::compileutil::get_named_block("_pre")
-	    $foreach $v in @$var_list
-		$if $global_hash->{$v}
-		    $call warn, In $blk->{name}: local variable $v has existing global
-		my $var=$var_hash->{$v}
-		my $decl=var_declare($var)
-		push @$pre, "$decl;";
+#- $sub close_scope($blk, $pre, $post)
+subcode: process_close_scope
+    $if !$blk
+	$blk=$cur_scope
 
-		$if $var->{exit}
-		    push @exit_calls, "$var->{exit}, $v"
+    my ($var_hash, $var_list)
+    $if ref($blk) eq "HASH"
+	$var_hash=$blk->{var_hash};
+	$var_list=$blk->{var_list};
+    $else
+	$var_hash=$cur_scope->{var_hash};
+	$var_list=$cur_scope->{var_list};
+    my @exit_calls
+    $if @$var_list
+	$if !$pre
+	    $pre=MyDef::compileutil::get_named_block("_pre")
+	$foreach $v in @$var_list
+	    $if $global_hash->{$v}
+		$call warn, In $blk->{name}: local variable $v has existing global
+	    my $var=$var_hash->{$v}
+	    my $decl=var_declare($var)
+	    push @$pre, "$decl;";
 
-	$if @exit_calls
-	    $if !$post
-		$post=MyDef::compileutil::get_named_block("_post")
-	    my $out_save=$out
-	    MyDef::compileutil::set_output($post)
-	    $foreach $call_line in @exit_calls
-		MyDef::compileutil::call_sub($call_line)
-	    MyDef::compileutil::set_output($out_save)
+	    $if $var->{exit}
+		push @exit_calls, "$var->{exit}, $v"
 
-	$if $blk->{return}
-	    $if !$post
-		$post=MyDef::compileutil::get_named_block("_post")
-	    push @$post, $blk->{return}
+    $if @exit_calls
+	$if !$post
+	    $post=MyDef::compileutil::get_named_block("_post")
+	my $out_save=$out
+	MyDef::compileutil::set_output($post)
+	$foreach $call_line in @exit_calls
+	    MyDef::compileutil::call_sub($call_line)
+	MyDef::compileutil::set_output($out_save)
 
-	#- -- only applicable to block scopes ----
-	$cur_scope=pop @scope_stack
+    $if $blk->{return}
+	$if !$post
+	    $post=MyDef::compileutil::get_named_block("_post")
+	push @$post, $blk->{return}
 
 #-----------------------------------------------------------------
 subcode:: c_support_subs

@@ -1,3 +1,5 @@
+include: macros_output/for.def
+
 subcode:: parsecode_func_other
     $elif $func eq "for"
 	$call parsecode_for_support, c_style_protect

@@ -19,26 +19,56 @@ subcode:: package_globals
     our @globals
     our %globals
 
-# --------------------------
+#---------------------------------------- 
+include: macros_output/case.def
+include: macros_output/for.def
+include: macros_output/scope.def
+include: macros_output/sumcode.def
+
 subcode: case_flag_set
     $global $case_flag="\$b_flag_case"
     push @$out, "my \$b_flag_case=1;"
 subcode: case_flag_reset
     push @$out, "my \$b_flag_case=0;"
 
+#----
+subcode: var_declare(scope)
+    $param=~s/\s*;\s*$//
+    my @tlist=MyDef::utils::proper_split($param)
+    $foreach $v in @tlist
+	my ($name, $var)
+	$if $v=~/\@(\w+)\[(.*)\](.*)/
+	    $name=$1
+	    $v='@'.$1.$3
+	    $var={}
+	    my @tlist=split /,\s*/, $2
+	    my $i=0
+	    $foreach $t in @tlist
+		$i++
+		$var->{"dim$i"}=$t
+	$(if:scope=global)
+	    $if !$globals{$v}
+		$globals{$v}=1
+		push @globals, $v
+	    $if $var
+		$global_scope->{var_hash}->{$name}=$var
+	$(else)
+	    push @$out, "my $v;"
+	    $if $var
+		$cur_scope->{var_hash}->{$name}=$var
+    return 0
+
+#----
 subcode: parsecode
+    $call parsecode_scope
     $call parsecode_case_support, if, elsif, c_style
     $if $l=~/^\s*\$(\w+)\s*(.*)$/
 	my $func=$1;
 	my $param=$2;
 	$if $func =~ /^global$/
-	    $param=~s/\s*;\s*$//
-	    my @tlist=MyDef::utils::proper_split($param)
-	    $foreach $v in @tlist
-		$if !$globals{$v}
-		    $globals{$v}=1
-		    push @globals, $v
-	    return 0
+	    $call var_declare, global
+	$elif $func =~ /^my$/
+	    $call var_declare, my
 	$elif $func eq "sub"
 	    $if $param=~/^(\w+)\((.*)\)/
 		return single_block_pre_post(["sub $1 {", "INDENT", "my ($2)=\@_;"], ["DEDENT", "}"], "sub")
@@ -51,6 +81,8 @@ subcode: parsecode
 	    $call parsecode_for_support, c_style
 	$elif $func eq "foreach"
 	    $call parsecode_foreach
+	$elif $func eq "sumcode"
+	    $call parsecode_sum_support, perl
 	$elif $func eq "print"
 	    $call parsecode_print
 
@@ -58,6 +90,7 @@ subcode: parsecode
     push @$out, $l
 
     return 0;
+
 #---------------------------------------- 
 subcode: for_i0_i1_step
     $if $step eq "1"
@@ -72,7 +105,7 @@ subcode: for_i0_i1_step
 subcode: parsecode_foreach
     $if $param=~/(\S+)\s+in\s+(.*)/
 	my ($var, $list)=($1, $2)
-	$call loop_var, $var
+	$call loop_var
 	return single_block("foreach my $var ($list){", "}", "foreach")
 
 subcode: loop_var
@@ -80,6 +113,7 @@ subcode: loop_var
 	$var="\$i"
     $elif $var=~/^(\w+)/
 	$var='$'.$var
+
 #---------------------------------------- 
 subcode: dumpout
     # needed for wrapping up &case support

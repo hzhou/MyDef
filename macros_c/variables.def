@@ -267,16 +267,6 @@ subcode:: c_support_subs
 
 #-----------------------------------------------------------------
 subcode:: c_support_subs
-    $sub find_var($name)
-	$call debug_scopes
-	$if $cur_scope->{var_hash}->{$name}
-	    return $cur_scope->{var_hash}->{$name}
-
-	$for $i=$#scope_stack:0:-1
-	    $if $scope_stack[$i]->{var_hash}->{$name}
-		return $scope_stack[$i]->{var_hash}->{$name}
-	return undef
-
     $sub get_var_type_direct($name)
 	my $var=find_var($name)
 	$if $debug eq "type"
@@ -287,17 +277,6 @@ subcode:: c_support_subs
 	$else
 	    return undef
 
-subcode: debug_scopes
-    $if $debug eq "type"
-	$call debug_scope, $cur_scope, cur_scope
-	$for $i=$#scope_stack:0:-1
-	    $call debug_scope, $scope_stack[$i], scope $i
-
-subcode: debug_scope(scope, name)
-    print "  $(name)\[$(scope)->{name}]: "
-    $foreach $v in @{$(scope)->{var_list}}
-	print "$v, "
-    print "\n"
 #---------------------------------------- 
 subcode:: c_support_subs
     $sub get_var_type($name)
