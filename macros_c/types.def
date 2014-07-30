@@ -1,4 +1,14 @@
 subcode:: package_globals
+    $global %basic_types
+    %basic_types=(
+	"int"=>1,
+	"char"=>1,
+	"unsigned"=>1,
+	"unsigned char"=>1,
+	"long"=>1,
+	"float"=>1,
+	"double"=>1,
+    );
     $global %type_name, %type_prefix
     $global %fntype
     %type_name=(
@@ -62,6 +72,7 @@ subcode:: package_globals
     );
 
     # TODO: limit to function call?
+    #-- deprecated, directly test in expression.def
     %text_include=(
 	"printf|perror"=>"stdio",
 	"malloc"=>"stdlib",
@@ -75,8 +86,6 @@ subcode:: package_globals
 subcode:: c_support_subs
     $sub infer_c_type
 	my $val=shift;
-	$if $debug eq "type"
-	    print "infer_c_type: [$val]\n"
 	$if $val=~/^\((float|int|char|unsigned .*|.+\*)\)/
 	    return $1
 	$elif $val=~/^\((.*)/
@@ -110,25 +119,26 @@ subcode:: c_support_subs
 
 
 subcode:: c_support_subs
-    $sub get_c_type_word
-	my $name=shift;
-	$if $debug eq "type"
-	    print "get_c_type_word: [$name] -> $type_prefix{$name}\n";
-	$if $type_prefix{$name}
-	    my $type=$type_prefix{$name}
-	    return $type
-	$elsif substr($name, 0, 1) eq "t"
-	    return get_c_type_word(substr($name,1));
-	$elsif substr($name, 0, 1) eq "p"
-	    return get_c_type_word(substr($name,1)).'*';
-	$elsif $name=~/^st(\w+)/
-	    return "struct $1";
-	$elif $name=~/^([a-z0-9]+)/
-	    my $prefix=$1;
-	    $if $type_prefix{$prefix}
-		return $type_prefix{$prefix};
-	    $elif $prefix=~/^(.*?)\d+$/ and $type_prefix{$1}
-		return $type_prefix{$1};
+    $sub get_c_type_word($name)
+	$if $name
+	    $if $type_prefix{$name}
+		my $type=$type_prefix{$name}
+		return $type
+
+	    $if $name=~/^([a-z0-9]+)/
+		my $prefix=$1;
+		$if $type_prefix{$prefix}
+		    return $type_prefix{$prefix};
+		$elif $prefix=~/^(.*?)\d+$/ and $type_prefix{$1}
+		    return $type_prefix{$1};
+		$elif $structs{$1}
+		    return "struct $1"
+
+	    $if substr($name, 0, 1) eq "t"
+		return get_c_type_word(substr($name,1));
+	    $elif substr($name, 0, 1) eq "p"
+		return get_c_type_word(substr($name,1)).'*';
+	return undef
 
     $sub get_c_type
 	my $name=shift;
@@ -140,24 +150,22 @@ subcode:: c_support_subs
 	$if $type_name{$name}
 	    $type= $type_name{$name};
 	$elsif $name=~/(\w+?)_(.*)/
-	    my $t1=$1;
-	    my $t2=$2;
-	    my $t=get_c_type_word($t1);
-	    $if !$t
-		$if $t1=~/^\w+$/
-		    $type=get_c_type_word($t2);
-	    $elsif $t=~/^\*/
-		$type=get_c_type_word($t2).$t;
+	    my ($t1, $t2)=($1, $2)
+	    my $t=get_c_type_word($t1)
+	    $if $t1 eq "t" or $t1 eq "temp"
+		$type=get_c_type_word($t2)
+	    $elif $t1 eq "p" or $t1 eq "tp"
+		$type=get_c_type_word($t2).'*'
 	    $else
-		$type=$t;
+		$type=get_c_type_word($t1)
 	$else
-	    $type=get_c_type_word($name);
+	    $type=get_c_type_word($name)
 
 	$if !$type
 	    $type="void";
-	$elsif $type =~/^\*/
+	$elif $type =~/^\*/
 	    $type="void";
-	# --
+	#----------------------------------------  
 	$if $type_include{$type}
 	    $call add_include, $type_include{$type}
 	# --
@@ -165,7 +173,7 @@ subcode:: c_support_subs
 	    $type=pointer_type($type);
 	# --
 	$if $debug eq "type"
-	    print "get_c_type:   $name: $type\n";
+	    print "    get_c_type:   $name: $type\n";
 	return $type;
 
     $sub name_with_prefix($name)
@@ -178,8 +186,7 @@ subcode:: c_support_subs
 	return 0
 
 subcode:: c_support_subs
-    $sub pointer_type
-	my ($t)=@_;
+    $sub pointer_type($t)
 	$t=~s/\s*\*\s*$//;
 	return $t;
 
@@ -209,105 +216,6 @@ subcode:: c_support_subs
 	    return "\%c";
 	$else
 	    $if $warn
-		print "get_var_fmt: unhandled $v - $type\n";
+		$call warn, get_var_fmt: unhandled $v - $type
 	    return undef
-
-# -------------------------------------
-subcode:: c_support_subs
-    $sub fmt_string($str)
-	# print "fmt_string: [$str]\n"
-	my @pre_list
-	$if $str=~/^\s*\"(.*)\"\s*,\s*(.*)$/
-	    $str=$1
-	    @pre_list=MyDef::utils::proper_split($2)
-	$elif $str=~/^\s*\"(.*)\"\s*$/
-	    $str=$1
-
-	my %colors=(red=>31,green=>32,yellow=>33,blue=>34,magenta=>35,cyan=>36)
-
-	my @fmt_list
-	my @arg_list
-
-	my @group
-	&call parse_loop, $str
-	    &call if_lex, %
-		&call if_lex, %
-		    push @fmt_list, '%%'
-		&call if_lex, [-+ #]*[0-9]*(\.\d+)?[diufFeEgGxXoscpaAn]
-		    push @arg_list, shift @pre_list
-		    push @fmt_list, "%$&"
-		$else
-		    push @fmt_list, '%%'
-	    &call if_lex, \$
-		&call if_lex, (red|green|yellow|blue|magenta|cyan)
-		    push @fmt_list, "\\x1b[$colors{$1}m"
-		    &call if_lex, \{
-			push @group, $1
-		&call if_lex, (\w+)
-		    push @arg_list, $1
-		    push @fmt_list, get_var_fmt($1, 1)
-		    &call if_lex, -
-			# print $var-follow ----
-		$else
-		    push @fmt_list, '$'
-	    &call if_lex, \\\$
-		push @fmt_list, '$'
-	    &call if_lex, \}
-		$if @group
-		    pop @group
-		    $if !@group
-			push @fmt_list, "\\x1b[0m"
-		    $else
-			my $c=$group[-1]
-			push @fmt_list, "\\x1b[$colors{$c}m"
-		$else
-		    push @fmt_list, '}'
-	    &call if_lex, [^%\$\}]+
-		push @fmt_list, $&
-	    # print "parse_loop pos: ", pos($str), "\n"
-
-	$if @pre_list
-	    warn "Extra fmt arg list: ", join(", ", @pre_list), "\n"
-
-	my $tail=$fmt_list[-1]
-	$if $tail=~/(.*)-$/
-	    $fmt_list[-1]=$1
-	$elif $tail!~/\\n$/
-	    push @fmt_list, "\\n"
-
-	$if !@arg_list
-	    return (0, '"'.join('',@fmt_list).'"')
-	$else
-	    my $vcnt=@arg_list
-	    return ($vcnt, '"'.join('',@fmt_list).'", '.join(', ', @arg_list))
-
-# -------------------------------------
-subcode:: c_support_subs
-    $sub debug_dump($param, $prefix, $out)
-	my %colors=(red=>31,green=>32,yellow=>33,blue=>34,magenta=>35,cyan=>36)
-	my @vlist=split /,\s+/, $param;
-	my @a1;
-	my @a2;
-	$foreach my $v in @vlist
-	    $if $v=~/^(\w+):(.*)/
-		my ($color,$v)=($1,$2)
-		push @a2, $v;
-		push @a1, "\\x1b[$colors{$color}m" . "$v=".get_var_fmt($v, 1) . "\\x1b[0m"
-	    $else
-		my $fmt=get_var_fmt($v)
-		$if !defined $fmt
-		    push @a1, $v
-		$else
-		    push @a2, $v;
-		    push @a1, "$v=".get_var_fmt($v, 1)
-	$if $prefix
-	    $if $prefix=~/(red|green|yellow|blue|magenta|cyan)/
-		push @$out, "printf(\"\x1b[$colors{$prefix}m\");"
-		push @$out, "printf(\"    :".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
-		push @$out, "printf(\"\x1b[0m\");"
-	    $else
-		push @$out, "fprintf(stdout, \"    :[$prefix] ".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
-	$else
-	    push @$out, "fprintf(stdout, \"    :".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
-	$includes{"<stdio.h>"}=1;
 

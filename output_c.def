@@ -1,20 +1,18 @@
 include: output.def
 include: macros_c/parsing.def
-include: macros_c/last_checks.def
 include: macros_c/structure.def
 include: macros_c/functions.def
 include: macros_c/variables.def
-include: macros_c/hash_and_list.def
+# include: macros_c/hash_and_list.def
 include: macros_c/types.def
 include: macros_c/dump.def
 include: macros_c/dump_h.def
-# include: macros_c/regex.def
 
 include: macros_c/list_functions.def
 
+include: macros_output/case.def
 
 subcode:: package_globals
-    use MyDef::dumpout;
     my $cur_indent;
     ## -------------------------------------------------
     $global %misc_vars;
@@ -33,7 +31,6 @@ page: output_c, output_main
 	$if $MyDef::def->{"macros"}->{"use_double"}
 	    $type_name{f}="double";
 	    $type_prefix{f}="double";
-	MyDef::dumpout::init_funclist();
 	$call @c_init
 
     subcode: parsecode
@@ -57,15 +54,17 @@ page: output_c, output_main
 	    $mainfunc->{ret_type}="int";
 	    $mainfunc->{param_list}=["int argc", "char** argv"];
 	    unshift @{$mainfunc->{init}}, "DUMP_STUB main_init"
-	    push @{$mainfunc->{finish}}, "DUMP_STUB main_exit", "return 0;"
+	    push @{$mainfunc->{finish}}, "DUMP_STUB main_exit"
+	    $if !$mainfunc->{return}
+		$mainfunc->{return}="return 0;"
 
 	# ---- process_function ------------------------
-	my $funclist=MyDef::dumpout::get_func_list()
-	$foreach $func in @$funclist
+	$foreach $func in @function_list
 	    $if !$func->{processed}
 		process_function_std($func)
 
 	$call process_extern_binary
+	$call process_link_objects
 	$call dump_Makefile
 
 	# ---- Header stuff --------------------------
@@ -77,18 +76,22 @@ page: output_c, output_main
 
 	$call c_dump_init
 
+    subcode: process_link_objects
+	my @objlist
+	my @liblist
+	$foreach $i in keys %objects
+	    $if $i=~/^lib(.*)/
+		push @liblist, "-l$1"
+	    $elif $i=~/(.*\.o)/
+		push @objlist, "$i"
+	my $lib_list=join(" ", @liblist)
+	my $obj_list=join(" ", @objlist)
+
     subcode: dump_Makefile
 	$if $mainfunc
 	    my $ofile=$page->{outdir}."/Makefile"
 	    $if !-f $ofile or $page->{makefile}
 		print "  ---> $ofile\n"
-		my @objlist
-		my @liblist
-		$foreach $i in keys %objects
-		    $if $i=~/^lib(.*)/
-			push @liblist, "-l$1"
-		    $elif $i=~/(.*\.o)/
-			push @objlist, "$i"
 		my $pagename=$page->{pagename}
 		open Subfile, ">$ofile" or die "Can't write $ofile\n"
 		$call set_make_macro, CC, gcc
@@ -98,8 +101,8 @@ page: output_c, output_main
 		$if $page->{makefile} eq "debug"
 		    print Subfile "CFLAGS+= -g"
 		print Subfile "\n"
-		print Subfile "$pagename: $pagename.o ".join(" ", @objlist)."\n";
-		print Subfile "\t\$\(CC) \$\(LIB) ".join(" ",@liblist)." -o $pagename \$^\n"
+		print Subfile "$pagename: $pagename.o $obj_list\n";
+		print Subfile "\t\$\(CC) \$\(LIB) $lib_list -o $pagename \$^\n"
 		print Subfile "\n"
 		print Subfile "%.o: %.c\n"
 		print Subfile "\t\$\(CC) -c \$\(CFLAGS) \$\(INC) -o \$@ \$<\n"

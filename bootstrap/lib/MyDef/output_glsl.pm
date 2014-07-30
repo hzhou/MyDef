@@ -1,6 +1,5 @@
 use strict;
 package MyDef::output_glsl;
-use MyDef::dumpout;
 use MyDef::output_c;
 sub get_interface {
     return (\&init_page, \&parsecode, \&MyDef::output_c::set_output, \&MyDef::output_c::modeswitch, \&dumpout);

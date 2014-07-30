@@ -6,14 +6,14 @@ page: output_win32
     package: MyDef::output_win32
 
     subcode: main
-	use MyDef::dumpout;
+	$(export:C=MyDef::output_c::)
 	use MyDef::output_c;
 
 	$sub get_interface
-	    return (\&init_page, \&MyDef::output_c::parsecode, \&MyDef::output_c::set_output, \&MyDef::output_c::modeswitch, \&dumpout);
+	    return (\&init_page, \&$(C)parsecode, \&$(C)set_output, \&$(C)modeswitch, \&dumpout);
 
 	$sub init_page
-	    my @ret = MyDef::output_c::init_page(@_)
+	    my @ret = $(C)init_page(@_)
 	    $call @on_init
 	    return @ret
 
@@ -23,20 +23,21 @@ page: output_win32
 	    push @$f, "#define _CRT_SECURE_NO_WARNINGS\n"
 	    push @$f, "#define WIN32_LEAN_AND_MEAN\n"
 	    push @$f, "#include <windows.h>\n";
-	    $foreach $i in keys %MyDef::output_c::objects
+	    $foreach $i in keys %$(C)objects
 		$if $i=~/^lib(.*)/
 		    push @$f, "#pragma comment(lib, \"$1\")\n"
-	    MyDef::output_c::dumpout($f, $out)
+		    $$(C)objects{$i}=undef
+	    $(C)dumpout($f, $out)
 
 	1;
 
 subcode:: on_init
-    MyDef::output_c::global_add_symbol("cur_instance", "HINSTANCE")
+    $(C)global_add_symbol("cur_instance", "HINSTANCE")
 
 subcode:: on_dumpout
     my $extern
     # ----  Main Function -------------------
-    my $func=$MyDef::output_c::functions{"WinMain"};
+    my $func=$$(C)functions{"WinMain"};
     $if $func
 	$func->{skip_declare}=1;
 	$func->{ret_type}="int APIENTRY";
@@ -48,5 +49,5 @@ subcode:: on_dumpout
     $else
 	$extern="extern "
 
-    push @MyDef::output_c::global_list, "cur_instance"
-    $MyDef::output_c::global_hash->{cur_instance}= $extern."HINSTANCE cur_instance"
+    push @$(C)global_list, "cur_instance"
+    $$(C)global_hash->{cur_instance}= $extern."HINSTANCE cur_instance"

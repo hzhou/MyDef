@@ -1,0 +1,256 @@
+subcode:: _autoload
+    $class string
+    #---------------------------------------- 
+macros:
+    string_param: 
+    string_ref: $1, &$1_len, &$1_size
+
+subcode: string_init(var, scope, @type)
+    $include string
+    $$(scope) char * $(var)=NULL
+    $set_var_attr $(var), class=string, dimension=$(var)_len
+    $set_var_attr $(var), exit=string_exit
+    $set_var_attr $(var), strlen=$(var)_len
+    $$(scope) int $(var)_len=0
+    $$(scope) int $(var)_size=0
+    $(if:type!=default)
+	$call string_add, $(var), $(type)
+
+subcode: string_exit(var)
+    $if $(var)_size>0
+	free($(var))
+
+subcode: string_empty(var)
+    $(var)_len=0
+    $if $(var)_size>0
+	memset($(var), 0, $(var)_size)
+
+subcode: string_clear(var)
+    $call string_empty, $(var)
+
+subcode: string_resize(var, n)
+    $(set:string=$(var), &$(var)_len, &$(var)_size)
+    $fcall $(var)=f_string_resize($(string), $(n))
+
+fncode: f_string_resize(s, pn_len, pn_size, n)
+    $(mset:len=*pn_len, size=*pn_size)
+    $if n==0
+	$if $(size)>0
+	    free(s)
+	    s=NULL
+	    $(len)=0
+	    $(size)=0
+    $else
+	$if $(size)<n
+	    $(size)=n
+	    s=realloc(s, $(size))
+	    $call @assert, s
+	    memset(s+$(len), 0, $(size)-$(len))
+	$elif $(len)>n
+	    $(len)=n
+	    memset(s+$(len), 0, $(size)-$(len))
+    return s
+
+#---------------------------------------- 
+subcode: string_append(var, s)
+    $(set:string=$(var), &$(var)_len, &$(var)_size)
+    $(if:s~")
+	$fcall $(var)=f_string_append($(string), $(s),$(s:strlen))
+    $(elif:s~')
+	$fcall $(var)=f_string_append_char($(string), $(s))
+    $(else)
+	$get_type(type) $(s)
+	$(if:type=int or type=char or type=unsigned)
+	    $fcall $(var)=f_string_append_int($(string), $(s))
+	$(elif:type=float)
+	    $fcall $(var)=f_string_append_float($(string), $(s), 7)
+	$(elif:type=double)
+	    $fcall $(var)=f_string_append_float($(string), $(s), 15)
+	$(elif:type=char *)
+	    $get_var_attr $(s), strlen
+	    $(if:!strlen)
+		$(set:strlen=strlen($(s)))
+	    $fcall $(var)=f_string_append($(string), $(s), $(strlen))
+	$(else)
+	    $warn string format $(s):$(type) not recognized
+	    $fcall $(var)=f_string_append($(string), $(s), strlen($(s)))
+
+subcode: string_add(var, @plist)
+    $(foreach:p)
+	$call string_append, $(var), $(p)
+
+subcode: string_addchar(var, c)
+    $(set:string=$(var), &$(var)_len, &$(var)_size)
+    $fcall $(var)=f_string_append_char($(string), $(c))
+
+subcode: string_addhex(var, c)
+    $(set:string=$(var), &$(var)_len, &$(var)_size)
+    $fcall $(var)=f_string_append_hex($(string), $(c))
+
+subcode: string_fmt(var, @param)
+    $fmt $(param)
+    $call string_resize, $(var), 100
+    $(if:fmt_n>0)
+	tn_ret=snprintf($(var)+$(var)_len, $(var)_size-$(var)_len-1, $(fmt))
+	$(var)_len+=tn_ret
+    $(else)
+	$call string_add, $(var), $(fmt)
+
+#---------------------------------------- 
+subcode: string_set(var, s)
+    $call string_clear, $(var)
+    $call string_append, $(var), $(s)
+
+#---------------------------------------- 
+subcode: string_replace(var, i0, i1, @replace)
+    $local string temp_string
+    $call string_resize, temp_string, $(var)_len-$(i1)
+    temp_string_len=$(var)_len-$(i1)
+    strncpy(temp_string, $(var)+$(i1), temp_string_len)
+    $call string_resize, $(var), $(i0)
+    $call string_fmt, $(var), $(replace)
+    $call string_append, temp_string
+    
+#---------------------------------------- 
+fncode: f_string_append(s, pn_len, pn_size, char * src, int len)
+    $call string_expand, s, *pn_len, *pn_size, len
+    memcpy(s+*pn_len, src, len)
+    *pn_len+=len
+    return s
+
+fncode: f_string_append_char(s, pn_len, pn_size, c)
+    $call string_expand, s, *pn_len, *pn_size, 1
+    s[*pn_len]=c
+    *pn_len+=1
+    return s
+
+fncode: f_string_append_hex(s, pn_len, pn_size, c)
+    $call string_expand, s, *pn_len, *pn_size, 2
+    t_c=c>>4
+    $if t_c<10
+	s[*pn_len]=t_c+'0'
+    $else
+	s[*pn_len]=t_c-10+'a'
+    t_c=c&0xf
+    $if t_c<10
+	s[*pn_len+1]=t_c+'0'
+    $else
+	s[*pn_len+1]=t_c-10+'a'
+    *pn_len+=2
+    return s
+
+fncode: f_string_append_int(s, pn_len, pn_size, int num)
+    $local char * s2=s+(*pn_len)
+    #-- maximum uint_64 is 18446744073709551615 (20 digits)
+    $call string_expand, s, *pn_len, *pn_size, 30
+    $if num==0
+	*s2++='0'
+    $else
+	$if num<0
+	    *s2++='-'
+	    num=-num
+	$call itoa, num, 10
+	$for i=n:0
+	    *s2++=tpn_digits[i] + '0'
+    *pn_len=s2-s
+    return s
+
+fncode: f_string_append_float(s, pn_len, pn_size, double fnum, n_digits)
+    $local char * s2=s+(*pn_len)
+    $call string_expand, s, *pn_len, *pn_size, 40
+    $if fnum<0
+	*s2++='-'
+	fnum=-fnum
+
+    $local int num
+    num=(int)fnum
+    fnum-=num
+
+    $if 1.0-fnum<5e-7
+	num++
+	fnum=0.0
+
+    $call itoa, num, 10
+    $call ftoa_get_precision
+    $call ftoa_carryover_int
+    $for i=n:0
+	*s2++=tpn_digits[i] + '0'
+    $if fnum>f_eps && n_digits>0
+	*s2++='.'
+	$for i=0:n_digits
+	    fnum *= 10
+	    num=(int)fnum
+	    fnum-=num
+	    s2[i]=num+'0'
+	    # $print "s2 $i ($fnum): %c", s2[i]
+	$if fnum>0.5
+	    $call ftoa_carryover_float
+	$else
+	    $call ftoa_remove_zeros
+	s2+=i
+    $else
+	#- omit decimals
+    *pn_len=s2-s
+    return s
+
+#---------------------------------------- 
+subcode: itoa(n, base)
+    $local tpn_digits[40]
+    $local n
+    $if $(n)==0
+	tpn_digits[0]=0
+	n=1
+    $else
+	n=0
+	$while $(n)>0
+	    tpn_digits[n++]=$(n) % $(base)
+	    $(n)/=$(base)
+
+subcode: ftoa_get_precision
+    n_digits-=n
+    $local double f_eps=0.5
+    $for i=0:n_digits
+	f_eps/=10.0
+
+subcode: ftoa_carryover_int
+    $if 1.0-fnum<f_eps
+	$for i=0:n
+	    $if tpn_digits[i]<9
+		tpn_digits[i]++
+		break
+	    $else
+		tpn_digits[i]=0
+	$if i==n
+	    tpn_digits[i]=1
+	    n=i+1
+
+subcode: ftoa_carryover_float
+    $while i>0
+	i--
+	$if s2[i]<'9'
+	    s2[i]+=1
+	    break
+	$else
+	    s2[i]='0'
+
+subcode: ftoa_remove_zeros
+    $while i>0 && s2[i-1]=='0'
+	i--
+	s2[i]='\0'
+
+#---------------------------------------- 
+subcode: string_expand(var, len, size, inc)
+    $if $(len)+$(inc)>$(size)
+	$temp n
+	$if $(size)==0
+	    $(n)=100
+	$else
+	    $(n)=$(size)
+	$while $(len)+$(inc)>$(n)
+	    $(n)=$(n)*5/3
+	$(var)=realloc($(var), $(n)+1)
+	$call @assert, $(var)
+	memset($(var)+$(size), 0, $(n)-$(size)+1)
+	$(size)=$(n)
+	
+

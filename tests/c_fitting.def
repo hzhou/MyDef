@@ -1,0 +1,33 @@
+include: c/fitting.def
+
+page: test, basic_frame
+    subcode: main
+	$call test_circle_to_square
+
+subcode: test_circle_to_square
+    $local pf_exp[360]
+    $call square_F, pf_exp, 1.0
+
+    $local pf_param[1]={1.0}
+    $local pf_step[1]={0.1}
+    $(set:lma_step=pf_step)
+    $call lma, pf_exp, pf_param, F
+
+    $dump pf_param[0]
+
+subcode: F(py, pa)
+    $call circle_F, $(py), $(pa)[0]
+
+#---------------------------------------- 
+subcode: circle_F(py, r)
+    $sumcode $(py)[i]=$(r)
+
+subcode: square_F(py, r)
+    $for i=0:360
+	tf_cos=fabs(cos(i/180.0*3.14159265))
+	tf_sin=fabs(sin(i/180.0*3.14159265))
+	$if tf_cos>=tf_sin
+	    $(py)[i]=$(r)/tf_cos
+	$else
+	    $(py)[i]=$(r)/tf_sin
+    

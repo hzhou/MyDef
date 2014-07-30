@@ -1,0 +1,93 @@
+subcode:: c_support_subs
+    $sub do_assignment($left, $right)
+	$if !defined $right
+	    my $type=get_var_type($left)
+	    $if $type and $type ne "void"
+		$right=type_default($type)
+		$call done_assignment
+	    return
+	$if !defined $left
+	    return
+
+	$if $debug eq "type"
+	    $print $cyan do_assignment: $left = $right
+
+	$call @check_tuple_assignment
+
+	my $type;
+	$if $left=~/^([^\(\[]*)\s+(\S+)$/
+	    $type=$1;
+	    $left=$2;
+
+	$if $left=~/^(\w+)(.*)/
+	    $if $protected_var{$1}
+		$call warn, Variable $1 protected (unmutable)
+	    $if !$2
+		auto_add_var($left, $type, $right)
+	$else
+	    # ToDo, complex left value
+
+	$call done_assignment
+
+subcode: done_assignment
+    push @$out, "$left = $right;";
+    return
+
+subcode: check_tuple_assignment
+    my @left_list=MyDef::utils::proper_split($left)
+    my @right_list=MyDef::utils::proper_split($right)
+
+    # printf "check_tuple_assignment: left $left:%d, right $right:%d\n", $#left_list+1, $#right_list+1
+    $if @left_list>1 or @right_list>1
+	$if @left_list==1
+	    my $type=get_var_type($left)
+	    # $print "left type [$type]"
+	    $if $type=~/^struct (\w+)$/
+		$call assign_to_struct, $1, 0
+	    $elif $type=~/^struct (\w+)\s*\*$/
+		$call assign_to_struct, $1, 1
+	    $elif $type=~/^(.*?)\s*\*$/ 
+		# -- assign to array ----
+		$for $i=0:@right_list
+		    do_assignment("$left\[$i\]", $right_list[$i])
+	    $else
+		$call warn, tuple assigned to scalar
+		do_assignment($left, $right_list[0])
+	$elif @right_list=1
+	    my $type=get_var_type($right)
+	    $if $type=~/^struct (\w+)$/
+		$call assign_from_struct, $1, 0
+	    $elif $type=~/^struct (\w+)\s*\*$/
+		$call assign_from_struct, $1, 1
+	    $elif $type=~/^(.*?)\s*\*$/ 
+		$for $i=0:@right_list
+		    do_assignment($left_list[$i], "$right\[$i\]")
+	    $else
+		$call warn, scalar assigned to tuple
+		$for $i=0:@right_list
+		    do_assignment($left_list[$i], $right)
+	$else
+	    $for $i=0:@left_list
+		do_assignment($left_list[$i], $right_list[$i])
+	return
+
+subcode: assign_to_struct(name, is_ref)
+    # $print "assign_to_struct $(name)"
+    my $s_list=$structs{$(name)}->{list}
+    my $i=0
+    $foreach $p in @$s_list
+	$(if:is_ref=1)
+	    do_assignment("$left->$p", $right_list[$i])
+	$(else)
+	    do_assignment("$left.$p", $right_list[$i])
+	$i++
+
+subcode: assign_from_struct(name, is_ref)
+    my $s_list=$structs{$(name)}->{list}
+    my $i=0
+    $foreach $p in @$s_list
+	$(if:is_ref=1)
+	    do_assignment($left_list[$i], "$right->$p")
+	$(else)
+	    do_assignment($left_list[$i], "$right.$p")
+	$i++

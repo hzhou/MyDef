@@ -30,11 +30,7 @@ subcode: split_sub_param
 	@pre_plist=MyDef::utils::proper_split($1)
     $param=~s/^\s*,?\s*//;
     $pline=$param;
-    $if $param=~/ \| /
-	# ---- ' | ' seperated param list
-	@plist=split /\s+\|\s+/, $param;
-    $else
-	@plist=MyDef::utils::proper_split($param)
+    @plist=MyDef::utils::proper_split($param)
 
 subcode: call_sub_map
     $if 1+@pre_plist!=@$params
@@ -137,21 +133,19 @@ subcode:: support_subs
 
 	    modepop()
 
-    $sub call_sub($param, $calltype)
+    $sub call_sub($param, $calltype, $scope)
 	$call call_sub_param
 	$if $codelib
 	    $if $codelib->{type} eq "perl" && $interface_type ne "perl"
-		my $t=eval_sub_string($codelib)
-		eval $t
-		$if $@
-		    print STDERR "    [$cur_file:$cur_line] Code eval error: [$@]\n";
-		    print STDERR "  $t\n"
+		$param=~s/^\s*,\s*//
+		$f_parse->("\$eval $codename, $param")
 	    $else
 		$call split_sub_param
 		&call call_sub_block
+		    $if $scope
+			$codelib->{"scope"}=$scope
 		    my $np=@pre_plist;
 		    $if $calltype eq "\$list"
-			$codelib->{"scope"}=1
 			parseblock($codelib)
 		    $elif $calltype eq "\$map"
 			$call call_sub_map
@@ -179,10 +173,16 @@ subcode:: support_subs
 
 subcode:: support_subs
     $sub eval_sub($codename)
-	my $codelib=get_def_attr("codes", $codename);
-	$if !$codelib
-	    warn "    eval_sub: Code $codename not found\n"
-	return eval_sub_string($codelib)
+	$global %eval_sub_cache, %eval_sub_error
+	$if $eval_sub_cache{$codename}
+	    return $eval_sub_cache{$codename}
+	$else
+	    my $codelib=get_def_attr("codes", $codename);
+	    $if !$codelib
+		warn "    eval_sub: Code $codename not found\n"
+	    my $t= eval_sub_string($codelib)
+	    $eval_sub_cache{$codename}=$t
+	    return $t
 
     $sub eval_sub_string($codelib)
 	require MyDef::output_perl

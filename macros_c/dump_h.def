@@ -36,9 +36,9 @@ subcode: dump_h_files
 	    $call dump_function_declare, $k
 	push @buf, "\n"
 	$foreach $k in @{$ghash{"global"}}
-	    my $type=$global_type->{$k}
-	    my $init=$global_hash->{$k}
-	    $if $type=~/\*$/ and $init=~/$k\[(.*)\]/
+	    my $var=$global_hash->{$k}
+	    my $type=$var->{type}
+	    $if $type=~/\*$/ and $var->{array}
 		$type=~s/\s*\*$//
 		push @buf, "extern $type $k\[];\n"
 	    $else

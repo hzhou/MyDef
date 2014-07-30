@@ -399,8 +399,8 @@ sub get_lines {
         }
     }
     if(!-f $filename){
-        print "include_path: $MyDef::var->{include_path}\n";
-        die "$file not found\n";
+        warn "$file not found\n";
+        warn "  search path: $MyDef::var->{'include_path'}\n";
     }
     open In, $filename or die "Can't open $file.\n";
     my @lines=<In>;

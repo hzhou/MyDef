@@ -1,0 +1,22 @@
+include: c/hash.def
+
+page: test, basic_frame
+    subcode: main
+	$call test_hash
+
+subcode: test_hash
+    $my hash H
+    
+    $(for:i in 1..500)
+	H{a$(i)}=$(i)
+    H{34}=43
+    H{"68"}=86
+    H{hello}=12345
+    $print "  34: %d", H{34}
+    $print "  68: %d", H{68}
+    $print "  a17: $H{a17}"
+    $print "  b17: $H{b17}"
+    $print "  hello: %d", H{hello}
+    
+    $if H{a18}
+	$print "Got a18"

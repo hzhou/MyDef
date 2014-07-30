@@ -89,18 +89,23 @@ subcode: parse_stack_push
     my $blk= {out=>$out, index=>$block_index, eindex=>$block_index, file=>$cur_file, line=>$cur_line, code=>$code}
     push @block_stack, $blk
     $if $code->{"scope"}
+	my $idx=$block_index
+	my $scope=$code->{scope}
 	# SUBBLOCK messages to enable block scopes ------
-	$blk->{scope}=1
-	$f_parse->("SUBBLOCK BEGIN $block_index")
+	$blk->{scope}=$scope
+	$f_parse->("SUBBLOCK BEGIN $idx $scope")
+	push @$out, "DUMP_STUB block$idx\_pre"
 
 subcode: parse_stack_pop
-    my $blk=pop @block_stack;
+    my $blk=$block_stack[-1]
+    my $idx=$blk->{index}
     $if $blk->{scope}
 	# SUBBLOCK messages to enable block scopes ------
-	$f_parse->("SUBBLOCK END $blk->{index}")
+	$f_parse->("SUBBLOCK END $blk->{index} $blk->{scopes}")
+    pop @block_stack
+
     $cur_file=$blk->{file}
     $cur_line=$blk->{line}
-    my $idx=$blk->{index}
     $if $named_blocks{"block$idx\_post"}
 	push @$out, "DUMP_STUB block$idx\_post"
 
@@ -138,7 +143,7 @@ subcode: parse_filter_meta
     # -- maintain indent level
     $if $l eq "SOURCE_INDENT" 
 	$indent++; 
-    $elsif $l eq "SOURCE_DEDENT" 
+    $elif $l eq "SOURCE_DEDENT" 
 	$indent-- if $indent>0; 
 
 subcode: parse_catch_meta
@@ -164,7 +169,7 @@ subcode: parse_line_progress
 
 subcode: parse_line
     undef $callback_output
-    my $callback_tail
+    my $callback_scope
 
     my $idx=$#$out+1;
     $parse_line_count++
@@ -175,10 +180,12 @@ subcode: parse_line
 	    #     eg. output_apple.pm $method
 	    $callback_output=$msg;
 	    $idx=0;
-	$elsif $msg=~/^NEWBLOCK/
+	$elsif $msg=~/^NEWBLOCK(.*)/
 	    # check the new output for blocks
 	    #     eg. cfunctions.pm single_block
 	    $callback_output=$out;
+	    $if $1=~/^-(.*)/
+		$callback_scope=$1
 	$elsif $msg=~/^SKIPBLOCK/
 	    grabblock($block, \$lindex)
 	    last
@@ -199,6 +206,7 @@ subcode: check_callback
     my $n=new_output()
     my $subblock=grabblock($block, \$lindex)
     $call parse_callback_block, $n, $subblock
+
     my $n_end_parse=0
     $for $i=$idx:$#$callback_output+1
 	$if $callback_output->[$i]=~/^BLOCK$/
@@ -207,6 +215,7 @@ subcode: check_callback
 	    $n_end_parse++
 	    $f_parse->($1)
 	    $callback_output->[$i]="NOOP"
+
     $if $n_end_parse==0
 	$call hack_case_wrap
 
@@ -214,7 +223,7 @@ subcode: parse_callback_block(n, subblock)
     my $temp=$out;
     set_output($output_list[$(n)])
     #$f_parse->("SCOPE: CALLBACK");
-    parseblock({source=>$(subblock), name=>"BLOCK_$(n)"})
+    parseblock({source=>$(subblock), name=>"BLOCK_$(n)", scope=>$callback_scope})
     #$f_parse->("SCOPE: NONE");
     set_output($temp)
 

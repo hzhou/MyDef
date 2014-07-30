@@ -2,19 +2,24 @@ use strict;
 package MyDef::utils;
 sub proper_split {
     my ($param)=@_;
-    my @closure_stack;
     my @tlist;
-    my $t;
     if($param eq "0"){
         return (0);
     }
     elsif(!$param){
         return @tlist;
     }
+    my @closure_stack;
+    my $t;
     while(1){
-        if($param=~/\G(\s+)/gc){
+        if($param=~/\G$/gc){
+            last;
+        }
+        elsif($param=~/\G\s+/gc){
             if(@closure_stack){
                 $t.=$1;
+            }
+            else{
             }
         }
         elsif($param=~/\G(,)/gc){
@@ -23,35 +28,25 @@ sub proper_split {
             }
             else{
                 push @tlist, $t;
-                $t="";
+                undef $t;
             }
         }
         elsif($param=~/\G([^"'\(\[\{\)\]\},]+)/gc){
             $t.=$1;
         }
-        elsif($param=~/\G(['"])/gc){
+        elsif($param=~/\G("([^"\\]|\\.)*")/gc){
             $t.=$1;
-            if(!@closure_stack){
-                push @closure_stack, $1;
-            }
-            elsif($closure_stack[-1] eq $1){
-                pop @closure_stack;
-            }
-            elsif($closure_stack[-1] eq "'" or $closure_stack[-1] eq '"'){
-            }
-            else{
-                push @closure_stack, $1;
-            }
+        }
+        elsif($param=~/\G('([^'\\]|\\.)*')/gc){
+            $t.=$1;
         }
         elsif($param=~/\G([\(\[\{])/gc){
             $t.=$1;
-            if(!@closure_stack or $closure_stack[-1] ne "'" and $closure_stack[-1] ne '"'){
-                push @closure_stack, $1;
-            }
+            push @closure_stack, $1;
         }
         elsif($param=~/\G([\)\]\}])/gc){
             $t.=$1;
-            if(@closure_stack and $closure_stack[-1] ne "'" and $closure_stack[-1] ne '"'){
+            if(@closure_stack){
                 my $match;
                 if($1 eq ')'){
                     $match='(';
@@ -63,7 +58,7 @@ sub proper_split {
                     $match='{';
                 }
                 my $pos=-1;
-                for(my $i=0;$i<@closure_stack;$i++){
+                for(my $i=0; $i < @closure_stack; $i++){
                     if($match==$closure_stack[$i]){
                         $pos=$i;
                     }
@@ -72,14 +67,20 @@ sub proper_split {
                     splice(@closure_stack, $pos);
                 }
                 else{
+                    warn "proper_split: unbalanced [$param]\n";
                 }
             }
         }
-        else{
-            push @tlist, $t;
-            return @tlist;
+        elsif($param=~/\G(.)/gc){
+            my $curfile=MyDef::compileutil::curfile_curline();
+            print "[$curfile]proper_split: unmatched $1 [$param]\n";
+            $t.=$1;
         }
     }
+    if($t or @tlist){
+        push @tlist, $t;
+    }
+    return @tlist;
 }
 sub uniq_name {
     my ($name, $hash)=@_;
@@ -88,6 +89,9 @@ sub uniq_name {
     }
     else{
         my $i=2;
+        if($name=~/[0-9_]/){
+            $name.="_";
+        }
         while($hash->{"$name$i"}){
             $i++;
         }

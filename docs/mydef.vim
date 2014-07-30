@@ -4,7 +4,9 @@
 :syntax match xKey /^\s*\$\i\+/
 :syntax match xPrefix /\$\./
 :syntax match xKey /^\s*&call/
-:syntax match xKey /\$([^)]*)/
+:syntax match xKey /^\s*\$(set:.*)/
+:syntax match xMacro /\$([^)]*)/
+
 :syntax match xCode /^\s*\$\(subclass\|method\)\s/
 :syntax match xHTML /HTML_\I\+/
 :syntax match xCode /^\s*\(sub\|fn\|js\|perl\|php\)code:/
@@ -15,13 +17,13 @@
 :syntax match xCommentImportant /^\s*#[-#].*/  
 :syntax match xCommentImportant /\s# -.*$/ " Trailing [ ]# 
 :syntax region xComment start=/\/\*/ end=/\*\//
-:syntax region dString start=/"/ skip=/\\"/ end=/"/  oneline
+:syntax region dString start=/"/ skip=/\\"/ end=/"/  oneline contains=xMacro
 :syntax region sString start=/'/ skip=/\\'/ end=/'/  oneline
 
 :syntax match perlKey /^\s*\(push\|shift\|unshift\|pop\|print\|return\|goto\|last\|next\|break\|continue\)\>/
 
 :syntax match perlKey /^\s*\i\+:/
-:syntax match xInclude /^include.*/
+:syntax match xInclude /^include:.*/
 :syntax match xCSS /CSS: .*/
 
 :syntax match perlVar /\(\$\|@\|%\)\i\+/
@@ -31,12 +33,16 @@
 :highlight link dString String
 :highlight link sString String
 :highlight link xKey Type
+:highlight link xMacro Type
 :highlight link xCSS Underlined
 :highlight link xCode Statement
 :highlight link xStage Statement
 :highlight link xComment NonText
 :highlight link xCommentImportant Comment
-:highlight link xInclude Include
+
+" :highlight link xInclude Include
+:highlight xInclude term=underline cterm=bold ctermfg=81 guifg=#ff80ff
+
 :highlight link xHTML Special
 
 :highlight link perlVar Comment

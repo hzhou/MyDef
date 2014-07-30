@@ -1,13 +1,12 @@
+include: c/string.def
+
+include: DefParser/c_fifo.def
+include: DefParser/input_buffer.def
+include: DefParser/lex.def
+
 subcode: set_tn_expect_error
     $(export:tn_expect_error=on)
     tn_expect_error=0
-
-subcode: parse_sequence(id)
-    $call parse_push
-    $call input_start
-    BLOCK
-    $call parse_pop, $(id)
-    return 1
 
 subcode: expect(c)
     $(if:c~')
@@ -28,14 +27,13 @@ subcode: expect_error(c)
     $call @parse_error, Expect $(c)
 
 subcode: parse_error(msg)
-    $call tempstr_init
-    $call tempstr_add, '['
+    $global string tempstr
+    tempstr.$empty
+    tempstr.$add "["
     $if $(input)->s_file
-	$call tempstr_add, $(input)->s_file
-    $call tempstr_add, ": line "
-    $call tempstr_add_int, $(input)->n_line
-    $call tempstr_add, ']'
-    print $tempstr_buffer Error in $(FunctionName): $(msg)
+	tempstr.$add $(input)->s_file
+    tempstr.$add ": line ", $(input)->n_line, "]"
+    $print $tempstr Error in $(FunctionName): $(msg)
     $call input_debug
 
 # ------------------------------------------
@@ -53,6 +51,13 @@ subcode: build_op_macro(@t)
     $(export:op=$(m))
 
 # ----------------------------------
+subcode: parse_sequence(id)
+    $call parse_push
+    $call input_start
+    BLOCK
+    $call parse_pop, $(id)
+    return 1
+
 subcode: parse_left(parse, @op)
     $list $(parse)
     $call parse_push

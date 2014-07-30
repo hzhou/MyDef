@@ -96,6 +96,10 @@ subcode: parse_main
 		push @$source, $line;
 	    $elif $line=~/^(\w+)code:([:-@]?)\s*(\w+)(.*)/
 		my ($type, $dblcolon, $name, $t)=($1, $2, $3, $4)
+		#---- $dblcolon -----------
+		#-        :: concat
+		#-        :@ optional default
+		#-        :- prepend
 		$if $name eq "_autoload"
 		    $dblcolon=":"
 		$call start_subcode

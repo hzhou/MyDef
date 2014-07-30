@@ -1,6 +1,5 @@
 use strict;
 package MyDef::output_xs;
-our $xs_started;
 our @xs_globals;
 use MyDef::output_c;
 sub get_interface {
@@ -27,18 +26,19 @@ sub parsecode {
         $param=~s/^\s*,\s*//;
         my $t=MyDef::compileutil::eval_sub($codename);
         eval $t;
-        if($@){
-            print "Error [$l]: $@\n";
-            print "  $t\n";
+        if($@ and !$MyDef::compileutil::eval_sub_error{$codename}){
+            $MyDef::compileutil::eval_sub_error{$codename}=1;
+            print "evalsub - $codename\n";
+            print "[$t]\n";
+            print "eval error: [$@]\n";
         }
         return;
     }
     my $out=$MyDef::output_c::out;
     if($l=~/^XS_START/){
+        MyDef::output_c::parsecode("NOOP POST_MAIN");
+        %MyDef::output_c::list_function_hash=();
         $l= "DUMP_STUB xs_start";
-        $MyDef::output_c::function_flags{"xs_mode"}= 1;
-        $MyDef::output_c::function_flags{"skip_declare"}= 1;
-        $xs_started=1;
     }
     elsif($l=~/^\s*(\$if|while|elif|elsif|elseif)\s*(.*)/){
         $l="$1 ".translate_perl_cond($2, $out);
@@ -63,19 +63,21 @@ sub parsecode {
     }
     elsif($l=~/^\$foreach\s+\((\w+),\s*(\w+)\)\s+in\s+(hv_\w+)/){
         my ($v_name, $v_val, $v_hv)=($1, $2, $3);
-        MyDef::output_c::func_add_var("t_n");
+        my $tn=MyDef::output_c::temp_add_var("tn", "I32");
+        MyDef::output_c::protect_var($tn);
         MyDef::output_c::func_add_var($v_name);
         MyDef::output_c::func_add_var($v_val);
         my $vartype=MyDef::output_c::get_var_type($v_val);
         MyDef::output_c::func_add_var("t_sv");
         my @pre;
-        push @pre, "t_n=hv_iterinit($v_hv);";
-        push @pre, "while((t_sv=hv_iternextsv($v_hv, &$v_name, &t_n))){";
+        push @pre, "$tn=hv_iterinit($v_hv);";
+        push @pre, "while((t_sv=hv_iternextsv($v_hv, &$v_name, &$tn))){";
         push @pre, "INDENT";
         translate_scalar(\@pre,$v_val,$vartype,"t_sv");
         my @post;
         push @post, "DEDENT";
         push @post, "}";
+        push @post, "PARSE:\$unprotect_var $tn";
         return MyDef::output_c::single_block_pre_post(\@pre, \@post);
     }
     elsif($l=~/^\$getparam\s+(.*)/){
@@ -95,9 +97,7 @@ sub parsecode {
             $key=$1;
         }
         my $keylen=length($key);
-        if($var=~/^\w+$/){
-            MyDef::output_c::func_add_var($var);
-        }
+        MyDef::output_c::auto_add_var($var);
         my $vartype=MyDef::output_c::get_var_type($var);
         MyDef::output_c::func_add_var("t_psv", "SV**");
         push @$out, "t_psv=hv_fetch($hv, \"$key\", $keylen, 0);";
@@ -106,11 +106,8 @@ sub parsecode {
     }
     elsif($l=~/(\S+)=(\w+)->\[(.*)\]/){
         my ($var, $av, $key)=($1, $2, $3);
-        my $vartype;
-        if($var=~/^\w+$/){
-            MyDef::output_c::func_add_var($var);
-        }
-        $vartype=MyDef::output_c::get_var_type($var);
+        MyDef::output_c::auto_add_var($var);
+        my $vartype=MyDef::output_c::get_var_type($var);
         MyDef::output_c::func_add_var("t_psv", "SV**");
         push @$out, "t_psv=av_fetch($av, $key, 0);";
         translate_tpsv($out, $var, $vartype);
@@ -120,71 +117,58 @@ sub parsecode {
 }
 sub dumpout {
     my ($f, $out, $pagetype)=@_;
-    my $funclist=MyDef::dumpout::get_func_list();
+    my $funclist=\@MyDef::output_c::function_list;
+    my $funchash=\%MyDef::output_c::list_function_hash;
     foreach my $func (@$funclist){
-        if($func->{xs_mode}){
-            my (@t0, @t1, @pre, @post);
-            $func->{openblock}=\@t0;
-            $func->{closeblock}=\@t1;
-            $func->{preblock}=\@pre;
-            $func->{postblock}=\@post;
+        if($funchash->{$func->{name}}){
+            MyDef::output_c::process_function_std($func);
+            my $open=$func->{openblock};
+            my $close=$func->{closeblock};
+            my $pre=$func->{preblock};
+            my $post=$func->{postblock};
             my $name=$func->{name};
-            if($name){
-                my $ret_type=$func->{'ret_type'};
-                if(!$ret_type){$ret_type="void";};
-                my $paramlist=$func->{'param_list'};
-                my @param_name_list;
+            @$open=();
+            my $ret_type=$func->{'ret_type'};
+            my $paramlist=$func->{'param_list'};
+            my @param_name_list;
+            foreach my $p (@$paramlist){
+                if($p=~/(\w+)\s*$/){
+                    push @param_name_list, $1;
+                }
+            }
+            my $param_name_list_str=join(",", @param_name_list);
+            push @$open, "$ret_type";
+            push @$open, "$name($param_name_list_str)";
+            push @$open, "INDENT";
+            if(@$paramlist){
+                push @$open, "INDENT";
                 foreach my $p (@$paramlist){
-                    if($p=~/(\w+)\s*$/){
-                        push @param_name_list, $1;
-                    }
+                    push @$open, "$p;";
                 }
-                my $param_name_list_str=join(",", @param_name_list);
-                push @t0, "$ret_type";
-                push @t0, "$name($param_name_list_str)";
-                if(@$paramlist){
-                    push @pre, "INDENT";
-                    foreach my $p (@$paramlist){
-                        push @pre, "$p;";
-                    }
-                    push @pre, "DEDENT";
-                }
+                push @$open, "DEDENT";
             }
-            my $var_decl=$func->{var_decl};
-            my $var_list=$func->{'var_list'};
+            my $var_list=$func->{var_list};
             if(@$var_list){
-                push @pre, "PREINIT:";
-                push @pre, "INDENT";
-                foreach my $v (@$var_list){
-                    if($MyDef::output_c::global_type->{$v}){
-                        print "  [warning] In $name: local variable $v with exisiting global\n";
-                    }
-                    push @pre, "$var_decl->{$v};";
-                }
-                push @pre, "DEDENT";
+                push @$open, "PREINIT:";
             }
-            push @pre, "PPCODE:";
-            push @pre, "INDENT";
-            foreach my $tl (@{$func->{init}}){
-                push @pre, $tl;
-            }
-            foreach my $tl (@{$func->{finish}}){
-                push @post, $tl;
-            }
-            if($name){
-                push @post, "DEDENT";
-                push @t1, "NEWLINE";
-            }
+            push @$pre, "DEDENT";
+            push @$pre, "PPCODE:";
+            push @$pre, "INDENT";
+            @$close=();
+            push @$close, "DEDENT";
+            push @$close, "NEWLINE";
+            $func->{skip_declare}=1;
             $func->{processed}=1;
         }
     }
     my @t;
     my $cnt;
     my $ghash=$MyDef::output_c::global_hash;
-    foreach my $name (@MyDef::output_c::global_list){
-        my $v=$ghash->{$name};
-        if($v=~/^[SHA]V/){
-            push @xs_globals, "$v;\n";
+    foreach my $name (@$MyDef::output_c::global_list){
+        my $type=$ghash->{$name}->{type};
+        if($type=~/^[SHA]V/){
+            my $decl = MyDef::output_c::var_declare($ghash->{$name});
+            push @xs_globals, "$decl;\n";
             $cnt++;
         }
         else{
@@ -192,7 +176,7 @@ sub dumpout {
         }
     }
     if($cnt>0){
-        @MyDef::output_c::global_list=@t;
+        @$MyDef::output_c::global_list=@t;
     }
     my $block=MyDef::compileutil::get_named_block("xs_start");
     push @$block, "#include \"EXTERN.h\"\n";

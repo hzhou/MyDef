@@ -1,4 +1,5 @@
 include: output.def
+include: macros_output/case.def
 
 page: output_matlab, output_main
     type: pm

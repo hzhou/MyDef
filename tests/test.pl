@@ -27,7 +27,17 @@ if($f=~/([a-z0-9]+)_.*\.def$/){
         print "$yellow*** Compiling test.c ***$normal\n";
         chdir "out";
         unlink "test";
-        system "make";
+        my $lib;
+        open In, "test.c" or die "Can't open test.c.\n";
+        while(<In>){
+            if(/^\/\*\s*link: (.*)\*\//){
+                $lib=$1;
+            }
+        }
+        close In;
+        my $cmd="gcc -g test.c $lib -o test";
+        print "    $cmd\n";
+        system $cmd;
         if(-f "test"){
             print "$yellow*** Testing output ***$normal\n";
             system "./test";

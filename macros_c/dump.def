@@ -3,6 +3,9 @@ subcode: c_dump_init
     $dump->{block_init}=\@dump_init
     unshift @$out, "INCLUDE_BLOCK block_init"
 
+    $if %objects
+	push @dump_init, "/* link: $lib_list $obj_list */\n"
+
     $call dump_h_files
 
     my $dump_out=\@dump_init
@@ -137,17 +140,13 @@ subcode: dump_enums
 	push @$dump_out, "\n";
 
 # ---- Global Variables ----
-subcode:: c_init
-    $global $global_type, $global_hash, @global_list
-    $global_type={}
-    $global_hash={}
-    @global_list=()
-
 subcode: dump_globals
     my $cnt=0
-    $foreach $name in @global_list
+    $foreach $name in @$global_list
 	my $v=$global_hash->{$name}
-	push @$dump_out, "$v;\n";
+	my $decl=var_declare($v)
+	$if $decl
+	    push @$dump_out, "$decl;\n";
 	$cnt++
     $if $cnt>0
 	push @$dump_out, "\n";
@@ -231,11 +230,10 @@ subcode: dump_structs_functions
 	my $s_list=$structs{$name}->{list}
 	my $s_hash=$structs{$name}->{hash}
 	my $s_exit=$s_hash->{"-exit"}
-	$if @$s_exit
+	$if $s_exit and @$s_exit
 	    push @$dump_out, "void $name\_destructor(struct $name* p){\n";
-	    foreach my $l(@$s_exit){
+	    $foreach $l in @$s_exit
 		push @$dump_out, "    $l\n";
-	    }
 	    push @$dump_out, "}\n";
 	    $cnt++
 	# ------------------------

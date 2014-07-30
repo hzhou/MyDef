@@ -1,0 +1,45 @@
+page: test, basic_frame
+    subcode: main
+	# DEBUG type
+	$global s="global string"
+	$fcall print_global()
+	print s: $s
+	$my t="my string"
+	print t: $t
+
+	$call test_scope
+
+	print "\nswap s <=> t"
+	$call swap, s, t
+	print "s: $s"
+	print "t: $t"
+
+	$call test_foreach
+
+subcode: test_scope
+    $if 1
+	$local s="function scope"
+	$for 1
+	    print "    function: $s" 
+	$for 1
+	    $my s="local scope"
+	    print "    local: $s"
+
+	    $call nested_for
+
+subcode: nested_for
+    print "\n    nested_for (with i as temp_var) ...\n    -"
+    $for i=1:9
+	printf "%d ", $(i)^2
+    print
+
+fncode: print_global
+    print "print global ..."
+    print "    s: $s"
+
+subcode: test_foreach
+    print "\ntest foreach pn_test ..."
+    $local pn_test[10]
+    $foreach pn_test
+	$(t)=$(i)*2+1
+	print "    %d: %d", $(i), $(t)

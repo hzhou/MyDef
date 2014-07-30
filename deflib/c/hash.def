@@ -1,158 +1,183 @@
 subcode:: _autoload
+    $class hash
     $include stdlib
     $include string
-    $call hash_functions
 
-# HASH ----------------------------------------------
-subcode: hash_functions
-    $struct(hash_entry) s_key, s_val, next
-    $struct(hash) struct hash_entry * p_table, n_size, n_prime, n_top
-    $list hash_new, 
-    $list hash_expand, hash_free
-    $list hash_getstr, hash_lookup
+#---------------------------------------- 
+#- 1 based array, use 0th element as sentinel when hash is full
+#---------------------------------------- 
+subcode: hash_init(var, scope, @type)
+    $struct(hash_key) unsigned char keylen, unsigned char * key, int next
+    $(set:hash=struct hash_key * p_key, n_size, n_top, n_val_size)
+    $struct(hash) $(hash), char * p_val
 
-subcode: hash_free_val(p)
-    $if $(p)->s_val && $(p)->s_val >(char *)100
-	free($(p)->s_val)
+    $(if:type=default)
+	$warn Hash missing type. Using default int.
+	$(set:type=int)
+    $tuple $(type)
 
-subcode: hash_free_key(p)
-    $if $(p)->s_key
-	free($(p)->s_key)
+    $(set:type_n=$(type:list:n))
+    $(if:type_n=1)
+	$struct(hash$(T)) $(hash), $(type) * p_val
+    $(else)
+	$struct(hash$(T)) $(hash), struct $(T) * p_val
+	$(set:type=struct $(T))
 
-subcode: hash_set_val(p, val)
-    $call hash_free_val, $(p)
-    $(p)->s_val=strdup($(val))
+    $$(scope) struct hash$(T) $(var)
+    $set_var_attr $(var), class=hash, member_count=$(type_n)
+    $set_var_attr $(var), exit=hash_exit
 
-# -------------------------------------
-# p_hash=hash_new(1000)
-# -------------------------------------
-subcode: hash_set(p_hash, key, val)
-    $local struct hash_entry * p
-    p=hash_lookup($(p_hash), $(key))
-    $call hash_set_val, p, $(val)
+    memset(&$(var), 0, sizeof($(var)))
+    $(var).n_val_size=sizeof($(type))
 
-# ---- macros ---------------------------------
-subcode: local_hash(var)
-    $local struct hash * $(var)
-    $(var)=hash_new(100)
+subcode: hash_exit(var)
+    $if $(var).n_size>0
+	$for i=1:$(var).n_size+1
+	    $if $(var).p_key[i].keylen>0
+		free($(var).p_key[i].key)
+	free($(var).p_key)
+	free($(var).p_val)
+    
+subcode: hash_iter(var)
+    $if $(var).n_size>0
+	$for 1:$(var).n_size+1
+	    $if $(var).p_key[$(i)].keylen>0
+		$(set:key=$(var).p_key[$(i)].key)
+		$(set:value=$(var).p_val[$(i)])
+		BLOCK
 
-subcode: global_hash(var)
-    $global struct hash * $(var)
-    $(var)=hash_new(1000)
+#---------------------------------------- 
+subcode: hash_lookup_check_key(key)
+    $(if:key~^")
+	$(export:keylen=$(key:strlen))
+    $(else)
+	$get_type(keytype) $(key)
+	$(if:keytype!=char *)
+	    $(export:key="$(key)")
+	    $(export:keylen=$(key:len))
+	$(else)
+	    $(export:keylen=strlen($(key)))
 
-# -------------------------------------
-fncode: hash_new(tn_initial_size)
-    $local struct hash * p_hash
-    $allocate p_hash
-    $call hash_initialize, tn_initial_size
-    return p_hash
+subcode: hash_lookup(var, key)
+    $list f_hash_lookup
+    $call hash_lookup_check_key, $(key)
 
-subcode: hash_initialize(size)
-    $call get_prime, $(size)
-    p_hash->n_size=$(size)
-    p_hash->n_prime=tn_prime
-    p_hash->n_top=$(size)-1
-    $allocate($(size)) p_hash->p_table
-    memset(p_hash->p_table, 0, $(size)*sizeof(struct hash_entry *))
+    $(set:k=f_hash_lookup((struct hash *)&$(var), $(keylen), $(key)))
+    $yield $(var).p_val[$(k)]
 
-subcode: get_prime(size)
-    tn_prime=$(size)*85/100
-    $(set:comp=tn_prime % $1 == 0)
-    $if $(comp:2)
-	tn_prime++
-    $while $(comp:3) || $(comp:5) || $(comp:7)
-	tn_prime+=2
+subcode: hash_lookup_left(var, key)
+    $list f_hash_lookup_left, f_hash_resize
+    $call hash_lookup_check_key, $(key)
 
-# ----
-fncode: hash_expand(struct hash * p_hash)
-    $local struct hash_entry * p_temp
-    $local struct hash_entry * p
-    p_temp=p_hash->p_table
-    tn_old_size=p_hash->n_size
-    tn_size=p_hash->n_size*2
-    $call hash_initialize, tn_size
-    $for i=0:tn_old_size
-	p=p_temp+i
-	$if p->s_key
-	    $fcall hash_set_direct(p_hash, p->s_key, p->s_val)
-    free(p_temp)
+    $temp int k
+    $(k)=f_hash_lookup_left((struct hash *)&$(var), $(keylen), $(key))
+    $yield $(var).p_val[$(k)]
 
-fncode: hash_free(struct hash * p_hash)
-    tn_size=p_hash->n_size
-    $for i=0:tn_size
-	$local struct hash_entry * p
-	p=p_hash->p_table+i
-	$call hash_free_key, p
-	$call hash_free_val, p
-    free(p_hash->p_table)
-    free(p_hash)
+#---------------------------------------- 
+subcode: hash_resize(var, n)
+    $list f_hash_resize, f_hash_prime
+    f_hash_resize($(var), $(n))
 
+fncode: f_hash_resize(struct hash * h, n_size)
+    $if n_size==0
+	n_size=h->n_size*5/3
+    $elif n_size<=h->n_size
+	return
 
-# -------------------------------------
-fncode: hash_getstr(struct hash * p_hash, ts_key)
-    $return_type char *
-    $call hash_sub, getstr
+    $fcall n_size=f_hash_prime(n_size)
 
-fncode: hash_lookup(struct hash * p_hash, ts_key)
-    $return_type struct hash_entry *
-    $if p_hash->n_top==0
-	hash_expand(p_hash)
-    $call hash_sub, lookup
+    $local struct hash_key * tp_key=h->p_key
+    $local char * tp_val=h->p_val
+    tn_old_size=h->n_size
+    $(set:n=h->n_val_size)
 
-fncode: hash_set_direct(struct hash * p_hash, ts_key, ts_val)
-    $call hash_sub, setdirect
-# --
-subcode: hash_sub(type)
-    $local struct hash_entry * p
-    $call hash_get_code, ts_key
-    p=p_hash->p_table+tn_h
+    h->n_size=n_size
+    #---------------------------------------- 
+    #---- allocate n_size+1 and use 0 as sentinel
+    n_size++
+    $allocate(n_size) h->p_key
+    $allocate(n_size*$(n)) h->p_val
+    memset(h->p_key, 0, n_size*sizeof(struct hash_key))
+    memset(h->p_val, 0, n_size*$(n))
+    h->n_top=n_size-1
 
-    $if ! p->s_key
-	$(if:type=getstr)
-	    return NULL
-	$(elif:type=lookup)
-	    p->s_key=strdup(ts_key)
-	    return p
-	$(elif:type=setdirect)
-	    p->s_key=ts_key
-	    p->s_val=ts_val
-	    return p
-    $else
-	$while 1
-	    $if strcmp(ts_key, p->s_key)==0
-		$(if:type=getstr)
-		    return p->s_val
-		$(elif:type=lookup)
-		    return p
-		$(else)
-		    return p
-	    $elif p->next
-		p=p->next
-	    $else
-		$(if:type=getstr)
-		    return NULL
-		$(elif:type=lookup)
-		    $call hash_find_next
-		    p->s_key=strdup(ts_key)
-		    return p
-		$(elif:type=setdirect)
-		    p->s_key=ts_key
-		    p->s_val=ts_val
-		    return p
+    #---------------------------------------- 
+    #---- copy contents --
+    $if tn_old_size>0
+	$for i=1:tn_old_size+1
+	    k=f_hash_lookup(h, tp_key[i].keylen, tp_key[i].key)
+	    h->p_key[k].keylen=tp_key[i].keylen
+	    h->p_key[k].key=tp_key[i].key
+	    tn_off=k*$(n)
+	    memcpy(h->p_val+k*$(n), tp_val+i*$(n), $(n))
+	free(tp_key)
+	free(tp_val)
 
-# --
-subcode: hash_find_next
-    $while p_hash->p_table[p_hash->n_top].s_key
-	p_hash->n_top--
-    p->next=p_hash->p_table+p_hash->n_top
-    p=p->next
+fncode: f_hash_prime(n)
+    $if n<13
+	return 13
 
-subcode: hash_get_code(key)
-    $local unsigned char * s=(unsigned char *)$(key)
-    tn_h=*s++
-    tn_prime=p_hash->n_prime
-    $while *s
-	tn_h+=*s
-	$if tn_h>tn_prime
+    $if n%2==0
+	n++
+    $while 1
+	$(for:factor in 3, 5, 7, 11)
+	    $if n%$(factor)==0
+		n+=2
+		continue
+	break
+    return n
+
+#---------------------------------------- 
+fncode: f_hash_lookup(struct hash * h, char keylen, pc_key)
+    $return_type int
+    $if h->n_size==0
+	return -1
+    #---------------------------------------- 
+    tn_h=0
+    tn_prime=h->n_size
+    $for i=0:keylen
+	tn_h=tn_h<<1+pc_key[i]
+	$while tn_h>tn_prime
 	    tn_h-=tn_prime
-	s++
+    #---- 1 based index, as 0 is sentinel-----
+    tn_h+=1
+    #---------------------------------------- 
+    $local struct hash_key * p
+    p=h->p_key+tn_h
+    $while 1
+	$if p->keylen==0
+	    return p-h->p_key
+	$elif p->keylen==keylen && memcmp(p->key, pc_key, keylen)==0
+	    return p-h->p_key
+	$elif p->next
+	    p=h->p_key+p->next
+	$else
+	    $(set:top=h->p_key[h->n_top])
+	    $while $(top).keylen>0 && h->n_top>=0
+		h->n_top--
+	    p->next=h->n_top
+	    return h->n_top
+
+#---------------------------------------- 
+#-  _left refer to lvalue in a assignment
+fncode: f_hash_lookup_left(struct hash * h, char keylen, pc_key)
+    k=0
+    $while k<=0
+	k=f_hash_lookup(h, keylen, pc_key)
+
+	$if k<=0 || (h->n_size>20 && h->n_top<h->n_size*15/100)  
+	    f_hash_resize(h, 0)
+	    # $print "f_hash_resize @ %s -> %d", pc_key, h->n_size
+
+    $if h->p_key[k].keylen==0
+	h->p_key[k].keylen=keylen
+	h->p_key[k].key=malloc(keylen+1)
+	memcpy(h->p_key[k].key, pc_key, keylen)
+	h->p_key[k].key[keylen]='\0'
+
+    return k
+
+#---------------------------------------- 
+subcode: hash_debug(var)
+    &call hash_iter, $(var)
+	$print "%d: %s => ${$(value)}", $(i), $(key)

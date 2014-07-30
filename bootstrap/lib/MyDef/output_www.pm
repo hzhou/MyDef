@@ -6,13 +6,10 @@ our @mode_stack;
 our $cur_mode="html";
 our %plugin_statement;
 our %plugin_condition;
-use MyDef::dumpout;
-use MyDef::utils;
 our $debug;
 our $mode;
 our $page;
 our $out;
-use MyDef::compileutil;
 use Term::ANSIColor qw(:constants);
 my $php;
 my $style_sheets;
@@ -102,14 +99,21 @@ sub parsecode {
         }
         return;
     }
+    elsif($l=~/^\$warn (.*)/){
+        my $curfile=MyDef::compileutil::curfile_curline();
+        print "[$curfile]\x1b[33m $1\n\x1b[0m";
+        return;
+    }
     elsif($l=~/^\$eval\s+(\w+)(.*)/){
         my ($codename, $param)=($1, $2);
         $param=~s/^\s*,\s*//;
         my $t=MyDef::compileutil::eval_sub($codename);
         eval $t;
-        if($@){
-            print "Error [$l]: $@\n";
-            print "  $t\n";
+        if($@ and !$MyDef::compileutil::eval_sub_error{$codename}){
+            $MyDef::compileutil::eval_sub_error{$codename}=1;
+            print "evalsub - $codename\n";
+            print "[$t]\n";
+            print "eval error: [$@]\n";
         }
         return;
     }
@@ -168,21 +172,22 @@ sub parsecode {
         }
         elsif($cur_mode eq "php"){
         }
-        if($plugin_statement{$func}){
-            my $codename=$plugin_statement{$func};
-            my $t=MyDef::compileutil::eval_sub($codename);
-            eval $t;
-            if($@){
-                print "plugin - $func\n";
-                print "[$t]\n";
-                print "eval error: [$@]\n";
-            }
-            return;
-        }
     }
     elsif($l=~/^\s*\$(\w+)\s*(.*)$/){
         my ($func, $param)=($1, $2);
         if($param !~ /^=/){
+            if($plugin_statement{$func}){
+                my $codename=$plugin_statement{$func};
+                my $t=MyDef::compileutil::eval_sub($codename);
+                eval $t;
+                if($@ and !$MyDef::compileutil::eval_sub_error{$codename}){
+                    $MyDef::compileutil::eval_sub_error{$codename}=1;
+                    print "evalsub - $codename\n";
+                    print "[$t]\n";
+                    print "eval error: [$@]\n";
+                }
+                return;
+            }
             if($func =~ /^(tag|div|span|ol|ul|li|table|tr|td|th|h[1-5]|p|pre|html|head|body|form|label|fieldset|button|input|textarea|select|option|img|a|center|b|style)$/){
                 my @tt_list=split /,\s*/, $param;
                 my $is_empty_tag=0;
@@ -276,7 +281,7 @@ sub parsecode {
                     return single_block("$1($param){", "}");
                 }
                 elsif($func =~ /^(el|els|else)if$/){
-                    return single_block("else if($param){", "}")
+                    return single_block("else if($param){", "}");
                 }
                 elsif($func eq "else"){
                     return single_block("else{", "}");
@@ -308,7 +313,7 @@ sub parsecode {
                                 $stepclause="var $var=$i0;$var<$i1;$var++";
                             }
                         }
-                        return single_block("for($stepclause){", "}")
+                        return single_block("for($stepclause){", "}");
                     }
                     else{
                         return single_block("$func($param){", "}");
@@ -317,30 +322,30 @@ sub parsecode {
             }
             elsif($cur_mode eq "php"){
                 if($func eq "if"){
-                    return single_block("if($param){", "}")
+                    return single_block("if($param){", "}");
                 }
                 elsif($func eq "ifz"){
                     if($param=~/(\$\w+)\[(^[\]]*)\]/){
-                        return single_block("if(!(array_key_exists($2, $1) and $param)){", "}")
+                        return single_block("if(!(array_key_exists($2, $1) and $param)){", "}");
                     }
                     else{
-                        return single_block("if(empty($param)){", "}")
+                        return single_block("if(empty($param)){", "}");
                     }
                 }
                 elsif($func eq "ifnz"){
                     if($param=~/(\$\w+)\[(^[\]]*)\]/){
-                        return single_block("if((array_key_exists($2, $1) and $param)){", "}")
+                        return single_block("if((array_key_exists($2, $1) and $param)){", "}");
                     }
                     else{
-                        return single_block("if(!empty($param)){", "}")
+                        return single_block("if(!empty($param)){", "}");
                     }
                 }
                 elsif($func =~ /^(el|els|else)if$/){
                     if($cur_mode eq 'html' or $cur_mode eq 'js'){
-                        return single_block("else if($param){", "}")
+                        return single_block("else if($param){", "}");
                     }
                     else{
-                        return single_block("elseif($param){", "}")
+                        return single_block("elseif($param){", "}");
                     }
                 }
                 elsif($func eq "else"){
@@ -388,17 +393,6 @@ sub parsecode {
                         warn " Can't open [$param]\n";
                     }
                 }
-            }
-            if($plugin_statement{$func}){
-                my $codename=$plugin_statement{$func};
-                my $t=MyDef::compileutil::eval_sub($codename);
-                eval $t;
-                if($@){
-                    print "plugin - $func\n";
-                    print "[$t]\n";
-                    print "eval error: [$@]\n";
-                }
-                return;
             }
         }
     }
@@ -476,16 +470,21 @@ sub dumpout {
     MyDef::dumpout::dumpout($dump);
 }
 sub single_block {
-    my ($t1, $t2)=@_;
+    my ($t1, $t2, $scope)=@_;
     push @$out, "$t1";
     push @$out, "INDENT";
     push @$out, "BLOCK";
     push @$out, "DEDENT";
     push @$out, "$t2";
-    return "NEWBLOCK";
+    if($scope){
+        return "NEWBLOCK-$scope";
+    }
+    else{
+        return "NEWBLOCK";
+    }
 }
 sub single_block_pre_post {
-    my ($pre, $post)=@_;
+    my ($pre, $post, $scope)=@_;
     if($pre){
         push @$out, @$pre;
     }
@@ -493,7 +492,12 @@ sub single_block_pre_post {
     if($post){
         push @$out, @$post;
     }
-    return "NEWBLOCK";
+    if($scope){
+        return "NEWBLOCK-$scope";
+    }
+    else{
+        return "NEWBLOCK";
+    }
 }
 sub custom_dump {
     my ($f, $rl)=@_;
@@ -573,7 +577,7 @@ sub js_string {
     if($parts[0]=~/^$/){
         shift @parts;
     }
-    for(my $i=0;$i<@parts;$i++){
+    for(my $i=0; $i < @parts; $i++){
         if($parts[$i]=~/^\$(\w+)/){
             $parts[$i]=$1;
             while($parts[$i+1]=~/^(\[.*?\])/){

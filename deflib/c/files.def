@@ -1,0 +1,37 @@
+include: c/string.def
+include: c/file_glob.def
+
+subcode: open_r_line(file)
+    $call fmt_filename, $(file)
+    file_in=fopen($(f), "r")
+    $if file_in==NULL
+        fprintf(stderr, "Can't open %s\n", $(f))
+    $else
+	$my string line
+	line.$resize(1000)
+	$while fgets(line, 1000, file_in)
+	    $(set:l=line)
+	    BLOCK
+        fclose(file_in)
+
+#---------------------------------------- 
+subcode: stat_file(file)
+    $call fmt_filename, $(file)
+    $local struct stat fstat
+    tn_ret=stat($(f), &fstat)
+    $(export:exist=tn_ret==0)
+    $(export:fsize=fstat.st_size)
+    $(export:ftime=fstat.st_mtime)
+
+subcode: if_exist(file)
+    $call stat_file, $(file)
+    $if $(exist)
+	BLOCK
+
+#---------------------------------------- 
+subcode: fmt_filename(file)
+    $local string temp_string
+    temp_string.$empty
+    temp_string.$fmt $(file)
+    $(export:f=temp_string)
+

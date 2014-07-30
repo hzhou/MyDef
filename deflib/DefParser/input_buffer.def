@@ -1,10 +1,12 @@
 include: DefParser/c_fifo.def
 
 subcode:: _autoload
+    $include stdio
     $call define_fifo_input, input_buffer
     $struct(input_buffer) n_pos, n_tempchar
+    $struct(input_buffer) char * s_file, n_line, n_line_start
 
-    $include stdio
+subcode: load_input_buffer
     $list input_create, input_delete, input_from_string
     $list input_get_char, input_get_str
 
@@ -34,9 +36,6 @@ fncode: input_from_string(s)
     return b
 
 # ---- input for local parsing ------------------------
-subcode: local_input(input, s)
-    $call local_input_buffer, $(input), $(s), strlen($(s))
-
 subcode: local_input_buffer(input, s, n)
     $(set:b=local_input_buffer)
     $local struct input_buffer $(b)
@@ -86,7 +85,6 @@ subcode: input_check_tempchar(b)
 
 # #### (line, col) support --------------------------
 subcode:: on_input_create(b)
-    $struct(input_buffer) char * s_file, n_line, n_line_start
     $(b)->s_file=NULL
     $(b)->n_line=1
     $(b)->n_line_start=0
@@ -109,17 +107,3 @@ subcode: input_set_filepos(b, file, line)
 subcode: on_fifo_shift(b, shift)
     $(b)->n_line_start-=$(shift)
 
-# #### macros --------------------------------------
-subcode: input_start(b)
-    $(b)->n_start=$(b)->n_pos
-
-subcode: input_restart(b)
-    $(b)->n_pos=$(b)->n_start
-
-subcode: input_back_char(b)
-    $if $(b)->n_pos>$(b)->n_start
-	$(b)->n_pos--
-
-subcode: input_debug(b)
-    tn_c=$(b)->buffer[$(b)->n_pos]
-    print "input_debug: %d - %d - %d [%d]\n", $(b)->n_start, $(b)->n_pos, $(b)->n_end, tn_c

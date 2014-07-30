@@ -43,10 +43,16 @@ subcode: test_www
 
 subcode: test_c
     print "$yellow*** Compiling test.c ***$normal\n";
-    #system "gcc -o a.out test.c";
     chdir "out";
     unlink "test";
-    system "make";
+    #system "make";
+    my $lib
+    &call open_r, test.c
+	$if /^\/\*\s*link: (.*)\*\//
+	    $lib=$1
+    my $cmd="gcc -g test.c $lib -o test"
+    $print "    $cmd"
+    system $cmd
     $if -f "test"
 	print "$yellow*** Testing output ***$normal\n";
 	system "./test";

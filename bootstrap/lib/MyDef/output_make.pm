@@ -1,7 +1,5 @@
 use strict;
 package MyDef::output_make;
-use MyDef::dumpout;
-use MyDef::utils;
 our $debug;
 our $mode;
 our $page;
@@ -45,14 +43,21 @@ sub parsecode {
         }
         return;
     }
+    elsif($l=~/^\$warn (.*)/){
+        my $curfile=MyDef::compileutil::curfile_curline();
+        print "[$curfile]\x1b[33m $1\n\x1b[0m";
+        return;
+    }
     elsif($l=~/^\$eval\s+(\w+)(.*)/){
         my ($codename, $param)=($1, $2);
         $param=~s/^\s*,\s*//;
         my $t=MyDef::compileutil::eval_sub($codename);
         eval $t;
-        if($@){
-            print "Error [$l]: $@\n";
-            print "  $t\n";
+        if($@ and !$MyDef::compileutil::eval_sub_error{$codename}){
+            $MyDef::compileutil::eval_sub_error{$codename}=1;
+            print "evalsub - $codename\n";
+            print "[$t]\n";
+            print "eval error: [$@]\n";
         }
         return;
     }
@@ -95,16 +100,21 @@ sub dumpout {
     MyDef::dumpout::dumpout($dump);
 }
 sub single_block {
-    my ($t1, $t2)=@_;
+    my ($t1, $t2, $scope)=@_;
     push @$out, "$t1";
     push @$out, "INDENT";
     push @$out, "BLOCK";
     push @$out, "DEDENT";
     push @$out, "$t2";
-    return "NEWBLOCK";
+    if($scope){
+        return "NEWBLOCK-$scope";
+    }
+    else{
+        return "NEWBLOCK";
+    }
 }
 sub single_block_pre_post {
-    my ($pre, $post)=@_;
+    my ($pre, $post, $scope)=@_;
     if($pre){
         push @$out, @$pre;
     }
@@ -112,6 +122,11 @@ sub single_block_pre_post {
     if($post){
         push @$out, @$post;
     }
-    return "NEWBLOCK";
+    if($scope){
+        return "NEWBLOCK-$scope";
+    }
+    else{
+        return "NEWBLOCK";
+    }
 }
 1;

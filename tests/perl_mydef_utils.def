@@ -1,0 +1,36 @@
+page: test
+    type: pl
+    subcode: main
+	# $call test_proper_split
+	# $call test_benchmark
+	$call test_c_expression
+
+subcode: test_proper_split
+    use MyDef::utils
+    my $param="a, b, (c1, c2, c3[1, 2, 3], c4), \"any, thing '(' goes,\", , skiped 1"
+    #my $param="  {{1, 2, 3}, {3, 4, 5}, {4, 5, 6}} "
+    
+    my @t=MyDef::utils::proper_split($param)
+    $foreach $t in @t
+	print "  [$t]\n"
+
+subcode: test_benchmark
+    use Benchmark
+    use MyDef::utils
+    # my $param="char *, struct nonsense *, int, unsigned int"
+    my $param="a, b, (c1, c2, c3[1, 2, 3], c4), \"any, thing '(' goes,\", , skiped 1"
+
+    timethis(1000000, 'my @t=split /,\s*/, $param;')
+    #- 0.13 sec
+    timethis(1000000, 'my @t=MyDef::utils::proper_split($param);')
+    #- 0.55 sec
+
+#---------------------------------------- 
+subcode: test_c_expression
+    use MyDef::utils
+    use MyDef::output_c
+
+    my $l="A[(i)*3+j]=-A[(i)*3+j]+A[(i)*3+j+1]*A[(i-1)*3+j]"
+    my $t=MyDef::output_c::check_expression($l)
+    print "Before: $l\n"
+    print "After:  $t\n"

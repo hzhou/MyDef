@@ -1,13 +1,18 @@
 include: macros_util/debug.def
+#---- common features -----------
+#- include: macros_output/case.def
+#- include: macros_output/for.def
+#- include: macros_output/scope.def
+#- include: macros_output/sumcode.def
+
+macros:
+    hascode: $MyDef::def->{codes}->{"$1"} or $MyDef::page->{codes}->{"$1"}
 
 subcode: output_main
-    use MyDef::dumpout
-    use MyDef::utils
-
-    our $debug;
-    our $mode;
-    our $page;
-    our $out;
+    $global $debug
+    $global $out
+    $global $mode
+    $global $page
     $call @package_globals
 
     $sub get_interface
@@ -17,10 +22,13 @@ subcode: output_main
 	    my $interface_type="general"
 	return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout, $interface_type);
 
-    $sub init_page
-	($page)=@_;
+    $sub init_page($t_page)
+	$page=$t_page
 	# ---- Set output file extension
-	my $ext="$(ext)"
+	$(if:ext)
+	    my $ext="$(ext)"
+	$(else)
+	    my $ext
 	$if $MyDef::var->{filetype}
 	    $ext=$MyDef::var->{filetype}
 	$if $page->{type}
@@ -48,6 +56,9 @@ subcode: output_main
 		$debug=0
 	    $else
 		$debug=$1
+	    return
+	$elif $l=~/^\$warn (.*)/
+	    $call warn, $1
 	    return
 	$call parsecode_eval
 	$call parsecode
@@ -111,14 +122,10 @@ subcode: parsecode_eval
     $case $l=~/^\$eval\s+(\w+)(.*)/
 	my ($codename, $param)=($1, $2)
 	$param=~s/^\s*,\s*//
-	my $t=MyDef::compileutil::eval_sub($codename)
-	#print "eval [$t]\n\n"
-	eval $t
-	$if $@
-	    print "Error [$l]: $@\n"
-	    print "  $t\n"
+	$call parsecode_run_eval, $codename
 	return
 
+#---------------------------------------- 
 subcode: parsecode_common
     # print "parsecode_common: input [$l]\n"
     $if $MyDef::compileutil::cur_mode eq "PRINT"
@@ -128,14 +135,14 @@ subcode: parsecode_common
 	# $function(param1) param2 ---------------------------
 	my ($func, $param1, $param2)=($1, $2, $3)
 	$call parsecode_plugin
+	# $call parsecode_check_plugin
 	$call parsecode_func_param
-	$call parsecode_check_plugin
     $elif $l=~/^\s*\$(\w+)\s*(.*)$/
 	# $function param  -----------------------------------
 	my ($func, $param)=($1, $2)
 	$if $param !~ /^=/
-	    $call parsecode_func
 	    $call parsecode_check_plugin
+	    $call parsecode_func
 
     $call @parsecode_other
 
@@ -143,21 +150,27 @@ subcode: parsecode_common
     push @$out, $l
 
 subcode: single_blocks
-    $sub single_block($t1, $t2)
+    $sub single_block($t1, $t2, $scope)
 	push @$out, "$t1";
 	push @$out, "INDENT";
 	push @$out, "BLOCK";
 	push @$out, "DEDENT";
 	push @$out, "$t2";
-	return "NEWBLOCK";
+	$if $scope
+	    return "NEWBLOCK-$scope"
+	$else
+	    return "NEWBLOCK";
 
-    $sub single_block_pre_post($pre, $post)
+    $sub single_block_pre_post($pre, $post, $scope)
 	$if $pre
 	    push @$out, @$pre
 	push @$out, "BLOCK";
 	$if $post
 	    push @$out, @$post
-	return "NEWBLOCK";
+	$if $scope
+	    return "NEWBLOCK-$scope";
+	$else
+	    return "NEWBLOCK";
 
 # ------------------------------------------
 subcode: debug_plugin
@@ -176,24 +189,26 @@ subcode: parsecode_plugin
 	    $plugin_statement{$param1}=$param2
 	return
 
-subcode: parsecode_run_eval
-    my $codename=$plugin_statement{$func}
+subcode: parsecode_run_eval(code)
+    $(if:code!=$codename)
+	my $codename=$(code)
     my $t=MyDef::compileutil::eval_sub($codename)
     eval $t
-    $if $@
-	print "plugin - $func\n"
+    $if $@ and !$MyDef::compileutil::eval_sub_error{$codename}
+	$MyDef::compileutil::eval_sub_error{$codename}=1
+	print "evalsub - $codename\n"
 	print "[$t]\n"
 	print "eval error: [$@]\n"
 
 subcode: parsecode_check_plugin
     $if $plugin_statement{$func}
-	$call parsecode_run_eval
+	$call parsecode_run_eval, $plugin_statement{$func}
 	return
 
 subcode: parse_condition_check_plugin
     $if $plugin_condition{$func}
 	my $condition
-	$call parsecode_run_eval
+	$call parsecode_run_eval, $plugin_condition{$func}
 	return $condition
 
 # -------------------------------------------
@@ -214,166 +229,10 @@ subcode: parse_condition_map
     $else
 	return $pre . $param
 
-# -------------------------------------------
-subcode: case_reset
-    $global @case_stack
-    $global $case_state, $case_wrap
-    @case_stack=()
-    undef $case_state
-    $if $case_wrap
-	push @$out, @$case_wrap
-	undef $case_wrap
+#---------------------------------------- 
+#- utility subcode
 
-subcode: case_push(state)
-    push @$out, "PARSE:CASEPOP"
-    push @case_stack, {state=>$(state), wrap=>$case_wrap}
-
-    undef $case_state
-    undef $case_wrap
-    $call debug_case_push
-
-subcode: case_pop
-    $call debug_case_pop
-    my $t_case=pop @case_stack
-    $if $t_case
-	$case_state=$t_case->{state}
-	$case_wrap=$t_case->{wrap}
-
-subcode: parsecode_case_support(if, elif, style)
-    $global $case_if="$(if)", $case_elif="$(elif)"
-    $global @case_stack
-    $global $case_state, $case_wrap
-    $call debug_case_l
-
-    $if $l=~/^\$(if|elif|elsif|elseif|case)\s+(.*)$/
-	my $cond=$2
-	my $case
-	$if $1 eq "if"
-	    $if $case_wrap
-		push @$out, @$case_wrap
-		undef $case_wrap
-	    $case=$case_if
-	$elif $1 eq "case"
-	    $if !$case_state
-		$case=$case_if
-	    $else
-		$case=$case_elif
-	$else
-	    $case=$case_elif
-	$(if:parse_condition)
-	    $cond=parse_condition($cond)
-	$call case_$(style)
-	$call case_push, "if"
-	return "NEWBLOCK"
-    $elif $l=~/^\&case\s+(.*)/
-	$if !$case_state
-	    $call case_flag_if
-	$else
-	    $call case_flag_elif
-	$call case_push, "if"
-	return "NEWBLOCK"
-    $elif $l=~/^\$else/
-	$if !$case_state and $l!~/NoWarn/i
-	    my $pos=MyDef::compileutil::curfile_curline()
-	    print "[$pos]Dangling \$else \n"
-	$call else_$(style)
-	$call case_push, undef
-	return "NEWBLOCK"
-    $elif $l!~/^SUBBLOCK/
-	undef $case_state
-	$if $l eq "CASEPOP"
-	    $call case_pop
-	    return 0
-	$elif $l=~/^CASEEXIT/
-	    $call @case_flag_reset
-	    return 0
-
-    $if $case_wrap and !$case_state
-	push @$out, @$case_wrap
-	undef $case_wrap
-
-# -----
-subcode: case_c_style
-    push @$out, "$case($cond){"
-    push @$out, "INDENT"
-    push @$out, "BLOCK"
-    push @$out, "DEDENT"
-    push @$out, "}"
-
-subcode: else_c_style
-    push @$out, "else{"
-    push @$out, "INDENT"
-    push @$out, "BLOCK"
-    push @$out, "DEDENT"
-    push @$out, "}"
-
-# -----
-subcode: case_flag_if
-    $(if:hascode:case_flag_if_$(style))
-	$call case_flag_if_$(style)
-    $(else)
-	my $case=$case_if
-	my $cond=$1
-	$call case_$(style)
-
-
-subcode: case_flag_elif
-    $(if:hascode:case_flag_elif_$(style))
-	$call case_flag_elif_$(style)
-    $(else)
-	my $case=$case_elif
-	my $cond=$1
-	$call case_$(style)
-
-subcode: case_flag_else
-    $(if:hascode:case_flag_else_$(style))
-	$call case_flag_else_$(style)
-    $(else)
-	$call else_$(style)
-
-subcode: case_flag_if_c_style
-    $call case_flag_set
-    MyDef::compileutil::call_sub($1, "\$call")
-    push @$out, "if($case_flag){"
-    push @$out, "INDENT"
-    push @$out, "BLOCK"
-    push @$out, "DEDENT"
-    push @$out, "}"
-
-subcode: case_flag_elif_c_style
-    push @$out, "else{"
-    push @$out, "INDENT"
-    $call case_flag_set
-    MyDef::compileutil::call_sub($1, "\$call")
-    push @$out, "if($case_flag){"
-    push @$out, "INDENT"
-    push @$out, "BLOCK"
-    push @$out, "DEDENT"
-    push @$out, "}"
-    push @$out, "DEDENT"
-
-    $if !$case_wrap
-	$case_wrap=[]
-    push @$case_wrap, "}"
-
-subcode: case_flag_else_c_style
-    push @$out, "else{"
-    push @$out, "INDENT"
-    push @$out, "BLOCK"
-    push @$out, "DEDENT"
-    push @$out, "}"
-
-# -------------------------------------------
-subcode: debug_case_push
-    $if $debug eq "case"
-	my $level=@case_stack
-	print "Entering case [$level]: $l\n"
-subcode: debug_case_pop
-    $if $debug eq "case"
-	my $level=@case_stack
-	print "    Exit case [$level]\n"
-subcode: debug_case_l
-    $if $debug eq "case"
-	my $level=@case_stack
-	print "        $level:[$case_state]$l\n"
+subcode: warn(@msg)
+    my $curfile=MyDef::compileutil::curfile_curline()
+    $print "[$curfile]$yellow $(msg)" 
 

@@ -12,8 +12,10 @@ subcode: mydef_main
     our $def;
     our $page;
     our $var={};
-    use MyDef::parseutil;
-    use MyDef::compileutil;
+    use MyDef::utils
+    use MyDef::parseutil
+    use MyDef::compileutil
+    use MyDef::dumpout
 
     # ----------------------------------
     import_config("config");

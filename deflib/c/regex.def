@@ -1,73 +1,100 @@
+include: c/string.def
+
 subcode:: _autoload
-    $include string
-    $include pcre
-    $uselib pcre
     $plugin(regex) pcre_condition
     $plugin(regex) pcre_statement
+    $plugin(regex_capture) pcre_plugin_capture
 
-# =========================================================
-subcode: pcre_statement
-    $call pcre_plugin_match, count
-    $call pcre_plugin_capture
+#=========================================================
+perlcode: pcre_statement
+    $call pcre_plugin_match, statement
 
-subcode: pcre_condition
+perlcode: pcre_condition
     $call pcre_plugin_match, condition
 
-subcode: pcre_plugin_match(condition)
+#---------------------------------------- 
+perlcode: pcre_plugin_match(condition)
+    my ($str, $pattern, $option, $replace)
+    $(set:pat=(?:[^\/\\]|\\.)*)
     $if $param=~/^(\S+)\s*=~\s*\/(.*)\/(.*)/
-	my ($var, $pattern, $option)=($1, $2, $3)
+	($str, $pattern, $option)=($1, $2, $3)
+    $elif $pattern=~/^(\S+)\s*=~\s*s\/($(pat))\/(.*)\/(.*)/
+	($str, $pattern, $replace, $option)=($1, $2, $3, $4)
+    #---------------------------------------- 
+    $if $pattern
 	$pattern=~s/\\/\\\\/g
-	my $idx=$cur_function->{regex_idx}
 	$cur_function->{regex_idx}++
-	MyDef::compileutil::set_current_macro("re", "re$idx")
-	MyDef::compileutil::set_current_macro("re_pat", $pattern)
-	MyDef::compileutil::set_current_macro("re_var", $var)
+	my $idx=$cur_function->{regex_idx}
+	MyDef::compileutil::set_current_macro("re_var", $str)
+	MyDef::compileutil::call_sub("pcre_match_compile, re$idx, $pattern")
+	my $var=find_var($str)
+	my $strlen="strlen($str)"
+	$if $var and $var->{strlen}
+	    $strlen=$var->{strlen}
 	my $capsize=60
-	func_add_var("pn_pcre_off[$capsize]", "int *")
-	MyDef::compileutil::call_sub("pcre_match_compile")
+	func_add_var("int pn_pcre_off[$capsize]")
 	$(if:condition=condition)
-	    $condition="pcre_exec(re$idx, NULL, $var, strlen($var), 0, 0, pn_pcre_off, $capsize)>0"
+	    $condition="pcre_exec(re$idx, NULL, $str, $strlen, 0, 0, pn_pcre_off, $capsize)>0"
 	$(else)
-	    func_add_var("tn_match", "int")
-	    push @$out, "tn_match=pcre_exec(re$idx, NULL, $var, strlen($var), 0, 0, pn_pcre_off, $capsize);"
+	    push @$out, "pcre_exec(re$idx, NULL, $str, $strlen, 0, 0, pn_pcre_off, $capsize);"
+	#---------------------------------------- 
+	$if defined $replace
+	    $if $var->{class} eq "string"
+		my $call_line="string_replace, $str, pn_pcre_off[0], pn_pcre_off[1], $replace"
+		MyDef::compileutil::call_sub($call_line)
+	    $else
+		print "regex replacement not supported for non-strings\n"
 
-# --------------------------------------------
-subcode: pcre_match_compile
+#--------------------------------------------
+subcode: pcre_match_compile(re, @pat)
+    $include pcre
+    $uselib pcre
     $(block:fn_init)
 	$local pcre * $(re)
+	$set_var_attr $(re), exit=free
 	$local const char * pcre_err_msg, int pcre_err_pos
 	tn_pcre_opt=0
-	$(re)=pcre_compile("$(re_pat)", tn_pcre_opt, &pcre_err_msg, &pcre_err_pos, NULL) 
+	$(re)=pcre_compile("$(pat)", tn_pcre_opt, &pcre_err_msg, &pcre_err_pos, NULL) 
+	$if !$(re)
+	    $print pcre_compile error: $(pat)
 
-# =========================================================
-subcode: pcre_plugin_capture
-    $elif $param=~/(.*?)\s*=>\s*(.*\d)/
+#=========================================================
+perlcode: pcre_plugin_capture
+    my $capture_type=MyDef::compileutil::get_macro("regex_capture_type")
+    $if $capture_type ne "size" and $capture_type ne "dup"
+	$capture_type="zero"
+
+    $if $param=~/(.*?)\s*=>\s*(.*\d)/
 	my ($g1, $g2)=($1, $2)
-	my $capture_type="dup"
-	$if $g1=~/^(\S+):\s*(.*)/
-	    $capture_type=$1
-	    $g1=$2
 	my @names=split /,\s*/, $g1
 	my @indexes=split /,\s*/, $g2
 	$for $i=0:@names
 	    my $name=$names[$i]
 	    my $idx=$indexes[$i]
 	    MyDef::compileutil::call_sub("pcre_capture, $name, $idx, $capture_type")
+    $else
+	my @names=split /,\s*/, $param
+	$for $i=0:@names
+	    my $name=$names[$i]
+	    my $idx=$i+1
+	    MyDef::compileutil::call_sub("pcre_capture, $name, $idx, $capture_type")
 
 # --------------------------------------------
 subcode: pcre_capture(name, idx, type)
     $(set:off=pn_pcre_off[$(idx)*2])
     $(set:size=pn_pcre_off[$(idx)*2+1]-pn_pcre_off[$(idx)*2])
+    $my char * $(name)
     $(if:type=zero)
-	ts_$(name)=$(re_var)+$(off)
-	ts_$(name)[$(size)]='\0'
+	$(name)=$(re_var)+$(off)
+	$(re_var)[pn_pcre_off[$(idx)*2+1]]='\0'
+	$set_var_attr $(name), strlen=$(size)
     $(elif:type=size)
-	ts_$(name)=$(re_var)+$(off)
-	tn_$(name)=$(size)
-    $(else)
-	ts_$(name)=(char *) malloc($(size)+1)
+	$(name)=$(re_var)+$(off)
+	$set_var_attr $(name), strlen=$(size)
+    $(elif:type=dup)
+	$(name)=(char *) malloc($(size)+1)
 	$(block:_post3)
-	    free(ts_$(name))
-	$if ts_$(name)
-	    strncpy(ts_$(name), $(re_var)+$(off), $(size))
-	    ts_$(name)[$(size)]='\0'
+	    free($(name))
+	$if $(name)
+	    strncpy($(name), $(re_var)+$(off), $(size))
+	    $(name)[$(size)]='\0'

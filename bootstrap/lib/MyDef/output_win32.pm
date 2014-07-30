@@ -1,6 +1,5 @@
 use strict;
 package MyDef::output_win32;
-use MyDef::dumpout;
 use MyDef::output_c;
 sub get_interface {
     return (\&init_page, \&MyDef::output_c::parsecode, \&MyDef::output_c::set_output, \&MyDef::output_c::modeswitch, \&dumpout);
@@ -34,6 +33,7 @@ sub dumpout {
     foreach my $i (keys %MyDef::output_c::objects){
         if($i=~/^lib(.*)/){
             push @$f, "#pragma comment(lib, \"$1\")\n";
+            $MyDef::output_c::objects{$i}=undef;
         }
     }
     MyDef::output_c::dumpout($f, $out);
