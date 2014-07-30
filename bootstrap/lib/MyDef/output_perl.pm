@@ -23,6 +23,15 @@ sub open_scope {
 }
 sub close_scope {
     my ($blk, $pre, $post)=@_;
+    if(!$blk){
+        $blk=$cur_scope;
+    }
+    if($blk->{return}){
+        if(!$post){
+            $post=MyDef::compileutil::get_named_block("_post");
+        }
+        push @$post, $blk->{return};
+    }
     $cur_scope=pop @scope_stack;
 }
 sub find_var {
