@@ -1,16 +1,17 @@
 use strict;
 package MyDef::output_make;
 our $debug;
+our $out;
 our $mode;
 our $page;
-our $out;
 sub get_interface {
     my $interface_type="general";
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout, $interface_type);
 }
 sub init_page {
-    ($page)=@_;
-    my $ext="$(ext)";
+    my ($t_page)=@_;
+    $page=$t_page;
+    my $ext;
     if($MyDef::var->{filetype}){
         $ext=$MyDef::var->{filetype};
     }

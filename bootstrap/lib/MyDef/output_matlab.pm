@@ -1,5 +1,9 @@
 use strict;
 package MyDef::output_matlab;
+our $debug;
+our $out;
+our $mode;
+our $page;
 our @func_input;
 our @func_return;
 our $func_varargout;
@@ -9,16 +13,13 @@ our $case_elif="elseif";
 our @case_stack;
 our $case_state;
 our $case_wrap;
-our $debug;
-our $mode;
-our $page;
-our $out;
 sub get_interface {
     my $interface_type="matlab";
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout, $interface_type);
 }
 sub init_page {
-    ($page)=@_;
+    my ($t_page)=@_;
+    $page=$t_page;
     my $ext="m";
     if($MyDef::var->{filetype}){
         $ext=$MyDef::var->{filetype};
@@ -277,7 +278,7 @@ sub dumpout {
                 }
             }
             $input=join(", ", @arg_1);
-            for(my $i=0; $i < @arg_2; $i++){
+            for(my $i=0; $i <@arg_2; $i++){
                 my $var=$arg_2[$i];
                 my $val=$arg_v[$i];
                 my $i1=$i+1;
@@ -310,7 +311,7 @@ sub dumpout {
         push @$out, "if nargout<=1\n";
         push @$out, "    varargout{1}=[".join(", ", @func_return)."];\n";
         push @$out, "else\n";
-        for(my $i=0; $i < @func_return; $i++){
+        for(my $i=0; $i <@func_return; $i++){
             my $idx=$i+1;
             push @$out, "    varargout{$idx}=$func_return[$i];\n";
         }

@@ -1,15 +1,15 @@
 use strict;
 package MyDef::output_www;
+our $debug;
+our $out;
+our $mode;
+our $page;
 our $style;
 our @style_key_list;
 our @mode_stack;
 our $cur_mode="html";
 our %plugin_statement;
 our %plugin_condition;
-our $debug;
-our $mode;
-our $page;
-our $out;
 use Term::ANSIColor qw(:constants);
 my $php;
 my $style_sheets;
@@ -20,7 +20,8 @@ sub get_interface {
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout, $interface_type);
 }
 sub init_page {
-    ($page)=@_;
+    my ($t_page)=@_;
+    $page=$t_page;
     my $ext="html";
     if($MyDef::var->{filetype}){
         $ext=$MyDef::var->{filetype};
@@ -577,7 +578,7 @@ sub js_string {
     if($parts[0]=~/^$/){
         shift @parts;
     }
-    for(my $i=0; $i < @parts; $i++){
+    for(my $i=0; $i <@parts; $i++){
         if($parts[$i]=~/^\$(\w+)/){
             $parts[$i]=$1;
             while($parts[$i+1]=~/^(\[.*?\])/){

@@ -1,9 +1,9 @@
 use strict;
 package output_win32rc;
 our $debug;
+our $out;
 our $mode;
 our $page;
-our $out;
 my %id_base;
 my %id_step;
 my %res_id_hash;
@@ -13,7 +13,8 @@ sub get_interface {
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout, $interface_type);
 }
 sub init_page {
-    ($page)=@_;
+    my ($t_page)=@_;
+    $page=$t_page;
     my $ext="rc";
     if($MyDef::var->{filetype}){
         $ext=$MyDef::var->{filetype};
