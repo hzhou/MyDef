@@ -258,7 +258,7 @@ sub call_back {
             my $n3=@$params;
             if($params->[$n3-1]=~/^\@(\w+)/ and $n2>$n3-$np){
                 my $n0=$n3-$np-1;
-                for(my $i=0; $i < $n0; $i++){
+                for(my $i=0; $i <$n0; $i++){
                     $pline=~s/^[^,]*,//;
                 }
                 $pline=~s/^\s*//;
@@ -269,10 +269,10 @@ sub call_back {
             }
         }
         my $macro={};
-        for(my $i=0; $i < $np; $i++){
+        for(my $i=0; $i <$np; $i++){
             $macro->{$params->[$i]}=$pre_plist[$i];
         }
-        for(my $j=0; $j < @$params-$np; $j++){
+        for(my $j=0; $j <@$params-$np; $j++){
             my $p=$params->[$np+$j];
             if($p=~/^\@(\w+)/){
                 $p=$1;
@@ -359,7 +359,7 @@ sub call_sub {
                     foreach my $item (@plist){
                         my $macro={$params->[$np]=>$item};
                         if($np){
-                            for(my $i=0; $i < $np; $i++){
+                            for(my $i=0; $i <$np; $i++){
                                 $macro->{$params->[$i]}=$pre_plist[$i];
                             }
                         }
@@ -378,7 +378,7 @@ sub call_sub {
                             my $n3=@$params;
                             if($params->[$n3-1]=~/^\@(\w+)/ and $n2>$n3-$np){
                                 my $n0=$n3-$np-1;
-                                for(my $i=0; $i < $n0; $i++){
+                                for(my $i=0; $i <$n0; $i++){
                                     $pline=~s/^[^,]*,//;
                                 }
                                 $pline=~s/^\s*//;
@@ -389,10 +389,10 @@ sub call_sub {
                             }
                         }
                         my $macro={};
-                        for(my $i=0; $i < $np; $i++){
+                        for(my $i=0; $i <$np; $i++){
                             $macro->{$params->[$i]}=$pre_plist[$i];
                         }
-                        for(my $j=0; $j < @$params-$np; $j++){
+                        for(my $j=0; $j <@$params-$np; $j++){
                             my $p=$params->[$np+$j];
                             if($p=~/^\@(\w+)/){
                                 $p=$1;
@@ -591,7 +591,7 @@ sub parseblock {
                     parseblock({source=>$subblock, name=>"BLOCK_$n", scope=>$callback_scope});
                     set_output($temp);
                     my $n_end_parse=0;
-                    for(my $i=$idx; $i < $#$callback_output+1; $i++){
+                    for(my $i=$idx; $i <$#$callback_output+1; $i++){
                         if($callback_output->[$i]=~/^BLOCK$/){
                             $callback_output->[$i]="BLOCK_$n";
                         }
@@ -780,7 +780,7 @@ sub parseblock {
                     my @tlist=MyDef::utils::proper_split($p);
                     my $n=@tlist;
                     $deflist->[-1]->{p_n}=$n;
-                    for(my $i=1; $i < $n+1; $i++){
+                    for(my $i=1; $i <$n+1; $i++){
                         $deflist->[-1]->{"p_$i"}=$tlist[$i-1];
                     }
                 }
@@ -963,7 +963,7 @@ sub parseblock {
                                 parseblock({source=>$subblock, name=>"BLOCK_$n", scope=>$callback_scope});
                                 set_output($temp);
                                 my $n_end_parse=0;
-                                for(my $i=$idx; $i < $#$callback_output+1; $i++){
+                                for(my $i=$idx; $i <$#$callback_output+1; $i++){
                                     if($callback_output->[$i]=~/^BLOCK$/){
                                         $callback_output->[$i]="BLOCK_$n";
                                     }
@@ -1219,7 +1219,7 @@ sub expand_macro_recurse {
     $$lref=~s/\$\.(?=\w)/\$(this)/g;
     $updated=1;
     while($updated){
-        for(my $j=$#$deflist; $j >= -1; $j--){
+        for(my $j=$#$deflist; $j >=-1; $j--){
             ($hasmacro, $updated)=expand_macro($lref, $deflist->[$j]);
             if($updated or !$hasmacro){
                 last;
@@ -1279,7 +1279,7 @@ sub get_cur_code {
 }
 sub get_def {
     my ($name)=@_;
-    for(my $i=$#$deflist; $i >= -1; $i--){
+    for(my $i=$#$deflist; $i >=-1; $i--){
         if(defined $deflist->[$i]->{$name}){
             return $deflist->[$i]->{$name};
         }
@@ -1288,7 +1288,7 @@ sub get_def {
 }
 sub get_def_attr {
     my ($name, $attr)=@_;
-    for(my $i=$#$deflist; $i >= -1; $i--){
+    for(my $i=$#$deflist; $i >=-1; $i--){
         my $t=$deflist->[$i]->{$name};
         if($t and $t->{$attr}){
             return $t->{$attr};
