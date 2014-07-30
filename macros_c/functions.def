@@ -21,9 +21,6 @@ subcode:: parsecode_special
 
 #- $sub close_scope($blk, $pre, $post)
 subcode: process_close_scope
-    $if !$blk
-	$blk=$cur_scope
-
     my ($var_hash, $var_list)
     $if ref($blk) eq "HASH"
 	$var_hash=$blk->{var_hash};
@@ -53,11 +50,6 @@ subcode: process_close_scope
 	$foreach $call_line in @exit_calls
 	    MyDef::compileutil::call_sub($call_line)
 	MyDef::compileutil::set_output($out_save)
-
-    $if $blk->{return}
-	$if !$post
-	    $post=MyDef::compileutil::get_named_block("_post")
-	push @$post, $blk->{return}
 
 #-----------------------------------------------------------------
 subcode:: c_support_subs

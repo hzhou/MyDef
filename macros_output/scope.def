@@ -22,7 +22,16 @@ subcode:: _autoload
 	$cur_scope={var_list=>[], var_hash=>{}, name=>$scope_name}
 
     $sub close_scope($blk, $pre, $post)
+	$if !$blk
+	    $blk=$cur_scope
+
 	$call @process_close_scope
+
+	$if $blk->{return}
+	    $if !$post
+		$post=MyDef::compileutil::get_named_block("_post")
+	    push @$post, $blk->{return}
+
 	$cur_scope=pop @scope_stack
 
     $sub find_var($name)
