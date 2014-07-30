@@ -2,15 +2,7 @@ page: mydef_filter
     type: pl
     output_dir: script
     subcode: main
-	my $pre_indent
-	my $indent=0
-	$while <STDIN>
-	    $if !defined $pre_indent
-		$if /^(\s*)/
-		    my $space=$1
-		    $pre_indent=$space
-	    my $space=$pre_indent . "    " x $indent
-
+	&call parse_frame
 	    $if /^\s*(foreach)\s*(.*)\((.*)\)\s*\{\s*$/
 		my ($tag, $var, $cond)=($1, $2, $3)
 		$var=~s/^my\s*//
@@ -43,4 +35,40 @@ page: mydef_filter
 	    $elif /^\s*(.*)/
 		print "$space$1\n"
 
+
+subcode: parse_frame
+    my $pre_indent
+    my $indent=0
+
+    my $incode
+    my $base_count
+    $while <STDIN>
+	$if $incode
+	    $if getindentspaces($_)<$base_count
+		$incode=0
+	$if !$incode
+	    $if /^(\s*)subcode:/
+		$incode=1
+		$base_count=getindentspaces($1)
+		$pre_indent=' ' x $base_count
+		$indent=1
+
+	my $space=$pre_indent . "    " x $indent
+
+	BLOCK
+
+subcode:: support_subs
+    $sub getindentspaces($t)
+	use integer
+
+	my $n=length($t)
+	my $count=0
+	$for $i=0:$n
+	    $if substr($t, $i, 1)==' '
+		$count++
+	    $elif substr($t, $i, 1)=='\t'
+		$count=($count/8+1)*8
+	    $else
+		last
+	return $count
 
