@@ -10,6 +10,13 @@ subcode: parsecode_sum_support(style)
     MyDef::compileutil::parseblock({source=>\@code, name=>"sumcode"})
     return
 
+subcode: parsecode_sum_simple(style)
+    $call sumcode_init_style, $(style)
+    $call sumcode_simple_parse
+    $call sumcode_simple_generate
+    MyDef::compileutil::parseblock({source=>\@code, name=>"sumcode"})
+    return
+
 #---------------------------------------- 
 #- '$' is not an operator, so if it appears, let's assume it is 
 #-     part of variable name
@@ -221,4 +228,60 @@ subcode: sumcode_idx(idx, i)
     $else
 	$if $dim_hash{$(idx)} ne $dim
 	    $print "sumcode dimesnion mismatch: $dim_hash{$(idx)} != $dim"
+
+#---------------------------------------- 
+#- sumcode simple
+#---------------------------------------- 
+subcode: sumcode_simple_parse
+    my @idxlist=('i','j','k','l')
+    my @dimlist=MyDef::utils::proper_split($dimstr)
+    my %dim_hash
+    $for $i=0:@dimlist
+	$dim_hash{$idxlist[$i]}=$dimlist[$i]
+
+    my ($left, $right)
+    $if $param=~/(.*?)\s*(?<![\+\-\*\/%&\|><=])=(?!=)\s*(.*)/
+	($left, $right)=($1, $2)
+    $else
+	$left=$param
+
+    my (@left_idx, @right_idx)
+    $for $i=0:@dimlist
+	my $idx=$idxlist[$i]
+	$if $left=~/\b$idx\b/
+	    push @left_idx, $idx
+	$else
+	    push @right_idx, $idx
+
+    $(for:left in left,right)
+	$$(left)=~s/\b([ijkl])\b/$(i)_\1/g
+
+subcode: sumcode_simple_generate
+    my @code
+    &call sumcode_simple_loop, left
+	$if @right_idx
+	    my $sum
+	    $if $left=~/^(\$?\w+)$/
+		$sum=$1
+		push @code, "$sum = 0"
+	    $else
+		$sum="$(sum)"
+		push @code, "$(mytype) $sum=0"
+	    &call sumcode_simple_loop, right
+		push @code, "$sum += $right"
+	    $if $left ne $sum
+		push @code, "$left = $sum"
+	$elif $right
+	    push @code, "$left = $right"
+	$else
+	    push @code, $left
+
+subcode: sumcode_simple_loop(left)
+    $(allow_recurse:2)
+    $foreach $i in @$(left)_idx
+	push @code, "\$for $(i)_$i=0:$dim_hash{$i}"
+	push @code, "SOURCE_INDENT"
+    BLOCK
+    $foreach $i in reverse @$(left)_idx
+	push @code, "SOURCE_DEDENT"
 
