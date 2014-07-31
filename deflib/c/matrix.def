@@ -11,8 +11,7 @@ subcode: set_matrix(v, m, n)
 #---------------------------------------- 
 subcode: matrix_print(v)
     $get_var_attr $(v), dim1, dim2
-    $print \nMatrix $(v): $(dim1) x $(dim2)
-    
+    $print "Matrix $(v): %d x %d\n", $(dim1), $(dim2)
     $fcall f_matrix_print($(v), $(dim1), $(dim2))
 
 fncode: f_matrix_print(pf_A, m, n)
