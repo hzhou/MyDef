@@ -2,6 +2,11 @@ subcode:: c_init
     $global @function_stack
     @function_stack=()
 
+    $global %list_function_hash
+    $global @list_function_list
+    %list_function_hash=()
+    @list_function_list=()
+
 # ------------------------------------
 subcode:: parsecode_func_other
     $elsif $func eq "function"
@@ -22,8 +27,6 @@ subcode:: parsecode_func_other
 
 # ------------------------------------
 subcode: add_list_functions(param)
-    $global %list_function_hash
-
     $call check_autoload_h
     $if !$autoload_h
 	my @tlist=split /,\s*/, $(param)
@@ -43,8 +46,6 @@ subcode: parsecode_post
     #---- NOOP POST_MAIN: called at end of parse or 
     #-      end of each parse group as in output_xs.def
     
-    $global @list_function_list
-
     $while my $f=shift @list_function_list
 	$call parse_function_list_item, $f
 
