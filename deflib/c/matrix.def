@@ -1,6 +1,9 @@
 subcode:: _autoload
     $class matrix
 
+subcode: set_vector(v, m)
+    $set_var_attr $(v), dimension=$(m)
+
 subcode: set_matrix(v, m, n)
     $set_var_attr $(v), dim1=$(m), dim2=$(n)
     $set_var_attr $(v), class=matrix
