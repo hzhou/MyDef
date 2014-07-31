@@ -206,7 +206,7 @@ subcode:: c_support_subs
 	    $if $type!~/\*$/
 		#- $local n_test[10]:  int  --> int *
 		$var->{type}.=" *"
-	    $elif $type_given
+	    $elif $type_given or $explicit_type
 		#- $local int * P[10]: int * --> int **
 		$var->{type}.="*"
 	$call debug_add_var
