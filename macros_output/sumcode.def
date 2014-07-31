@@ -39,6 +39,8 @@ subcode: sumcode_gen_sumvar_perl
     push @code, "my $sum = 0"
 
 #############################################################
+#- ToDo: Factor a[i,j]=b[i,k]*c[k,l]*d[l,j]
+#-       maybe: a[i,j]=b[i,k]*{c[k,l]*d[l,j]}
 subcode: sumcode_generate
     my @code
     my %loop_i_hash
@@ -260,17 +262,10 @@ subcode: sumcode_simple_generate
     my @code
     &call sumcode_simple_loop, left
 	$if @right_idx
-	    my $sum
-	    $if $left=~/^(\$?\w+)$/
-		$sum=$1
-		push @code, "$sum = 0"
-	    $else
-		$sum="$(sum)"
-		push @code, "$(mytype) $sum=0"
+	    my $sum=$left
+	    push @code, "$sum = 0"
 	    &call sumcode_simple_loop, right
 		push @code, "$sum += $right"
-	    $if $left ne $sum
-		push @code, "$left = $sum"
 	$elif $right
 	    push @code, "$left = $right"
 	$else
