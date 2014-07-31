@@ -10,6 +10,8 @@ subcode: test_sumcode
     $sumcode print "i: $a[i]\n"
 
 subcode: test_sumcode_2
+    $sumcode(10) print "sumcode simple: i \n"
+
     $my @a[2,2], @T[2,2]=(0,1,1,0)
     $sumcode $a[i,j]=i+j
     $sumcode print "i, j: $a[i,j]\n"
