@@ -4,13 +4,7 @@ include: macros_c/expression.def
 include: macros_c/print.def
 include: macros_c/assignment.def
 
-#- include: macros_c/sumcode.def
-include: macros_output/sumcode.def
-
-subcode:: parsecode_func_other
-    $case $func eq "sumcode"
-	$call parsecode_sum_support, c
-
+#---------------------------------------- 
 subcode:: package_globals
     our $anonymous_count=0
 
@@ -289,3 +283,16 @@ subcode: dataunpack_var
 	print "unpack: unhandled type $var - $vartype\n"
 
 
+#---------------------------------------- 
+#- include: macros_c/sumcode.def
+include: macros_output/sumcode.def
+
+subcode:: parsecode_func_other
+    $case $func eq "sumcode"
+	$call parsecode_sum_support, c
+
+subcode:: parsecode_func_param_other
+    $case $func eq "sumcode"
+	my $dimstr=$param1
+	my $param=$param2
+	$call parsecode_sum_simple, c
