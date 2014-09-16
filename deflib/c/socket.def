@@ -80,7 +80,7 @@ subcode: ip_addr(addr, ip, port)
     memset(&$(addr), 0, sizeof($(addr)))
     $(addr).sin_family=AF_INET
     $(addr).sin_port=htons($(port))
-    $(addr).sin_addr.s_addr=$(ip)
+    $(addr).sin_addr.s_addr=htonl($(ip))
 
 subcode: unix_addr(addr, path)
     $include <sys/socket.h>
@@ -90,18 +90,11 @@ subcode: unix_addr(addr, path)
     $(addr).sun_family=AF_UNIX
     strcpy($(addr).sun_path, $(path))
 
-#---- UDP send/recv ------------------------------------ 
-subcode: socket_sendto(var, addr, msg)
-    $(if:msg~")
-	tn_ret=sendto($(var), $(msg), $(msg:strlen), 0, (struct sockaddr *)&$(addr), sizeof($(addr)))
-    $(else)
-	tn_ret=sendto($(var), $(msg), $(msg)_len, 0, (struct sockaddr *)&$(addr), sizeof($(addr)))
-    $if tn_ret<0
-	$include <errno.h>
-	$symbol int errno
-	$print "socket failed sendto: errno = $errno"
+subcode: ip6_addr(addr, ip, port)
+    # to be implemented
 
-subcode: socket_recvfrom(var, addr, msg)
+#------
+subcode: socket_addr_param(var, addr)
     $(if:addr!=NULL)
 	$get_var_attr $(var), af_family
 	$(if:af_family=AF_UNIX)
@@ -111,7 +104,30 @@ subcode: socket_recvfrom(var, addr, msg)
 	tn_sock_size=sizeof($(addr))
 	$(set:addr_param=(struct sockaddr *)&$(addr), &tn_sock_size)
     $(else)
-	$(set:addr_param=NULL, NULL)
+	$(set:addr_param=NULL, 0)
+    $(export:addr_param)
+
+#---- 
+subcode: socket_close(var)
+    close($(var))
+
+#---- UDP send/recv ------------------------------------ 
+subcode: socket_sendto(var, addr, msg)
+    $(if:addr=NULL)
+	$(set:addr_param=NULL, 0)
+    $(else)
+	$(set:addr_param=(struct sockaddr *)&$(addr), sizeof($(addr)))
+    $(if:msg~")
+	tn_ret=sendto($(var), $(msg), $(msg:strlen), 0, $(addr_param))
+    $(else)
+	tn_ret=sendto($(var), $(msg), $(msg)_len, 0, $(addr_param))
+    $if tn_ret<0
+	$include <errno.h>
+	$symbol int errno
+	$print "socket failed sendto: errno = $errno"
+
+subcode: socket_recvfrom(var, addr, msg)
+    $call socket_addr_param, $(var), $(addr)
     $local char $(msg)[4096]
     $local int $(msg)_len
     $(msg)_len=recvfrom($(var), $(msg), 4096, 0, $(addr_param))
@@ -120,3 +136,25 @@ subcode: socket_recvfrom(var, addr, msg)
 	$symbol int errno
 	$print "$(var) recvfrom error: errno = $errno"
     $(msg)[$(msg)_len]=0
+
+subcode: socket_recv(var, msg)
+    $call socket_recvfrom, $(var), NULL, $(msg)
+
+subcode: socket_send(var, msg)
+    $call socket_sendto, $(var), NULL, $(msg)
+
+#---- TCP ------------------------------------------
+subcode: socket_listen(var)
+    tn_ret=listen($(var), 4)
+
+subcode: socket_accept(var, addr)
+    $call socket_addr_param, $(var), $(addr)
+    $local tn_socket
+    $set_var_attr tn_socket, class=socket
+    $get_var_attr $(var), af_family, sock_type
+    $set_var_attr tn_socket, af_family=$(af_family), sock_type=$(sock_type)
+    $yield tn_socket = accept($(var), $(addr_param))
+
+subcode: socket_connect(var, addr)
+    $(set:addr_param=(struct sockaddr *)&$(addr), sizeof($(addr)))
+    $yield connect($(var), $(addr_param))

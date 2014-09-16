@@ -92,52 +92,6 @@ subcode: tcp_listen(host, port)
     tn_ret=listen(tn_socket_listen, 4)
     $call assert, tn_ret==0
 
-#---- UDP Wrapper -------------------------------------
-subcode: udp_socket(host, port)
-    $include <sys/socket.h>
-    tn_socket=socket(AF_INET, SOCK_DGRAM, 0)
-
-    $call ip_addr, inet_addr, $(host), $(port)
-
-    tn_ret=bind(tn_socket, (const struct sockaddr  *)&inet_addr, sizeof(inet_addr))
-    $call assert, tn_ret==0
-
-#----
-subcode: udp_local_socket(path)
-    $include <sys/socket.h>
-    $include <sys/un.h>
-    tn_socket=socket(AF_LOCAL, SOCK_DGRAM, 0)
-    unlink($(path))
-    $call unix_addr, udp_local_addr, $(path)
-    tn_ret=bind(tn_socket, (const struct sockaddr  *)&udp_local_addr, sizeof(udp_local_addr))
-    $call assert, tn_ret==0
-
-#---- provide name, recv content -------
-subcode: udp_recv_local(buffer)
-    $(set:udp_local=1)
-    $call udp_recv
-
-subcode: udp_recv(buffer)
-    $(if:udp_local)
-	$local struct sockaddr_un client_addr
-    $(else)
-	$local struct sockaddr_in client_addr
-    tn_sock_size=sizeof(client_addr)
-    $local char $(buffer)[4096]
-    n=recvfrom(tn_socket, $(buffer), 4096, 0, (struct sockaddr *)&client_addr, &tn_sock_size)
-    $(buffer)[n]=0
-
-subcode: udp_send(addr, str)
-    tn_ret=sendto(tn_socket, $(str), $(str)_len, 0, (struct sockaddr *)&$(addr), sizeof($(addr)))
-
-#---- example ----
-subcode: udp_read_loop(addr)
-    &call tick_loop
-        &call select, tn_socket, timeout:1                         
-            &call on_select, tn_socket                             
-                $call udp_recv_local
-                $set_var_attr s_buffer, strlen=n                   
-
 # ---- Read Loop ---------------------------------------
 subcode: socket_read_loop
     $(set:SIZE=1000)
