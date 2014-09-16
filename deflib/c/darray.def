@@ -7,7 +7,7 @@ subcode:: _autoload
 #       rather, work on how to get program detect name collisions
 
 #---------------------------------------- 
-#-   $my darray P of int
+#-   $my darray P: int
 subcode: darray_init(var, scope, @type)
     $(if:$(type:list:n)=1)
 	$$(scope) $(type) * $(var)=NULL

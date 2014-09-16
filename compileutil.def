@@ -69,8 +69,10 @@ subcode:: package_global
 	return ($f_init, $f_parse, $f_setout, $f_modeswitch, $f_dumpout, $interface_type)
 
     $sub set_output($output)
+	my $old=$out
 	$out=$output
 	$f_setout->($out)
+	return $old
 
     # ---------------------------------------------------
     our $deflist;

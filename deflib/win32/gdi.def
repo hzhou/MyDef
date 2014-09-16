@@ -7,6 +7,10 @@ subcode: quick_gdi(name)
 	SelectObject(hdc, t_old_$(name))
 	DeleteObject(t_new_$(name))
 
+subcode: gdi_exit(var)
+    DeleteObject($(var))
+
+#---------------------------------------- 
 # -- PEN ---------------------
 subcode: create_pen(var, @plist)
     $local HPEN t_new_pen
@@ -26,7 +30,7 @@ subcode: quick_pen(@plist)
 
 # -- Brush -------------------------
 subcode: create_brush(var, @plist)
-    $local HBRUSH $(var)
+    # $local HBRUSH $(var)
     $(set:color=0)
     $(ifeach:p:6=color_ or p:2=0x)
 	$(export:color=$(p))
@@ -34,13 +38,22 @@ subcode: create_brush(var, @plist)
 
 subcode: local_brush(var, @plist)
     BLOCK RELEASE
+    $my HBRUSH $(var)
     $call create_brush, $(var), $(plist)
-    $(block:_post)
-	DeleteObject($(var))
+    $set_var_attr $(var), exit=gdi_exit
 
 subcode: quick_brush(@plist)
     BLOCK RELEASE
     $call create_brush, t_new_brush, $(plist)
     $call quick_gdi, brush
 
-# -------------------------------------
+# -- Font -----------------------------------
+subcode: create_font(var, name, size)
+    $(var) = CreateFont ($(size), 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_DONTCARE, $(name))
+
+subcode: quick_font(fontname, size)
+    BLOCK RELEASE
+    $my HFONT t_new_font
+    $call create_font, t_new_font, $(fontname), $(size)
+    $call quick_gdi, font
+

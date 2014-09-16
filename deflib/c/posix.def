@@ -1,33 +1,50 @@
+include: c/socket.def
 subcode:: _autoload
     $include string
 
-# ---- Read/Write Wrapper --------------------------------
+#---- Read/Write Wrapper --------------------------------
 subcode: Read(fd, buf, size)
-    $while 1
-	n=read($(fd), $(buf), $(size))
-	$if n==0 # EOF
-	    break
-	$elif n<0
-	    $call assert, errno==EINTR
-	    $if errno==EINTR
-		continue
-	$else
-	    break
+    $fcall tn_ret=read1($(fd), $(buf), $(len))
 
 subcode: Write(fd, buf, len)
-    tn_total=$(len)
-    tn_left=tn_total
-    ts_ptr=$(buf)
-    $while tn_left>0
-	n=write($(fd), ts_ptr, tn_left)
-	$if n<0
-	    $call assert, errno==EINTR
-	    $if errno==EINTR
-		continue
+    $fcall tn_ret=writen($(fd), $(buf), $(len))
+
+fncode: read1(int fd, void * p, n)
+    &call retry_block
+	tn_read=read(fd, p, n)
+	$if tn_read<0 && errno==EINTR
+	    $call retry
+    return tn_read
+
+fncode: readn(int fd, void * p, n)
+    tn_remain=n
+    $while tn_remain>0
+	tn_read=read(fd, p, tn_remain)
+	$if tn_read<0
+	    $if errno=EINTR
+		tn_read=0
+	    $else
+		return -1
+	$elif tn_read==0
+	    break
 	$else
-	    tn_left-=n
-	    ts_ptr+=n
-    n=tn_total-tn_left
+	    tn_read-=tn_read
+	    p+=tn_read
+    return n-tn_remain
+
+fncode: writen(int fd, void * p, n)
+    tn_remain=n
+    $while tn_remain>0
+	tn_written=write(fd, p, tn_remain)
+	$if tn_written<=0
+	    $if tn_written<0 && error==EINTR
+		tn_written==0
+	    $else
+		return -1
+	$else
+	    tn_remain-=tn_written
+	    p+=tn_written
+    return n
 
 # ---- Generic Client -------------------------------------
 subcode: socket_common
@@ -62,22 +79,64 @@ subcode: tcp_connect(host, port)
     $call assert, ai_p
     freeaddrinfo(ai_res)
 
-subcode: tcp_listen(port)
+subcode: tcp_listen(host, port)
     $call socket_common
 
     tn_socket_listen=socket(AF_INET, SOCK_STREAM, 0)
     $call assert, tn_socket_listen>=0
 
-    $local struct sockaddr_in inet_addr
-    memset(&inet_addr, 0, sizeof(inet_addr))
-    inet_addr.sin_family=AF_INET
-    inet_addr.sin_port=htons($(port))
-    inet_addr.sin_addr.s_addr=htonl(INADDR_ANY)
+    $call ip_addr, inet_addr, $(host), $(port)
 
     tn_ret=bind(tn_socket_listen, (struct sockaddr *)&inet_addr, sizeof(inet_addr))
     $call assert, tn_ret==0
     tn_ret=listen(tn_socket_listen, 4)
     $call assert, tn_ret==0
+
+#---- UDP Wrapper -------------------------------------
+subcode: udp_socket(host, port)
+    $include <sys/socket.h>
+    tn_socket=socket(AF_INET, SOCK_DGRAM, 0)
+
+    $call ip_addr, inet_addr, $(host), $(port)
+
+    tn_ret=bind(tn_socket, (const struct sockaddr  *)&inet_addr, sizeof(inet_addr))
+    $call assert, tn_ret==0
+
+#----
+subcode: udp_local_socket(path)
+    $include <sys/socket.h>
+    $include <sys/un.h>
+    tn_socket=socket(AF_LOCAL, SOCK_DGRAM, 0)
+    unlink($(path))
+    $call unix_addr, udp_local_addr, $(path)
+    tn_ret=bind(tn_socket, (const struct sockaddr  *)&udp_local_addr, sizeof(udp_local_addr))
+    $call assert, tn_ret==0
+
+#---- provide name, recv content -------
+subcode: udp_recv_local(buffer)
+    $(set:udp_local=1)
+    $call udp_recv
+
+subcode: udp_recv(buffer)
+    $(if:udp_local)
+	$local struct sockaddr_un client_addr
+    $(else)
+	$local struct sockaddr_in client_addr
+    tn_sock_size=sizeof(client_addr)
+    $local char $(buffer)[4096]
+    n=recvfrom(tn_socket, $(buffer), 4096, 0, (struct sockaddr *)&client_addr, &tn_sock_size)
+    $(buffer)[n]=0
+
+subcode: udp_send(addr, str)
+    tn_ret=sendto(tn_socket, $(str), $(str)_len, 0, (struct sockaddr *)&$(addr), sizeof($(addr)))
+
+#---- example ----
+subcode: udp_read_loop(addr)
+    &call tick_loop
+        &call select, tn_socket, timeout:1                         
+            &call on_select, tn_socket                             
+                $call udp_recv_local
+                $set_var_attr s_buffer, strlen=n                   
 
 # ---- Read Loop ---------------------------------------
 subcode: socket_read_loop
@@ -136,7 +195,7 @@ subcode: sig_child
 		break
 
 #---- Daemon ---------------------------------
-subcode: daemon_start
+fncode: daemon_start
     $include unistd
     $call daemon_fork
     # -- new session leader --
@@ -198,25 +257,60 @@ subcode: signal_set(signo, handler)
     $call assert, tn_ret>=0
 
 # ---- Select -----------------------------------
-subcode: select_setup
+subcode: select(@plist)
     $include sys/select
     $local fd_set select_rset
     tn_select_max=0
-    BLOCK
+
+    $(foreach:p)
+	$(if:p~timeout:)
+	    $eval select_timeout, $(p)
+	$(else)
+	    $if $(p)>tn_select_max
+		tn_select_max=$(p)
+	    FD_SET($(p), &select_rset)
+
     tn_select_max+=1
-    tn_ret=select(tn_select_max, &select_rset, NULL, NULL, NULL)
+    $local tn_ret
+    $(if:select_timeout)
+	$my struct timeval select_timeout
+	select_timeout.tv_sec=$(select_sec)
+	select_timeout.tv_usec=$(select_usec)
+	tn_ret=select(tn_select_max, &select_rset, NULL, NULL, &select_timeout)
+    $(else)
+	tn_ret=select(tn_select_max, &select_rset, NULL, NULL, NULL)
     $call assert, tn_ret>=0
 
-subcode: select(@plist)
-    $(foreach:p)
-	$if $(p)>tn_select_max
-	    tn_select_max=$(p)
-	FD_SET($(p), &select_rset)
+    BLOCK
 
-subcode: select_on(fd)
+perlcode: select_timeout
+    $if $param=~/timeout:(\d+)(\.(\d+))?/
+	MyDef::compileutil::export_macro(-2, "select_timeout", 1)
+	MyDef::compileutil::export_macro(-2, "select_sec", $1)
+	$if !$3
+	    MyDef::compileutil::export_macro(-2, "select_usec", 0)
+	$elif length($3)==3
+	    MyDef::compileutil::export_macro(-2, "select_usec", $3."000")
+	$else
+	    MyDef::compileutil::export_macro(-2, "select_usec", $3)
+
+subcode: on_select(fd)
     $if FD_ISSET($(fd), &select_rset)
 	BLOCK
 
+subcode: on_select_timeout
+    $if select_timeout.tv_sec==0 && select_timeout.tv_usec==0
+	BLOCK
+
+#---- Thread -------------------------------------------------
+subcode: run_thread(subname)
+    $uselib pthread                                                 
+    $function thread_fn(void * p_dummy)
+	$return_type void *                                             
+	$call $(subname)
+    $local pthread_t thread_id                                      
+    pthread_create(&thread_id, NULL, $(lamda), NULL)          
+                                                                    
 # DEBUG #############################################
 
 subcode: debug_errno(label)

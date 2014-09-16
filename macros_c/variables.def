@@ -166,7 +166,7 @@ subcode: add_var(hash, list)
 subcode:: c_support_subs
     $sub parse_var($name, $type, $value)
 	my $type_given=$type
-	my ($init, $array);
+	my ($init, $array, $constructor);
 	my @attrs
 	my $explicit_type;
 	# omit ;
@@ -189,6 +189,9 @@ subcode:: c_support_subs
 	$if $name=~/(\w+)\[(.*)\]/
 	    $name=$1;
 	    $array=$2;
+	$elif $name=~/(\w+)\((.*)\)/
+	    $name=$1;
+	    $constructor=$2;
 	$if !$type
 	    $call infer_type
 
@@ -199,7 +202,7 @@ subcode:: c_support_subs
 	$var->{init}=$init
 	$if @attrs
 	    $var->{attr}=join(" ", @attrs)
-	$if $array
+	$if defined $array
 	    $var->{array}=$array
 	    $var->{dimension}=$array
 	    #- $local pn_test[10]: int* --> same
@@ -209,6 +212,8 @@ subcode:: c_support_subs
 	    $elif $type_given or $explicit_type
 		#- $local int * P[10]: int * --> int **
 		$var->{type}.="*"
+	$elif defined $constructor
+	    $var->{constructor}=$constructor
 	$call debug_add_var
 	return $var
 
@@ -256,6 +261,8 @@ subcode:: c_support_subs
 	    my $t
 	    $if defined $var->{array}
 		$t=pointer_type($type)." $name"."[$var->{array}]"
+	    $elif defined $var->{constructor}
+		$t=pointer_type($type)." $name"."($var->{constructor})"
 	    $else
 		$t="$type $name"
 	    $if defined $var->{init}

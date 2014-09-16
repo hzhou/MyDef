@@ -22,6 +22,44 @@ subcode: die(msg)
     fprintf(stderr, $(msg))
     exit(-1)
 
+#----
+subcode: try
+    $include setjmp
+    $global jmp_buf tryenv
+    $local n_exception_code
+    n_exception_code=setjmp(tryenv)
+    $if n_exception_code==0
+	BLOCK
+
+subcode: catch(exception)
+    $elif n_exception_code==$(exception)
+	BLOCK
+
+subcode: throw(exception)
+    longjmp(tryenv, $(exception))
+
+#----
+subcode: retry_block
+    tn_retry_index=0
+    $while 1
+	tn_retry_index++
+	BLOCK
+	break
+
+subcode: retry
+    continue
+
+#----
+subcode: seq_block
+    $dowhile 0
+	BLOCK
+
+#----
+subcode: on_tn_err(fn)
+    $if tn_err
+	$print "Error: $(fn): tn_err=$tn_err"
+	exit(1)
+
 #---- useful ------------
 subcode: swap(a, b)
     $get_type(type) $(a)
@@ -104,20 +142,23 @@ subcode: read_data(name, size)
     t_n=fread($(name), 1, $(size), file_in)
 
 # ---- time -------------------------------------------
-subcode: tick_reset(seconds)
+subcode: tick_loop
     $include time
-    $global time_t time_last_tick=0, f_tick_interval=1.0
-    time_last_tick=time(NULL)
-    f_tick_interval=$(seconds)
+    $call tick_reset
+    $while 1
+	BLOCK
 
-subcode: tick(msg)
-    $include time
-    $global time_t time_last_tick=0, f_tick_interval
-    $local time_t time_tick_temp
-    time_tick_temp=time(NULL)
-    $if difftime(time_tick_temp, time_last_tick)>f_tick_interval
-	print $(msg)
-	time_last_tick=time_tick_temp
+subcode: on_tick(sec)
+    $if time(NULL)-time_tick_set>=$(sec)
+	BLOCK
+
+subcode: every_tick(sec)
+    $if time(NULL)-time_tick_set>=$(sec)
+	$call tick_reset
+	BLOCK
+
+subcode: tick_reset
+    time_tick_set=time(NULL)
 
 # ---- sort -------------------------------------
 subcode: qsort(list, size, type)

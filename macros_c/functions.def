@@ -125,8 +125,6 @@ subcode:: c_support_subs
 	    $else
 		$cur_function->{ret_type}="void";
 	    # print "Check ret_type: $cur_function->{name} [$t] -> $cur_function->{ret_type}\n";
-	$if $cur_indent<=1
-	    $cur_function->{has_return}=1;
 
 # -----------------------------------------------------------------
 subcode:: support_subs

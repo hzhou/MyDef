@@ -7,6 +7,11 @@ subcode: sub_new
       BLOCK
       return $self
 
+subcode: export(list)
+    use Exporter
+    our @ISA = qw(Exporter)
+    our @EXPORT = qw($(list))
+
 subcode: block
     {
 	BLOCK
@@ -14,12 +19,16 @@ subcode: block
 
 # -- IO -------------------------
 subcode: open_r(name)
+    $(if:name~")
+	$(set:name=$(name:strip))
     open In, "$(name)" or die "Can't open $(name).\n"
     $while <In>
         BLOCK
     close In
 
 subcode: open_w(name)
+    $(if:name~")
+	$(set:name=$(name:strip))
     open Out, ">$(name)" or die "Can't write $(name).\n"
     BLOCK
     close Out
@@ -27,6 +36,16 @@ subcode: open_w(name)
 subcode: assert(cond)
     $if !($(cond))
         die "$(cond) - FALSE!\n"
+
+subcode: get_file_t(name)
+    $(if:name~")
+	$(set:name=$(name:strip))
+    my $t
+    &call block
+	open In, "$(name)" or die "Can't open $(name).\n"
+	local $/
+	$t=<In>
+	close In
 
 # -- HTML -----------------------------
 subcode: html_tag(tag)

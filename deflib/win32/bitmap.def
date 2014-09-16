@@ -1,7 +1,7 @@
 # Uses default 32-bit RGB format
 
 # ---------------------------------------
-subcode:: _autoload
+subcode:: load_bitmap_functions
     $list save_bmp
     $list load_bmp
     $list load_bmp_clip

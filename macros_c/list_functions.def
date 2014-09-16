@@ -72,7 +72,7 @@ subcode: parse_function_list_item(f)
 	    &call function_block
 		MyDef::compileutil::call_sub($codename, "\$list")
 		$if $out->[-1]=~/^return/
-		    $func->{return}=pop @$out
+		    $cur_function->{return}=pop @$out
 	    $call function_pop
 
 # ---- Direct $function ------------------
@@ -90,45 +90,71 @@ subcode: parse_function
 	$call add_to_autoload_h, "function-$funcname"
 
 	my $block=[]
-	my $out_save=$out
-	MyDef::compileutil::set_output($block)
-
-	&call function_block
-	    push @$block, "BLOCK";
-
-	MyDef::compileutil::set_output($out_save)
+	&call replace_output, $block
+	    &call function_block
+		push @$block, "BLOCK";
+	    push @$block, "PARSE:\$function_pop"
 
 	$lamda_functions{$funcname}=$block
 	$call add_list_function, $funcname
 	MyDef::compileutil::set_current_macro("lamda", $funcname)
 
-	push @$block, "PARSE:\$function_pop"
 	return $block
     $else
 	return "SKIPBLOCK"
 
 #---------------------------------------- 
+subcode:: support_subs
+    $sub start_function($funcname, $paramline)
+	my $func=open_function($funcname, $paramline);
+	$call function_push
+	#------------------
+	push @function_list, $func
+	my $fidx=$#function_list
+	MyDef::compileutil::set_named_block("fn$fidx\_open", $func->{openblock})
+	MyDef::compileutil::set_named_block("fn$fidx\_pre", $func->{preblock})
+	MyDef::compileutil::set_named_block("fn$fidx\_post", $func->{postblock})
+	MyDef::compileutil::set_named_block("fn$fidx\_close", $func->{closeblock})
+	push @$out, "DUMP_STUB fn$fidx\_open"
+	push @$out, "INDENT"
+	push @$out, "DUMP_STUB fn$fidx\_pre"
+
+	MyDef::compileutil::set_current_macro("FunctionName", $funcname)
+	return $fidx
+
+    $sub finish_function($fidx)
+	push @$out, "DUMP_STUB fn$fidx\_post"
+	push @$out, "DEDENT"
+	push @$out, "DUMP_STUB fn$fidx\_close"
+
+
+    #---------------------------------------- 
+    #---- used in deflib/win32/windows.def --
+    #--
+    $sub start_function_block($funcname, $paramline)
+	$if !$lamda_functions{$funcname}
+	    my $block=[]
+	    my $old_out=MyDef::compileutil::set_output($block)
+
+	    my $fidx = start_function($funcname, $paramline)
+
+	    $lamda_functions{$funcname}=$block
+	    push @list_function_list, $funcname
+	    $list_function_hash{$funcname}=1
+	    return {out=>$old_out, fidx=>$fidx}
+	$else
+	    return undef
+
+    $sub finish_function_block($context)
+	finish_function($context->{fidx})
+	MyDef::compileutil::set_output($context->{out})
+	$call function_pop
+
+#---------------------------------------- 
 subcode: function_block
-    my $func=open_function($funcname, $paramline);
-    $call function_push
-    #------------------
-    push @function_list, $func
-    my $fidx=$#function_list
-    MyDef::compileutil::set_named_block("fn$fidx\_open", $func->{openblock})
-    MyDef::compileutil::set_named_block("fn$fidx\_pre", $func->{preblock})
-    MyDef::compileutil::set_named_block("fn$fidx\_post", $func->{postblock})
-    MyDef::compileutil::set_named_block("fn$fidx\_close", $func->{closeblock})
-    push @$out, "DUMP_STUB fn$fidx\_open"
-    push @$out, "INDENT"
-    push @$out, "DUMP_STUB fn$fidx\_pre"
-
-    $cur_indent=1
-    MyDef::compileutil::set_current_macro("FunctionName", $funcname)
+    my $fidx=start_function($funcname, $paramline)
     BLOCK
-
-    push @$out, "DUMP_STUB fn$fidx\_post"
-    push @$out, "DEDENT"
-    push @$out, "DUMP_STUB fn$fidx\_close"
+    finish_function($fidx)
 
 subcode: function_push
     push @function_stack, $cur_function

@@ -140,9 +140,9 @@ fncode: f_string_append_hex(s, pn_len, pn_size, c)
     return s
 
 fncode: f_string_append_int(s, pn_len, pn_size, int num)
-    $local char * s2=s+(*pn_len)
     #-- maximum uint_64 is 18446744073709551615 (20 digits)
     $call string_expand, s, *pn_len, *pn_size, 30
+    s2=s+(*pn_len)
     $if num==0
 	*s2++='0'
     $else
@@ -156,8 +156,8 @@ fncode: f_string_append_int(s, pn_len, pn_size, int num)
     return s
 
 fncode: f_string_append_float(s, pn_len, pn_size, double fnum, n_digits)
-    $local char * s2=s+(*pn_len)
     $call string_expand, s, *pn_len, *pn_size, 40
+    s2=s+(*pn_len)
     $if fnum<0
 	*s2++='-'
 	fnum=-fnum

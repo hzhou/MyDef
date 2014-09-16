@@ -1,5 +1,4 @@
 include: macros_util/resource.def
-include: macros_util/tool_output.def
 
 # -------- Window ---------------------------------------
 subcode:: package_global

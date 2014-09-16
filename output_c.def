@@ -13,8 +13,6 @@ include: macros_c/list_functions.def
 include: macros_output/case.def
 
 subcode:: package_globals
-    my $cur_indent;
-    ## -------------------------------------------------
     $global %misc_vars;
     our $except;
 

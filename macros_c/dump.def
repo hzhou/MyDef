@@ -44,14 +44,17 @@ subcode: add_include(l)
 	    $key=$f
 	$elif $f=~/^<.*>$/
 	    $key=$f
-	$else
+	$elif $f=~/^\S+$/
 	    $key="<$f.h>"
+	$else
+	    $key=$f
 	$includes{$key}=1
 	$call add_to_autoload_h, "include-$key"
 
 subcode: dump_includes
     my $cnt=0
-    $while my ($k, $t)=each %includes
+    my @klist=sort keys(%includes)
+    $foreach $k in @klist
 	push @$dump_out, "#include $k\n";
 	$cnt++
     $if $cnt>0
