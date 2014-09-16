@@ -38,21 +38,23 @@ our @struct_list;
 our @initcodes;
 our %h_hash;
 our @function_stack;
+our %list_function_hash;
+our @list_function_list;
 our $case_if="if";
 our $case_elif="else if";
 our @case_stack;
 our $case_state;
 our $case_wrap;
 our $case_flag="b_flag_case";
-our @list_function_list;
 our %plugin_statement;
 our %plugin_condition;
 our $autoload;
 our $autoload_h;
 our %class_names;
 our %lamda_functions;
-our %list_function_hash;
 our $yield;
+our %function_autolist;
+our %function_defaults;
 our $dump_classes;
 our %tuple_hash;
 our %protected_var;
@@ -141,7 +143,6 @@ sub find_var {
     }
     return undef;
 }
-my $cur_indent;
 our $except;
 our $anonymous_count=0;
 our $print_type=1;
@@ -173,6 +174,7 @@ sub get_mtime {
     count=>"int",
 );
 %type_prefix=(
+    i=>"int",
     n=>"int",
     n1=>"int8_t",
     n2=>"int16_t",
@@ -264,18 +266,21 @@ sub init_page {
     @initcodes=();
     %h_hash=();
     @function_stack=();
+    %list_function_hash=();
+    @list_function_list=();
     $page->{pageext}=$ext;
     my $init_mode=$page->{init_mode};
     return ($ext, $init_mode);
 }
 sub set_output {
-    $out = shift;
+    my ($newout)=@_;
+    $out = $newout;
 }
 sub modeswitch {
     my ($mode, $in)=@_;
 }
 sub parsecode {
-    my $l=shift;
+    my ($l)=@_;
     if($debug eq "parse"){
         my $yellow="\033[33;1m";
         my $normal="\033[0m";
@@ -442,29 +447,12 @@ sub parsecode {
                     }
                 }
                 if(defined $paramline){
-                    my $func=open_function($funcname, $paramline);
-                    push @function_stack, $cur_function;
-                    $cur_function=$func;
-                    push @scope_stack, $cur_scope;
-                    $cur_scope=$cur_function;
-                    push @function_list, $func;
-                    my $fidx=$#function_list;
-                    MyDef::compileutil::set_named_block("fn$fidx\_open", $func->{openblock});
-                    MyDef::compileutil::set_named_block("fn$fidx\_pre", $func->{preblock});
-                    MyDef::compileutil::set_named_block("fn$fidx\_post", $func->{postblock});
-                    MyDef::compileutil::set_named_block("fn$fidx\_close", $func->{closeblock});
-                    push @$out, "DUMP_STUB fn$fidx\_open";
-                    push @$out, "INDENT";
-                    push @$out, "DUMP_STUB fn$fidx\_pre";
-                    $cur_indent=1;
-                    MyDef::compileutil::set_current_macro("FunctionName", $funcname);
+                    my $fidx=start_function($funcname, $paramline);
                     MyDef::compileutil::call_sub($codename, "\$list");
                     if($out->[-1]=~/^return/){
-                        $func->{return}=pop @$out;
+                        $cur_function->{return}=pop @$out;
                     }
-                    push @$out, "DUMP_STUB fn$fidx\_post";
-                    push @$out, "DEDENT";
-                    push @$out, "DUMP_STUB fn$fidx\_close";
+                    finish_function($fidx);
                     $cur_function=pop @function_stack;
                     $cur_scope=pop @scope_stack;
                     my $level=@function_stack;
@@ -482,7 +470,8 @@ sub parsecode {
         return;
     }
     elsif($l=~/^print\b(.*)$/i){
-        print "print deprecated, use \$print\n";
+        my $curfile=MyDef::compileutil::curfile_curline();
+        print "[$curfile]\x1b[33m print deprecated, use \$print\n\x1b[0m";
     }
     elsif($l=~/^SUBBLOCK BEGIN (\d+) (.*)/){
         open_scope($1, $2);
@@ -611,6 +600,63 @@ sub parsecode {
             push @$tlist, split(/,\s*/, $param2);
             return;
         }
+        elsif($func eq "sumcode"){
+            my $dimstr=$param1;
+            my $param=$param2;
+            my @idxlist=('i','j','k','l');
+            my @dimlist=MyDef::utils::proper_split($dimstr);
+            my %dim_hash;
+            for(my $i=0; $i <@dimlist; $i++){
+                $dim_hash{$idxlist[$i]}=$dimlist[$i];
+            }
+            my ($left, $right);
+            if($param=~/(.*?)\s*(?<![\+\-\*\/%&\|><=])=(?!=)\s*(.*)/){
+                ($left, $right)=($1, $2);
+            }
+            else{
+                $left=$param;
+            }
+            my (@left_idx, @right_idx);
+            for(my $i=0; $i <@dimlist; $i++){
+                my $idx=$idxlist[$i];
+                if($left=~/\b$idx\b/){
+                    push @left_idx, $idx;
+                }
+                else{
+                    push @right_idx, $idx;
+                }
+            }
+            $left=~s/\b([ijkl])\b/i_\1/g;
+            $right=~s/\b([ijkl])\b/i_\1/g;
+            my @code;
+            foreach my $i (@left_idx){
+                push @code, "\$for i_$i=0:$dim_hash{$i}";
+                push @code, "SOURCE_INDENT";
+            }
+            if(@right_idx){
+                my $sum=$left;
+                push @code, "$sum = 0";
+                foreach my $i (@right_idx){
+                    push @code, "\$for i_$i=0:$dim_hash{$i}";
+                    push @code, "SOURCE_INDENT";
+                }
+                push @code, "$sum += $right";
+                foreach my $i (reverse @right_idx){
+                    push @code, "SOURCE_DEDENT";
+                }
+            }
+            elsif($right){
+                push @code, "$left = $right";
+            }
+            else{
+                push @code, $left;
+            }
+            foreach my $i (reverse @left_idx){
+                push @code, "SOURCE_DEDENT";
+            }
+            MyDef::compileutil::parseblock({source=>\@code, name=>"sumcode"});
+            return;
+        }
         elsif($func eq "struct"){
             declare_struct($param1, $param2);
             return;
@@ -695,8 +741,11 @@ sub parsecode {
                     elsif($f=~/^<.*>$/){
                         $key=$f;
                     }
-                    else{
+                    elsif($f=~/^\S+$/){
                         $key="<$f.h>";
+                    }
+                    else{
+                        $key=$f;
                     }
                     $includes{$key}=1;
                     if($autoload){
@@ -757,8 +806,11 @@ sub parsecode {
                             elsif($f=~/^<.*>$/){
                                 $key=$f;
                             }
-                            else{
+                            elsif($f=~/^\S+$/){
                                 $key="<$f.h>";
+                            }
+                            else{
+                                $key=$f;
                             }
                             $includes{$key}=1;
                             if($autoload){
@@ -1363,29 +1415,12 @@ sub parsecode {
                         push @$autoload, "function-$funcname";
                     }
                     my $block=[];
-                    my $out_save=$out;
-                    MyDef::compileutil::set_output($block);
-                    my $func=open_function($funcname, $paramline);
-                    push @function_stack, $cur_function;
-                    $cur_function=$func;
-                    push @scope_stack, $cur_scope;
-                    $cur_scope=$cur_function;
-                    push @function_list, $func;
-                    my $fidx=$#function_list;
-                    MyDef::compileutil::set_named_block("fn$fidx\_open", $func->{openblock});
-                    MyDef::compileutil::set_named_block("fn$fidx\_pre", $func->{preblock});
-                    MyDef::compileutil::set_named_block("fn$fidx\_post", $func->{postblock});
-                    MyDef::compileutil::set_named_block("fn$fidx\_close", $func->{closeblock});
-                    push @$out, "DUMP_STUB fn$fidx\_open";
-                    push @$out, "INDENT";
-                    push @$out, "DUMP_STUB fn$fidx\_pre";
-                    $cur_indent=1;
-                    MyDef::compileutil::set_current_macro("FunctionName", $funcname);
+                    my $old_out=MyDef::compileutil::set_output($block);
+                    my $fidx=start_function($funcname, $paramline);
                     push @$block, "BLOCK";
-                    push @$out, "DUMP_STUB fn$fidx\_post";
-                    push @$out, "DEDENT";
-                    push @$out, "DUMP_STUB fn$fidx\_close";
-                    MyDef::compileutil::set_output($out_save);
+                    finish_function($fidx);
+                    push @$block, "PARSE:\$function_pop";
+                    MyDef::compileutil::set_output($old_out);
                     $lamda_functions{$funcname}=$block;
                     if(!$list_function_hash{$funcname}){
                         $list_function_hash{$funcname}=1;
@@ -1398,7 +1433,6 @@ sub parsecode {
                         $list_function_hash{$funcname}++;
                     }
                     MyDef::compileutil::set_current_macro("lamda", $funcname);
-                    push @$block, "PARSE:\$function_pop";
                     return $block;
                 }
                 else{
@@ -1611,6 +1645,21 @@ sub parsecode {
                 $yield=$param;
                 return;
             }
+            elsif($func eq "autolist"){
+                my @plist=MyDef::utils::proper_split($param);
+                foreach my $name (@plist){
+                    $function_autolist{$name}=1;
+                }
+                return;
+            }
+            elsif($func eq "set_function_defaults"){
+                my @plist=MyDef::utils::proper_split($param);
+                my $pattern=shift @plist;
+                foreach my $name (@plist){
+                    $function_defaults{$name}=$pattern;
+                }
+                return;
+            }
             elsif($func eq "fmt"){
                 my ($n, $fmt)=fmt_string($param);
                 MyDef::compileutil::set_current_macro("fmt_n", $n);
@@ -1648,13 +1697,7 @@ sub parsecode {
             }
         }
     }
-    if($l=~/^SOURCE_INDENT/){
-        $cur_indent++;
-    }
-    elsif($l=~/^SOURCE_DEDENT/){
-        $cur_indent--;
-    }
-    if($l=~/^(\w+)\s+(.*)$/){
+    elsif($l=~/^(\w+)\s+(.*)$/){
         if($functions{$1} or $stock_functions{$1}){
             my $fn=$1;
             my $t=$2;
@@ -1662,6 +1705,12 @@ sub parsecode {
             $t=~s/\s+$//;
             $l="$fn($t);";
         }
+    }
+    elsif($l=~/^tn_err=(\S+)\((.*)\)\s*$/){
+        push @$l, "tn_err = $1\($2\);";
+        my_add_var("tn_err", "int");
+        my $call_line="\@on_tn_err, $1";
+        MyDef::compileutil::call_sub($call_line);
     }
     $l=check_expression($l);
     if($l){
@@ -1854,7 +1903,8 @@ sub dumpout {
     }
     my $dump_out=\@dump_init;
     my $cnt=0;
-    while(my ($k, $t)=each %includes){
+    my @klist=sort keys(%includes);
+    foreach my $k (@klist){
         push @$dump_out, "#include $k\n";
         $cnt++;
     }
@@ -2380,9 +2430,6 @@ sub func_return {
             $cur_function->{ret_type}="void";
         }
     }
-    if($cur_indent<=1){
-        $cur_function->{has_return}=1;
-    }
 }
 sub global_add_symbol {
     my ($name, $type, $value)=@_;
@@ -2508,7 +2555,7 @@ sub temp_add_var {
 sub parse_var {
     my ($name, $type, $value)=@_;
     my $type_given=$type;
-    my ($init, $array);
+    my ($init, $array, $constructor);
     my @attrs;
     my $explicit_type;
     $name=~s/;\s*$//;
@@ -2563,6 +2610,10 @@ sub parse_var {
         $name=$1;
         $array=$2;
     }
+    elsif($name=~/(\w+)\((.*)\)/){
+        $name=$1;
+        $constructor=$2;
+    }
     if(!$type){
         $type=get_c_type($name);
         if($fntype{$name}){
@@ -2587,15 +2638,18 @@ sub parse_var {
     if(@attrs){
         $var->{attr}=join(" ", @attrs);
     }
-    if($array){
+    if(defined $array){
         $var->{array}=$array;
         $var->{dimension}=$array;
         if($type!~/\*$/){
             $var->{type}.=" *";
         }
-        elsif($type_given){
+        elsif($type_given or $explicit_type){
             $var->{type}.="*";
         }
+    }
+    elsif(defined $constructor){
+        $var->{constructor}=$constructor;
     }
     if($debug eq "type"){
         my $curfile=MyDef::compileutil::curfile_curline();
@@ -2614,6 +2668,9 @@ sub var_declare {
         my $t;
         if(defined $var->{array}){
             $t=pointer_type($type)." $name"."[$var->{array}]";
+        }
+        elsif(defined $var->{constructor}){
+            $t=pointer_type($type)." $name"."($var->{constructor})";
         }
         else{
             $t="$type $name";
@@ -2830,8 +2887,11 @@ sub get_c_type {
             elsif($f=~/^<.*>$/){
                 $key=$f;
             }
-            else{
+            elsif($f=~/^\S+$/){
                 $key="<$f.h>";
+            }
+            else{
+                $key=$f;
             }
             $includes{$key}=1;
             if($autoload){
@@ -3017,7 +3077,7 @@ sub local_allocate {
 sub check_expression {
     my ($l, $context)=@_;
     if($l=~/^return\b\s*(.*)/){
-        if(!$1){
+        if(length($1)<=0){
             func_return();
             return "return";
         }
@@ -3050,6 +3110,13 @@ sub check_expression {
         elsif($l=~/\G(\d+[eE]-?\d+|\d*\.\d+([eE]-?\d+)?)/gc){
             $token=$1;
             $type="atom-number-float";
+            if($types[-1] =~/^atom/ and $token=~/^\.(\d+)/){
+                $token=$1;
+                my $primary=pop @stack;
+                pop @types;
+                $token="$primary.a$token";
+                $type="atom-exp";
+            }
         }
         elsif($l=~/\G(\d[0-9a-zA-Z]*)/gc){
             $token=$1;
@@ -3061,13 +3128,6 @@ sub check_expression {
                 pop @types;
                 $token=$primary. (" * $primary" x ($token-1));
                 $type="atom-exp";
-            }
-            elsif($stack[-1] eq "."){
-                if($types[-2] !~/^atom/){
-                }
-                $token=join("", splice(@stack, -2))."a$token";
-                $type="atom-exp";
-                splice(@types, -2);
             }
         }
         elsif($l=~/\G(\w+)/gc){
@@ -3118,8 +3178,26 @@ sub check_expression {
                         }
                     }
                 }
+                elsif(@stack==1 and $method eq "call"){
+                    my $call_line= $';
+                    $call_line=~s/^\s*//;
+                    undef $yield;
+                    MyDef::compileutil::call_sub($call_line);
+                    if($yield){
+                        pop @stack;
+                        pop @types;
+                        pop @stack;
+                        pop @types;
+                        push @stack, $yield;
+                        push @types, "atom";
+                        last;
+                    }
+                    else{
+                        return;
+                    }
+                }
                 my $curfile=MyDef::compileutil::curfile_curline();
-                print "[$curfile]\x1b[33m \$$method not defined\n\x1b[0m";
+                print "[$curfile]\x1b[33m Method \$$method not defined\n\x1b[0m";
                 push @stack, "\$$method";
                 push @types, "atom-unknown";
             }
@@ -3162,6 +3240,66 @@ sub check_expression {
                         if($primary=~/^(sin|cos|tan|asin|acos|atan|atan2|exp|log|log10|pow|sqrt|ceil|floor|fabs)$/){
                             $includes{"<math.h>"}=1;
                             $objects{"libm"}=1;
+                        }
+                        elsif($primary=~/^(memcpy|memcmp)$/){
+                            $includes{"<string.h>"}=1;
+                        }
+                        elsif($primary=~/^(malloc|free)$/){
+                            $includes{"<stdlib.h>"}=1;
+                        }
+                        else{
+                            if($function_autolist{$primary}){
+                                if($MyDef::compileutil::in_autoload){
+                                    $autoload=undef;
+                                    $autoload_h=0;
+                                    if($page->{autoload} eq "write_h"){
+                                        if(!$h_hash{"autoload"}){
+                                            $autoload=[];
+                                            $h_hash{"autoload"}=$autoload;
+                                        }
+                                        else{
+                                            $autoload=$h_hash{"autoload"};
+                                        }
+                                    }
+                                    elsif($page->{autoload} eq "h"){
+                                        $autoload_h=1;
+                                    }
+                                }
+                                else{
+                                    $autoload=undef;
+                                    $autoload_h=0;
+                                }
+                                if(!$list_function_hash{$primary}){
+                                    $list_function_hash{$primary}=1;
+                                    push @list_function_list, $primary;
+                                    if($autoload){
+                                        push @$autoload, "function-$primary";
+                                    }
+                                }
+                                else{
+                                    $list_function_hash{$primary}++;
+                                }
+                            }
+                            if($function_defaults{$primary}){
+                                if($function_defaults{$primary}=~/^prepend:(.*)/){
+                                    if($exp eq ""){
+                                        $exp=$1;
+                                    }
+                                    else{
+                                        $exp=$1.",".$exp;
+                                    }
+                                }
+                                elsif($function_defaults{$primary}=~/^append:(.*)/){
+                                    if($exp eq ""){
+                                        $exp=$1;
+                                    }
+                                    else{
+                                        $exp=$exp.",".$1;
+                                    }
+                                }
+                                else{
+                                }
+                            }
                         }
                     }
                     elsif($open eq '['){
@@ -3382,7 +3520,13 @@ sub check_expression {
                         my %str_op=(eq=>"==", ne=>"!=", lt=>"<", gt=>">", le=>"<=", ge=>">=");
                         my $op=$str_op{$op};
                         if($type eq "atom-string"){
-                            $token= "strcmp($exp, $token) $op 0";
+                            if($token=~/^"(.*)"/){
+                                my $len=length($1);
+                                $token= "strncmp($exp, $token, $len) $op 0";
+                            }
+                            else{
+                                $token= "strcmp($exp, $token) $op 0";
+                            }
                             $type="atom";
                         }
                         else{
@@ -3631,6 +3775,9 @@ sub do_assignment {
     }
     my @left_list=MyDef::utils::proper_split($left);
     my @right_list=MyDef::utils::proper_split($right);
+    if($debug eq "type"){
+        printf "check_tuple_assignment: left $left:%d, right $right:%d\n", $#left_list+1, $#right_list+1;
+    }
     if(@left_list>1 or @right_list>1){
         if(@left_list==1){
             my $type=get_var_type($left);
@@ -3664,19 +3811,31 @@ sub do_assignment {
         elsif(@right_list=1){
             my $type=get_var_type($right);
             if($type=~/^struct (\w+)$/){
-                my $s_list=$structs{$1}->{list};
-                my $i=0;
-                foreach my $p (@$s_list){
-                    do_assignment($left_list[$i], "$right.$p");
-                    $i++;
+                if(!$structs{$1}){
+                    my $curfile=MyDef::compileutil::curfile_curline();
+                    print "[$curfile]\x1b[33m structure $1 not defined yet\n\x1b[0m";
+                }
+                else{
+                    my $s_list=$structs{$1}->{list};
+                    my $i=0;
+                    foreach my $p (@$s_list){
+                        do_assignment($left_list[$i], "$right.$p");
+                        $i++;
+                    }
                 }
             }
             elsif($type=~/^struct (\w+)\s*\*$/){
-                my $s_list=$structs{$1}->{list};
-                my $i=0;
-                foreach my $p (@$s_list){
-                    do_assignment($left_list[$i], "$right->$p");
-                    $i++;
+                if(!$structs{$1}){
+                    my $curfile=MyDef::compileutil::curfile_curline();
+                    print "[$curfile]\x1b[33m structure $1 not defined yet\n\x1b[0m";
+                }
+                else{
+                    my $s_list=$structs{$1}->{list};
+                    my $i=0;
+                    foreach my $p (@$s_list){
+                        do_assignment($left_list[$i], "$right->$p");
+                        $i++;
+                    }
                 }
             }
             elsif($type=~/^(.*?)\s*\*$/){
@@ -3932,6 +4091,62 @@ sub add_typedef {
             if($autoload){
                 push @$autoload, "typedef-$1";
             }
+        }
+    }
+}
+sub start_function {
+    my ($funcname, $paramline)=@_;
+    my $func=open_function($funcname, $paramline);
+    push @function_stack, $cur_function;
+    $cur_function=$func;
+    push @scope_stack, $cur_scope;
+    $cur_scope=$cur_function;
+    push @function_list, $func;
+    my $fidx=$#function_list;
+    MyDef::compileutil::set_named_block("fn$fidx\_open", $func->{openblock});
+    MyDef::compileutil::set_named_block("fn$fidx\_pre", $func->{preblock});
+    MyDef::compileutil::set_named_block("fn$fidx\_post", $func->{postblock});
+    MyDef::compileutil::set_named_block("fn$fidx\_close", $func->{closeblock});
+    push @$out, "DUMP_STUB fn$fidx\_open";
+    push @$out, "INDENT";
+    push @$out, "DUMP_STUB fn$fidx\_pre";
+    MyDef::compileutil::set_current_macro("FunctionName", $funcname);
+    return $fidx;
+}
+sub finish_function {
+    my ($fidx)=@_;
+    push @$out, "DUMP_STUB fn$fidx\_post";
+    push @$out, "DEDENT";
+    push @$out, "DUMP_STUB fn$fidx\_close";
+}
+sub start_function_block {
+    my ($funcname, $paramline)=@_;
+    if(!$lamda_functions{$funcname}){
+        my $block=[];
+        my $old_out=MyDef::compileutil::set_output($block);
+        my $fidx = start_function($funcname, $paramline);
+        $lamda_functions{$funcname}=$block;
+        push @list_function_list, $funcname;
+        $list_function_hash{$funcname}=1;
+        return {out=>$old_out, fidx=>$fidx};
+    }
+    else{
+        return undef;
+    }
+}
+sub finish_function_block {
+    my ($context)=@_;
+    finish_function($context->{fidx});
+    MyDef::compileutil::set_output($context->{out});
+    $cur_function=pop @function_stack;
+    $cur_scope=pop @scope_stack;
+    my $level=@function_stack;
+    if($level==0){
+        @case_stack=();
+        undef $case_state;
+        if($case_wrap){
+            push @$out, @$case_wrap;
+            undef $case_wrap;
         }
     }
 }

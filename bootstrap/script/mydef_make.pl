@@ -122,7 +122,7 @@ foreach my $f (@allfiles){
         if(-e "$f/skipmake"){
             print "    Skip folder $f\n";
         }
-        elsif($f =~ /^(cmp|bootstrap|old|tests|macros_.*)$/){
+        elsif($f =~ /^(cmp|bootstrap|old|tests|macros|macros_.*)$/){
             print "    Skip folder $f\n";
         }
         elsif($f eq $config_outputdir and -f "$f/Makefile"){
