@@ -1,0 +1,84 @@
+subcode: font_init
+    $include ft2build.h
+    $include FT_FREETYPE_H
+    $global FT_Library ftlib
+    
+    tn_err=FT_Init_Freetype(&ftlib)
+
+subcode:: _autoload
+    $class font
+
+# subcode: font_init(var, scope, @type)
+
+subcode: setfont(fontname, size)
+    $call get_font_file, $(fontname)
+    $global FT_Face $(font)=NULL
+    $if !$(font)
+	tn_err=FT_New_Face(ftlib, $(fontfile), 0, &$(font))
+    $if $(font)->size != $(size)
+	FT_Set_Pixel_Sizes($(font), 0, $(size))
+    $(export:font)
+    
+#---------------------------------------- 
+subcode: get_font_file(fontname)
+    $(set:fontdir=C:\\programs\\fonts\\)
+    $call parse_font_name, $(fontname)
+    $(export:fontfile=$(fontdir)$(ttf))
+    $(export:font=$(name))
+
+perlcode: parse_font_name
+    my $font=$param
+    my $attr
+    $if $font=~/(.*?)\s+Italic$/
+	$font=$1
+	$attr="i"
+    $elif $font=~/(.*?)\s+Bold$/
+	$font=$1
+	$attr="bd"
+    $elif $font=~/(.*?)\s+Bold Italic$/
+	$font=$1
+	$attr="bi"
+
+    $if $font=~/^(Helvetica|Arial)/
+	$ttf="arial$attr.ttf"
+	$name="arial$attr"
+    $elif $font=~/^(Times)/
+	$ttf="times$attr.ttf"
+	$name="times$attr"
+    $elif $font=~/^(Courier)/
+	$ttf="cour$attr.ttf"
+	$name="cour$attr"
+    $elif $font=~/^Symbol/
+	$ttf="symbol.ttf"
+	$name="symbol$attr"
+
+    MyDef::compileutil::set_current_macro("ttf", $ttf)
+    MyDef::compileutil::set_current_macro("name", $name)
+
+
+#---------------------------------------- 
+#----------------------------------------
+subcode:: _autoload
+    $class text
+    $struct(glyph) int code, int left, int top, int width, int height, int advance, int x
+
+subcode: init_text(var)
+    $global darray $(var): struct glyph
+    $set_var_attr $(var), class=text
+
+subcode: text_addchar(var, code)
+    $call darray_check, $(var)
+    $(set:t=$(var)[$(var)_len])
+    $(t).code=$(code)
+
+    tn_index=FT_Get_Char_Index(cur_font, $(code))
+    FT_Load_Glyph(cur_font, tn_index, 0)
+    FT_Render_Glyph(cur_font->glyph, 0)
+
+    $(t).left=cur_font->glyph->bitmap_left
+    $(t).top=cur_font->glyph->bitmap_top
+    $(t).advance=cur_font->glyph->advance
+    $(t).width=cur_font->glyph->bitmap.width
+    $(t).height=cur_font->glyph->bitmap.rows
+
+

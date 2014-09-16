@@ -1,0 +1,82 @@
+include: win32/bitmap.def
+include: c/freetype.def
+
+#----------------------------------------------------------------- 
+#- Based on windows DIB, which is upside down (right side up for mathematicians)
+#----------------------------------------------------------------- 
+
+macros:
+    FontType: FT_Face
+
+subcode:: _autoload
+    $class display_buffer
+    $struct(display_buffer) unsigned char * buffer, int width, int height 
+    #---- map to screen ----
+    $struct(display_buffer) int offset_x, int offset_y
+    #---- graphic state ----
+    $struct(display_buffer) float x, float y
+    $struct(display_buffer) $(FontType) font, float text_x, float text_y
+    $struct(display_buffer) float matrix[6]
+
+subcode: display_buffer_init(var, scope, @type)
+    $global struct display_buffer $(var)
+    $(var).buffer=NULL
+
+    $set_var_attr $(var), class=display_buffer
+
+subcode: display_buffer_resize(var, w, h)
+    $if $(var).buffer
+	free($(var).buffer)
+    $(var).width=$(w)
+    $(var).height=$(h)
+    tn_size=($(w)) * ($(h)) * 4
+    $(var).buffer=malloc(tn_size)
+    memset($(var).buffer, 255, tn_size)
+
+subcode: display_buffer_offset(var, x, y)
+    $global int $(var)_x, int $(var)_y
+    $(var).offset_x=$(x)
+    $(var).offset_y=$(y)
+
+subcode: display_buffer_draw(var, hdc)
+    $uselib gdi32
+    $call draw_dib, hdc, $(var).offset_x, $(var).offset_y, $(var).buffer, $(var).width, $(var).height
+
+#---------------------------------------- 
+subcode: display_buffer_set_rect(var, margin, thick, color)
+    $include stdint
+    $local pu4_pixel
+    pu4_pixel=(uint32_t *)$(var).buffer
+    tn_w=$(var).width-$(margin)*2
+    tn_h=$(var).height-($(margin)+$(thick))*2
+    # Horizontoal stroke
+    $for i=0:$(thick)
+	k=($(margin)+i)*$(var).width+$(margin)
+	$for j=0:tn_w
+	    pu4_pixel[k]=$(color)
+	    k++
+	k=($(var).height-$(margin)-i-1)*$(var).width+$(margin)
+	$for j=0:tn_w
+	    pu4_pixel[k]=$(color)
+	    k++
+    # Vertical stroke
+    $for j=0:$(thick)
+	k=($(margin)+$(thick))*$(var).width + $(margin)+j
+	$for i=0:tn_h
+	    pu4_pixel[k]=$(color)
+	    k+=$(var).width
+	k=($(margin)+$(thick))*$(var).width + $(margin)+tn_w-j-1
+	$for i=0:tn_h
+	    pu4_pixel[k]=$(color)
+	    k+=$(var).width
+
+#---------------------------------------- 
+subcode: display_buffer_setfont(var, fontname, size)
+    $call setfont, $(fontname), $(size)
+    $(var).font=$(font)
+
+subcode: display_buffer_start_text(var, x, y)
+    $(var).text_x=$(x)
+    $(var).text_y=$(y)
+
+subcode: display_buffer_add_text(var, str)

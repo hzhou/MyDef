@@ -1,0 +1,122 @@
+subcode:: _autoload
+    $include string
+    $class socket
+
+subcode: socket_init(var, scope, @type)
+    $$(scope) int $(var)
+
+    $call get_sockaddr, default, $(type)
+    $set_var_attr $(var), class=socket
+    $set_var_attr $(var), af_family=$(af_family), sock_type=$(sock_type)
+
+    $(if:addrname)
+	$(var)=socket($(af_family), $(sock_type), 0)
+	$(if:af_family=AF_UNIX)
+	    unlink($(path))
+	tn_ret=bind($(var), (const struct sockaddr  *)&$(addrname), sizeof($(addrname)))
+	$if tn_ret<0
+	    $include <errno.h>
+	    $symbol int errno
+	    $print "socket failed bind: $(type) - $errno"
+	    exit(0)
+
+subcode: get_sockaddr(addr, @param)
+    $eval parse_sockaddr, $(param)
+    $(if:addrname)
+	$(if:addr=default)
+	    $(set:addr=$(addrname))
+	$(if:af_family=AF_INET)
+	    $call ip_addr, $(addr), $(ip), $(port)
+	$(elif:af_family=AF_UNIX)
+	    $call unix_addr, $(addr), $(path)
+    $(mexport:af_family,sock_type,addrname)
+    $(if:path)
+	$(export:path)
+
+perlcode: parse_sockaddr
+    my @tlist=split /,\s*/, $param
+    my $af_family="AF_INET"
+    my $sock_type="SOCK_STREAM"
+    my ($ip, $port, $path)
+    $foreach $t in @tlist
+	$if $t eq "udp"
+	    $sock_type="SOCK_DGRAM"
+	$elif $t eq "tcp"
+	    $sock_type="SOCK_STREAM"
+
+	$elif $t =~/(\d+)\.(\d+)\.(\d+)\.(\d+):(\d+)/
+	    $af_family="AF_INET"
+	    $ip=sprintf("0x%02x%02x%02x%02x", $1,$2,$3,$4)
+	    $port=$5
+	$elif $t =~/(.*):(\d+)/
+	    $af_family="AF_INET"
+	    $if $1 eq "localhost"
+		$ip="0x7f000001"
+	    $elif $1 eq "0"
+		$ip="0x0"
+	    $else
+		print "only numerical ip address supported\n"
+	    $port=$2
+
+	$elif $t=~/^\//
+	    $af_family="AF_UNIX"
+	    $path="\"$t\""
+
+    my $addrname
+    $if $ip or $path
+	$if $af_family eq "AF_INET"
+	    $addrname="t_addr_inet"
+	$else
+	    $addrname="t_addr_unix"
+
+    $(for:a in af_family, sock_type, ip, port, path, addrname)
+	$if $$(a)
+	    MyDef::compileutil::set_current_macro("$(a)", $$(a))
+
+#----- Socket Address ----------------------------------- 
+subcode: ip_addr(addr, ip, port)
+    $include <netinet/in.h>
+    $local struct sockaddr_in $(addr)
+    memset(&$(addr), 0, sizeof($(addr)))
+    $(addr).sin_family=AF_INET
+    $(addr).sin_port=htons($(port))
+    $(addr).sin_addr.s_addr=$(ip)
+
+subcode: unix_addr(addr, path)
+    $include <sys/socket.h>
+    $include <sys/un.h>
+    $local struct sockaddr_un $(addr)
+    memset(&$(addr), 0, sizeof($(addr)))
+    $(addr).sun_family=AF_UNIX
+    strcpy($(addr).sun_path, $(path))
+
+#---- UDP send/recv ------------------------------------ 
+subcode: socket_sendto(var, addr, msg)
+    $(if:msg~")
+	tn_ret=sendto($(var), $(msg), $(msg:strlen), 0, (struct sockaddr *)&$(addr), sizeof($(addr)))
+    $(else)
+	tn_ret=sendto($(var), $(msg), $(msg)_len, 0, (struct sockaddr *)&$(addr), sizeof($(addr)))
+    $if tn_ret<0
+	$include <errno.h>
+	$symbol int errno
+	$print "socket failed sendto: errno = $errno"
+
+subcode: socket_recvfrom(var, addr, msg)
+    $(if:addr!=NULL)
+	$get_var_attr $(var), af_family
+	$(if:af_family=AF_UNIX)
+	    $local struct sockaddr_un $(addr)
+	$(else)
+	    $local struct sockaddr_in $(addr)
+	tn_sock_size=sizeof($(addr))
+	$(set:addr_param=(struct sockaddr *)&$(addr), &tn_sock_size)
+    $(else)
+	$(set:addr_param=NULL, NULL)
+    $local char $(msg)[4096]
+    $local int $(msg)_len
+    $(msg)_len=recvfrom($(var), $(msg), 4096, 0, $(addr_param))
+    $if $(msg)_len<0
+	$include <errno.h>
+	$symbol int errno
+	$print "$(var) recvfrom error: errno = $errno"
+    $(msg)[$(msg)_len]=0
