@@ -79,19 +79,6 @@ subcode: tcp_connect(host, port)
     $call assert, ai_p
     freeaddrinfo(ai_res)
 
-subcode: tcp_listen(host, port)
-    $call socket_common
-
-    tn_socket_listen=socket(AF_INET, SOCK_STREAM, 0)
-    $call assert, tn_socket_listen>=0
-
-    $call ip_addr, inet_addr, $(host), $(port)
-
-    tn_ret=bind(tn_socket_listen, (struct sockaddr *)&inet_addr, sizeof(inet_addr))
-    $call assert, tn_ret==0
-    tn_ret=listen(tn_socket_listen, 4)
-    $call assert, tn_ret==0
-
 # ---- Read Loop ---------------------------------------
 subcode: socket_read_loop
     $(set:SIZE=1000)

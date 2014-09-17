@@ -2,6 +2,12 @@ subcode:: _autoload
     $include string
     $class socket
 
+subcode: check_socket_error(name)
+    $if tn_err<0
+	$include <errno.h>
+	$symbol int errno
+	$print "socket error in $(name): errno = $errno"
+
 subcode: socket_init(var, scope, @type)
     $$(scope) int $(var)
 
@@ -9,27 +15,25 @@ subcode: socket_init(var, scope, @type)
     $set_var_attr $(var), class=socket
     $set_var_attr $(var), af_family=$(af_family), sock_type=$(sock_type)
 
-    $(if:addrname)
-	$(var)=socket($(af_family), $(sock_type), 0)
+    $(var)=socket($(af_family), $(sock_type), 0)
+    $(if:default_addrname)
 	$(if:af_family=AF_UNIX)
 	    unlink($(path))
-	tn_ret=bind($(var), (const struct sockaddr  *)&$(addrname), sizeof($(addrname)))
-	$if tn_ret<0
-	    $include <errno.h>
-	    $symbol int errno
-	    $print "socket failed bind: $(type) - $errno"
-	    exit(0)
+	tn_err=bind($(var), (const struct sockaddr  *)&$(default_addrname), sizeof($(default_addrname)))
+	$call @check_error
 
 subcode: get_sockaddr(addr, @param)
+    $(unset:default_addrname)
     $eval parse_sockaddr, $(param)
-    $(if:addrname)
+    $(if:default_addrname)
 	$(if:addr=default)
-	    $(set:addr=$(addrname))
+	    $(set:addr=$(default_addrname))
 	$(if:af_family=AF_INET)
 	    $call ip_addr, $(addr), $(ip), $(port)
 	$(elif:af_family=AF_UNIX)
 	    $call unix_addr, $(addr), $(path)
-    $(mexport:af_family,sock_type,addrname)
+	$(export:default_addrname)
+    $(mexport:af_family,sock_type)
     $(if:path)
 	$(export:path)
 
@@ -62,14 +66,14 @@ perlcode: parse_sockaddr
 	    $af_family="AF_UNIX"
 	    $path="\"$t\""
 
-    my $addrname
+    my $default_addrname
     $if $ip or $path
 	$if $af_family eq "AF_INET"
-	    $addrname="t_addr_inet"
+	    $default_addrname="t_addr_inet"
 	$else
-	    $addrname="t_addr_unix"
+	    $default_addrname="t_addr_unix"
 
-    $(for:a in af_family, sock_type, ip, port, path, addrname)
+    $(for:a in af_family, sock_type, ip, port, path, default_addrname)
 	$if $$(a)
 	    MyDef::compileutil::set_current_macro("$(a)", $$(a))
 
@@ -118,24 +122,20 @@ subcode: socket_sendto(var, addr, msg)
     $(else)
 	$(set:addr_param=(struct sockaddr *)&$(addr), sizeof($(addr)))
     $(if:msg~")
-	tn_ret=sendto($(var), $(msg), $(msg:strlen), 0, $(addr_param))
+	tn_err=sendto($(var), $(msg), $(msg:strlen), 0, $(addr_param))
     $(else)
-	tn_ret=sendto($(var), $(msg), $(msg)_len, 0, $(addr_param))
-    $if tn_ret<0
-	$include <errno.h>
-	$symbol int errno
-	$print "socket failed sendto: errno = $errno"
+	tn_err=sendto($(var), $(msg), $(msg)_len, 0, $(addr_param))
+    $call check_socket_error, sendto
 
 subcode: socket_recvfrom(var, addr, msg)
     $call socket_addr_param, $(var), $(addr)
     $local char $(msg)[4096]
     $local int $(msg)_len
     $(msg)_len=recvfrom($(var), $(msg), 4096, 0, $(addr_param))
-    $if $(msg)_len<0
-	$include <errno.h>
-	$symbol int errno
-	$print "$(var) recvfrom error: errno = $errno"
-    $(msg)[$(msg)_len]=0
+    tn_err=$(msg)_len
+    $call check_socket_error, recvfrom
+    $else
+	$(msg)[$(msg)_len]=0
 
 subcode: socket_recv(var, msg)
     $call socket_recvfrom, $(var), NULL, $(msg)
@@ -145,7 +145,8 @@ subcode: socket_send(var, msg)
 
 #---- TCP ------------------------------------------
 subcode: socket_listen(var)
-    tn_ret=listen($(var), 4)
+    tn_err=listen($(var), 4)
+    $call check_socket_error, listen
 
 subcode: socket_accept(var, addr)
     $call socket_addr_param, $(var), $(addr)
@@ -153,8 +154,11 @@ subcode: socket_accept(var, addr)
     $set_var_attr tn_socket, class=socket
     $get_var_attr $(var), af_family, sock_type
     $set_var_attr tn_socket, af_family=$(af_family), sock_type=$(sock_type)
-    $yield tn_socket = accept($(var), $(addr_param))
+    tn_socket = accept($(var), $(addr_param))
+    tn_err=tn_socket
+    $call check_socket_error, accept
 
 subcode: socket_connect(var, addr)
     $(set:addr_param=(struct sockaddr *)&$(addr), sizeof($(addr)))
-    $yield connect($(var), $(addr_param))
+    tn_err=connect($(var), $(addr_param))
+    $call check_socket_error, connect

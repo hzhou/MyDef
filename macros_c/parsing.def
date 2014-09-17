@@ -156,7 +156,6 @@ subcode: parsecode_func
 
 subcode: parsecode_other
     $call check_functioncall
-    $call check_tn_err
     $l=check_expression($l)
 
     $if $l
@@ -182,13 +181,6 @@ subcode: check_functioncall
 	    $t=~s/;\s*$//;
 	    $t=~s/\s+$//;
 	    $l="$fn($t);";
-
-subcode: check_tn_err
-    $case $l=~/^tn_err=(\S+)\((.*)\)\s*$/
-	push @$l, "tn_err = $1\($2\);"
-	my_add_var("tn_err", "int")
-	my $call_line="\@on_tn_err, $1"
-	MyDef::compileutil::call_sub($call_line)
 
 #---------------------------------------- 
 #--- called from output.def ------------
