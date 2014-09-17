@@ -96,17 +96,15 @@ subcode: socket_read_loop
 
 # ---- Generic Server -------------------------------------
 subcode: socket_server(port)
-    $call tcp_listen, $(port)
+    $local socket server: 0:$(port)
+    server.$listen
 
     $while 1
 	print "Accepting connection at port $(port)"
-	tn_addrlen=sizeof(inet_addr)
-	tn_socket=accept(tn_socket_listen, (struct sockaddr *)&inet_addr, &tn_addrlen)
-	$if tn_socket<0 && errno==EINTR
-	    continue
-	$call assert, tn_socket>=0
-	BLOCK
-	$call Close, tn_socket
+	server.$accept client_addr
+	$if tn_socket>=0
+	    BLOCK
+	    tn_socket.$close
 
 # ---- Common Util-----------------------------------------
 subcode: fork_server
