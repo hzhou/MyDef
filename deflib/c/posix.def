@@ -166,7 +166,7 @@ subcode: daemon_fork
 #---- syslog ------------------------------------
 subcode: syslog_start(prog)
     $include syslog
-    openlog("$(prog)", LOG_NDELAY, LOG_USER)
+    openlog($(prog), LOG_NDELAY, LOG_USER)
 
 subcode: syslog(@msg)
     syslog(LOG_INFO, $(msg))
@@ -196,6 +196,11 @@ subcode: signal_set(signo, handler)
     $call assert, tn_ret>=0
 
 # ---- Select -----------------------------------
+subcode: select_read(fd)
+    $if $(fd)>tn_select_max
+	tn_select_max=$(fd)
+    FD_SET($(fd), &select_rset)
+
 subcode: select(@plist)
     $include sys/select
     $local fd_set select_rset
@@ -204,10 +209,10 @@ subcode: select(@plist)
     $(foreach:p)
 	$(if:p~timeout:)
 	    $eval select_timeout, $(p)
+	$(elif:p~callsub:)
+	    $call $(p:8:strip)
 	$(else)
-	    $if $(p)>tn_select_max
-		tn_select_max=$(p)
-	    FD_SET($(p), &select_rset)
+	    $call select_read, $(p)
 
     tn_select_max+=1
     $local tn_ret
