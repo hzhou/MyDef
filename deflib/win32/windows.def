@@ -105,17 +105,18 @@ subcode: cw_dim(x, v)
 #      $eval wndproc, WndProc_main
 #
 perlcode: wndproc
+    $(set:C=MyDef::output_c::)
     $if $param=~/(WndProc|DlgProc)_(\w+)/
 	my ($type, $name)=($1, $2)
-	$if !$functions{"$type\_$name"}
-	    my $old_function=$cur_function;
-	    my $fidx=open_function("$type\_$name", "HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam")
-	    $cur_function->{ret_type}="LRESULT CALLBACK";
-	    &call push_open_function
-		$call window_proc_core
-	    $cur_function=$old_function
+	my $funcname="$type\_$name"
+	my $context=$(C)start_function_block($funcname, "HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam")
+	$if $context
+	    $$(C)cur_function->{ret_type}="LRESULT CALLBACK";
+	    $call window_proc_core
+	    $(C)finish_function_block($context)
 
 subcode: window_proc_core
+    my $out=$$(C)out
     my $codes=$MyDef::def->{codes}
     # ---- process window msg ---------------
     MyDef::compileutil::call_sub("\@pre_WndProc_$name")

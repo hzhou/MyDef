@@ -23,13 +23,14 @@ sub init_page {
     return ($ext, $init_mode);
 }
 sub set_output {
-    $out = shift;
+    my ($newout)=@_;
+    $out = $newout;
 }
 sub modeswitch {
     my ($mode, $in)=@_;
 }
 sub parsecode {
-    my $l=shift;
+    my ($l)=@_;
     if($debug eq "parse"){
         my $yellow="\033[33;1m";
         my $normal="\033[0m";

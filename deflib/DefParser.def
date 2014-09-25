@@ -30,9 +30,9 @@ subcode: parse_error(msg)
     $global string tempstr
     tempstr.$empty
     tempstr.$add "["
-    $if $(input)->s_file
-	tempstr.$add $(input)->s_file
-    tempstr.$add ": line ", $(input)->n_line, "]"
+    $if input->s_file
+	tempstr.$add input->s_file
+    tempstr.$add ": line ", input->n_line, "]"
     $print $tempstr Error in $(FunctionName): $(msg)
     $call input_debug
 

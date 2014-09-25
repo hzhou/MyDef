@@ -37,7 +37,8 @@ subcode: check_tuple_assignment
     my @left_list=MyDef::utils::proper_split($left)
     my @right_list=MyDef::utils::proper_split($right)
 
-    # printf "check_tuple_assignment: left $left:%d, right $right:%d\n", $#left_list+1, $#right_list+1
+    $if $debug eq "type"
+	printf "check_tuple_assignment: left $left:%d, right $right:%d\n", $#left_list+1, $#right_list+1
     $if @left_list>1 or @right_list>1
 	$if @left_list==1
 	    my $type=get_var_type($left)
@@ -83,11 +84,14 @@ subcode: assign_to_struct(name, is_ref)
 	$i++
 
 subcode: assign_from_struct(name, is_ref)
-    my $s_list=$structs{$(name)}->{list}
-    my $i=0
-    $foreach $p in @$s_list
-	$(if:is_ref=1)
-	    do_assignment($left_list[$i], "$right->$p")
-	$(else)
-	    do_assignment($left_list[$i], "$right.$p")
-	$i++
+    $if !$structs{$(name)}
+	$call warn, structure $(name) not defined yet
+    $else
+	my $s_list=$structs{$(name)}->{list}
+	my $i=0
+	$foreach $p in @$s_list
+	    $(if:is_ref=1)
+		do_assignment($left_list[$i], "$right->$p")
+	    $(else)
+		do_assignment($left_list[$i], "$right.$p")
+	    $i++

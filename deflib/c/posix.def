@@ -1,33 +1,50 @@
+include: c/socket.def
 subcode:: _autoload
     $include string
 
-# ---- Read/Write Wrapper --------------------------------
+#---- Read/Write Wrapper --------------------------------
 subcode: Read(fd, buf, size)
-    $while 1
-	n=read($(fd), $(buf), $(size))
-	$if n==0 # EOF
-	    break
-	$elif n<0
-	    $call assert, errno==EINTR
-	    $if errno==EINTR
-		continue
-	$else
-	    break
+    $fcall tn_ret=read1($(fd), $(buf), $(len))
 
 subcode: Write(fd, buf, len)
-    tn_total=$(len)
-    tn_left=tn_total
-    ts_ptr=$(buf)
-    $while tn_left>0
-	n=write($(fd), ts_ptr, tn_left)
-	$if n<0
-	    $call assert, errno==EINTR
-	    $if errno==EINTR
-		continue
+    $fcall tn_ret=writen($(fd), $(buf), $(len))
+
+fncode: read1(int fd, void * p, n)
+    &call retry_block
+	tn_read=read(fd, p, n)
+	$if tn_read<0 && errno==EINTR
+	    $call retry
+    return tn_read
+
+fncode: readn(int fd, void * p, n)
+    tn_remain=n
+    $while tn_remain>0
+	tn_read=read(fd, p, tn_remain)
+	$if tn_read<0
+	    $if errno=EINTR
+		tn_read=0
+	    $else
+		return -1
+	$elif tn_read==0
+	    break
 	$else
-	    tn_left-=n
-	    ts_ptr+=n
-    n=tn_total-tn_left
+	    tn_read-=tn_read
+	    p+=tn_read
+    return n-tn_remain
+
+fncode: writen(int fd, void * p, n)
+    tn_remain=n
+    $while tn_remain>0
+	tn_written=write(fd, p, tn_remain)
+	$if tn_written<=0
+	    $if tn_written<0 && error==EINTR
+		tn_written==0
+	    $else
+		return -1
+	$else
+	    tn_remain-=tn_written
+	    p+=tn_written
+    return n
 
 # ---- Generic Client -------------------------------------
 subcode: socket_common
@@ -62,23 +79,6 @@ subcode: tcp_connect(host, port)
     $call assert, ai_p
     freeaddrinfo(ai_res)
 
-subcode: tcp_listen(port)
-    $call socket_common
-
-    tn_socket_listen=socket(AF_INET, SOCK_STREAM, 0)
-    $call assert, tn_socket_listen>=0
-
-    $local struct sockaddr_in inet_addr
-    memset(&inet_addr, 0, sizeof(inet_addr))
-    inet_addr.sin_family=AF_INET
-    inet_addr.sin_port=htons($(port))
-    inet_addr.sin_addr.s_addr=htonl(INADDR_ANY)
-
-    tn_ret=bind(tn_socket_listen, (struct sockaddr *)&inet_addr, sizeof(inet_addr))
-    $call assert, tn_ret==0
-    tn_ret=listen(tn_socket_listen, 4)
-    $call assert, tn_ret==0
-
 # ---- Read Loop ---------------------------------------
 subcode: socket_read_loop
     $(set:SIZE=1000)
@@ -96,17 +96,15 @@ subcode: socket_read_loop
 
 # ---- Generic Server -------------------------------------
 subcode: socket_server(port)
-    $call tcp_listen, $(port)
+    $local socket server: 0:$(port)
+    server.$listen
 
     $while 1
 	print "Accepting connection at port $(port)"
-	tn_addrlen=sizeof(inet_addr)
-	tn_socket=accept(tn_socket_listen, (struct sockaddr *)&inet_addr, &tn_addrlen)
-	$if tn_socket<0 && errno==EINTR
-	    continue
-	$call assert, tn_socket>=0
-	BLOCK
-	$call Close, tn_socket
+	server.$accept client_addr
+	$if tn_socket>=0
+	    BLOCK
+	    tn_socket.$close
 
 # ---- Common Util-----------------------------------------
 subcode: fork_server
@@ -136,7 +134,7 @@ subcode: sig_child
 		break
 
 #---- Daemon ---------------------------------
-subcode: daemon_start
+fncode: daemon_start
     $include unistd
     $call daemon_fork
     # -- new session leader --
@@ -168,7 +166,7 @@ subcode: daemon_fork
 #---- syslog ------------------------------------
 subcode: syslog_start(prog)
     $include syslog
-    openlog("$(prog)", LOG_NDELAY, LOG_USER)
+    openlog($(prog), LOG_NDELAY, LOG_USER)
 
 subcode: syslog(@msg)
     syslog(LOG_INFO, $(msg))
@@ -198,25 +196,65 @@ subcode: signal_set(signo, handler)
     $call assert, tn_ret>=0
 
 # ---- Select -----------------------------------
-subcode: select_setup
+subcode: select_read(fd)
+    $if $(fd)>tn_select_max
+	tn_select_max=$(fd)
+    FD_SET($(fd), &select_rset)
+
+subcode: select(@plist)
     $include sys/select
     $local fd_set select_rset
     tn_select_max=0
-    BLOCK
+
+    $(foreach:p)
+	$(if:p~timeout:)
+	    $eval select_timeout, $(p)
+	$(elif:p~callsub:)
+	    $call $(p:8:strip)
+	$(else)
+	    $call select_read, $(p)
+
     tn_select_max+=1
-    tn_ret=select(tn_select_max, &select_rset, NULL, NULL, NULL)
+    $local tn_ret
+    $(if:select_timeout)
+	$my struct timeval select_timeout
+	select_timeout.tv_sec=$(select_sec)
+	select_timeout.tv_usec=$(select_usec)
+	tn_ret=select(tn_select_max, &select_rset, NULL, NULL, &select_timeout)
+    $(else)
+	tn_ret=select(tn_select_max, &select_rset, NULL, NULL, NULL)
     $call assert, tn_ret>=0
 
-subcode: select(@plist)
-    $(foreach:p)
-	$if $(p)>tn_select_max
-	    tn_select_max=$(p)
-	FD_SET($(p), &select_rset)
+    BLOCK
 
-subcode: select_on(fd)
+perlcode: select_timeout
+    $if $param=~/timeout:(\d+)(\.(\d+))?/
+	MyDef::compileutil::export_macro(-2, "select_timeout", 1)
+	MyDef::compileutil::export_macro(-2, "select_sec", $1)
+	$if !$3
+	    MyDef::compileutil::export_macro(-2, "select_usec", 0)
+	$elif length($3)==3
+	    MyDef::compileutil::export_macro(-2, "select_usec", $3."000")
+	$else
+	    MyDef::compileutil::export_macro(-2, "select_usec", $3)
+
+subcode: on_select(fd)
     $if FD_ISSET($(fd), &select_rset)
 	BLOCK
 
+subcode: on_select_timeout
+    $if select_timeout.tv_sec==0 && select_timeout.tv_usec==0
+	BLOCK
+
+#---- Thread -------------------------------------------------
+subcode: run_thread(subname)
+    $uselib pthread                                                 
+    $function thread_fn(void * p_dummy)
+	$return_type void *                                             
+	$call $(subname)
+    $local pthread_t thread_id                                      
+    pthread_create(&thread_id, NULL, $(lamda), NULL)          
+                                                                    
 # DEBUG #############################################
 
 subcode: debug_errno(label)

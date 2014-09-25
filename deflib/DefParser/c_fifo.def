@@ -71,7 +71,7 @@ subcode: fifo_realloc(b, more, typesize)
 
 subcode: define_fifo_input(name)
     $include string
-    $struct($(name)) char * buffer, n_size, n_start, n_end
+    $struct($(name)) unsigned char * buffer, n_size, n_start, n_end
     $struct($(name)) FILE * f, b_eof, b_tty
 
 subcode: fifo_attach_file(b, f)

@@ -23,21 +23,20 @@ subcode: win32_autoload
 
     $define(snprintf) sprintf_s
 
-    $global hwnd_main
-
 subcode: basic_frame
-    $call main_fn_list
+    $call @global
     $list WinMain
 
 fncode: WinMain
-    $call win_main
-    $call win_loop
+    $call main2
 
+#---------------------------------------- 
 subcode: win_main(mainname)
     $call register_wndclass, "$(mainname)", WndProc_main
     $call create_window, hwnd_main, "$(mainname)"
     $call win_show, hwnd_main
 
+#---------------------------------------- 
 subcode: win_show(hwnd)
     NEWLINE
     ShowWindow($(hwnd), n_cmdshow)
@@ -45,7 +44,7 @@ subcode: win_show(hwnd)
 
 subcode: win_loop
     NEWLINE
-    $local MSG msg
+    $my MSG msg
     $while GetMessage(&msg, NULL, 0, 0)>0
 	TranslateMessage(&msg)
 	DispatchMessage(&msg)
@@ -58,6 +57,16 @@ subcode: on_paint
     BLOCK
     EndPaint(hwnd, &ps)
     return 0
+
+subcode: draw_hello
+    $my rect_client
+    GetClientRect(hwnd, &rect_client)
+    $uselib gdi32
+    $call local_brush, temp_brush, 0xa0a0a0
+    FillRect(hdc, &rect_client, temp_brush)
+    $call quick_font, "Times New Roman", 24
+    SetTextAlign(hdc, TA_CENTER|TA_BASELINE)
+    TextOut(hdc, rect_client.right/2, rect_client.bottom/2, "Hello World", 11)
 
 ###############################################################
 subcode:: autoload_symbols
@@ -108,6 +117,16 @@ subcode: init_console
     freopen("conout$","w",stdout)
     freopen("conout$","w",stderr)
     printf("Console ready ...\n")     
+
+subcode: init_debug
+    $global s_debug_buffer[1024]
+    $print usesub: debug_print
+
+subcode: debug_print(@fmt)
+    $include stdio
+    snprintf(s_debug_buffer, 1024, $(fmt))
+    OutputDebugString(s_debug_buffer)
+
 ###############################################################
 subcode: openfilename
     $uselib comdlg32
@@ -144,6 +163,3 @@ subcode: SetClassLong(val)
 	SetClassLongPtr(hwnd, GCL_HCURSOR, (LONG_PTR)LoadCursor(NULL, MAKEINTRESOURCE($(val))))
 
 # ---------------------------------------------------------------
-subcode: create_font(hfont, name, size)
-    $(hfont) = CreateFont ($(size), 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_DONTCARE, $(name))
-

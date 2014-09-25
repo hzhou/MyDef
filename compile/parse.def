@@ -43,13 +43,16 @@ subcode: compile_line
 	push @$out, $1
     $elif $l=~/^BLOCK\s*$/
 	$if $#callback_block_stack <0
-	    warn "BLOCK called out of context!\n"
+	    $print "$yellow{BLOCK called out of context!}"
 	    push @$out, $1
 	$else
 	    my $block=pop @callback_block_stack
 	    my $depth=$#callback_block_stack+1
 	    $if $debug
-		print "BLOCK [$cur_file:$cur_line] -> [$block->{cur_file}: $block->{cur_line}] depth=$depth\n"
+		print "BLOCK [$cur_file:$cur_line] -> [$block->{cur_file}: $block->{cur_line}] depth=$depth: "
+		$foreach $b in @callback_block_stack
+		    print "$b->{name}, "
+		print $block->{name}, "\n"
 	    parseblock($block)
 	    push @callback_block_stack, $block
     $else

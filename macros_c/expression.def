@@ -3,6 +3,19 @@ subcode:: parsecode_func_other
 	$global $yield
 	$yield=$param
 	return
+    $elif $func eq "autolist"
+	$global %function_autolist
+	my @plist=MyDef::utils::proper_split($param)
+	$foreach $name in @plist
+	    $function_autolist{$name}=1
+	return
+    $elif $func eq "set_function_defaults"
+	$global %function_defaults
+	my @plist=MyDef::utils::proper_split($param)
+	my $pattern=shift @plist
+	$foreach $name in @plist
+	    $function_defaults{$name}=$pattern
+	return
 
 subcode:: c_support_subs
     $sub check_expression($l, $context)
@@ -34,7 +47,7 @@ subcode:: c_support_subs
 
 subcode: check_statement
     $if $l=~/^return\b\s*(.*)/
-	$if !$1
+	$if length($1)<=0
 	    func_return()
 	    return "return"
 	$else
@@ -60,13 +73,14 @@ subcode: check_expression_parse(l)
     $elif $(l)=~/\G(\d+[eE]-?\d+|\d*\.\d+([eE]-?\d+)?)/gc
 	$token=$1
 	$type="atom-number-float"
+	$if $types[-1] =~/^atom/ and $token=~/^\.(\d+)/
+	    $token=$1
+	    $call check_exp_tuple_member
     $elif $(l)=~/\G(\d[0-9a-zA-Z]*)/gc
 	$token=$1
 	$type="atom-number"
 	$if $stack[-1] eq "^" and $token<10 and $token>1
 	    $call check_exp_exponential
-	$elif $stack[-1] eq "."
-	    $call check_exp_tuple_member
     $elif $(l)=~/\G(\w+)/gc
 	$token=$1
 	$type="atom-identifier"
@@ -227,15 +241,14 @@ subcode: check_exp_member
 	splice(@types, -2)
 
 subcode: check_exp_tuple_member
-    $if $types[-2] !~/^atom/
-	#error
-    $token=join("", splice(@stack, -2))."a$token"
+    $call exp_pop, $primary
+    $token="$primary.a$token"
     $type="atom-exp"
-    splice(@types, -2)
 
 #---------------------------------------- 
 subcode: check_exp_callsub
     $if $stack[-1] eq "." and $stack[-2]
+	#---- darray.$push -----
 	my $varname=$stack[-2]
 	my $arg=$'
 	&call if_lex, \((.*)\)
@@ -247,17 +260,25 @@ subcode: check_exp_callsub
 	    $arg=~s/^\s+//
 	    $if length($arg)>0
 		$call_line .= ", $arg"
-	    undef $yield
-	    MyDef::compileutil::call_sub($call_line)
-	    $if $yield
-		$call exp_pop, undef
-		$call exp_pop, undef
-		$call exp_push, $yield, "atom"
-		last
-	    $else
-		return
-    $call warn, \$$method not defined
+	    $call exp_callsub
+    $elif @stack==1 and $method eq "call"
+	my $call_line= $'
+	$call_line=~s/^\s*//
+	$call exp_callsub
+
+    $call warn, Method \$$method not defined
     $call exp_push, "\$$method", "atom-unknown"
+
+subcode: exp_callsub
+    undef $yield
+    MyDef::compileutil::call_sub($call_line)
+    $if $yield
+	$call exp_pop, undef
+	$call exp_pop, undef
+	$call exp_push, $yield, "atom"
+	last
+    $else
+	return
 
 #---------------------------------------- 
 subcode: check_exp_fcall(primary, token)
@@ -265,6 +286,27 @@ subcode: check_exp_fcall(primary, token)
     $if $(primary)=~/^(sin|cos|tan|asin|acos|atan|atan2|exp|log|log10|pow|sqrt|ceil|floor|fabs)$/
 	$includes{"<math.h>"}=1
 	$objects{"libm"}=1
+    $elif $(primary)=~/^(memcpy|memcmp)$/
+	$includes{"<string.h>"}=1
+    $elif $(primary)=~/^(malloc|free)$/
+	$includes{"<stdlib.h>"}=1
+    $else
+	$if $function_autolist{$(primary)}
+	    $call check_autoload_h
+	    $call add_list_function, $(primary)
+	$if $function_defaults{$(primary)}
+	    $if $function_defaults{$(primary)}=~/^prepend:(.*)/
+		$if $(token) eq ""
+		    $(token)=$1
+		$else
+		    $(token)=$1.",".$(token)
+	    $elif $function_defaults{$(primary)}=~/^append:(.*)/
+		$if $(token) eq ""
+		    $(token)=$1
+		$else
+		    $(token)=$(token).",".$1
+	    $else
+		# Not Implemented
 
 subcode: check_exp_subscript(primary, token)
     # print "subscript: $(primary)  $(token)\n"
@@ -288,6 +330,8 @@ subcode: check_exp_dict(primary, token)
 
 subcode:: check_expression_init
     #- %cache, for parsing hash: T{key}
+    #--        such expression may involve sub call, 
+    #--        so mulitiple invocation would be bad
     my %cache
 
 subcode: process_expression_cache(t)
@@ -315,7 +359,11 @@ subcode: check_exp_string_op
     my %str_op=(eq=>"==", ne=>"!=", lt=>"<", gt=>">", le=>"<=", ge=>">=")
     my $op=$str_op{$op}
     $if $type eq "atom-string"
-	$token= "strcmp($exp, $token) $op 0"
+	$if $token=~/^"(.*)"/
+	    my $len=length($1)
+	    $token= "strncmp($exp, $token, $len) $op 0"
+	$else
+	    $token= "strcmp($exp, $token) $op 0"
 	$type="atom"
     $else
 	my $var=find_var($token)

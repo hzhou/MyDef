@@ -2,11 +2,11 @@ use strict;
 package MyDef::compileutil;
 our $out;
 our @output_list;
+our %named_blocks;
 our @callback_block_stack;
 our %eval_sub_cache;
 our %eval_sub_error;
 our %index_name_hash;
-our %named_blocks;
 our @mode_stack=("sub");
 our $cur_mode;
 our $in_autoload;
@@ -25,8 +25,10 @@ sub get_interface {
 }
 sub set_output {
     my ($output)=@_;
+    my $old=$out;
     $out=$output;
     $f_setout->($out);
+    return $old;
 }
 our $deflist;
 my $debug;
@@ -45,6 +47,7 @@ my %list_hash;
 sub init_output {
     @output_list=([]);
     set_output($output_list[0]);
+    %named_blocks=();
 }
 sub new_output {
     my $new_out=[];
@@ -249,10 +252,19 @@ sub call_back {
         $param=~s/^\s*,?\s*//;
         $pline=$param;
         @plist=MyDef::utils::proper_split($param);
-        push @callback_block_stack, {source=>$subblock, name=>"BLOCK", cur_file=>$cur_file, cur_line=>$cur_line};
+        push @callback_block_stack, {source=>$subblock, name=>"$codename", cur_file=>$cur_file, cur_line=>$cur_line};
         push @callsub_stack, $codename;
         my $params=$codelib->{params};
         my $np=@pre_plist;
+        my $macro={};
+        if(1==@$params && $params->[0] eq "\@plist"){
+            $macro->{np}=$#plist+1;
+            my $i=0;
+            foreach my $p (@plist){
+                $i++;
+                $macro->{"p$i"}=$p;
+            }
+        }
         if($np+@plist!=@$params){
             my $n2=@plist;
             my $n3=@$params;
@@ -268,7 +280,6 @@ sub call_back {
                 warn "    [$cur_file:$cur_line] Code $codename parameter mismatch ($np + $n2) != $n3. [pline:$pline]\n";
             }
         }
-        my $macro={};
         for(my $i=0; $i <$np; $i++){
             $macro->{$params->[$i]}=$pre_plist[$i];
         }
@@ -373,6 +384,15 @@ sub call_sub {
                         push @$deflist, {};
                     }
                     else{
+                        my $macro={};
+                        if(1==@$params && $params->[0] eq "\@plist"){
+                            $macro->{np}=$#plist+1;
+                            my $i=0;
+                            foreach my $p (@plist){
+                                $i++;
+                                $macro->{"p$i"}=$p;
+                            }
+                        }
                         if($np+@plist!=@$params){
                             my $n2=@plist;
                             my $n3=@$params;
@@ -388,7 +408,6 @@ sub call_sub {
                                 warn "    [$cur_file:$cur_line] Code $codename parameter mismatch ($np + $n2) != $n3. [pline:$pline]\n";
                             }
                         }
-                        my $macro={};
                         for(my $i=0; $i <$np; $i++){
                             $macro->{$params->[$i]}=$pre_plist[$i];
                         }
@@ -716,6 +735,13 @@ sub parseblock {
                 elsif($preproc=~/^set([012]):\s*(.*)/){
                     set_macro($deflist->[$1], $2);
                 }
+                elsif($preproc=~/^setmacro:\s*(.*)/){
+                    set_macro($deflist->[2], $1);
+                }
+                elsif($preproc=~/autoinc:\s*(\w+)/){
+                    my $page=$deflist->[2];
+                    $page->{$1}++;
+                }
                 elsif($preproc=~/^export:\s*(.*)/){
                     my $t=$1;
                     if($t=~/^\w+,/){
@@ -894,14 +920,18 @@ sub parseblock {
             }
             elsif($l=~/^BLOCK\s*$/){
                 if($#callback_block_stack <0){
-                    warn "BLOCK called out of context!\n";
+                    print "\x1b[33mBLOCK called out of context!\x1b[0m\n";
                     push @$out, $1;
                 }
                 else{
                     my $block=pop @callback_block_stack;
                     my $depth=$#callback_block_stack+1;
                     if($debug){
-                        print "BLOCK [$cur_file:$cur_line] -> [$block->{cur_file}: $block->{cur_line}] depth=$depth\n";
+                        print "BLOCK [$cur_file:$cur_line] -> [$block->{cur_file}: $block->{cur_line}] depth=$depth: ";
+                        foreach my $b (@callback_block_stack){
+                            print "$b->{name}, ";
+                        }
+                        print $block->{name}, "\n";
                     }
                     parseblock($block);
                     push @callback_block_stack, $block;
@@ -1049,7 +1079,11 @@ sub set_macro {
     if($debug eq "macro"){
         print "set_macro: [$p]\n";
     }
-    if($p=~/(\S+?)=(.*)/){
+    if($p=~/(\w+)\+=(\d+)/){
+        my ($t1, $t2)=($1, $2);
+        $m->{$t1}+=$t2;
+    }
+    elsif($p=~/(\S+?)=(.*)/){
         my ($t1, $t2)=($1, $2);
         if($t1=~/\$\(.*\)/){
             expand_macro_recurse(\$t1);
@@ -1069,6 +1103,10 @@ sub set_macro {
 sub set_current_macro {
     my ($name, $val)=@_;
     $deflist->[-1]->{$name}=$val;
+}
+sub export_macro {
+    my ($i, $name, $val)=@_;
+    $deflist->[$i]->{$name}=$val;
 }
 sub get_current_macro {
     my ($name)=@_;
@@ -1141,7 +1179,7 @@ sub expand_macro {
                     if($p=~/(\d+)-(\d+)/){
                         $segs[$j]=substr($t, $1, $2-$1+1);
                     }
-                    elsif($p=~/(\d+):(\d+|word|number)/){
+                    elsif($p=~/(\d+):(\d+|word|number|strip)/){
                         my $s=substr($t, $1);
                         if($2 eq "word"){
                             if($s=~/^\s*(\w+)/){
@@ -1153,7 +1191,7 @@ sub expand_macro {
                                 $s=$1;
                             }
                         }
-                        else{
+                        elsif($2 ne "strip"){
                             $s=substr($s, 0, $2);
                         }
                         $segs[$j]=$s;
@@ -1168,6 +1206,9 @@ sub expand_macro {
                         else{
                             $segs[$j]=length($t);
                         }
+                    }
+                    elsif($p eq "strip"){
+                        $segs[$j]=substr($t, 1, -1);
                     }
                     elsif($p=~/list:(.*)/){
                         my $idx=$1;

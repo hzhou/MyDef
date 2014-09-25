@@ -15,7 +15,7 @@ subcode:: parsecode_special
 	$call parsecode_post
 	return
     $case $l=~/^print\b(.*)$/i
-	print "print deprecated, use \$print\n"
+	$call warn, print deprecated, use \$print
 
 subcode: parsecode_func_param
     $if $func eq "dump"
@@ -155,11 +155,6 @@ subcode: parsecode_func
     $call @parsecode_func_other
 
 subcode: parsecode_other
-    $if $l=~/^SOURCE_INDENT/
-	$cur_indent++;
-    $elif $l=~/^SOURCE_DEDENT/
-	$cur_indent--;
-
     $call check_functioncall
     $l=check_expression($l)
 
@@ -178,7 +173,7 @@ subcode: check_termination
 	$l.=";"
 
 subcode: check_functioncall
-    $if $l=~/^(\w+)\s+(.*)$/
+    $case $l=~/^(\w+)\s+(.*)$/
 	# print "check_functioncall: $1\n"
 	$if $functions{$1} or $stock_functions{$1}
 	    my $fn=$1;

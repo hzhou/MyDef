@@ -24,6 +24,7 @@ subcode:: package_globals
 	count=>"int",
     );
     %type_prefix=(
+	i=>"int",
 	n=>"int",
 	n1=>"int8_t",
 	n2=>"int16_t",

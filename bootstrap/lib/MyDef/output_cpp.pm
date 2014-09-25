@@ -36,7 +36,7 @@ sub dumpout {
     my ($f, $out, $pagetype)=@_;
     my $cnt=0;
     my $cnt_std=0;
-    while(my ($k, $t)=each %MyDef::output_c::includes){
+    foreach my $k (sort {$b cmp $a} keys(%MyDef::output_c::includes)){
         if($k=~/<(iostream|string|bitset|deque|list|map|queue|set|stack|vector)/){
             push @$f, "#include <$1>\n";
             $cnt_std++;

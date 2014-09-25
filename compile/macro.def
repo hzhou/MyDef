@@ -3,13 +3,19 @@
 #  $deflist=[$MyDef::def, $MyDef::def->{macros}, $page];
 
 subcode:: preproc_elifs
-    $elsif $preproc=~/^set:\s*(.*)/
+    $elif $preproc=~/^set:\s*(.*)/
 	# immediate macros
 	set_macro($deflist->[-1], $1)
-    $elsif $preproc=~/^set([012]):\s*(.*)/
+    $elif $preproc=~/^set([012]):\s*(.*)/
 	# standard macros: def, macros, page
 	set_macro($deflist->[$1], $2)
-    $elsif $preproc=~/^export:\s*(.*)/
+    $elif $preproc=~/^setmacro:\s*(.*)/
+	# standard macros: def, macros, page
+	set_macro($deflist->[2], $1)
+    $elif $preproc=~/autoinc:\s*(\w+)/
+	my $page=$deflist->[2]
+	$page->{$1}++
+    $elif $preproc=~/^export:\s*(.*)/
 	my $t=$1;
 	$if $t=~/^\w+,/
 	    my @plist=split /,\s*/, $t
@@ -17,21 +23,21 @@ subcode:: preproc_elifs
 		set_macro($deflist->[-2], $p)
 	$else
 	    set_macro($deflist->[-2], $t)
-    $elsif $preproc=~/^mset:\s*(.*)/
+    $elif $preproc=~/^mset:\s*(.*)/
 	my @plist=split /,\s*/, $1
 	$foreach $p in @plist
 	    set_macro($deflist->[-1], $p)
-    $elsif $preproc=~/^mexport:\s*(.*)/
+    $elif $preproc=~/^mexport:\s*(.*)/
 	my @plist=split /,\s*/, $1
 	$foreach $p in @plist
 	    set_macro($deflist->[-2], $p)
-    $elsif $preproc=~/^preset:([^:]+):(.*)/
+    $elif $preproc=~/^preset:([^:]+):(.*)/
 	my $preset=$1;
 	my $t=$2;
 	foreach my $tt(split /,/, $t){
 	    $deflist->[-1]->{$tt}="$preset$tt";
 	}
-    $elsif $preproc=~/^reset:\s*(\w+)([+])?=(.*)/
+    $elif $preproc=~/^reset:\s*(\w+)([+])?=(.*)/
 	my ($v, $op, $d)=($1, $2, $3, $4)
 	expand_macro_recurse(\$d)
 	my $i=$#$deflist;
@@ -41,13 +47,13 @@ subcode:: preproc_elifs
 	    $deflist->[$i]->{$v}=calc_op($deflist->[$i]->{$v}, $op, $d)
 	$else
 	    $deflist->[$i]->{$v}=$d;
-    $elsif $preproc=~/^unset:\s*(\w+)/
+    $elif $preproc=~/^unset:\s*(\w+)/
 	my $v=$1
 	my $i=$#$deflist;
 	$while $i>0 and !defined $deflist->[$i]->{$v}
 	    $i--;
 	delete $deflist->[$i]->{$v}
-    $elsif $preproc=~/^eval:\s*(\w+)=(.*)/
+    $elif $preproc=~/^eval:\s*(\w+)=(.*)/
 	my ($t1,$t2)=($1,$2)
 	expand_macro_recurse(\$t2)
 	$deflist->[-1]->{$t1}=eval($t2)
@@ -82,7 +88,10 @@ subcode:: support_subs
     $sub set_macro($m, $p)
 	$if $debug eq "macro"
 	    print "set_macro: [$p]\n";
-	$if $p=~/(\S+?)=(.*)/
+	$if $p=~/(\w+)\+=(\d+)/
+	    my ($t1, $t2)=($1, $2)
+	    $m->{$t1}+=$t2
+	$elif $p=~/(\S+?)=(.*)/
 	    my ($t1, $t2)=($1, $2)
 	    $if $t1=~/\$\(.*\)/
 		expand_macro_recurse(\$t1)
@@ -96,6 +105,9 @@ subcode:: support_subs
 
     $sub set_current_macro($name, $val)
 	$deflist->[-1]->{$name}=$val
+
+    $sub export_macro($i, $name, $val)
+	$deflist->[$i]->{$name}=$val
 
     $sub get_current_macro($name)
 	return $deflist->[-1]->{$name}
@@ -147,7 +159,7 @@ subcode: expand_macro_seg
 	    $if $p=~/(\d+)-(\d+)/
 		#-- substr, e.g. $(macro:0-3) ----
 		$segs[$j]=substr($t, $1, $2-$1+1);
-	    $elif $p=~/(\d+):(\d+|word|number)/
+	    $elif $p=~/(\d+):(\d+|word|number|strip)/
 		#-- substr with regex predicate ----
 		my $s=substr($t, $1)
 		$if $2 eq "word"
@@ -156,7 +168,7 @@ subcode: expand_macro_seg
 		$elif $2 eq "number"
 		    $if $s=~/^\s*([+-]?\d+)/
 			$s=$1
-		$else
+		$elif $2 ne "strip"
 		    $s=substr($s, 0, $2)
 		$segs[$j]=$s
 	    $elif $p eq "len"
@@ -168,6 +180,8 @@ subcode: expand_macro_seg
 		    $segs[$j]=eval "length($t)"
 		$else
 		    $segs[$j]=length($t)
+	    $elif $p eq "strip"
+		$segs[$j]=substr($t, 1, -1)
 	    $elif $p=~/list:(.*)/
 		my $idx=$1
 		my @tlist=MyDef::utils::proper_split($t)

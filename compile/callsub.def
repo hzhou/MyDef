@@ -42,7 +42,7 @@ subcode: call_sub_map
 	$foreach $k in sort(keys(%$codes))
 	    $if $k=~/^$prefix(\w+)/
 		push @plist, $1
-    $foreach my $item in @plist
+    $foreach $item in @plist
 	my $macro={$params->[$np]=>$item};
 	$if $np
 	    $for $i=0:$np
@@ -61,6 +61,19 @@ subcode: call_sub_normal
     pop @$deflist;
 
 subcode: call_sub_normal_setup_macro
+    my $macro={};
+    $if 1==@$params && $params->[0] eq "\@plist"
+	$call call_sub_setup_p_macro
+    $call call_sub_setup_macro
+
+subcode: call_sub_setup_p_macro
+    $macro->{np}=$#plist+1
+    my $i=0
+    $foreach $p in @plist
+	$i++
+	$macro->{"p$i"}=$p
+
+subcode: call_sub_setup_macro
     $if $np+@plist!=@$params
 	my $n2=@plist;
 	my $n3=@$params;
@@ -74,7 +87,7 @@ subcode: call_sub_normal_setup_macro
 	    $plist[$n0]=$pline
 	$else
 	    warn "    [$cur_file:$cur_line] Code $codename parameter mismatch ($np + $n2) != $n3. [pline:$pline]\n";
-    my $macro={};
+
     $for $i=0:$np
 	$macro->{$params->[$i]}=$pre_plist[$i];
     $for $j=0:@$params-$np
@@ -118,7 +131,7 @@ subcode:: support_subs
 	    $call split_sub_param
 
 	    $global @callback_block_stack
-	    push @callback_block_stack, {source=>$subblock, name=>"BLOCK", cur_file=>$cur_file, cur_line=>$cur_line}
+	    push @callback_block_stack, {source=>$subblock, name=>"$codename", cur_file=>$cur_file, cur_line=>$cur_line}
 
 	    push @callsub_stack, $codename
 	    my $params=$codelib->{params};

@@ -1,60 +1,56 @@
 subcode:: _autoload
-    $global struct input_buffer * $(input)
+    $register_name(input) struct input_buffer *
     # load_lex
+    $(set:fn_list=skip_space, match_non_space, match_eof, match_char, match_char_i, match_char_class, match_char_class_i, match_keyword, match_keyword_i, match_char_unless, match_keyword_unless, match_identifier, match_bracket)
 
-macros:
-    input: input
-
-subcode: load_lex
-    $call load_input_buffer
+    $autolist $(fn_list)
+    $set_function_defaults prepend:input, $(fn_list)
 
     $include ctype
-    $list skip_space, match_eof
-    $list match_char, match_char_class, match_keyword
-    $list match_identifier
 
 subcode: get_ts_token
-    ts_token=input_get_str($(input))
+    ts_token=input_get_str(input)
 
 subcode: get_token(s)
     $local char * $(s), int $(s)_len
     $set_var_attr $(s), strlen=$(s)_len
-    $(s)=$(input)->buffer+$(input)->n_start
-    $(s)_len=$(input)->n_pos-$(input)->n_start
+    $(s)=input->buffer+input->n_start
+    $(s)_len=input->n_pos-input->n_start
 
 #----- overload input_buffer.def -----
 subcode: local_input(s)
+    $local input
     $get_var_attr $(s), strlen
     $(if:!strlen)
 	$(set:strlen=strlen($(s)))
-    $call local_input_buffer, $(input), $(s), $(strlen)
+    $call local_input_buffer, input, $(s), $(strlen)
 
 #--------------
 subcode: input_start
     $call @input_skip
-    $(input)->n_start=$(input)->n_pos
+    input->n_start=input->n_pos
 
 subcode: input_restart
-    $call input_check_tempchar, $(input)
-    $(input)->n_pos=$(input)->n_start
+    $call input_check_tempchar, input
+    input->n_pos=input->n_start
 
 subcode: input_get_c(c)
     $list input_get_char
-    $(c)=input_get_char($(input))
+    $(c)=input_get_char(input)
 
 subcode: input_back_char
-    $if $(input)->n_pos>$(input)->n_start
-	$(input)->n_pos--
+    $if input->n_pos>input->n_start
+	input->n_pos--
 
 subcode: input_debug
-    tn_c=$(input)->buffer[$(input)->n_pos]
-    $print "input_debug: %d - %d - %d [%c][%d]", $(input)->n_start, $(input)->n_pos, $(input)->n_end, tn_c, tn_c
+    tn_c=input->buffer[input->n_pos]
+    $print "input_debug: %d - %d - %d [%c][%d]", input->n_start, input->n_pos, input->n_end, tn_c, tn_c
     $for i=0:40
-	$if $(input)->n_pos+i<$(input)->n_end
-	    $if $(input)->buffer[$(input)->n_pos+i]=='\n'
+	$if input->n_pos+i<input->n_end
+	    $if input->buffer[input->n_pos+i]=='\n'
 		break
 	    $else
-		printf "%c", $(input)->buffer[$(input)->n_pos+i]
+		printf "%c", input->buffer[input->n_pos+i]
     $print "\n"
 
 # ---- overload to customize -----------------------------
@@ -72,14 +68,14 @@ subcode: match_until(cond)
 	    return 1
 
 # -----------------------------
-fncode: skip_space
+fncode: skip_space(input)
     $call match_until, !isspace(tn_c)
 
-fncode: match_non_space
+fncode: match_non_space(input)
     $call input_start
     $call match_until, isspace(tn_c)
 
-fncode: match_eof
+fncode: match_eof(input)
     $call input_get_c, tn_c
     $if tn_c<=0
 	return 1
@@ -108,20 +104,21 @@ subcode: match_char_class_sub(cond)
     return 0
 
 #---------------------------------------- 
-fncode: match_char(tn_char)
+fncode: match_char(input, tn_char)
     $call match_char_sub, tn_c==tn_char
 
-fncode: match_char_i(tn_char)
+fncode: match_char_i(input, tn_char)
     $call match_char_sub, toupper(tn_c)==toupper(tn_char)
 
-fncode: match_char_class(s_class)
+fncode: match_char_class(input, s_class)
     $call match_char_class_sub, tn_c==*s_class
 
-fncode: match_char_class_i(s_class)
+fncode: match_char_class_i(input, s_class)
     $call match_char_class_sub, toupper(tn_c)==toupper(*s_class)
 
 #---------------------------------------- 
 subcode: match_keyword_sub(notcond)
+    $return_type int
     $call input_start
     $(set:isword=(isalnum(tn_c)||tn_c=='_'))
     $(set:isword2=(isalnum(tn_c2)||tn_c2=='_'))
@@ -142,15 +139,15 @@ subcode: match_keyword_sub(notcond)
 		$call input_restart
 		return 0
 
-fncode: match_keyword(s_key)
+fncode: match_keyword(input, s_key)
     $call match_keyword_sub, tn_c != *s_key
 
-fncode: match_keyword_i(s_key)    
+fncode: match_keyword_i(input, s_key)    
     $call match_keyword_sub, toupper(tn_c) != toupper(*s_key)
 
 #-------------------------------
 #- hacks for ">=" ">>=" etc.
-fncode: match_char_unless(tn_c1, s_tail)
+fncode: match_char_unless(input, tn_c1, s_tail)
     $call input_start
     $if match_char(tn_c1)
 	$if match_char_class(s_tail)
@@ -161,7 +158,7 @@ fncode: match_char_unless(tn_c1, s_tail)
     $else
 	return 0
 
-fncode: match_keyword_unless(s_key, s_tail)
+fncode: match_keyword_unless(input, s_key, s_tail)
     $call input_start
     $if match_keyword(s_key)
 	$if match_char_class(s_tail)
@@ -173,7 +170,7 @@ fncode: match_keyword_unless(s_key, s_tail)
 	return 0
 
 # ---------------------------------
-fncode: match_identifier()
+fncode: match_identifier(input)
     $call input_start
     $call input_get_c, tn_c
     $if isalpha(tn_c) || tn_c=='_'
@@ -183,7 +180,7 @@ fncode: match_identifier()
 	return 0
 
 # ---------------------------------
-fncode: match_bracket(tn_c1)
+fncode: match_bracket(input, tn_c1)
     tn_escape='\\'
     $if tn_c1=='{'
 	tn_c2='}'

@@ -2,7 +2,6 @@ include: std_c.def
 ## frame
 subcode: basic_frame
     $include <cstdio>
-    $include <string>
 
     $call @global
     $(if:hascode:n_main)

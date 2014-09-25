@@ -38,17 +38,15 @@ subcode: output_main
 	my $init_mode=$page->{init_mode}
 	return ($ext, $init_mode)
 
-    $sub set_output
-	$out = shift
+    $sub set_output($newout)
+	$out = $newout
 
     # ---- www has php,  html and js mode ----------
-    $sub modeswitch
-	my ($mode, $in)=@_;
+    $sub modeswitch($mode, $in)
 	$call @modeswitch
 
     # ---- All specialized parsing goes here.
-    $sub parsecode
-	my $l=shift;
+    $sub parsecode($l)
 	$if $debug eq "parse"
 	    $call dump_line, parsecode
 	$if $l=~/^DEBUG (\w+)/
@@ -74,7 +72,7 @@ subcode: output_main
 
     1;
 
-# -------------------------
+#---------------------------------------- 
 subcode: inherit_c
     use MyDef::output_c
     $(export:C=MyDef::output_c::)
@@ -236,3 +234,12 @@ subcode: warn(@msg)
     my $curfile=MyDef::compileutil::curfile_curline()
     $print "[$curfile]$yellow $(msg)" 
 
+subcode: replace_output(name)
+    my $old_out=MyDef::compileutil::set_output($(name))
+    BLOCK
+    MyDef::compileutil::set_output($old_out)
+
+subcode: push_indent_block
+    push @$out, "INDENT"
+    BLOCK
+    push @$out, "DEDENT"
