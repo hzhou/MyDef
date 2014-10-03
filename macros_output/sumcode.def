@@ -264,7 +264,7 @@ subcode: sumcode_simple_generate
     &call sumcode_simple_loop, left
 	$if @right_idx
 	    my $sum=$left
-	    push @code, "$(mytype) $sum = 0"
+	    push @code, "$sum = 0"
 	    &call sumcode_simple_loop, right
 		push @code, "$sum += $right"
 	$elif $right
