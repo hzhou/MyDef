@@ -258,6 +258,7 @@ subcode: sumcode_simple_parse
     $(for:left in left,right)
 	$$(left)=~s/\b([ijkl])\b/$(i)_\1/g
 
+
 subcode: sumcode_simple_generate
     my @code
     &call sumcode_simple_loop, left
