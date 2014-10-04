@@ -45,7 +45,6 @@ subcode:: package_globals
 	d=>"double",
 	"time"=>"time_t",
 	"file"=>"FILE *",
-	"strlen"=>"STRLEN",
 	"has"=>"int",
 	"is"=>"int",
     );
