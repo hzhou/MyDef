@@ -13,10 +13,10 @@ subcode:: on_dumpout
     my $cnt_std=0
     # $while my ($k, $t)=each %$(C)includes
     $foreach $k in sort {$b cmp $a} keys(%$(C)includes)
-	$if $k=~/<(iostream|string|bitset|deque|list|map|queue|set|stack|vector)/
+	$if $k=~/<(iostream|string|bitset|deque|list|map|queue|set|stack|vector)>/
 	    push @$f, "#include <$1>\n"
 	    $cnt_std++
-	$elif $k=~/<(stdio|stdlib|string|math|time)\.h>/
+	$elif $k=~/<(stdio|stdlib|string|math|time|errno)\.h>/
 	    push @$f, "#include <c$1>\n"
 	$else
 	    push @$f, "#include $k\n"

@@ -286,7 +286,7 @@ subcode: check_exp_fcall(primary, token)
     $if $(primary)=~/^(sin|cos|tan|asin|acos|atan|atan2|exp|log|log10|pow|sqrt|ceil|floor|fabs)$/
 	$includes{"<math.h>"}=1
 	$objects{"libm"}=1
-    $elif $(primary)=~/^(memcpy|memcmp)$/
+    $elif $(primary)=~/^(mem|str)[a-z]+$/
 	$includes{"<string.h>"}=1
     $elif $(primary)=~/^(malloc|free)$/
 	$includes{"<stdlib.h>"}=1
