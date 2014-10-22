@@ -33,11 +33,12 @@ subcode: process_close_scope
 	$if !$pre
 	    $pre=MyDef::compileutil::get_named_block("_pre")
 	$foreach $v in @$var_list
-	    $if $global_hash->{$v}
-		$call warn, In $blk->{name}: local variable $v has existing global
 	    my $var=$var_hash->{$v}
 	    my $decl=var_declare($var)
 	    push @$pre, "$decl;";
+
+	    $if $global_hash->{$v}
+		$call warn, In $blk->{name}: local variable $v has existing global: $decl
 
 	    $if $var->{exit}
 		push @exit_calls, "$var->{exit}, $v"

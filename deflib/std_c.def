@@ -160,6 +160,16 @@ subcode: every_tick(sec)
 subcode: tick_reset
     time_tick_set=time(NULL)
 
+subcode: print_time(type)
+    $include time
+    time_now=time(NULL)
+    $my struct tm * p_now
+    p_now=localtime(&time_now)
+    $(if:type=default)
+	printf("%d/%d %02d:%02d ", p_now->tm_mon+1, p_now->tm_mday, p_now->tm_hour, p_now->tm_min)
+    $(else)
+	printf("%d/%d %02d:%02d ", p_now->tm_mon+1, p_now->tm_mday, p_now->tm_hour, p_now->tm_min)
+
 # ---- sort -------------------------------------
 subcode: qsort(list, size, type)
     $function qsort_cmp(const void * a, const void * b)
@@ -177,3 +187,16 @@ subcode: numcmp(na, nb)
 	return 1
     $else
 	BLOCK
+
+#---- scanf ------------------------------------ 
+fncode: get_s_int(s, int * p_n)
+    $return_type char *
+    n=0
+    $while *s>='0' && *s<='9'
+	n*=10
+	n+=(*s-'0')
+	s++
+    *p_n=n
+    $while *s==' '
+	s++
+    return s

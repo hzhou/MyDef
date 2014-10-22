@@ -148,7 +148,8 @@ subcode: on_parsecode
 	return
 
 subcode: infer_var
-    $(C)auto_add_var($var)
+    $if $var=~/^\w+$/
+	$(C)auto_add_var($var)
     my $vartype=$(C)get_var_type($var);
 
 

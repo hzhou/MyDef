@@ -124,7 +124,11 @@ subcode: socket_sendto(var, addr, msg)
     $(if:msg~")
 	tn_err=sendto($(var), $(msg), $(msg:strlen), 0, $(addr_param))
     $(else)
-	tn_err=sendto($(var), $(msg), $(msg)_len, 0, $(addr_param))
+	$get_type(type) $(msg)_len
+	$(if:type=int)
+	    tn_err=sendto($(var), $(msg), $(msg)_len, 0, $(addr_param))
+	$(else)
+	    tn_err=sendto($(var), $(msg), strlen($(msg)), 0, $(addr_param))
     $call check_socket_error, sendto
 
 subcode: socket_recvfrom(var, addr, msg)
