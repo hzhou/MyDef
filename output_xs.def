@@ -184,9 +184,10 @@ subcode:: support_subs
 	translate_scalar($out, $var, $vartype, "*t_psv");
 	push @$out, "DEDENT";
 	push @$out, "}";
-	push @$out, "else{";
-	translate_null($out, $var, $vartype);
-	push @$out, "}";
+	$if !MyDef::compileutil::get_macro("DONOTSET_UNDEF")
+	    push @$out, "else{";
+	    translate_null($out, $var, $vartype);
+	    push @$out, "}";
 
     $sub translate_perl_cond($l, $out)
 	$if $l=~/^\s*(\w+)->\{(.+)\}\s*$/

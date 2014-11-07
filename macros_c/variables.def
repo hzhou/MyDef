@@ -110,6 +110,8 @@ subcode:: c_support_subs
     $sub auto_add_var($name, $type, $value)
 	my $var=find_var($name)
 	$if !$var
+	    $if $debug eq "type"
+		$call warn, auto_add_var: $name - $type - $value
 	    func_add_var($name, $type, $value)
 
     $sub temp_add_var($name, $type, $value)

@@ -26,7 +26,7 @@ page: output_c, output_main
     package: MyDef::output_c
 
     subcode: init_page
-	$if $MyDef::def->{"macros"}->{"use_double"}
+	$if $MyDef::def->{"macros"}->{"use_double"} or $page->{"use_double"}
 	    $type_name{f}="double";
 	    $type_prefix{f}="double";
 	$call @c_init
