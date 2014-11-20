@@ -263,7 +263,7 @@ subcode: check_file_notinpage
 	$inpage=1;
 	$page={};
 	push @page_list, $page;
-    $elif /^page: (\w+)/
+    $elif /^page: ([a-zA-Z0-9_\.-]+)/
 	$inpage=1;
 	$page={};
 	push @page_list, $page;
@@ -317,7 +317,7 @@ subcode: check_eachpage
 	    $h->{path}=$h->{output_dir}."/".$h->{path};
 	$if $config_outputdir and $h->{path}!~/^[\/\.]/
 	    $h->{path}=$config_outputdir."/".$h->{path};
-	$if $h->{type}
+	$if $h->{type} and $h->{type} ne "none"
 	    $h->{path}.=".$h->{type}"
 
 subcode: expand_dependency

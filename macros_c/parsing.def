@@ -155,23 +155,23 @@ subcode: parsecode_func
     $call @parsecode_func_other
 
 subcode: parsecode_other
-    $call check_functioncall
-    $l=check_expression($l)
-
-    $if $l
-	$call check_termination
-    $else
-	return
-
-#---------------------------------------- 
-subcode: check_termination
-    $if $l=~/^\s*$/
+    $if !$l or $l=~/^\s*$/
+	# NOOP
+    $elif $l=~/^\s*#(define|include|if|else|endif)/
 	# NOOP
     $elif $l=~/^\s*(for|while|if|else if)\s*\(.*\)\s*$/
 	# NOOP
-    $elif $l!~/[:\(\{\};,]\s*$/
-	$l.=";"
+    $elif $l=~/[:\(\{\};,]\s*$/
+	# NOOP
+    $else
+	$call check_functioncall
+	$l=check_expression($l)
+	$if !$l
+	    return 
+	$else
+	    $l.=";"
 
+#---------------------------------------- 
 subcode: check_functioncall
     $case $l=~/^(\w+)\s+(.*)$/
 	# print "check_functioncall: $1\n"
@@ -180,7 +180,7 @@ subcode: check_functioncall
 	    my $t=$2;
 	    $t=~s/;\s*$//;
 	    $t=~s/\s+$//;
-	    $l="$fn($t);";
+	    $l="$fn($t)";
 
 #---------------------------------------- 
 #--- called from output.def ------------

@@ -36,6 +36,24 @@ page: output_c, output_main
 	$call parsecode_case_support, if, else if, c_style
 	$call parsecode_common
 
+    subcode: parsecode_template
+	$if $a=~/(\s*)\/\*\s*\$call\s*(.*)\s*\*\//
+	    my ($spaces, $call_line)=($1, $2)
+	    my $len=length($spaces)
+	    my $n=int($len/4)
+	    $if $len % 4
+		$n++
+	    $for $i=0:$n
+		push @$out, "INDENT"
+	    MyDef::compileutil::call_sub($call_line)
+	    $for $i=0:$n
+		push @$out, "DEDENT"
+	    next
+	$elif $a=~/DUMP_STUB\s+(\w+)/
+	    push @$out, "DUMP_STUB $1"
+	    $page->{"has_stub_$1"}=1
+	    next
+
     subcode: case_flag_set
 	$global $case_flag="b_flag_case"
 	global_add_var($case_flag)
@@ -66,8 +84,9 @@ page: output_c, output_main
 	$call dump_Makefile
 
 	# ---- Header stuff --------------------------
-	unshift @$out, "\n/**** END GLOBAL INIT ****/\n"
-	unshift @$out, "DUMP_STUB global_init"
+	$if !$page->{has_stub_global_init}
+	    unshift @$out, "\n/**** END GLOBAL INIT ****/\n"
+	    unshift @$out, "DUMP_STUB global_init"
 
 	$if $page->{autoload} eq "h"
 	    $includes{"\"autoload.h\""}=1
