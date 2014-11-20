@@ -1,7 +1,8 @@
 subcode: c_dump_init
     my @dump_init
     $dump->{block_init}=\@dump_init
-    unshift @$out, "INCLUDE_BLOCK block_init"
+    my $global_init=MyDef::compileutil::get_named_block("global_init")
+    unshift @$global_init, "INCLUDE_BLOCK block_init"
 
     $if %objects
 	push @dump_init, "/* link: $lib_list $obj_list */\n"

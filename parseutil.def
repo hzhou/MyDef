@@ -177,7 +177,7 @@ subcode: get_indentation
 	# get current indentation and stripping starting spaces
 	my $indent=getindent($1)
 	$line=$2
-	$if $line=~/^#/
+	$if $line=~/^#(?!define)/
 	    $if $indent != $curindent
 		$line="NOOP"
 	    $else
@@ -358,24 +358,7 @@ subcode: process_page_macros
 	$page->{$k}=$v;
 
 subcode: support_subs
-    our @indent_stack=(0);
-    $sub getindent
-	use integer;
-	my $s=shift;
-	1 while $s=~s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e;
-	my $i=length($s);
-	if($i==$indent_stack[-1]){
-	}
-	elsif($i>$indent_stack[-1]){
-	    push @indent_stack, $i;
-	}
-	else{
-	    while($i<$indent_stack[-1]){
-		pop @indent_stack;
-	    }
-	}
-	
-	return $#indent_stack;
+    $call support_indentation
 
     $sub expand_macro
 	my ($lref, $macros)=@_;

@@ -51,7 +51,7 @@ subcode: sumcode_generate
 	    my $sum
 	    $if $left=~/^(\$?\w+)$/
 		$sum=$1
-		push @code, "$sum = 0"
+		push @code, "$(mytype) $sum = 0"
 	    $else
 		$sum="$(sum)"
 		push @code, "$(mytype) $sum=0"

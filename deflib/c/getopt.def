@@ -1,4 +1,30 @@
+#----------------------------------- 
+#- simple commandline
+perlcode: getargs
+    # print "perlcode: getargs: param=[$param]\n"
+    my @vlist=split /,\s+/, $param
+    my $n=@vlist
 
+    my $usage="\"Usage: %s ".join(' ', @vlist)."\\n\", argv[0]"
+    push @$out, "if(argc!=$n+1){"
+    push @$out, "    fprintf(stderr, $usage);"
+    push @$out, "    exit(-1);"
+    push @$out, "}"
+
+    my $i=1
+    $foreach $v in @vlist
+	func_add_var($v)
+	my $type=get_var_type_direct($v);
+	$if $type eq "char *"
+	    push @$out, "    $v=argv[$i];";
+	$elif $type eq "int" or $type eq "long"
+	    push @$out, "    $v=atoi(argv[$i]);";
+	$elif $type eq "float" or $type eq "double"
+	    push @$out, "    $v=atof(argv[$i]);";
+	$i++
+
+#----------------------------------- 
+#- $call getopt, n_var:l=default
 perlcode: getopt
     my @vlist=split /,\s+/, $param;
 
@@ -9,12 +35,15 @@ perlcode: getopt
 	$if $v=~/(\w+):(\w+)(=.*)?/
 	    func_add_var($1);
 	    $if substr($1, 0, 2) eq "b_"
+		#---- boolean, on/off option -----
 		$cstr.=$2;
 		push @$out, "$1=0;";
 	    $elsif $3
-		push @$out, "$1$3;";
+		#---- option with optional argument -----
 		$cstr.="$2::";
+		push @$out, "$1$3;";
 	    $else
+		#---- option with argument -----
 		$cstr.="$2:";
     push @$out, "opterr = 1;";
     func_add_var("c", "char");
@@ -36,6 +65,8 @@ perlcode: getopt
     push @$out, "    }";
     push @$out, "}";
 
+#----------------------------------- 
+#- $call getbits, n_value, s[10], 4, 4
 perlcode: getbits
     use integer
     my ($var, $buf, $pos, $bits)=split /,\s+/, $param

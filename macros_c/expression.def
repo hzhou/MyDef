@@ -19,6 +19,9 @@ subcode:: parsecode_func_other
 
 subcode:: c_support_subs
     $sub check_expression($l, $context)
+	#---- Note: if $l is already terminated with ';', it simply returns $l ----
+	# $if $debug eq "expression"
+	#     $print "check_expression: $l [$context]"
 	$call @check_statement
 	my ($assign, $left, $right)
 	$call @check_expression_init
