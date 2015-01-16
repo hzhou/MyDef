@@ -37,11 +37,11 @@ sub dumpout {
     my $cnt=0;
     my $cnt_std=0;
     foreach my $k (sort {$b cmp $a} keys(%MyDef::output_c::includes)){
-        if($k=~/<(iostream|string|bitset|deque|list|map|queue|set|stack|vector)/){
+        if($k=~/<(iostream|string|bitset|deque|list|map|queue|set|stack|vector)>/){
             push @$f, "#include <$1>\n";
             $cnt_std++;
         }
-        elsif($k=~/<(stdio|stdlib|string|math|time)\.h>/){
+        elsif($k=~/<(stdio|stdlib|string|math|time|errno)\.h>/){
             push @$f, "#include <c$1>\n";
         }
         else{

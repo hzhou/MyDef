@@ -97,7 +97,9 @@ sub parsecode {
             $key=$1;
         }
         my $keylen=length($key);
-        MyDef::output_c::auto_add_var($var);
+        if($var=~/^\w+$/){
+            MyDef::output_c::auto_add_var($var);
+        }
         my $vartype=MyDef::output_c::get_var_type($var);
         MyDef::output_c::func_add_var("t_psv", "SV**");
         push @$out, "t_psv=hv_fetch($hv, \"$key\", $keylen, 0);";
@@ -106,7 +108,9 @@ sub parsecode {
     }
     elsif($l=~/(\S+)=(\w+)->\[(.*)\]/){
         my ($var, $av, $key)=($1, $2, $3);
-        MyDef::output_c::auto_add_var($var);
+        if($var=~/^\w+$/){
+            MyDef::output_c::auto_add_var($var);
+        }
         my $vartype=MyDef::output_c::get_var_type($var);
         MyDef::output_c::func_add_var("t_psv", "SV**");
         push @$out, "t_psv=av_fetch($av, $key, 0);";
@@ -233,9 +237,11 @@ sub translate_tpsv {
     translate_scalar($out, $var, $vartype, "*t_psv");
     push @$out, "DEDENT";
     push @$out, "}";
-    push @$out, "else{";
-    translate_null($out, $var, $vartype);
-    push @$out, "}";
+    if(!MyDef::compileutil::get_macro("DONOTSET_UNDEF")){
+        push @$out, "else{";
+        translate_null($out, $var, $vartype);
+        push @$out, "}";
+    }
 }
 sub translate_perl_cond {
     my ($l, $out)=@_;

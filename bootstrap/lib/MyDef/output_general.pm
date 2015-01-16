@@ -18,6 +18,9 @@ sub init_page {
     if($page->{type}){
         $ext=$page->{type};
     }
+    if($ext eq "none"){
+        $ext="";
+    }
     $page->{pageext}=$ext;
     my $init_mode=$page->{init_mode};
     return ($ext, $init_mode);
@@ -48,6 +51,15 @@ sub parsecode {
     elsif($l=~/^\$warn (.*)/){
         my $curfile=MyDef::compileutil::curfile_curline();
         print "[$curfile]\x1b[33m $1\n\x1b[0m";
+        return;
+    }
+    elsif($l=~/^\$template\s*(.*)/){
+        open In, $1 or die "Can't open template $1\n";
+        my @all=<In>;
+        close In;
+        foreach my $a (@all){
+            push @$out, $a;
+        }
         return;
     }
     elsif($l=~/^\$eval\s+(\w+)(.*)/){

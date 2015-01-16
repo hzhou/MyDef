@@ -773,12 +773,15 @@ sub parseblock {
                         $deflist->[-1]->{$tt}="$preset$tt";
                     }
                 }
-                elsif($preproc=~/^reset:\s*(\w+)([+])?=(.*)/){
+                elsif($preproc=~/^reset:\s*(\w+)([\.\+\-])?=(.*)/){
                     my ($v, $op, $d)=($1, $2, $3, $4);
                     expand_macro_recurse(\$d);
                     my $i=$#$deflist;
                     while($i>0 and !defined $deflist->[$i]->{$v}){
                         $i--;
+                    }
+                    if($i==0){
+                        $i=-1;
                     }
                     if($op){
                         $deflist->[$i]->{$v}=calc_op($deflist->[$i]->{$v}, $op, $d);
@@ -956,6 +959,12 @@ sub parseblock {
                             call_back($param, $subblock);
                         }
                     }
+                    elsif($l=~/^MAKE_STRING:\s*(.*)/){
+                        push @$out, "MAKE_STRING:$1";
+                        my $subblock=grabblock($block, \$lindex);
+                        parseblock({source=>$subblock, name=>"MAKE_STRING"});
+                        push @$out, "POP_STRING";
+                    }
                     else{
                         undef $callback_output;
                         my $callback_scope;
@@ -1051,6 +1060,9 @@ sub protect_key {
 }
 sub calc_op {
     my ($v, $op, $d)=@_;
+    if($op eq "."){
+        return $v . $d;
+    }
     my $ret=get_numeric($v);
     if($op eq "+"){
         $ret+=get_numeric($d);

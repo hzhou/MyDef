@@ -1,5 +1,6 @@
 use strict;
 package MyDef::parseutil;
+our @indent_stack=(0);
 my $debug=0;
 my $defname="default";
 sub import_data {
@@ -90,7 +91,7 @@ sub import_file {
         elsif($line=~/^(\s*)(.*)/){
             my $indent=getindent($1);
             $line=$2;
-            if($line=~/^#/){
+            if($line=~/^#(?!define)/){
                 if($indent != $curindent){
                     $line="NOOP";
                 }
@@ -338,10 +339,9 @@ sub import_file {
         }
     }
 }
-our @indent_stack=(0);
 sub getindent {
+    my ($s)=@_;
     use integer;
-    my $s=shift;
     1 while $s=~s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e;
     my $i=length($s);
     if($i==$indent_stack[-1]){

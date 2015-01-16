@@ -47,10 +47,9 @@ if(!-f "config"){
         }
     }
     else{
-        $config_outputdir=prompt("Please enter the path to compile into:");
+        $config_outputdir=prompt("Please enter the path to compile into [out]: ");
         print Out "output_dir: $config_outputdir\n";
-        $module=prompt("Please enter module type [perl]:");
-        if(!$module){$module="perl";};
+        $module=prompt("Please enter module type [perl]: ");
         print Out "module: $module\n";
     }
     close Out;
@@ -208,7 +207,7 @@ while(my $f=pop @files){
                     $page={};
                     push @page_list, $page;
                 }
-                elsif(/^page: (\w+)/){
+                elsif(/^page: ([a-zA-Z0-9_\.-]+)/){
                     $inpage=1;
                     $page={};
                     push @page_list, $page;
@@ -271,7 +270,7 @@ while(my ($p, $h) = each %h_page){
     if($config_outputdir and $h->{path}!~/^[\/\.]/){
         $h->{path}=$config_outputdir."/".$h->{path};
     }
-    if($h->{type}){
+    if($h->{type} and $h->{type} ne "none"){
         $h->{path}.=".$h->{type}";
     }
 }
@@ -468,9 +467,11 @@ sub prompt {
         print "$msg\n";
         my $t=<STDIN>;
         chomp $t;
-        return $t if $t;
-        if($msg=~/\[.*\]: $/){
-            return "";
+        if($t){
+            return $t;
+        }
+        elsif($msg=~/\[(.*)\]: $/){
+            return $1;
         }
     }
 }

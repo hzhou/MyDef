@@ -11,6 +11,8 @@ sub dumpout {
     my @source_stack;
     my $indentation=0;
     my @indentation_stack;
+    my @make_string_stack;
+    my $string_list=undef;
     while(1){
         my $l;
         if(@$out){
@@ -75,7 +77,29 @@ sub dumpout {
         }
         elsif($l=~/^NOOP/){
         }
-        else{
+        elsif($l=~/^MAKE_STRING:(.*)/){
+            my $t=$1;
+            $string_list=[];
+            push @make_string_stack, {quote=>'"', join=>'\n', line=>$t, list=>$string_list, indent=>$indentation};
+        }
+        elsif($l =~/^POP_STRING/){
+            my $h=pop @make_string_stack;
+            if(!$h){
+                die "Error POP_STRING\n";
+            }
+            if(@make_string_stack){
+                $string_list=$make_string_stack[-1]->{list};
+            }
+            else{
+                $string_list=undef;
+            }
+            my $l=$h->{list};
+            my $t=join('', @$l);
+            if($h->{line}=~/"STRING"/){
+                $t=~s/"/\\"/g;
+            }
+            my $l=$h->{line};
+            $l=~s/\bSTRING\b/$t/;
             if($l=~/^\s*$/){
                 push @$f, "\n";
             }
@@ -91,6 +115,40 @@ sub dumpout {
                 push @$f, $l;
                 if($l!~ /\n$/){
                     push @$f, "\n";
+                }
+            }
+        }
+        else{
+            if(@make_string_stack){
+                if($l=~/^\s*$/){
+                }
+                elsif($l=~/^\s*NEWLINE\b/){
+                    push @$string_list, "";
+                }
+                elsif($l =~/^PRINT (.*)/){
+                    push @$string_list, "    "x($indentation-$make_string_stack[-1]->{indent}-1) . $1;
+                }
+                else{
+                    push @$string_list, "    "x($indentation-$make_string_stack[-1]->{indent}-1) . $l;
+                }
+            }
+            else{
+                if($l=~/^\s*$/){
+                    push @$f, "\n";
+                }
+                elsif($l=~/^\s*NEWLINE\b/){
+                    push @$f, "\n";
+                }
+                elsif($l =~/^PRINT (.*)/){
+                    push @$f, "    "x$indentation;
+                    push @$f, "$1\n";
+                }
+                else{
+                    push @$f, "    "x$indentation;
+                    push @$f, $l;
+                    if($l!~ /\n$/){
+                        push @$f, "\n";
+                    }
                 }
             }
         }
