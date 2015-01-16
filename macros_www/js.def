@@ -13,6 +13,10 @@ subcode:: dumpout
     $foreach $v in @js_globals
 	push @$block, "var $v;\n"
 
+subcode: js_parsecode_other
+    $if $l!~/[:\(\{\};,]\s*$/
+	$l.=';'
+
 subcode: js_parse_func_param
 
 subcode: js_parse_func

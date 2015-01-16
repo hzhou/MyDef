@@ -37,12 +37,14 @@ subcode:: preproc_elifs
 	foreach my $tt(split /,/, $t){
 	    $deflist->[-1]->{$tt}="$preset$tt";
 	}
-    $elif $preproc=~/^reset:\s*(\w+)([+])?=(.*)/
+    $elif $preproc=~/^reset:\s*(\w+)([\.\+\-])?=(.*)/
 	my ($v, $op, $d)=($1, $2, $3, $4)
 	expand_macro_recurse(\$d)
 	my $i=$#$deflist;
 	$while $i>0 and !defined $deflist->[$i]->{$v}
-	    $i--;
+	    $i--
+	$if $i==0
+	    $i=-1
 	$if $op
 	    $deflist->[$i]->{$v}=calc_op($deflist->[$i]->{$v}, $op, $d)
 	$else
@@ -68,6 +70,8 @@ subcode:: preproc_elifs
 
 subcode:: support_subs
     $sub calc_op($v, $op, $d)
+	$if $op eq "."
+	    return $v . $d
 	my $ret=get_numeric($v)
 	$if $op eq "+"
 	    $ret+=get_numeric($d)

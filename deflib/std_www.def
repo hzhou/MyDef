@@ -64,7 +64,14 @@ htmlcode: input_pass(name)
 
 ## JavaScript -----------------------------------------------------
 jscode: setf(target)
+    $(allow_recurse:10)
     $(target) = function(){
+	BLOCK
+    };
+
+jscode: setfa(target, @arg)
+    $(allow_recurse:10)
+    $(target) = function($(arg)){
 	BLOCK
     };
 
