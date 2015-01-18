@@ -134,7 +134,10 @@ subcode: parse_main
 		$elsif $stage =~/^macros$/
 		    $call process_macros
 		$elsif $stage =~/^(page)$/
-		    $call process_page_macros
+		    $if $line=~/^(\w+):\s*(.*)/
+			$call process_page_macros
+		    $else
+			$call jump_to_main_code
 
 subcode:: perfile_variables
     my $stage="";
@@ -275,6 +278,27 @@ subcode: end_subcode
 	push @$source, @$orig_source
 	$codes->{$cur_codename}->{source}=$source
 
+#---------------------------------------- 
+subcode: jump_to_main_code
+    my $src_location="SOURCE: $cur_file - $cur_line";
+    $source=[$src_location]
+    push @$source, $line
+    $codeindent=1
+    $lastindent=$codeindent
+    # -------------------
+    $stage='code'
+    $cur_codename="main"
+
+    my $t_code={'type'=>"sub", 'source'=>$source, 'params'=>[], 'name'=>"main"};
+
+    $if $page->{codes}->{main}
+	$page->{codes}->{'main2'}=$t_code;
+    $else
+	$page->{codes}->{"main"}=$t_code;
+
+    # prevent starting empty line triger dedent
+    $curindent=$codeindent
+
 # --------------------------------------------------------
 subcode: start_page
     my ($pagename, $maincode)
@@ -349,9 +373,9 @@ subcode: process_macros
 	    $macros->{$k}=$v
 
 subcode: process_page_macros
-    $if $line=~/^source: (.*)/
+    $if $1 eq "source"
 	$page->{codes}->{main}={'type'=>"sub", 'source'=>["\$call $1"], 'params'=>[]};
-    $elsif $line=~/^(\w+): (.*)/
+    $else
 	my $k=$1;
 	my $v=$2;
 	expand_macro(\$v, $macros);

@@ -13,6 +13,7 @@ htmlcode: basic_frame
 
 htmlcode: js_frame
     $call @css_global
+    <!doctype html>
     $html
 	$head
 	    DUMP_STUB meta
@@ -42,7 +43,7 @@ htmlcode: form_input(name)
 		$div formhelp
 		    PRINT $(name.help)
         $td input
-	    $(if:name.type=password)
+	    $(if:name.type=password or name=password)
 		$call input_pass, $(name)
 	    $(else)
 		$call input_text, $(name)
@@ -62,6 +63,8 @@ htmlcode: input_text(name)
 htmlcode: input_pass(name)
     <input type="password" class="textinput" name="$(name)">
 
+htmlcode: input_submit(label)
+    <input type="submit" value="$(label)">
 ## JavaScript -----------------------------------------------------
 jscode: setf(target)
     $(allow_recurse:10)
@@ -90,4 +93,9 @@ jscode: auto
     (function() {
 	BLOCK
     }());
+
+jscode: load_element(name)
+    $global $(name)
+    $(name) = document.querySelector("#$(name)");
+
 # ------------------------------------------
