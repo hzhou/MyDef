@@ -28,15 +28,15 @@ subcode: compile_main
 	$page->{outdir}=$outdir
 	$call compile
 
-    $sub output
-	my ($plines, $ext)=@_;
+    $sub output($plines)
 	my $page=$MyDef::page
 	my $pagename=$page->{pagename}
+	my $pageext=$page->{pageext}
 	my $outdir=$page->{outdir}
 
 	my $outname=$outdir."/".$pagename;
-	$if $ext
-	    $outname.=".$ext";
+	$if $pageext
+	    $outname.=".$pageext";
 	print "  --> [$outname]\n";
 
 	open Out, ">$outname" or die "Can't write $outname\n";
@@ -83,7 +83,7 @@ subcode:: package_global
 
 
 subcode: compile
-    my ($ext, $mode)=$f_init->($page);
+    my $mode=$f_init->($page);
     $if $mode
 	modepush($mode)
     init_output();
@@ -124,7 +124,7 @@ subcode: compile
     $if !$page->{subpage}
 	my @buffer;
 	$f_dumpout->(\@buffer, fetch_output(0), $page->{type});
-	return (\@buffer, $ext);
+	return \@buffer
 
 subcode: output_outdir
     my $outdir=".";

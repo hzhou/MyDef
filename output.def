@@ -26,19 +26,11 @@ subcode: output_main
 	$page=$t_page
 	# ---- Set output file extension
 	$(if:ext)
-	    my $ext="$(ext)"
+	    MyDef::set_page_extension("$(ext)")
 	$(else)
-	    my $ext
-	$if $MyDef::var->{filetype}
-	    $ext=$MyDef::var->{filetype}
-	$if $page->{type}
-	    $ext=$page->{type};
-	$if $ext eq "none"
-	    $ext=""
+	    MyDef::set_page_extension(undef)
 	$call @init_page
-	$page->{pageext}=$ext 
-	my $init_mode=$page->{init_mode}
-	return ($ext, $init_mode)
+	return $page->{init_mode}
 
     $sub set_output($newout)
 	$out = $newout
@@ -99,11 +91,12 @@ subcode: inherit_c
 
     $sub init_page
 	my ($page)=@_
+	# overwrite default .c extension
 	$if !$page->{type}
 	    $page->{type}="$(ext)"
-	my ($ext, $c_init_mode) = $(C)init_page(@_)
+	$(C)init_page(@_)
 	$call @on_init
-	return ($ext, "$(init_mode)");
+	return $page->{init_mode}
 
     $sub parsecode($l)
 	$call parsecode_eval

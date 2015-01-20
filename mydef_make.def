@@ -28,7 +28,7 @@ page: mydef_make
 	    $call create_config
 	$call read_config
 
-	print STDERR "    output_path: $config_outputdir\n";
+	print STDERR "    output_dir: $config_outputdir\n";
 
 	# -- recursive make folders, copylist
 	my @make_folders;
@@ -98,7 +98,7 @@ subcode: copy_master_config
 	    my @tt;
 	    push @tt, "..";
 	    $foreach $s in @t
-		$if $s!~/^\// and -d $s
+		$if $s!~/^\// or -d $s
 		    push @tt, "../$s";
 		$else
 		    push @tt, $s;
@@ -216,7 +216,7 @@ subcode: check_eachfile
     $while my $f=pop @files
 	my @page_list;
 	my $page;
-	my $output_path;
+	my $output_dir
 	$if !$h_def{$f} or $h_def{$f} == 1
 	    my $deplist=[];
 	    $h_def{$f}=$deplist;
@@ -229,10 +229,10 @@ subcode: check_eachfile
 		$if !$inpage
 		    $call check_file_notinpage
 	    close In;
-	    $if $output_path
+	    $if $output_dir
 		$foreach $page in @page_list
 		    $if !$page->{output_dir}
-			$page->{output_dir}=$output_path
+			$page->{output_dir}=$output_dir
 
 subcode: check_file_inpage
     $if /^\s*output_dir: (\S+)/
@@ -275,14 +275,14 @@ subcode: check_file_notinpage
 	$while $h_page{$key}
 	    $key.='1';
 	$h_page{$key}=$page;
-    $elif /^output_dir: (\S+)/
-	$output_path=$1
+    $elif /^output_(dir|path): (\S+)/
+	$output_dir=$1
 
 subcode: outputdir_inpage
     my $dir=expand_macros($1);
 
-    $if $dir !~/^[\/\.]/ and $output_path
-	$dir=$output_path."/".$dir
+    $if $dir !~/^[\/\.]/ and $output_dir
+	$dir=$output_dir."/".$dir
     $page->{output_dir}=$dir;
     my $tlist=$folder{$dir};
     $if $tlist

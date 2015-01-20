@@ -51,14 +51,17 @@ subcode: mydef_subs
     $sub createpage_lines
 	my ($pagename)=@_;
 	$page=$def->{pages}->{$pagename};
-	my ($plines, $ext)=MyDef::compileutil::compile
+	my $plines=MyDef::compileutil::compile()
 	return $plines;
 
     $sub createpage
 	my ($pagename)=@_;
 	$page=$def->{pages}->{$pagename};
-	my ($plines, $ext)=MyDef::compileutil::compile
-	MyDef::compileutil::output($plines, $ext);
+	$if $page->{output_path} and !$page->{output_dir}
+	    $page->{output_dir}=$page->{output_path}
+
+	my $plines=MyDef::compileutil::compile()
+	MyDef::compileutil::output($plines)
 
     $sub import_data_lines
 	my $plines=shift;
@@ -76,6 +79,18 @@ subcode: mydef_subs
 	    return 1;
 	$else
 	    return 0;
+
+    $sub set_page_extension($default_ext)
+	my $ext=$default_ext
+	$if exists $var->{filetype}
+	    $ext=$var->{filetype}
+	$if exists $page->{type}
+	    $ext=$page->{type};
+	$if $ext eq "none"
+	    $ext=""
+
+	$page->{pageext}=$ext 
+
     # --------------------------
     $sub import_config
 	my ($file)=@_;
@@ -85,6 +100,9 @@ subcode: mydef_subs
 	    $if /^(\w+):\s*(.*\S)/
 		$var->{$1}=$2;
 	close In;
+	
+	$if $var->{output_path} and !$var->{output_dir}
+	    $var->{output_dir}=$var->{output_path}
 
     1;
 

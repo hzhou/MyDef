@@ -82,7 +82,6 @@ subcode: dumpout
 	    # messages from compileutil.pm
 	$elif $l=~/^NOOP/
 	    # messages from compileutil.pm
-	# $elif $l =~/^MAKE_STRING\((.+),(.+)\):(.*)/
 	$elif $l=~/^MAKE_STRING:(.*)/
 	    my $t=$1
 	    $string_list=[]

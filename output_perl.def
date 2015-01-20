@@ -10,8 +10,7 @@ page: output_perl, output_main
 
 subcode: init_page
     $if $page->{package} and !$page->{type}
-	$page->{type}="pm"
-	$ext="pm"
+	MyDef::set_page_extension("pm")
     $elif !$page->{package} and $page->{type} eq "pm"
 	$page->{package}=$page->{pagename}
 
