@@ -65,6 +65,7 @@ htmlcode: input_pass(name)
 
 htmlcode: input_submit(label)
     <input type="submit" value="$(label)">
+
 ## JavaScript -----------------------------------------------------
 jscode: setf(target)
     $(allow_recurse:10)

@@ -123,7 +123,7 @@ subcode: dumpout
     # needed for wrapping up &case support
     parsecode("NOOP")
     # ---------------
-    $if !defined $pagetype or $pagetype eq "pl"
+    $if !$pagetype or $pagetype eq "pl"
 	push @$f, "#!/usr/bin/perl\n"
 
     $if $pagetype ne "eval"

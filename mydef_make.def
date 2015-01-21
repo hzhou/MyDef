@@ -6,7 +6,7 @@ include: macros_util/debug.def
 
 page: mydef_make
     output_dir: script
-    type: pl
+    type:
     subcode: main
 	$call package_global
 	my $script=$0;
@@ -341,7 +341,7 @@ subcode: expand_dependency
 
 subcode: write_makefile
     open Out, ">Makefile" or die "Can't write Makefile\n";
-    print Out "MakePage=mydef_page.pl\n";
+    print Out "MakePage=mydef_page\n";
     print Out "\n";
 
     $call write_var_folder

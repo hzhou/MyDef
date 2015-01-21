@@ -137,6 +137,8 @@ subcode: parsecode_other
 	$call @php_parsecode_other
     $elif $cur_mode eq "js"
 	$call @js_parsecode_other
+    $elif $cur_mode eq "html"
+	$call @html_parsecode_other
 
 subcode: check_inline_php
     #print "check_inline_php $l\n";

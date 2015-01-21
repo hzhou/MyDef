@@ -1,9 +1,9 @@
 page: test
     type: pl
     subcode: main
-	# $call test_proper_split
+	$call test_proper_split
 	# $call test_benchmark
-	$call test_c_expression
+	# $call test_c_expression
 
 subcode: test_proper_split
     use MyDef::utils
