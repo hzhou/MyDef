@@ -163,15 +163,6 @@ subcode:: support_subs
 		$if !testcondition($n)
 		    return 0;
 	    return 1;
-	$elsif $cond=~/^\s*(\w+)\.(\w+)/
-	    $if $1 eq "fields"
-		$if $MyDef::def->{fields}->{$2}
-		    return 1;
-	    $else
-		my $t=get_def($1);
-		$if $t
-		    $if $MyDef::def->{fields}->{$t}->{$2}
-			return 1;
 	$elsif $cond=~/^\s*(\w+)(.*)/
 	    my $t=get_def($1);
 	    $if !$2

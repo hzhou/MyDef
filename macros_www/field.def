@@ -1,9 +1,9 @@
 # -----------------------------------------------------------
 subcode:: support_subs
     $sub sql_value($varname, $colname)
-	my $fields=$MyDef::def->{fields};
-	my $ff=$fields->{varname}
-	my $type=getfieldtype($ff, $colname);
+	my $type=MyDef::compileutil::get_def("$varname"."_type")
+	$if !$type
+	    $type=getfieldtype($colname);
 	$if $type =~/^(int|uint|boolean)$/
 	    push @$out, "if(is_numeric(\$$varname)){";
 	    push @$out, "    \$t_$varname=\$$varname;";
@@ -23,7 +23,8 @@ subcode:: support_subs
 	$elsif $type eq 'today' or $type eq 'curdate'
 	    return "CURDATE()";
 	$else
-	    $if $ff->{null_on_empty}
+	    my $null=MyDef::compileutil::get_def("$varname"."_null")
+	    $if $null
 		push @$out, "if(\$$varname){";
 		push @$out, "    \$t_$varname=\"'\".addslashes(\$$varname).\"'\";";
 		push @$out, "}";
@@ -35,11 +36,9 @@ subcode:: support_subs
 		push @$out, "\$t_$varname=addslashes(\$$varname);";
 		return "'\$t_$varname'";
 
-    $sub getfieldtype($ff, $colname)
+    $sub getfieldtype($colname)
 	my $type;
-	$if $ff->{type}
-	    return $ff->{type};
-	$elsif $colname=~/_id$/
+	$if $colname=~/_id$/
 	    $type="uint";
 	$elsif $colname=~/_date$/ or $colname=~/^date_/
 	    $type="date";
@@ -67,6 +66,5 @@ subcode:: support_subs
 	    $type='email';
 	$elsif $colname =~ /city_state_zip/
 	    $type='city_state_zip';
-	$ff->{type}=$type;
 	return $type;
 

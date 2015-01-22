@@ -99,4 +99,14 @@ jscode: load_element(name)
     $global $(name)
     $(name) = document.querySelector("#$(name)");
 
+jscode: animate
+    $global time_old=0
+    $function animate_update(time)
+	var dt=time-time_old
+	$if dt>30
+	    BLOCK
+	    time_old=time
+	window.requestAnimationFrame(animate_update)
+    animate_update(0)
+
 # ------------------------------------------

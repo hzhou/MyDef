@@ -124,14 +124,12 @@ subcode: parse_main
 			my @tlist=split /,\s*/, $1
 			$grab->{"_parents"}=\@tlist
 		$elif $line=~/^(\w+)/
-		    # fields, macros,
+		    # macros,
 		    $stage=$1;
 		    $if !$def->{$stage}
 			$def->{$stage}={};
 	    $else
-		$if $stage =~ /^(fields)$/
-		    $call process_fields
-		$elsif $stage =~/^macros$/
+		$if $stage =~/^macros?$/
 		    $call process_macros
 		$elsif $stage =~/^(page)$/
 		    $if $line=~/^(\w+):\s*(.*)/
@@ -331,38 +329,20 @@ subcode: add_page
     $pages->{$pagename}=$page;
     push @$pagelist, $pagename
 
-subcode: process_fields
-    $if $line=~/^optional:(.*)/
-	my @tlist=split(/,/, $1);
-	$foreach my $t in @tlist
-	    $if $t=~/(\w+)/
-		$if $def->{$stage}->{$1}
-		    $def->{$stage}->{$1}->{optional}=1;
-		$else
-		    $def->{$stage}->{$1}={optional=>1};
-    $elsif $curindent==1
-	$if $line=~/^([a-zA-Z0-9-_]+):\s*(.*)$/
-	    $if $def->{$stage}->{$1}
-		$item=$def->{$stage}->{$1};
-	    $else
-		$item={};
-		$def->{$stage}->{$1}=$item;
-	    $if $2
-		$item->{type}=$2;
-		$item->{value}=$2;
-		$item->{title}=$2;
-    $elsif $line=~/^(\w+): (.*)/
-	my $k=$1;
-	my $v=$2;
-	expand_macro(\$v, $macros);
-	$if $item->{$k}
-	    print STDERR " Denied overwriting $k with $v\n" if $debug>1;
-	$else
-	    $item->{$k}=$v;
+#---------------------------------------- 
+subcode:: perfile_variables
+    my @macro_names
 
 subcode: process_macros
     $if $line=~/^(\w+):(:)? (.*\S)/
 	my ($k,$dblcolon, $v)=($1, $2, $3)
+	$if $curindent==1
+	    $macro_names[0]=$k
+	$else
+	    $macro_names[$curindent-1]=$k
+	    splice @macro_names, $curindent
+	    $k=join('_', @macro_names)
+
 	expand_macro(\$v, $macros);
 	$if $macros->{$k}
 	    $if $dblcolon
