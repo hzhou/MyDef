@@ -231,16 +231,7 @@ sub get_interface {
 sub init_page {
     my ($t_page)=@_;
     $page=$t_page;
-    my $ext="c";
-    if($MyDef::var->{filetype}){
-        $ext=$MyDef::var->{filetype};
-    }
-    if($page->{type}){
-        $ext=$page->{type};
-    }
-    if($ext eq "none"){
-        $ext="";
-    }
+    MyDef::set_page_extension("c");
     if($MyDef::def->{"macros"}->{"use_double"} or $page->{"use_double"}){
         $type_name{f}="double";
         $type_prefix{f}="double";
@@ -270,9 +261,7 @@ sub init_page {
     @function_stack=();
     %list_function_hash=();
     @list_function_list=();
-    $page->{pageext}=$ext;
-    my $init_mode=$page->{init_mode};
-    return ($ext, $init_mode);
+    return $page->{init_mode};
 }
 sub set_output {
     my ($newout)=@_;

@@ -64,6 +64,7 @@ sub import_file {
     my $source;
     my $cur_codename;
     my $code_prepend;
+    my @macro_names;
     if(!$plines){
         $plines=get_lines($f);
     }
@@ -91,7 +92,7 @@ sub import_file {
         elsif($line=~/^(\s*)(.*)/){
             my $indent=getindent($1);
             $line=$2;
-            if($line=~/^#(?!define)/){
+            if($line=~/^#(?!(define|undef|include|line|error|pragma|if|elif|else))/){
                 if($indent != $curindent){
                     $line="NOOP";
                 }
@@ -266,51 +267,17 @@ sub import_file {
             }
         }
         else{
-            if($stage =~ /^(fields)$/){
-                if($line=~/^optional:(.*)/){
-                    my @tlist=split(/,/, $1);
-                    foreach my $t (@tlist){
-                        if($t=~/(\w+)/){
-                            if($def->{$stage}->{$1}){
-                                $def->{$stage}->{$1}->{optional}=1;
-                            }
-                            else{
-                                $def->{$stage}->{$1}={optional=>1};
-                            }
-                        }
-                    }
-                }
-                elsif($curindent==1){
-                    if($line=~/^([a-zA-Z0-9-_]+):\s*(.*)$/){
-                        if($def->{$stage}->{$1}){
-                            $item=$def->{$stage}->{$1};
-                        }
-                        else{
-                            $item={};
-                            $def->{$stage}->{$1}=$item;
-                        }
-                        if($2){
-                            $item->{type}=$2;
-                            $item->{value}=$2;
-                            $item->{title}=$2;
-                        }
-                    }
-                }
-                elsif($line=~/^(\w+): (.*)/){
-                    my $k=$1;
-                    my $v=$2;
-                    expand_macro(\$v, $macros);
-                    if($item->{$k}){
-                        print STDERR " Denied overwriting $k with $v\n" if $debug>1;
-                    }
-                    else{
-                        $item->{$k}=$v;
-                    }
-                }
-            }
-            elsif($stage =~/^macros$/){
+            if($stage =~/^macros?$/){
                 if($line=~/^(\w+):(:)? (.*\S)/){
                     my ($k,$dblcolon, $v)=($1, $2, $3);
+                    if($curindent==1){
+                        $macro_names[0]=$k;
+                    }
+                    else{
+                        $macro_names[$curindent-1]=$k;
+                        splice @macro_names, $curindent;
+                        $k=join('_', @macro_names);
+                    }
                     expand_macro(\$v, $macros);
                     if($macros->{$k}){
                         if($dblcolon){
@@ -326,14 +293,33 @@ sub import_file {
                 }
             }
             elsif($stage =~/^(page)$/){
-                if($line=~/^source: (.*)/){
-                    $page->{codes}->{main}={'type'=>"sub", 'source'=>["\$call $1"], 'params'=>[]};
+                if($line=~/^(\w+):\s*(.*)/){
+                    if($1 eq "source"){
+                        $page->{codes}->{main}={'type'=>"sub", 'source'=>["\$call $1"], 'params'=>[]};
+                    }
+                    else{
+                        my $k=$1;
+                        my $v=$2;
+                        expand_macro(\$v, $macros);
+                        $page->{$k}=$v;
+                    }
                 }
-                elsif($line=~/^(\w+): (.*)/){
-                    my $k=$1;
-                    my $v=$2;
-                    expand_macro(\$v, $macros);
-                    $page->{$k}=$v;
+                else{
+                    my $src_location="SOURCE: $cur_file - $cur_line";
+                    $source=[$src_location];
+                    push @$source, $line;
+                    $codeindent=1;
+                    $lastindent=$codeindent;
+                    $stage='code';
+                    $cur_codename="main";
+                    my $t_code={'type'=>"sub", 'source'=>$source, 'params'=>[], 'name'=>"main"};
+                    if($page->{codes}->{main}){
+                        $page->{codes}->{'main2'}=$t_code;
+                    }
+                    else{
+                        $page->{codes}->{"main"}=$t_code;
+                    }
+                    $curindent=$codeindent;
                 }
             }
         }

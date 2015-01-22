@@ -68,7 +68,7 @@ sub test_op {
         $test=$';
         $a=substr($a, 0, $1);
     }
-    elsif($test=~/\s*(~|=|!=|<|>)(.*)/){
+    if($test=~/\s*(~|=|!=|<|>)(.*)/){
         my ($op, $b)=($1, $2);
         if($op eq "="){
             if($a eq $b){ return 1;};
@@ -88,6 +88,9 @@ sub test_op {
         else{
             return 0;
         }
+    }
+    elsif($test=~/\s*in\s+(.*)/){
+        return test_in($a, $1);
     }
     else{
         return defined $a;
@@ -182,10 +185,6 @@ sub testcondition {
             return 1;
         }
     }
-    elsif($cond=~/^(\w+)\s+in\s+(.*)/){
-        my $t=get_def($1);
-        return test_in($t, $2);
-    }
     elsif($cond=~/,/){
         my @nlist=split /,/, $cond;
         foreach my $n (@nlist){
@@ -194,21 +193,6 @@ sub testcondition {
             }
         }
         return 1;
-    }
-    elsif($cond=~/^\s*(\w+)\.(\w+)/){
-        if($1 eq "fields"){
-            if($MyDef::def->{fields}->{$2}){
-                return 1;
-            }
-        }
-        else{
-            my $t=get_def($1);
-            if($t){
-                if($MyDef::def->{fields}->{$t}->{$2}){
-                    return 1;
-                }
-            }
-        }
     }
     elsif($cond=~/^\s*(\w+)(.*)/){
         my $t=get_def($1);
@@ -766,13 +750,6 @@ sub parseblock {
                         set_macro($deflist->[-2], $p);
                     }
                 }
-                elsif($preproc=~/^preset:([^:]+):(.*)/){
-                    my $preset=$1;
-                    my $t=$2;
-                    foreach my $tt(split /,/, $t){
-                        $deflist->[-1]->{$tt}="$preset$tt";
-                    }
-                }
                 elsif($preproc=~/^reset:\s*(\w+)([\.\+\-])?=(.*)/){
                     my ($v, $op, $d)=($1, $2, $3, $4);
                     expand_macro_recurse(\$d);
@@ -791,12 +768,9 @@ sub parseblock {
                     }
                 }
                 elsif($preproc=~/^unset:\s*(\w+)/){
-                    my $v=$1;
-                    my $i=$#$deflist;
-                    while($i>0 and !defined $deflist->[$i]->{$v}){
-                        $i--;
+                    foreach my $m (@$deflist){
+                        delete $m->{$1};
                     }
-                    delete $deflist->[$i]->{$v};
                 }
                 elsif($preproc=~/^eval:\s*(\w+)=(.*)/){
                     my ($t1,$t2)=($1,$2);
@@ -1132,31 +1106,7 @@ sub expand_macro {
         my @segs=split /(\$\(\w[^()]*\))/, $$lref;
         my $j=0;
         foreach my $s (@segs){
-            if($s=~/^\$\((\w+)\.(\w+)\)/){
-                my $t=$macros->{$1};
-                if($t){
-                    my $tt=$MyDef::def->{fields}->{$t};
-                    if($tt){
-                        if($tt->{$2}){
-                            $segs[$j]=$tt->{$2};
-                        }
-                        elsif($2 eq "title"){
-                            $segs[$j]=$t;
-                        }
-                        else{
-                            $segs[$j]="";
-                        }
-                        $updated++;
-                    }
-                    else{
-                        if($2 eq "title"){
-                            $segs[$j]=$t;
-                            $updated++;
-                        }
-                    }
-                }
-            }
-            elsif($s=~/^\$\(rep\[(.*?)\](\d+):(.*)\)/){
+            if($s=~/^\$\(rep\[(.*?)\](\d+):(.*)\)/){
                 if($2>1){
                     $segs[$j]="$3$1" x ($2-1) . $3;
                     $updated++;
@@ -1466,7 +1416,7 @@ sub compile {
         }
     }
     $page->{outdir}=$outdir;
-    my ($ext, $mode)=$f_init->($page);
+    my $mode=$f_init->($page);
     if($mode){
         modepush($mode);
     }
@@ -1501,17 +1451,18 @@ sub compile {
     if(!$page->{subpage}){
         my @buffer;
         $f_dumpout->(\@buffer, fetch_output(0), $page->{type});
-        return (\@buffer, $ext);
+        return \@buffer;
     }
 }
 sub output {
-    my ($plines, $ext)=@_;
+    my ($plines)=@_;
     my $page=$MyDef::page;
     my $pagename=$page->{pagename};
+    my $pageext=$page->{pageext};
     my $outdir=$page->{outdir};
     my $outname=$outdir."/".$pagename;
-    if($ext){
-        $outname.=".$ext";
+    if($pageext){
+        $outname.=".$pageext";
     }
     print "  --> [$outname]\n";
     open Out, ">$outname" or die "Can't write $outname\n";

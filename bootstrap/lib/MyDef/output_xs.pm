@@ -13,11 +13,11 @@ sub init_page {
     if(!$page->{type}){
         $page->{type}="xs";
     }
-    my ($ext, $c_init_mode) = MyDef::output_c::init_page(@_);
+    MyDef::output_c::init_page(@_);
     $MyDef::output_c::type_prefix{"hv"}= "HV*";
     $MyDef::output_c::type_prefix{"av"}= "AV*";
     $MyDef::output_c::type_prefix{"sv"}= "SV*";
-    return ($ext, "sub");
+    return $page->{init_mode};
 }
 sub parsecode {
     my ($l)=@_;

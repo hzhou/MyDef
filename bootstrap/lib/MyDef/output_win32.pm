@@ -12,10 +12,10 @@ sub init_page {
     if(!$page->{type}){
         $page->{type}="c";
     }
-    my ($ext, $c_init_mode) = MyDef::output_c::init_page(@_);
+    MyDef::output_c::init_page(@_);
     MyDef::output_c::parsecode("\$global HINSTANCE cur_instance");
     MyDef::output_c::parsecode("\$global HWND hwnd_main");
-    return ($ext, "sub");
+    return $page->{init_mode};
 }
 sub parsecode {
     my ($l)=@_;

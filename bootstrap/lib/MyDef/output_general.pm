@@ -11,19 +11,8 @@ sub get_interface {
 sub init_page {
     my ($t_page)=@_;
     $page=$t_page;
-    my $ext="txt";
-    if($MyDef::var->{filetype}){
-        $ext=$MyDef::var->{filetype};
-    }
-    if($page->{type}){
-        $ext=$page->{type};
-    }
-    if($ext eq "none"){
-        $ext="";
-    }
-    $page->{pageext}=$ext;
-    my $init_mode=$page->{init_mode};
-    return ($ext, $init_mode);
+    MyDef::set_page_extension("txt");
+    return $page->{init_mode};
 }
 sub set_output {
     my ($newout)=@_;

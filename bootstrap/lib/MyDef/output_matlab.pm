@@ -20,23 +20,12 @@ sub get_interface {
 sub init_page {
     my ($t_page)=@_;
     $page=$t_page;
-    my $ext="m";
-    if($MyDef::var->{filetype}){
-        $ext=$MyDef::var->{filetype};
-    }
-    if($page->{type}){
-        $ext=$page->{type};
-    }
-    if($ext eq "none"){
-        $ext="";
-    }
+    MyDef::set_page_extension("m");
     undef @func_input;
     undef @func_return;
     undef $func_varargout;
     undef $func_varargin;
-    $page->{pageext}=$ext;
-    my $init_mode=$page->{init_mode};
-    return ($ext, $init_mode);
+    return $page->{init_mode};
 }
 sub set_output {
     my ($newout)=@_;

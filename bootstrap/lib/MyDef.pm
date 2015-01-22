@@ -98,14 +98,17 @@ sub addpath {
 sub createpage_lines {
     my ($pagename)=@_;
     $page=$def->{pages}->{$pagename};
-    my ($plines, $ext)=MyDef::compileutil::compile;
+    my $plines=MyDef::compileutil::compile();
     return $plines;
 }
 sub createpage {
     my ($pagename)=@_;
     $page=$def->{pages}->{$pagename};
-    my ($plines, $ext)=MyDef::compileutil::compile;
-    MyDef::compileutil::output($plines, $ext);
+    if($page->{output_path} and !$page->{output_dir}){
+        $page->{output_dir}=$page->{output_path};
+    }
+    my $plines=MyDef::compileutil::compile();
+    MyDef::compileutil::output($plines);
 }
 sub import_data_lines {
     my $plines=shift;
@@ -127,6 +130,20 @@ sub is_sub {
         return 0;
     }
 }
+sub set_page_extension {
+    my ($default_ext)=@_;
+    my $ext=$default_ext;
+    if(exists $var->{filetype}){
+        $ext=$var->{filetype};
+    }
+    if(exists $page->{type}){
+        $ext=$page->{type};
+    }
+    if($ext eq "none"){
+        $ext="";
+    }
+    $page->{pageext}=$ext;
+}
 sub import_config {
     my ($file)=@_;
     open In, $file or return;
@@ -136,5 +153,8 @@ sub import_config {
         }
     }
     close In;
+    if($var->{output_path} and !$var->{output_dir}){
+        $var->{output_dir}=$var->{output_path};
+    }
 }
 1;

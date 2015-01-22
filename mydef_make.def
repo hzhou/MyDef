@@ -241,6 +241,8 @@ subcode: check_file_inpage
 	$page->{include}->{$1}=1;
     $elif /^\s*type: (\w+)/
 	$page->{type}=$1;
+    $elif /^\s*type:\s*$/
+	$page->{type}="none"
     $elif /^\s*module:\s*(\w+)/
 	$page->{module}=$1;
     $elif /^\s*depend:\s+(.*)/

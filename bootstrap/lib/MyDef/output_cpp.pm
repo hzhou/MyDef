@@ -12,8 +12,8 @@ sub init_page {
     if(!$page->{type}){
         $page->{type}="cpp";
     }
-    my ($ext, $c_init_mode) = MyDef::output_c::init_page(@_);
-    return ($ext, "sub");
+    MyDef::output_c::init_page(@_);
+    return $page->{init_mode};
 }
 sub parsecode {
     my ($l)=@_;
