@@ -85,7 +85,7 @@ page: output_c, output_main
 
 	# ---- Header stuff --------------------------
 	$if !$page->{has_stub_global_init}
-	    unshift @$out, "\n/**** END GLOBAL INIT ****/\n"
+	    # unshift @$out, "\n/**** END GLOBAL INIT ****/\n"
 	    unshift @$out, "DUMP_STUB global_init"
 
 	$if $page->{autoload} eq "h"

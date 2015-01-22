@@ -176,7 +176,8 @@ subcode: expand_macro_seg
 		    $t=~s/\$$i/$pp/g
 		    $i++
 		$segs[$j]=$t
-    $elsif $s=~/^\$\((.+)\)/
+    $elif $s=~/^\$\((.+)\)/
+        #---- straight macro ----
 	$if exists($macros->{$1})
 	    my $t=$macros->{$1};
 	    $if $t eq $s
