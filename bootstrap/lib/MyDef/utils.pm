@@ -15,8 +15,8 @@ sub proper_split {
         if($param=~/\G$/gc){
             last;
         }
-        elsif($param=~/\G\s+/gc){
-            if(@closure_stack){
+        elsif($param=~/\G(\s+)/gc){
+            if($t or @closure_stack){
                 $t.=$1;
             }
             else{
@@ -58,7 +58,7 @@ sub proper_split {
                     $match='{';
                 }
                 my $pos=-1;
-                for(my $i=0; $i < @closure_stack; $i++){
+                for(my $i=0; $i <@closure_stack; $i++){
                     if($match==$closure_stack[$i]){
                         $pos=$i;
                     }
@@ -76,6 +76,9 @@ sub proper_split {
             print "[$curfile]proper_split: unmatched $1 [$param]\n";
             $t.=$1;
         }
+    }
+    if($t){
+        $t=~s/\s+$//;
     }
     if($t or @tlist){
         push @tlist, $t;

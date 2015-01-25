@@ -66,30 +66,6 @@ subcode: parsecode_func_param
 	    $if $param1=~/^,\s*(\w+)/
 		global_add_symbol("int $1")
 	return
-    $elsif $func eq "enumbase"
-	my $base=0;
-	$if $param1=~/(\w*),\s*(\d+)/
-	    $param1=$1
-	    $base=$2
-	$if $param1
-	    $param1.="_"
-	my @plist=split /,\s+/, $param2;
-	$foreach my $t in @plist
-	    add_define("$param1$t", $base)
-	    $base++;
-	return
-    $elsif $func eq "enumbit"
-	my $base=0;
-	$if $param1=~/(\w*),\s*(\d+)/
-	    $param1=$1
-	    $base=$2
-	$if $param1
-	    $param1.="_"
-	my @plist=split /,\s+/, $param2;
-	$foreach my $t in @plist
-	    add_define("$param1$t",0x1<<$base)
-	    $base++;
-	return
     $elif $func eq "write_h"
 	$call write_h, $param1, $param2
 	return
@@ -157,8 +133,8 @@ subcode: parsecode_func
 subcode: parsecode_other
     $if !$l or $l=~/^\s*$/
 	# NOOP
-    $elif $l=~/^\s*#(define|include|if|else|endif)/
-	# NOOP
+    $elif $l=~/^\s*#/
+	# Preprocessor
     $elif $l=~/^\s*(for|while|if|else if)\s*\(.*\)\s*$/
 	# NOOP
     $elif $l=~/[:\(\{\};,]\s*$/

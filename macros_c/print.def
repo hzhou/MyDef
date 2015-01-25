@@ -29,6 +29,7 @@ subcode:: parsecode_func_other
 subcode:: c_support_subs
     $sub fmt_string($str, $add_newline)
 	# print "fmt_string: [$str]\n"
+        $str=~s/\s*$//
 	my @pre_list
 	$if $str=~/^\s*\"(.*)\"\s*,\s*(.*)$/
 	    $str=$1
@@ -66,6 +67,8 @@ subcode:: c_support_subs
 		    push @fmt_list, "\\x1b[$colors{$1}m"
 		    &call if_lex, \{
 			push @group, $1
+		&call if_lex, reset
+                    push @fmt_list, "\\x1b[0m"
 		&call if_lex, (\w+)
 		    #---------------------------------------- 
 		    my $v=$1

@@ -1,5 +1,6 @@
 page: mydef_page
     output_dir: script
+    type:
     subcode: main
 	#Usage: perl createpages.pl def_file
 	use MyDef;

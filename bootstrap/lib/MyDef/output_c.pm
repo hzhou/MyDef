@@ -86,13 +86,13 @@ sub close_scope {
             $pre=MyDef::compileutil::get_named_block("_pre");
         }
         foreach my $v (@$var_list){
-            if($global_hash->{$v}){
-                my $curfile=MyDef::compileutil::curfile_curline();
-                print "[$curfile]\x1b[33m In $blk->{name}: local variable $v has existing global\n\x1b[0m";
-            }
             my $var=$var_hash->{$v};
             my $decl=var_declare($var);
             push @$pre, "$decl;";
+            if($global_hash->{$v}){
+                my $curfile=MyDef::compileutil::curfile_curline();
+                print "[$curfile]\x1b[33m In $blk->{name}: local variable $v has existing global: $decl\n\x1b[0m";
+            }
             if($var->{exit}){
                 push @exit_calls, "$var->{exit}, $v";
             }
@@ -195,7 +195,6 @@ sub get_mtime {
     d=>"double",
     "time"=>"time_t",
     "file"=>"FILE *",
-    "strlen"=>"STRLEN",
     "has"=>"int",
     "is"=>"int",
 );
@@ -232,14 +231,8 @@ sub get_interface {
 sub init_page {
     my ($t_page)=@_;
     $page=$t_page;
-    my $ext="c";
-    if($MyDef::var->{filetype}){
-        $ext=$MyDef::var->{filetype};
-    }
-    if($page->{type}){
-        $ext=$page->{type};
-    }
-    if($MyDef::def->{"macros"}->{"use_double"}){
+    MyDef::set_page_extension("c");
+    if($MyDef::def->{"macros"}->{"use_double"} or $page->{"use_double"}){
         $type_name{f}="double";
         $type_prefix{f}="double";
     }
@@ -268,9 +261,7 @@ sub init_page {
     @function_stack=();
     %list_function_hash=();
     @list_function_list=();
-    $page->{pageext}=$ext;
-    my $init_mode=$page->{init_mode};
-    return ($ext, $init_mode);
+    return $page->{init_mode};
 }
 sub set_output {
     my ($newout)=@_;
@@ -298,6 +289,36 @@ sub parsecode {
     elsif($l=~/^\$warn (.*)/){
         my $curfile=MyDef::compileutil::curfile_curline();
         print "[$curfile]\x1b[33m $1\n\x1b[0m";
+        return;
+    }
+    elsif($l=~/^\$template\s*(.*)/){
+        open In, $1 or die "Can't open template $1\n";
+        my @all=<In>;
+        close In;
+        foreach my $a (@all){
+            if($a=~/(\s*)\/\*\s*\$call\s*(.*)\s*\*\//){
+                my ($spaces, $call_line)=($1, $2);
+                my $len=length($spaces);
+                my $n=int($len/4);
+                if($len % 4){
+                    $n++;
+                }
+                for(my $i=0; $i <$n; $i++){
+                    push @$out, "INDENT";
+                }
+                MyDef::compileutil::call_sub($call_line);
+                for(my $i=0; $i <$n; $i++){
+                    push @$out, "DEDENT";
+                }
+                next;
+            }
+            elsif($a=~/DUMP_STUB\s+(\w+)/){
+                push @$out, "DUMP_STUB $1";
+                $page->{"has_stub_$1"}=1;
+                next;
+            }
+            push @$out, $a;
+        }
         return;
     }
     elsif($l=~/^\$eval\s+(\w+)(.*)/){
@@ -1085,7 +1106,7 @@ sub parsecode {
                     my $sum;
                     if($left=~/^(\$?\w+)$/){
                         $sum=$1;
-                        push @code, "$sum = 0";
+                        push @code, "\$my $type $sum = 0";
                     }
                     else{
                         $sum="sum";
@@ -1697,33 +1718,31 @@ sub parsecode {
             }
         }
     }
-    elsif($l=~/^(\w+)\s+(.*)$/){
-        if($functions{$1} or $stock_functions{$1}){
-            my $fn=$1;
-            my $t=$2;
-            $t=~s/;\s*$//;
-            $t=~s/\s+$//;
-            $l="$fn($t);";
-        }
+    if(!$l or $l=~/^\s*$/){
     }
-    elsif($l=~/^tn_err=(\S+)\((.*)\)\s*$/){
-        push @$l, "tn_err = $1\($2\);";
-        my_add_var("tn_err", "int");
-        my $call_line="\@on_tn_err, $1";
-        MyDef::compileutil::call_sub($call_line);
+    elsif($l=~/^\s*#(define|include|if|else|endif)/){
     }
-    $l=check_expression($l);
-    if($l){
-        if($l=~/^\s*$/){
-        }
-        elsif($l=~/^\s*(for|while|if|else if)\s*\(.*\)\s*$/){
-        }
-        elsif($l!~/[:\(\{\};,]\s*$/){
-            $l.=";";
-        }
+    elsif($l=~/^\s*(for|while|if|else if)\s*\(.*\)\s*$/){
+    }
+    elsif($l=~/[:\(\{\};,]\s*$/){
     }
     else{
-        return;
+        if($l=~/^(\w+)\s+(.*)$/){
+            if($functions{$1} or $stock_functions{$1}){
+                my $fn=$1;
+                my $t=$2;
+                $t=~s/;\s*$//;
+                $t=~s/\s+$//;
+                $l="$fn($t)";
+            }
+        }
+        $l=check_expression($l);
+        if(!$l){
+            return;
+        }
+        else{
+            $l.=";";
+        }
     }
     push @$out, $l;
 }
@@ -1821,14 +1840,17 @@ sub dumpout {
             close Subfile;
         }
     }
-    unshift @$out, "\n/**** END GLOBAL INIT ****/\n";
-    unshift @$out, "DUMP_STUB global_init";
+    if(!$page->{has_stub_global_init}){
+        unshift @$out, "\n/**** END GLOBAL INIT ****/\n";
+        unshift @$out, "DUMP_STUB global_init";
+    }
     if($page->{autoload} eq "h"){
         $includes{"\"autoload.h\""}=1;
     }
     my @dump_init;
     $dump->{block_init}=\@dump_init;
-    unshift @$out, "INCLUDE_BLOCK block_init";
+    my $global_init=MyDef::compileutil::get_named_block("global_init");
+    unshift @$global_init, "INCLUDE_BLOCK block_init";
     if(%objects){
         push @dump_init, "/* link: $lib_list $obj_list */\n";
     }
@@ -2521,6 +2543,10 @@ sub auto_add_var {
     my ($name, $type, $value)=@_;
     my $var=find_var($name);
     if(!$var){
+        if($debug eq "type"){
+            my $curfile=MyDef::compileutil::curfile_curline();
+            print "[$curfile]\x1b[33m auto_add_var: $name - $type - $value\n\x1b[0m";
+        }
         func_add_var($name, $type, $value);
     }
 }
@@ -3241,7 +3267,7 @@ sub check_expression {
                             $includes{"<math.h>"}=1;
                             $objects{"libm"}=1;
                         }
-                        elsif($primary=~/^(memcpy|memcmp)$/){
+                        elsif($primary=~/^(mem|str)[a-z]+$/){
                             $includes{"<string.h>"}=1;
                         }
                         elsif($primary=~/^(malloc|free)$/){

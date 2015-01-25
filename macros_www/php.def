@@ -3,7 +3,22 @@ subcode: enter_php
     push @$out, "<?php\n"
 
 subcode: exit_php
-    push @$out, "?>\n";
+    $if $out->[-1] eq "<?php\n"
+        pop @$out
+    $else
+        push @$out, "?>\n";
+
+subcode:: init_page
+    $global %php_globals, @php_globals
+    %php_globals=()
+    @php_globals=()
+
+subcode:: dumpout
+    $if @php_globals
+        push @$f, "<?php\n"
+        $foreach $v in @php_globals
+            push @$f, "$v;\n"
+        push @$f, "?>\n"
 
 subcode:: support_subs
     $sub echo_php($t, $ln)
@@ -14,32 +29,48 @@ subcode:: support_subs
 	$else
 	    return "echo \"$t\";";
 
+    $sub test_var($param, $z)
+	$if $param=~/(\$\w+)\[(^[\]]*)\]/
+            $if !$z
+                return "array_key_exists($2, $1) and $param"
+            $else
+                return "!(array_key_exists($2, $1) and $param)"
+	$else
+            $if $z
+                return "empty($param)"
+            $else
+                return "!empty($param)"
+
+
+
 subcode: php_parse_func_param
 
 subcode: php_parse_func
-    $if $func eq "if"
+    $if $func =~/^if(\w*)/
+        $if $1
+            $param=test_var($param, $1 eq 'z')
 	return single_block("if($param){", "}")
-    $elsif $func eq "ifz"
-	$if $param=~/(\$\w+)\[(^[\]]*)\]/
-	    return single_block("if(!(array_key_exists($2, $1) and $param)){", "}")
-	$else
-	    return single_block("if(empty($param)){", "}")
-    $elsif $func eq "ifnz"
-	$if $param=~/(\$\w+)\[(^[\]]*)\]/
-	    return single_block("if((array_key_exists($2, $1) and $param)){", "}")
-	$else
-	    return single_block("if(!empty($param)){", "}")
-    $elsif $func =~ /^(el|els|else)if$/
-	$if $cur_mode eq 'html' or $cur_mode eq 'js' # JavaScript
-	    return single_block("else if($param){", "}")
-	$else
-	    return single_block("elseif($param){", "}")
+    $elsif $func =~ /^(el|els|else)if(\w*)$/
+        $if $1
+            $param=test_var($param, $1 eq 'z')
+        return single_block("elseif($param){", "}")
     $elsif $func eq "else"
 	return single_block("else{", "}")
     $elsif $func eq "foreach" or $func eq "for" or $func eq "while"
 	return single_block("$func ($param){", "}")
     $elsif $func eq "function"
 	return single_block("function $param {", "}")
+    $elif $func eq "global"
+        $param=~s/\s*;\s*$//
+        my @tlist=MyDef::utils::proper_split($param)
+        $foreach $v in @tlist
+            $if !$php_globals{$v}
+                $php_globals{$v}=1
+                push @php_globals, $v
+            $v=~s/=.*//
+            push @$out, "global $v;"
+
+        return 0
 
 subcode: php_parsecode_other
     $if $l!~/[\{\};]\s*$/

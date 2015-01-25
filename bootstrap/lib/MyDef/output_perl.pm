@@ -69,23 +69,14 @@ sub get_interface {
 sub init_page {
     my ($t_page)=@_;
     $page=$t_page;
-    my $ext="pl";
-    if($MyDef::var->{filetype}){
-        $ext=$MyDef::var->{filetype};
-    }
-    if($page->{type}){
-        $ext=$page->{type};
-    }
+    MyDef::set_page_extension("pl");
     if($page->{package} and !$page->{type}){
-        $page->{type}="pm";
-        $ext="pm";
+        MyDef::set_page_extension("pm");
     }
     elsif(!$page->{package} and $page->{type} eq "pm"){
         $page->{package}=$page->{pagename};
     }
-    $page->{pageext}=$ext;
-    my $init_mode=$page->{init_mode};
-    return ($ext, $init_mode);
+    return $page->{init_mode};
 }
 sub set_output {
     my ($newout)=@_;
@@ -113,6 +104,15 @@ sub parsecode {
     elsif($l=~/^\$warn (.*)/){
         my $curfile=MyDef::compileutil::curfile_curline();
         print "[$curfile]\x1b[33m $1\n\x1b[0m";
+        return;
+    }
+    elsif($l=~/^\$template\s*(.*)/){
+        open In, $1 or die "Can't open template $1\n";
+        my @all=<In>;
+        close In;
+        foreach my $a (@all){
+            push @$out, $a;
+        }
         return;
     }
     elsif($l=~/^\$eval\s+(\w+)(.*)/){
@@ -675,7 +675,7 @@ sub parsecode {
                     my $sum;
                     if($left=~/^(\$?\w+)$/){
                         $sum=$1;
-                        push @code, "$sum = 0";
+                        push @code, "my $sum = 0";
                     }
                     else{
                         $sum="\$sum";
@@ -848,7 +848,7 @@ sub dumpout {
     my ($f, $out, $pagetype)=@_;
     my $dump={out=>$out,f=>$f};
     parsecode("NOOP");
-    if(!defined $pagetype or $pagetype eq "pl"){
+    if(!$pagetype or $pagetype eq "pl"){
         push @$f, "#!/usr/bin/perl\n";
     }
     if($pagetype ne "eval"){

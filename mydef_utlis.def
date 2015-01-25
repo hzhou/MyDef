@@ -8,8 +8,6 @@ page: utils
 
 # ---------------------------------------------------------
 subcode:: package_subs
-    $(set:in_quote=$closure_stack[-1] eq "'" or $closure_stack[-1] eq '"')
-    $(set:not_in_quote=$closure_stack[-1] ne "'" and $closure_stack[-1] ne '"')
     $sub proper_split($param)
 	my @tlist
 	$if $param eq "0"
@@ -20,8 +18,8 @@ subcode:: package_subs
 	my @closure_stack
 	my $t
 	&call parse_loop, $param
-	    &call if_lex, \s+
-		$if @closure_stack
+	    &call if_lex, (\s+)
+		$if $t or @closure_stack
 		    $t.=$1
 		$else
 		    #-skip
@@ -49,6 +47,8 @@ subcode:: package_subs
 		$print "[$curfile]proper_split: unmatched $1 [$param]"
 		$t.=$1
 
+	$if $t
+	    $t=~s/\s+$//
 	$if $t or @tlist
 	    push @tlist, $t
 	return @tlist

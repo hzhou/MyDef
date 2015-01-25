@@ -67,6 +67,11 @@ subcode: compile_line
 	    $if $l=~/^(&call|\$call|\$map|\$call-PRINT)\s+(.*)$/
 		my ($func, $param)=($1, $2);
 		$call parse_call_sub
+	    $elif $l=~/^MAKE_STRING:\s*(.*)/
+		push @$out, "MAKE_STRING:$1"
+		my $subblock=grabblock($block, \$lindex)
+		parseblock({source=>$subblock, name=>"MAKE_STRING"})
+		push @$out, "POP_STRING"
 	    $else
 		$call parse_line
 	    last

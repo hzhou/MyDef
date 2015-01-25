@@ -19,7 +19,7 @@ close In;
 if($f=~/([a-z0-9]+)_.*\.def$/){
     my $module=$1;
     unlink "out/Makefile";
-    my $cmd= "perl ../MyDef/script/mydef_page.pl $f -m$module -oout";
+    my $cmd= "perl ../MyDef/script/mydef_page $f -m$module -oout";
     print "$cmd \n";
     system $cmd;
     chdir "out";

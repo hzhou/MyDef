@@ -22,20 +22,12 @@ sub get_interface {
 sub init_page {
     my ($t_page)=@_;
     $page=$t_page;
-    my $ext="html";
-    if($MyDef::var->{filetype}){
-        $ext=$MyDef::var->{filetype};
-    }
-    if($page->{type}){
-        $ext=$page->{type};
-    }
+    MyDef::set_page_extension("html");
     $php={};
     $style_sheets=[];
     $style={};
     @style_key_list=();
-    $page->{pageext}=$ext;
-    my $init_mode=$page->{init_mode};
-    return ($ext, $init_mode);
+    return $page->{init_mode};
 }
 sub set_output {
     my ($newout)=@_;
@@ -104,6 +96,15 @@ sub parsecode {
     elsif($l=~/^\$warn (.*)/){
         my $curfile=MyDef::compileutil::curfile_curline();
         print "[$curfile]\x1b[33m $1\n\x1b[0m";
+        return;
+    }
+    elsif($l=~/^\$template\s*(.*)/){
+        open In, $1 or die "Can't open template $1\n";
+        my @all=<In>;
+        close In;
+        foreach my $a (@all){
+            push @$out, $a;
+        }
         return;
     }
     elsif($l=~/^\$eval\s+(\w+)(.*)/){
@@ -404,6 +405,11 @@ sub parsecode {
         }
     }
     elsif($cur_mode eq "js"){
+        if($l!~/[:\(\{\};,]\s*$/){
+            $l.=';';
+        }
+    }
+    elsif($cur_mode eq "html"){
     }
     push @$out, $l;
 }
@@ -595,9 +601,10 @@ sub js_string {
 }
 sub sql_value {
     my ($varname, $colname)=@_;
-    my $fields=$MyDef::def->{fields};
-    my $ff=$fields->{varname};
-    my $type=getfieldtype($ff, $colname);
+    my $type=MyDef::compileutil::get_def("$varname"."_type");
+    if(!$type){
+        $type=getfieldtype($colname);
+    }
     if($type =~/^(int|uint|boolean)$/){
         push @$out, "if(is_numeric(\$$varname)){";
         push @$out, "    \$t_$varname=\$$varname;";
@@ -621,7 +628,8 @@ sub sql_value {
         return "CURDATE()";
     }
     else{
-        if($ff->{null_on_empty}){
+        my $null=MyDef::compileutil::get_def("$varname"."_null");
+        if($null){
             push @$out, "if(\$$varname){";
             push @$out, "    \$t_$varname=\"'\".addslashes(\$$varname).\"'\";";
             push @$out, "}";
@@ -637,12 +645,9 @@ sub sql_value {
     }
 }
 sub getfieldtype {
-    my ($ff, $colname)=@_;
+    my ($colname)=@_;
     my $type;
-    if($ff->{type}){
-        return $ff->{type};
-    }
-    elsif($colname=~/_id$/){
+    if($colname=~/_id$/){
         $type="uint";
     }
     elsif($colname=~/_date$/ or $colname=~/^date_/){
@@ -684,7 +689,6 @@ sub getfieldtype {
     elsif($colname =~ /city_state_zip/){
         $type='city_state_zip';
     }
-    $ff->{type}=$type;
     return $type;
 }
 1;

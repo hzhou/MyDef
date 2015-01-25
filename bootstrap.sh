@@ -1,14 +1,15 @@
 #!/bin/sh
-cd cmp
+cd bootstrap
 perl Makefile.PL INSTALL_BASE=$HOME #pmake
 make install
 cd ..
 perl install_def.pl
-mydef_make.pl # MyDef, perl
+mydef_make # MyDef, perl
 touch perlmake.def mydef.def
 make
 cd MyDef
 perl Makefile.PL INSTALL_BASE=$HOME #pmake
 cd ..
+mydef_make
 make install
 

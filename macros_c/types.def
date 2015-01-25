@@ -40,7 +40,6 @@ subcode:: package_globals
 	uc=>"unsigned char",
 	b=>"int",
 	s=>"char *",
-	v=>"unsigned char *",
 	f=>"float",
 	d=>"double",
 	"time"=>"time_t",
@@ -177,6 +176,8 @@ subcode:: c_support_subs
 	return $type;
 
     $sub name_with_prefix($name)
+	$if $type_name{$name}
+            return 1
 	$if $name=~/^(t_?)*(p_?)*([a-zA-Z][a-zA-Z0-9]*)\_/
 	    my $prefix=$3
 	    $if $debug eq "type"

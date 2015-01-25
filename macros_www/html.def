@@ -93,7 +93,7 @@ subcode: tag_input
 subcode: tag_form
     $case $func eq "form"
 	$if $t !~ /action=/
-	    $t.=" action=\"<?=\$PHP_SELF ?>\""
+	    $t.=" action=\"<?=\$_SERVER['PHP_SELF'] ?>\""
 	$if $t !~ /method=/
 	    $t.=" method=\"POST\""
 
@@ -145,6 +145,32 @@ subcode: html_parse_func
 	$else
 	    warn " Can't open [$param]\n";
 
+#---------------------------------------- 
+/*
+subcode: html_parsecode_other
+    $if $l=~/\$(a|img|span)\[(.*?)\](\{(.*?)\})?/
+	my $t
+	$if $1 eq "a" or $1 eq "link"
+	    $t=html_link($2, $4)
+	$elif $1 eq "img"
+	    $t="<img src=\"$2\">"
+	$elif $1 eq "span"
+	    $t="<span class=\"$2\">$3</span>"
+	$l=$`.$t.$';
+
+subcode:: support_subs
+    $sub html_link($text, $url)
+	$if $url
+	    return "<a href=\"$url\">$text</a>"
+	$else
+	    return "<a href=\"$text\">$text</a>"
+
+    $sub html_img($src, $attr)
+	$if !$attr
+	    return "<img src=\"$src\">"
+	$else
+	    return "<img src=\"$src\" $attr>"
+*/
 # ------------------------------------------------------------
 subcode: global_pattern(name, p)
     $if $t=~/$(p)/

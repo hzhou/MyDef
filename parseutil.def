@@ -124,17 +124,18 @@ subcode: parse_main
 			my @tlist=split /,\s*/, $1
 			$grab->{"_parents"}=\@tlist
 		$elif $line=~/^(\w+)/
-		    # fields, macros,
+		    # macros,
 		    $stage=$1;
 		    $if !$def->{$stage}
 			$def->{$stage}={};
 	    $else
-		$if $stage =~ /^(fields)$/
-		    $call process_fields
-		$elsif $stage =~/^macros$/
+		$if $stage =~/^macros?$/
 		    $call process_macros
 		$elsif $stage =~/^(page)$/
-		    $call process_page_macros
+		    $if $line=~/^(\w+):\s*(.*)/
+			$call process_page_macros
+		    $else
+			$call jump_to_main_code
 
 subcode:: perfile_variables
     my $stage="";
@@ -177,7 +178,7 @@ subcode: get_indentation
 	# get current indentation and stripping starting spaces
 	my $indent=getindent($1)
 	$line=$2
-	$if $line=~/^#(?!define)/
+	$if $line=~/^#(?!(define|undef|include|line|error|pragma|if|ifdef|ifndef|elif|else|endif)\b)/
 	    $if $indent != $curindent
 		$line="NOOP"
 	    $else
@@ -275,6 +276,27 @@ subcode: end_subcode
 	push @$source, @$orig_source
 	$codes->{$cur_codename}->{source}=$source
 
+#---------------------------------------- 
+subcode: jump_to_main_code
+    my $src_location="SOURCE: $cur_file - $cur_line";
+    $source=[$src_location]
+    push @$source, $line
+    $codeindent=1
+    $lastindent=$codeindent
+    # -------------------
+    $stage='code'
+    $cur_codename="main"
+
+    my $t_code={'type'=>"sub", 'source'=>$source, 'params'=>[], 'name'=>"main"};
+
+    $if $page->{codes}->{main}
+	$page->{codes}->{'main2'}=$t_code;
+    $else
+	$page->{codes}->{"main"}=$t_code;
+
+    # prevent starting empty line triger dedent
+    $curindent=$codeindent
+
 # --------------------------------------------------------
 subcode: start_page
     my ($pagename, $maincode)
@@ -307,38 +329,20 @@ subcode: add_page
     $pages->{$pagename}=$page;
     push @$pagelist, $pagename
 
-subcode: process_fields
-    $if $line=~/^optional:(.*)/
-	my @tlist=split(/,/, $1);
-	$foreach my $t in @tlist
-	    $if $t=~/(\w+)/
-		$if $def->{$stage}->{$1}
-		    $def->{$stage}->{$1}->{optional}=1;
-		$else
-		    $def->{$stage}->{$1}={optional=>1};
-    $elsif $curindent==1
-	$if $line=~/^([a-zA-Z0-9-_]+):\s*(.*)$/
-	    $if $def->{$stage}->{$1}
-		$item=$def->{$stage}->{$1};
-	    $else
-		$item={};
-		$def->{$stage}->{$1}=$item;
-	    $if $2
-		$item->{type}=$2;
-		$item->{value}=$2;
-		$item->{title}=$2;
-    $elsif $line=~/^(\w+): (.*)/
-	my $k=$1;
-	my $v=$2;
-	expand_macro(\$v, $macros);
-	$if $item->{$k}
-	    print STDERR " Denied overwriting $k with $v\n" if $debug>1;
-	$else
-	    $item->{$k}=$v;
+#---------------------------------------- 
+subcode:: perfile_variables
+    my @macro_names
 
 subcode: process_macros
     $if $line=~/^(\w+):(:)? (.*\S)/
 	my ($k,$dblcolon, $v)=($1, $2, $3)
+	$if $curindent==1
+	    $macro_names[0]=$k
+	$else
+	    $macro_names[$curindent-1]=$k
+	    splice @macro_names, $curindent
+	    $k=join('_', @macro_names)
+
 	expand_macro(\$v, $macros);
 	$if $macros->{$k}
 	    $if $dblcolon
@@ -349,9 +353,9 @@ subcode: process_macros
 	    $macros->{$k}=$v
 
 subcode: process_page_macros
-    $if $line=~/^source: (.*)/
+    $if $1 eq "source"
 	$page->{codes}->{main}={'type'=>"sub", 'source'=>["\$call $1"], 'params'=>[]};
-    $elsif $line=~/^(\w+): (.*)/
+    $else
 	my $k=$1;
 	my $v=$2;
 	expand_macro(\$v, $macros);
