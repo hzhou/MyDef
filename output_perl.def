@@ -1,4 +1,10 @@
 include: output.def
+include: macros_output/case.def
+include: macros_output/for.def
+
+include: macros_output/scope.def
+include: macros_output/sumcode.def
+
 
 page: output_perl, output_main
     type: pm
@@ -14,23 +20,18 @@ subcode: init_page
     $elif !$page->{package} and $page->{type} eq "pm"
 	$page->{package}=$page->{pagename}
 
-subcode:: package_globals
-    our @globals
-    our %globals
+    $global @globals, %globals
+    @globals=()
+    %globals=()
 
 #---------------------------------------- 
-include: macros_output/case.def
-include: macros_output/for.def
-include: macros_output/scope.def
-include: macros_output/sumcode.def
-
 subcode: case_flag_set
     $global $case_flag="\$b_flag_case"
     push @$out, "my \$b_flag_case=1;"
 subcode: case_flag_reset
     push @$out, "my \$b_flag_case=0;"
 
-#----
+#---- used for sumcode -------
 subcode: var_declare(scope)
     $param=~s/\s*;\s*$//
     my @tlist=MyDef::utils::proper_split($param)

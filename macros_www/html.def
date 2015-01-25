@@ -93,7 +93,7 @@ subcode: tag_input
 subcode: tag_form
     $case $func eq "form"
 	$if $t !~ /action=/
-	    $t.=" action=\"<?=\$PHP_SELF ?>\""
+	    $t.=" action=\"<?=\$_SERVER['PHP_SELF'] ?>\""
 	$if $t !~ /method=/
 	    $t.=" method=\"POST\""
 

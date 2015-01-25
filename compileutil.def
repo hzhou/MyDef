@@ -123,7 +123,7 @@ subcode: compile
     #---- Dump
     $if !$page->{subpage}
 	my @buffer;
-	$f_dumpout->(\@buffer, fetch_output(0), $page->{type});
+	$f_dumpout->(\@buffer, fetch_output(0), $page->{pageext})
 	return \@buffer
 
 subcode: output_outdir

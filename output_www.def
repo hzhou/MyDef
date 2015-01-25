@@ -17,11 +17,9 @@ page: output_www, output_main
 subcode:: package_globals
     use Term::ANSIColor qw(:constants);
     # ------ global variables
-    my $php;
     my $style_sheets
 
 subcode:: init_page
-    $php={};
     $style_sheets=[]
 
 subcode: modeswitch

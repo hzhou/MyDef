@@ -54,7 +54,7 @@ subcode: add_include(l)
 
 subcode: dump_includes
     my $cnt=0
-    my @klist=sort keys(%includes)
+    my @klist=sort {substr($a, 0, 1) ne substr($b, 0, 1)?$b cmp $a:$a cmp $b} keys(%includes)
     $foreach $k in @klist
 	push @$dump_out, "#include $k\n";
 	$cnt++

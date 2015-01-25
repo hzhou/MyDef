@@ -157,8 +157,8 @@ subcode: parsecode_func
 subcode: parsecode_other
     $if !$l or $l=~/^\s*$/
 	# NOOP
-    $elif $l=~/^\s*#(define|include|if|else|endif)/
-	# NOOP
+    $elif $l=~/^\s*#/
+	# Preprocessor
     $elif $l=~/^\s*(for|while|if|else if)\s*\(.*\)\s*$/
 	# NOOP
     $elif $l=~/[:\(\{\};,]\s*$/

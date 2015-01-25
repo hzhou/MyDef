@@ -34,19 +34,15 @@ subcode: js_src(url)
     <script type="text/javascript" src="$(url)"></script>
 
 # form_input -- one row
-htmlcode: form_input(name)
+htmlcode: form_input(prompt, varname)
     $tr
         $td label
-	    $div formlabel
-		PRINT $(name.title):
-	    $(if: name.help)
-		$div formhelp
-		    PRINT $(name.help)
+            PRINT $(prompt)
         $td input
-	    $(if:name.type=password or name=password)
-		$call input_pass, $(name)
+	    $(if:varname~pass)
+		$call input_pass, $(varname)
 	    $(else)
-		$call input_text, $(name)
+		$call input_text, $(varname)
 
 htmlcode: input_hidden(name, value)
     <input type="hidden" name="$(name)" value="$(value)">
@@ -109,4 +105,89 @@ jscode: animate
 	window.requestAnimationFrame(animate_update)
     animate_update(0)
 
-# ------------------------------------------
+## PHP  -----------------------------------------------------
+
+phpcode: echobig(string)
+    $splitString = str_split($(string), 8192)
+    $foreach $splitString as $chunk
+	echo $chunk;
+
+## ---------------------------------------------------------------------
+phpcode: getparam(var)
+    $if array_key_exists('$(var)', $_POST)
+	$$(var)=$_POST['$(var)'];
+    $elif array_key_exists('$(var)', $_GET)
+	$$(var)=$_GET['$(var)'];
+
+phpcode: loadget(var)
+    $if array_key_exists('$(var)', $_GET)
+	$$(var)=$_GET['$(var)'];
+
+phpcode: loadpost(var)
+    $if array_key_exists('$(var)', $_POST)
+	$$(var)=$_POST['$(var)'];
+
+phpcode: reqparam(var)
+    $if array_key_exists('$(var)', $_POST)
+	$$(var)=$_POST['$(var)'];
+    $elif array_key_exists('$(var)', $_GET)
+	$$(var)=$_GET['$(var)'];
+    $else
+	$errors[]="Missing $(var)"
+	exit()
+## ---------------------------------------------------------------------
+phpcode: redirect(url)
+    $if $siteroot
+	header("Location: $siteroot/$(url)");
+    $else
+	header("Location: $(url)");
+    exit;
+
+phpcode: session_start
+    session_start()
+    $errors=array()
+    $infos=array()
+
+phpcode: setinfo
+    $if !$_SESSION['infos']
+	$_SESSION['infos']=array()
+    $foreach  $infos as $i
+	$_SESSION['infos'][]=$i;
+
+phpcode: seterror
+    $if !$_SESSION['errors']
+	$_SESSION['errors']=array()
+    $foreach  $errors as $i
+	$_SESSION['errors'][]=$i;
+
+phpcode: errorpage(errormsg)
+    $h3 error
+	PRINT $(errormsg)
+    $if $_SESSION['infos']
+	$foreach  $_SESSION['infos'] as $i
+	    $infos[]=$i;
+	unset($_SESSION['infos']);
+    $if $_SESSION['errors']
+	$foreach  $_SESSION['errors'] as $i
+	    $errors[]=$i;
+	unset($_SESSION['errors']);
+    $call showerror
+    exit();
+
+phpcode: showinfo
+    CSS: li.info {font-size: 12px; color: green; margin: 10px; }
+    CSS: li.error {font-size: 12px; color: red; font-weight: 700; margin: 10px; }
+    $if $infos
+	$ul infobox
+	    $foreach $infos as $i
+		print "<li class=\"info\">$i</li>";
+
+phpcode: showerror
+    CSS: li.error {font-size: 12px; color: red; font-weight: 700; margin: 10px; }
+    if($errors){
+	$ul infobox
+	    foreach ($errors as $i){
+		print "<li class=\"error\">$i</li>";
+	    }
+    }
+
