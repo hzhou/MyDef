@@ -6,15 +6,16 @@ our $mode;
 our $page;
 our $style;
 our @style_key_list;
+our %php_globals;
+our @php_globals;
+our %js_globals;
+our @js_globals;
 our @mode_stack;
 our $cur_mode="html";
 our %plugin_statement;
 our %plugin_condition;
 use Term::ANSIColor qw(:constants);
-my $php;
 my $style_sheets;
-our @js_globals;
-our %js_globals;
 sub get_interface {
     my $interface_type="general";
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout, $interface_type);
@@ -23,10 +24,13 @@ sub init_page {
     my ($t_page)=@_;
     $page=$t_page;
     MyDef::set_page_extension("html");
-    $php={};
     $style_sheets=[];
     $style={};
     @style_key_list=();
+    %php_globals=();
+    @php_globals=();
+    %js_globals=();
+    @js_globals=();
     return $page->{init_mode};
 }
 sub set_output {
@@ -50,7 +54,12 @@ sub modeswitch {
         goto modeswitch_done;
     }
     if($cur_mode eq "php"){
-        push @$out, "?>\n";
+        if($out->[-1] eq "<?php\n"){
+            pop @$out;
+        }
+        else{
+            push @$out, "?>\n";
+        }
         $cur_mode=pop @mode_stack;
         if($mode eq $cur_mode){
             goto modeswitch_done;
@@ -229,7 +238,7 @@ sub parsecode {
                 }
                 elsif($func eq "form"){
                     if($t !~ /action=/){
-                        $t.=" action=\"<?=\$PHP_SELF ?>\"";
+                        $t.=" action=\"<?=\$_SERVER['PHP_SELF'] ?>\"";
                     }
                     if($t !~ /method=/){
                         $t.=" method=\"POST\"";
@@ -268,7 +277,8 @@ sub parsecode {
                 my $param1="";
                 my $param2=$param;
                 if($func eq "global"){
-                    my @tlist=split /,\s+/, $param;
+                    $param=~s/\s*;\s*$//;
+                    my @tlist=MyDef::utils::proper_split($param);
                     foreach my $v (@tlist){
                         if(!$js_globals{$v}){
                             $js_globals{$v}=1;
@@ -324,32 +334,17 @@ sub parsecode {
                 }
             }
             elsif($cur_mode eq "php"){
-                if($func eq "if"){
+                if($func =~/^if(\w*)/){
+                    if($1){
+                        $param=test_var($param, $1 eq 'z');
+                    }
                     return single_block("if($param){", "}");
                 }
-                elsif($func eq "ifz"){
-                    if($param=~/(\$\w+)\[(^[\]]*)\]/){
-                        return single_block("if(!(array_key_exists($2, $1) and $param)){", "}");
+                elsif($func =~ /^(el|els|else)if(\w*)$/){
+                    if($1){
+                        $param=test_var($param, $1 eq 'z');
                     }
-                    else{
-                        return single_block("if(empty($param)){", "}");
-                    }
-                }
-                elsif($func eq "ifnz"){
-                    if($param=~/(\$\w+)\[(^[\]]*)\]/){
-                        return single_block("if((array_key_exists($2, $1) and $param)){", "}");
-                    }
-                    else{
-                        return single_block("if(!empty($param)){", "}");
-                    }
-                }
-                elsif($func =~ /^(el|els|else)if$/){
-                    if($cur_mode eq 'html' or $cur_mode eq 'js'){
-                        return single_block("else if($param){", "}");
-                    }
-                    else{
-                        return single_block("elseif($param){", "}");
-                    }
+                    return single_block("elseif($param){", "}");
                 }
                 elsif($func eq "else"){
                     return single_block("else{", "}");
@@ -359,6 +354,19 @@ sub parsecode {
                 }
                 elsif($func eq "function"){
                     return single_block("function $param {", "}");
+                }
+                elsif($func eq "global"){
+                    $param=~s/\s*;\s*$//;
+                    my @tlist=MyDef::utils::proper_split($param);
+                    foreach my $v (@tlist){
+                        if(!$php_globals{$v}){
+                            $php_globals{$v}=1;
+                            push @php_globals, $v;
+                        }
+                        $v=~s/=.*//;
+                        push @$out, "global $v;";
+                    }
+                    return 0;
                 }
             }
             elsif($cur_mode eq "html"){
@@ -471,6 +479,13 @@ sub dumpout {
             push @$metablock, "<link rel=\"stylesheet\" type=\"text/css\" href=\"$s\" />\n";
         }
     }
+    if(@php_globals){
+        push @$f, "<?php\n";
+        foreach my $v (@php_globals){
+            push @$f, "$v;\n";
+        }
+        push @$f, "?>\n";
+    }
     my $block=MyDef::compileutil::get_named_block("js_init");
     foreach my $v (@js_globals){
         push @$block, "var $v;\n";
@@ -577,6 +592,25 @@ sub echo_php {
     }
     else{
         return "echo \"$t\";";
+    }
+}
+sub test_var {
+    my ($param, $z)=@_;
+    if($param=~/(\$\w+)\[(^[\]]*)\]/){
+        if(!$z){
+            return "array_key_exists($2, $1) and $param";
+        }
+        else{
+            return "!(array_key_exists($2, $1) and $param)";
+        }
+    }
+    else{
+        if($z){
+            return "empty($param)";
+        }
+        else{
+            return "!empty($param)";
+        }
     }
 }
 sub js_string {

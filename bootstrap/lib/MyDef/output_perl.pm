@@ -7,6 +7,8 @@ our $debug;
 our $out;
 our $mode;
 our $page;
+our @globals;
+our %globals;
 our $case_if="if";
 our $case_elif="elsif";
 our @case_stack;
@@ -60,8 +62,6 @@ sub find_var {
     }
     return undef;
 }
-our @globals;
-our %globals;
 sub get_interface {
     my $interface_type="perl";
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout, $interface_type);
@@ -76,6 +76,8 @@ sub init_page {
     elsif(!$page->{package} and $page->{type} eq "pm"){
         $page->{package}=$page->{pagename};
     }
+    @globals=();
+    %globals=();
     return $page->{init_mode};
 }
 sub set_output {

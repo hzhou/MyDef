@@ -190,7 +190,6 @@ sub get_mtime {
     uc=>"unsigned char",
     b=>"int",
     s=>"char *",
-    v=>"unsigned char *",
     f=>"float",
     d=>"double",
     "time"=>"time_t",
@@ -1720,7 +1719,7 @@ sub parsecode {
     }
     if(!$l or $l=~/^\s*$/){
     }
-    elsif($l=~/^\s*#(define|include|if|else|endif)/){
+    elsif($l=~/^\s*#/){
     }
     elsif($l=~/^\s*(for|while|if|else if)\s*\(.*\)\s*$/){
     }
@@ -1841,7 +1840,6 @@ sub dumpout {
         }
     }
     if(!$page->{has_stub_global_init}){
-        unshift @$out, "\n/**** END GLOBAL INIT ****/\n";
         unshift @$out, "DUMP_STUB global_init";
     }
     if($page->{autoload} eq "h"){
@@ -1925,7 +1923,7 @@ sub dumpout {
     }
     my $dump_out=\@dump_init;
     my $cnt=0;
-    my @klist=sort keys(%includes);
+    my @klist=sort {substr($a, 0, 1) ne substr($b, 0, 1)?$b cmp $a:$a cmp $b} keys(%includes);
     foreach my $k (@klist){
         push @$dump_out, "#include $k\n";
         $cnt++;
@@ -2679,7 +2677,7 @@ sub parse_var {
     }
     if($debug eq "type"){
         my $curfile=MyDef::compileutil::curfile_curline();
-        print "[$curfile]\x1b[33m add_var: type:[$type]- $name ($array)- $init ($value)\n\x1b[0m";
+        print "[$curfile]\x1b[33m add_var: type:[$type] - $name ($array) - $init ($value)\n\x1b[0m";
     }
     return $var;
 }
@@ -2935,6 +2933,9 @@ sub get_c_type {
 }
 sub name_with_prefix {
     my ($name)=@_;
+    if($type_name{$name}){
+        return 1;
+    }
     if($name=~/^(t_?)*(p_?)*([a-zA-Z][a-zA-Z0-9]*)\_/){
         my $prefix=$3;
         if($debug eq "type"){
@@ -3161,6 +3162,7 @@ sub check_expression {
             $type="atom-identifier";
             if($types[-1] =~/^op/ && $stack[-1] eq "." or $stack[-1] eq "->"){
                 if($types[-2] !~/^atom/){
+                    #error;
                 }
                 $token=join("", splice(@stack, -2)).$token;
                 $type="atom-exp";
@@ -3487,7 +3489,7 @@ sub check_expression {
                 $assign=$token;
                 if($left){
                     my $curfile=MyDef::compileutil::curfile_curline();
-                    print "[$curfile]\x1b[33m Chained assignment not supported [left=$left,assign=$assign]!\n\x1b[0m";
+                    print "[$curfile]\x1b[33m Chained assignment not supported [left=$left, assign=$assign]!\n\x1b[0m";
                 }
                 if(!$1 and @stack==1 and $types[0] eq "atom-("){
                     $left=substr($stack[0], 1, -1);
@@ -3637,6 +3639,7 @@ sub check_expression {
 }
 sub fmt_string {
     my ($str, $add_newline)=@_;
+    $str=~s/\s*$//;
     my @pre_list;
     if($str=~/^\s*\"(.*)\"\s*,\s*(.*)$/){
         $str=$1;
@@ -3679,6 +3682,9 @@ sub fmt_string {
                 if($str=~/\G\{/gc){
                     push @group, $1;
                 }
+            }
+            elsif($str=~/\Greset/gc){
+                push @fmt_list, "\\x1b[0m";
             }
             elsif($str=~/\G(\w+)/gc){
                 my $v=$1;

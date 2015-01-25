@@ -1065,9 +1065,23 @@ sub set_macro {
     if($debug eq "macro"){
         print "set_macro: [$p]\n";
     }
-    if($p=~/(\w+)\+=(\d+)/){
-        my ($t1, $t2)=($1, $2);
-        $m->{$t1}+=$t2;
+    if($p=~/(\w+)([\+\-\*\/\.])=(\d+)/){
+        my ($t1, $op, $num)=($1, $2, $3);
+        if($op eq "+"){
+            $m->{$t1}+=$num;
+        }
+        elsif($op eq "*"){
+            $m->{$t1}*=$num;
+        }
+        elsif($op eq "."){
+            $m->{$t1}.=$num;
+        }
+        elsif($op eq "/"){
+            $m->{$t1}/=$num;
+        }
+        elsif($op eq "-"){
+            $m->{$t1}/=$num;
+        }
     }
     elsif($p=~/(\S+?)=(.*)/){
         my ($t1, $t2)=($1, $2);
@@ -1450,7 +1464,7 @@ sub compile {
     }
     if(!$page->{subpage}){
         my @buffer;
-        $f_dumpout->(\@buffer, fetch_output(0), $page->{type});
+        $f_dumpout->(\@buffer, fetch_output(0), $page->{pageext});
         return \@buffer;
     }
 }

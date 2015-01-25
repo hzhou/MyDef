@@ -92,7 +92,7 @@ sub import_file {
         elsif($line=~/^(\s*)(.*)/){
             my $indent=getindent($1);
             $line=$2;
-            if($line=~/^#(?!(define|undef|include|line|error|pragma|if|elif|else))/){
+            if($line=~/^#(?!(define|undef|include|line|error|pragma|if|ifdef|ifndef|elif|else|endif)\b)/){
                 if($indent != $curindent){
                     $line="NOOP";
                 }
