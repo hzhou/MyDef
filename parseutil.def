@@ -248,12 +248,14 @@ subcode: start_subcode
 	    # -- skip
 	    print STDERR "overwiritten $type code: $name\n"
     $else
-	# ---- new code or overwrite ----
+	#---- new code or overwrite ----
 	my @params;
 	$if $t=~/\((.*)\)/
 	    $t=$1;
 	    @params=split /,\s*/, $t;
-	my $t_code={'type'=>$type, 'source'=>$source, 'params'=>\@params, 'name'=>$name};
+	$global $code_index=0
+	$code_index++
+	my $t_code={'type'=>$type, 'index'=>$code_index, 'source'=>$source, 'params'=>\@params, 'name'=>$name};
 	$if $dblcolon eq "@"
 	    $t_code->{attr}="default"
 	$elif $dblcolon eq ":" or $dblcolon eq "-"

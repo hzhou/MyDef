@@ -90,6 +90,9 @@ subcode: parsecode
 		$call parsecode_sum_support, perl
 	$elif $func eq "print"
 	    $call parsecode_print
+    $elif $l=~/^NOOP POST_MAIN/
+	$call list_functions
+	return 0
 
     $call check_termination
     push @$out, $l
@@ -136,6 +139,38 @@ subcode: dumpout
     $foreach $v in @globals
 	push @$f, "our $v;\n"
 
+    $if $fn_block
+	$dump->{fn_block}=$fn_block
+	unshift @$out, "INCLUDE_BLOCK fn_block"
+
+#----------------------------------------------- 
+subcode: list_functions
+    $global $fn_block
+    my $codes=$MyDef::def->{codes}
+    my @fn_list
+    $while my ($k, $v)= each %$codes
+	$if $v->{type} eq "fn"
+	    push @fn_list, $k
+    $if @fn_list
+	$fn_block=[]
+	&call replace_output, $fn_block
+	    @fn_list=sort { $codes->{$a}->{index} <=> $codes->{$b}->{index} } @fn_list
+	    $foreach $fn in @fn_list
+		$call parse_function, $fn
+
+subcode: parse_function(fn)
+    push @$out, "sub $fn {"
+    push @$out, "INDENT"
+    my $params=$codes->{$fn}->{params}
+    $if $#$params>=0
+	my $pline=join(", ", @$params)
+	push @$out, "my ($pline) = \@_;"
+	MyDef::compileutil::call_sub($fn, "\$list")
+	push @$out, "DEDENT"
+	push @$out, "}"
+	push @$out, "NEWLINE"
+    
+#----------------------------------------------- 
 subcode: check_termination
     #$l=~s/^\|//;
     $if $l=~/^\s*$/

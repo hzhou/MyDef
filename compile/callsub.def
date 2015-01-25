@@ -52,11 +52,8 @@ subcode: call_sub_map
 	pop @$deflist;
 
 subcode: call_sub_normal
-    $if $calltype eq "\$call-PRINT"
-	push @$deflist, {}
-    $else
-	$call call_sub_normal_setup_macro
-	push @$deflist, $macro;
+    $call call_sub_normal_setup_macro
+    push @$deflist, $macro;
     parseblock($codelib);
     pop @$deflist;
 
@@ -153,17 +150,18 @@ subcode:: support_subs
 		$param=~s/^\s*,\s*//
 		$f_parse->("\$eval $codename, $param")
 	    $else
-		$call split_sub_param
 		&call call_sub_block
 		    $if $scope
 			$codelib->{"scope"}=$scope
-		    my $np=@pre_plist;
-		    $if $calltype eq "\$list"
+		    $if $calltype eq "\$list" or $calltype eq "\$call-PRINT"
 			parseblock($codelib)
-		    $elif $calltype eq "\$map"
-			$call call_sub_map
 		    $else
-			$call call_sub_normal
+			$call split_sub_param
+			my $np=@pre_plist;
+			$if $calltype eq "\$map"
+			    $call call_sub_map
+			$else
+			    $call call_sub_normal
 
     $sub get_subcode($codename, $attr)
 	# ---- Grab Code Block ------------------
