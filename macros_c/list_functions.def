@@ -18,7 +18,7 @@ subcode:: parsecode_func_other
 	return
     $elsif $func eq "fcall"
 	$call check_autoload_h
-	$if $param=~/(\w+)\(/
+	$if $param=~/(\w+)\s*\(/
 	    $call add_list_function, $1
 	    $l=$param
 	$elif $param=~/^(\w+)\s*$/

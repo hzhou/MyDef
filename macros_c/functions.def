@@ -120,8 +120,7 @@ subcode:: c_support_subs
 
 	$if !$cur_function->{ret_type}
 	    $if $t
-		$if $t=~/(\w+)/
-		    $cur_function->{ret_var}=$1;
+		$cur_function->{ret_var}=$t
 		$cur_function->{ret_type}=infer_c_type($t)
 	    $else
 		$cur_function->{ret_type}="void";
@@ -141,6 +140,8 @@ subcode:: support_subs
 	$if !$ret_type
 	    $ret_type="void"
 	    $func->{ret_type}=$ret_type
+	$if $func->{ret_type} eq "void" and $func->{ret_var}
+	    $call warn, Failed to infer function $name return type from [$func->{ret_var}]
 
 	# ---- open block ------------------
 	my $declare=$func->{declare}

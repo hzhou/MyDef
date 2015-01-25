@@ -3,6 +3,8 @@
 subcode:: support_subs
     $sub parseblock($code)
 	my $block=$code->{source}
+	$if !$block
+	    warn "parseblock: undefined block [$code]\n"
 
 	my $indent=0
 	$call parse_stack_push
