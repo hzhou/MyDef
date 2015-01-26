@@ -6,137 +6,132 @@ page: parseutil
     output_dir: lib/MyDef
     package: MyDef::parseutil
     subcode: main
-	my $debug=0
-	$call parse_main
+	$global $debug=0
 	$call support_subs
 	$call support_eachfile
 	$call support_ogdl
 	1;
 
-subcode: parse_main
-    my $defname="default";
+#---------------------------------------- 
+subcode:: support_subs
+    $sub import_data($file)
+        $global $defname="default";
+        $if $file=~/([^\/]+)\.def/
+            $defname=$1
 
-    $sub import_data
-	my ($file)=@_
-	$if $file=~/([^\/]+)\.def/
-	    $defname=$1
-	import_data_lines($file, undef)
+        my $def={"resource"=>{}, 
+                "pages"=>{}, 
+                "pagelist"=>[],
+                "codes"=>{}, 
+                "macros"=>{},
+                "defname"=>$defname,
+                };
 
-    $sub import_data_lines
-	my ($file, $plines)=@_;
-	my $def={"resource"=>{}, 
-		"pages"=>{}, 
-		"pagelist"=>[],
-		"codes"=>{}, 
-		"macros"=>{},
-		"defname"=>$defname,
-		};
+        # -------- global macros from config ---------
+        $while my ($k, $v)=each %$MyDef::var
+            $if $k=~/macro_(\w+)/
+                $def->{macros}->{$1}=$v;
+        # -------- include files ---------
+        my @includes;
+        my %includes;
+        $call load_standard_includes
 
-	# -------- global macros from config ---------
-	$while my ($k, $v)=each %$MyDef::var
-	    $if $k=~/macro_(\w+)/
-		$def->{macros}->{$1}=$v;
-	# -------- include files ---------
-	my @includes;
-	my %includes;
-	$call load_standard_includes
+        # -----------------------------------------------
+        import_file($file, $def, \@includes,\%includes, "main")
+        $while 1
+            $if my $file=shift(@includes)
+                import_file($file, $def, \@includes,\%includes, "include")
+            $elif my $file=shift(@standard_includes)
+                import_file($file, $def, \@includes,\%includes, "standard_include")
+            $else
+                last
 
-	# -----------------------------------------------
-	import_file($file, $plines, $def, \@includes,\%includes, "main")
-	$while 1
-	    $if my $file=shift(@includes)
-		import_file($file, undef, $def, \@includes,\%includes, "include")
-	    $elif my $file=shift(@standard_includes)
-		import_file($file, undef, $def, \@includes,\%includes, "standard_include")
-	    $else
-		last
+        # ---- End of Parsing ---------------------------
+        post_foreachfile($def);
+        post_matchblock($def);
+        #$call compile_perlcode
+        #$call dump_hash, $def
+        return $def;
 
-	# ---- End of Parsing ---------------------------
-	post_foreachfile($def);
-	post_matchblock($def);
-	#$call compile_perlcode
-	#$call dump_hash, $def
-	return $def;
+    $sub import_file($f, $def, $include_list, $include_hash, $file_type)
+        #---- import a single def file, update include_list -----
+        my $pages=$def->{pages}
+        my $pagelist=$def->{pagelist}
+        my $codes=$def->{codes}
+        my $macros=$def->{macros}
+        # ---------------------
+        $call perfile_variables
+        my $plines=get_lines($f);
+        # Insert an END to flush all the indentations
+        # Empty "END" stage gets ignored by default
+        push @$plines, "END"
+        my $cur_file=$f
+        my $cur_line=0
+        $foreach my $line in @$plines
+            $cur_line++
+            $call get_multiline_comment
+            $call get_indentation  # and skip comments, trim leading and tailing spaces
+            $if $grab
+                $call grab_block
 
-    $sub import_file
-	my ($f, $plines, $def, $include_list, $include_hash, $file_type)=@_
-	my $pages=$def->{pages}
-	my $pagelist=$def->{pagelist}
-	my $codes=$def->{codes}
-	my $macros=$def->{macros}
-	# ---------------------
-	$call perfile_variables
-	$if !$plines
-	    $plines=get_lines($f);
-	# Insert an END to flush all the indentations
-	# Empty "END" stage gets ignored by default
-	push @$plines, "END"
-	my $cur_file=$f
-	my $cur_line=0
-	$foreach my $line in @$plines
-	    $cur_line++
-	    $call get_multiline_comment
-	    $call get_indentation  # and skip comments, trim leading and tailing spaces
-	    $if $grab
-		$call grab_block
+            $if $curindent==0
+                $if $stage eq "code"
+                    $call end_subcode
 
-	    $if $curindent==0
-		$if $stage eq "code"
-		    $call end_subcode
+            $if $curindent < $codeindent
+                # ---- End Code Block
+                $call get_source_dedent, codeindent
+                $codeindent=0;
+            # -------------------------------
+            $if $codeindent>0
+                # ---- In Code Block ---------------------------
+                $call get_source_indent, curindent
+                $call get_source_dedent, curindent
+                push @$source, $line;
+            $elif $line=~/^(\w+)code:([:-@]?)\s*(\w+)(.*)/
+                my ($type, $dblcolon, $name, $t)=($1, $2, $3, $4)
+                #---- $dblcolon -----------
+                #-        :: concat
+                #-        :@ optional default
+                #-        :- prepend
+                $if $name eq "_autoload"
+                    $dblcolon=":"
+                $call start_subcode
+            $elif $curindent==0
+                $if $line=~/^include:? (.*)/
+                    $if !$include_hash->{$1}
+                        push @$include_list, $1;
+                        $include_hash->{$1}=1;
+                        #print STDERR "    include $1\n";
+                $elif $line=~/^(sub)?page: (.*)/
+                    my ($subpage, $t)=($1, $2)
+                    $call start_page
+                $elif $line=~/^resource:\s+(\w+)(.*)/
+                    $grab_indent=$curindent
+                    $if $def->{resource}->{$1}
+                        $grab=$def->{resource}->{$1}
+                    $else
+                        $grab={"_list"=>[], "_name"=>$1}
+                        $def->{resource}->{$1}=$grab
+                    my $t=$2
+                    $if $t=~/^\s*,\s*(.*)/
+                        my @tlist=split /,\s*/, $1
+                        $grab->{"_parents"}=\@tlist
+                $elif $line=~/^(\w+)/
+                    # macros,
+                    $stage=$1;
+                    $if !$def->{$stage}
+                        $def->{$stage}={};
+            $else
+                $if $stage =~/^macros?$/
+                    $call process_macros
+                $elsif $stage =~/^(page)$/
+                    $if $line=~/^(\w+):\s*(.*)/
+                        $call process_page_macros
+                    $else
+                        $call jump_to_main_code
 
-	    $if $curindent < $codeindent
-		# ---- End Code Block
-		$call get_source_dedent, codeindent
-		$codeindent=0;
-	    # -------------------------------
-	    $if $codeindent>0
-		# ---- In Code Block ---------------------------
-		$call get_source_indent, curindent
-		$call get_source_dedent, curindent
-		push @$source, $line;
-	    $elif $line=~/^(\w+)code:([:-@]?)\s*(\w+)(.*)/
-		my ($type, $dblcolon, $name, $t)=($1, $2, $3, $4)
-		#---- $dblcolon -----------
-		#-        :: concat
-		#-        :@ optional default
-		#-        :- prepend
-		$if $name eq "_autoload"
-		    $dblcolon=":"
-		$call start_subcode
-	    $elif $curindent==0
-		$if $line=~/^include:? (.*)/
-		    $if !$include_hash->{$1}
-			push @$include_list, $1;
-			$include_hash->{$1}=1;
-			#print STDERR "    include $1\n";
-		$elif $line=~/^(sub)?page: (.*)/
-		    my ($subpage, $t)=($1, $2)
-		    $call start_page
-		$elif $line=~/^resource:\s+(\w+)(.*)/
-		    $grab_indent=$curindent
-		    $if $def->{resource}->{$1}
-			$grab=$def->{resource}->{$1}
-		    $else
-			$grab={"_list"=>[], "_name"=>$1}
-			$def->{resource}->{$1}=$grab
-		    my $t=$2
-		    $if $t=~/^\s*,\s*(.*)/
-			my @tlist=split /,\s*/, $1
-			$grab->{"_parents"}=\@tlist
-		$elif $line=~/^(\w+)/
-		    # macros,
-		    $stage=$1;
-		    $if !$def->{$stage}
-			$def->{$stage}={};
-	    $else
-		$if $stage =~/^macros?$/
-		    $call process_macros
-		$elsif $stage =~/^(page)$/
-		    $if $line=~/^(\w+):\s*(.*)/
-			$call process_page_macros
-		    $else
-			$call jump_to_main_code
-
+#---------------------------------------- 
 subcode:: perfile_variables
     my $stage="";
     # -- 

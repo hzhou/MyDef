@@ -579,38 +579,6 @@ sub parsecode {
             }
             return;
         }
-        elsif($func eq "enumbase"){
-            my $base=0;
-            if($param1=~/(\w*),\s*(\d+)/){
-                $param1=$1;
-                $base=$2;
-            }
-            if($param1){
-                $param1.="_";
-            }
-            my @plist=split /,\s+/, $param2;
-            foreach my $t (@plist){
-                add_define("$param1$t", $base);
-                $base++;
-            }
-            return;
-        }
-        elsif($func eq "enumbit"){
-            my $base=0;
-            if($param1=~/(\w*),\s*(\d+)/){
-                $param1=$1;
-                $base=$2;
-            }
-            if($param1){
-                $param1.="_";
-            }
-            my @plist=split /,\s+/, $param2;
-            foreach my $t (@plist){
-                add_define("$param1$t",0x1<<$base);
-                $base++;
-            }
-            return;
-        }
         elsif($func eq "write_h"){
             my $tlist=$h_hash{$param1};
             if(!$tlist){
@@ -1519,7 +1487,7 @@ sub parsecode {
                     $autoload=undef;
                     $autoload_h=0;
                 }
-                if($param=~/(\w+)\(/){
+                if($param=~/(\w+)\s*\(/){
                     if(!$list_function_hash{$1}){
                         $list_function_hash{$1}=1;
                         push @list_function_list, $1;
@@ -2441,9 +2409,7 @@ sub func_return {
     MyDef::compileutil::trigger_block_post();
     if(!$cur_function->{ret_type}){
         if($t){
-            if($t=~/(\w+)/){
-                $cur_function->{ret_var}=$1;
-            }
+            $cur_function->{ret_var}=$t;
             $cur_function->{ret_type}=infer_c_type($t);
         }
         else{
@@ -4030,6 +3996,10 @@ sub process_function_std {
     if(!$ret_type){
         $ret_type="void";
         $func->{ret_type}=$ret_type;
+    }
+    if($func->{ret_type} eq "void" and $func->{ret_var}){
+        my $curfile=MyDef::compileutil::curfile_curline();
+        print "[$curfile]\x1b[33m Failed to infer function $name return type from [$func->{ret_var}]\n\x1b[0m";
     }
     my $declare=$func->{declare};
     if(!$declare){

@@ -15,6 +15,7 @@ our @case_stack;
 our $case_state;
 our $case_wrap;
 our $case_flag="\$b_flag_case";
+our $fn_block;
 $global_scope={var_list=>[], var_hash=>{}, name=>"global"};
 $cur_scope={var_list=>[], var_hash=>{}, name=>"default"};
 push @scope_stack, $global_scope;
@@ -824,6 +825,35 @@ sub parsecode {
             return;
         }
     }
+    elsif($l=~/^NOOP POST_MAIN/){
+        my $codes=$MyDef::def->{codes};
+        my @fn_list;
+        while(my ($k, $v)= each %$codes){
+            if($v->{type} eq "fn"){
+                push @fn_list, $k;
+            }
+        }
+        if(@fn_list){
+            $fn_block=[];
+            my $old_out=MyDef::compileutil::set_output($fn_block);
+            @fn_list=sort { $codes->{$a}->{index} <=> $codes->{$b}->{index} } @fn_list;
+            foreach my $fn (@fn_list){
+                push @$out, "sub $fn {";
+                push @$out, "INDENT";
+                my $params=$codes->{$fn}->{params};
+                if($#$params>=0){
+                    my $pline=join(", ", @$params);
+                    push @$out, "my ($pline) = \@_;";
+                    MyDef::compileutil::call_sub($fn, "\$list");
+                    push @$out, "DEDENT";
+                    push @$out, "}";
+                    push @$out, "NEWLINE";
+                }
+            }
+            MyDef::compileutil::set_output($old_out);
+        }
+        return 0;
+    }
     if($l=~/^\s*$/){
     }
     elsif($l=~/^\s*(break|continue);?\s*$/){
@@ -861,6 +891,10 @@ sub dumpout {
     }
     foreach my $v (@globals){
         push @$f, "our $v;\n";
+    }
+    if($fn_block){
+        $dump->{fn_block}=$fn_block;
+        unshift @$out, "INCLUDE_BLOCK fn_block";
     }
     MyDef::dumpout::dumpout($dump);
 }

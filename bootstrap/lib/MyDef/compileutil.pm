@@ -313,14 +313,6 @@ sub call_sub {
             $f_parse->("\$eval $codename, $param");
         }
         else{
-            my (@pre_plist, $pline, @plist);
-            if($param=~/^\(([^\)]*)\)/){
-                $param=$';
-                @pre_plist=MyDef::utils::proper_split($1);
-            }
-            $param=~s/^\s*,?\s*//;
-            $pline=$param;
-            @plist=MyDef::utils::proper_split($param);
             if($codelib){
                 push @callsub_stack, $codename;
                 if($calltype=~/\$call-(\w+)/){
@@ -333,39 +325,44 @@ sub call_sub {
                 if($scope){
                     $codelib->{"scope"}=$scope;
                 }
-                my $np=@pre_plist;
-                if($calltype eq "\$list"){
+                if($calltype eq "\$list" or $calltype eq "\$call-PRINT"){
                     parseblock($codelib);
                 }
-                elsif($calltype eq "\$map"){
-                    if(1+@pre_plist!=@$params){
-                        warn " Code $codename parameter mismatch.\n";
-                    }
-                    if($plist[0]=~/^subcode:(.*)/){
-                        my $prefix=$1;
-                        @plist=();
-                        my $codes=$MyDef::def->{codes};
-                        foreach my $k (sort(keys(%$codes))){
-                            if($k=~/^$prefix(\w+)/){
-                                push @plist, $1;
-                            }
-                        }
-                    }
-                    foreach my $item (@plist){
-                        my $macro={$params->[$np]=>$item};
-                        if($np){
-                            for(my $i=0; $i <$np; $i++){
-                                $macro->{$params->[$i]}=$pre_plist[$i];
-                            }
-                        }
-                        push @$deflist, $macro;
-                        parseblock($codelib);
-                        pop @$deflist;
-                    }
-                }
                 else{
-                    if($calltype eq "\$call-PRINT"){
-                        push @$deflist, {};
+                    my (@pre_plist, $pline, @plist);
+                    if($param=~/^\(([^\)]*)\)/){
+                        $param=$';
+                        @pre_plist=MyDef::utils::proper_split($1);
+                    }
+                    $param=~s/^\s*,?\s*//;
+                    $pline=$param;
+                    @plist=MyDef::utils::proper_split($param);
+                    my $np=@pre_plist;
+                    if($calltype eq "\$map"){
+                        if(1+@pre_plist!=@$params){
+                            warn " Code $codename parameter mismatch.\n";
+                        }
+                        if($plist[0]=~/^subcode:(.*)/){
+                            my $prefix=$1;
+                            @plist=();
+                            my $codes=$MyDef::def->{codes};
+                            foreach my $k (sort(keys(%$codes))){
+                                if($k=~/^$prefix(\w+)/){
+                                    push @plist, $1;
+                                }
+                            }
+                        }
+                        foreach my $item (@plist){
+                            my $macro={$params->[$np]=>$item};
+                            if($np){
+                                for(my $i=0; $i <$np; $i++){
+                                    $macro->{$params->[$i]}=$pre_plist[$i];
+                                }
+                            }
+                            push @$deflist, $macro;
+                            parseblock($codelib);
+                            pop @$deflist;
+                        }
                     }
                     else{
                         my $macro={};
@@ -415,9 +412,9 @@ sub call_sub {
                             print "\n";
                         }
                         push @$deflist, $macro;
+                        parseblock($codelib);
+                        pop @$deflist;
                     }
-                    parseblock($codelib);
-                    pop @$deflist;
                 }
                 modepop();
                 pop @callsub_stack;
@@ -490,6 +487,9 @@ sub eval_sub_string {
 sub parseblock {
     my ($code)=@_;
     my $block=$code->{source};
+    if(!$block){
+        warn "parseblock: undefined block [$code]\n";
+    }
     my $indent=0;
     $block_index++;
     my $blk= {out=>$out, index=>$block_index, eindex=>$block_index, file=>$cur_file, line=>$cur_line, code=>$code};
@@ -1456,6 +1456,9 @@ sub compile {
     }
     if(!$maincode){
         $maincode=$MyDef::def->{codes}->{basic_frame};
+    }
+    if(!$maincode){
+        die "Missing maincode\n";
     }
     parse_code($maincode);
     $f_parse->("NOOP POST_MAIN");

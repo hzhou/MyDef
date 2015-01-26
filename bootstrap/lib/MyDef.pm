@@ -95,11 +95,9 @@ sub addpath {
     my ($path)=@_;
     $var->{path}=$path;
 }
-sub createpage_lines {
-    my ($pagename)=@_;
-    $page=$def->{pages}->{$pagename};
-    my $plines=MyDef::compileutil::compile();
-    return $plines;
+sub import_data {
+    my ($file)=@_;
+    $def= MyDef::parseutil::import_data($file);
 }
 sub createpage {
     my ($pagename)=@_;
@@ -109,14 +107,6 @@ sub createpage {
     }
     my $plines=MyDef::compileutil::compile();
     MyDef::compileutil::output($plines);
-}
-sub import_data_lines {
-    my $plines=shift;
-    $def= MyDef::parseutil::import_data_lines($plines, $var);
-}
-sub import_data {
-    my $file=shift;
-    $def= MyDef::parseutil::import_data($file, $var);
 }
 sub is_sub {
     my $subname=shift;

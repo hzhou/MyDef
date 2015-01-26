@@ -42,17 +42,15 @@ subcode: mydef_main
 	    die "Undefined module type $module\n";
     # ----
     $call mydef_subs
+    1;
 
 subcode: mydef_subs
     $sub addpath
 	my ($path)=@_;
 	$var->{path}=$path;
 
-    $sub createpage_lines
-	my ($pagename)=@_;
-	$page=$def->{pages}->{$pagename};
-	my $plines=MyDef::compileutil::compile()
-	return $plines;
+    $sub import_data($file)
+	$def= MyDef::parseutil::import_data($file)
 
     $sub createpage
 	my ($pagename)=@_;
@@ -62,14 +60,6 @@ subcode: mydef_subs
 
 	my $plines=MyDef::compileutil::compile()
 	MyDef::compileutil::output($plines)
-
-    $sub import_data_lines
-	my $plines=shift;
-	$def= MyDef::parseutil::import_data_lines($plines, $var);
-
-    $sub import_data
-	my $file=shift;
-	$def= MyDef::parseutil::import_data($file, $var);
 
     $sub is_sub
 	my $subname=shift;
@@ -103,8 +93,6 @@ subcode: mydef_subs
 	
 	$if $var->{output_path} and !$var->{output_dir}
 	    $var->{output_dir}=$var->{output_path}
-
-    1;
 
 ################################################
 subcode: require_module(name)

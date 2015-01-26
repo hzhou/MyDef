@@ -1,17 +1,14 @@
 use strict;
 package MyDef::parseutil;
+our $debug=0;
+our $defname="default";
+our $code_index=0;
 our @indent_stack=(0);
-my $debug=0;
-my $defname="default";
 sub import_data {
     my ($file)=@_;
     if($file=~/([^\/]+)\.def/){
         $defname=$1;
     }
-    import_data_lines($file, undef);
-}
-sub import_data_lines {
-    my ($file, $plines)=@_;
     my $def={"resource"=>{},
         "pages"=>{},
         "pagelist"=>[],
@@ -29,13 +26,13 @@ sub import_data_lines {
     my @standard_includes;
     my $stdinc="std_".$MyDef::var->{module}.".def";
     push @standard_includes, $stdinc;
-    import_file($file, $plines, $def, \@includes,\%includes, "main");
+    import_file($file, $def, \@includes,\%includes, "main");
     while(1){
         if(my $file=shift(@includes)){
-            import_file($file, undef, $def, \@includes,\%includes, "include");
+            import_file($file, $def, \@includes,\%includes, "include");
         }
         elsif(my $file=shift(@standard_includes)){
-            import_file($file, undef, $def, \@includes,\%includes, "standard_include");
+            import_file($file, $def, \@includes,\%includes, "standard_include");
         }
         else{
             last;
@@ -46,7 +43,7 @@ sub import_data_lines {
     return $def;
 }
 sub import_file {
-    my ($f, $plines, $def, $include_list, $include_hash, $file_type)=@_;
+    my ($f, $def, $include_list, $include_hash, $file_type)=@_;
     my $pages=$def->{pages};
     my $pagelist=$def->{pagelist};
     my $codes=$def->{codes};
@@ -65,9 +62,7 @@ sub import_file {
     my $cur_codename;
     my $code_prepend;
     my @macro_names;
-    if(!$plines){
-        $plines=get_lines($f);
-    }
+    my $plines=get_lines($f);
     push @$plines, "END";
     my $cur_file=$f;
     my $cur_line=0;
@@ -184,7 +179,8 @@ sub import_file {
                     $t=$1;
                     @params=split /,\s*/, $t;
                 }
-                my $t_code={'type'=>$type, 'source'=>$source, 'params'=>\@params, 'name'=>$name};
+                $code_index++;
+                my $t_code={'type'=>$type, 'index'=>$code_index, 'source'=>$source, 'params'=>\@params, 'name'=>$name};
                 if($dblcolon eq "@"){
                     $t_code->{attr}="default";
                 }
