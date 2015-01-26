@@ -860,11 +860,11 @@ sub parsecode {
                 if($#$params>=0){
                     my $pline=join(", ", @$params);
                     push @$out, "my ($pline) = \@_;";
-                    MyDef::compileutil::call_sub($fn, "\$list");
-                    push @$out, "DEDENT";
-                    push @$out, "}";
-                    push @$out, "NEWLINE";
                 }
+                MyDef::compileutil::call_sub($fn, "\$list");
+                push @$out, "DEDENT";
+                push @$out, "}";
+                push @$out, "NEWLINE";
             }
             MyDef::compileutil::set_output($old_out);
         }

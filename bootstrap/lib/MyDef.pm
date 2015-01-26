@@ -79,6 +79,68 @@ sub init {
     }
 }
 
+sub import_data {
+    my ($file) = @_;
+    $def= MyDef::parseutil::import_data($file);
+}
+
+sub createpage {
+    my ($pagename) = @_;
+    $page=$def->{pages}->{$pagename};
+    if($page->{output_path} and !$page->{output_dir}){
+        $page->{output_dir}=$page->{output_path};
+    }
+    my $plines=MyDef::compileutil::compile();
+    MyDef::compileutil::output($plines);
+}
+
+sub addpath {
+    my ($path) = @_;
+    $var->{path}=$path;
+}
+
+sub is_sub {
+    my ($subname) = @_;
+    if($page->{codes}->{$subname}){
+        return 1;
+    }
+    elsif($def->{codes}->{$subname}){
+        return 1;
+    }
+    else{
+        return 0;
+    }
+}
+
+sub set_page_extension {
+    my ($default_ext) = @_;
+    my $ext=$default_ext;
+    if(exists $var->{filetype}){
+        $ext=$var->{filetype};
+    }
+    if(exists $page->{type}){
+        $ext=$page->{type};
+    }
+    if($ext eq "none"){
+        $ext="";
+    }
+    $page->{pageext}=$ext;
+}
+
+sub import_config {
+    my ($file) = @_;
+    open In, $file or return;
+    while(<In>){
+        if(/^(\w+):\s*(.*\S)/){
+            $var->{$1}=$2;
+        }
+    }
+    close In;
+    if($var->{output_path} and !$var->{output_dir}){
+        $var->{output_dir}=$var->{output_path};
+    }
+}
+
 import_config("config");
 my @include_path=split /:/, $var->{include_path};
 if($ENV{MYDEFLIB}){
@@ -92,62 +154,6 @@ if($ENV{MYDEFLIB}){
     $var->{include_path}.=":$ENV{MYDEFLIB}";
     if(@t){
         $var->{include_path}.=":". join(":", @t);
-    }
-}
-sub addpath {
-    my ($path)=@_;
-    $var->{path}=$path;
-}
-sub import_data {
-    my ($file)=@_;
-    $def= MyDef::parseutil::import_data($file);
-}
-sub createpage {
-    my ($pagename)=@_;
-    $page=$def->{pages}->{$pagename};
-    if($page->{output_path} and !$page->{output_dir}){
-        $page->{output_dir}=$page->{output_path};
-    }
-    my $plines=MyDef::compileutil::compile();
-    MyDef::compileutil::output($plines);
-}
-sub is_sub {
-    my $subname=shift;
-    if($page->{codes}->{$subname}){
-        return 1;
-    }
-    elsif($def->{codes}->{$subname}){
-        return 1;
-    }
-    else{
-        return 0;
-    }
-}
-sub set_page_extension {
-    my ($default_ext)=@_;
-    my $ext=$default_ext;
-    if(exists $var->{filetype}){
-        $ext=$var->{filetype};
-    }
-    if(exists $page->{type}){
-        $ext=$page->{type};
-    }
-    if($ext eq "none"){
-        $ext="";
-    }
-    $page->{pageext}=$ext;
-}
-sub import_config {
-    my ($file)=@_;
-    open In, $file or return;
-    while(<In>){
-        if(/^(\w+):\s*(.*\S)/){
-            $var->{$1}=$2;
-        }
-    }
-    close In;
-    if($var->{output_path} and !$var->{output_dir}){
-        $var->{output_dir}=$var->{output_path};
     }
 }
 1;
