@@ -1,11 +1,11 @@
 use strict;
 package MyDef::parseutil;
 our $debug=0;
+our @indent_stack=(0);
 our $defname="default";
 our $code_index=0;
-our @indent_stack=(0);
 sub import_data {
-    my ($file)=@_;
+    my ($file) = @_;
     if($file=~/([^\/]+)\.def/){
         $defname=$1;
     }
@@ -42,8 +42,9 @@ sub import_data {
     post_matchblock($def);
     return $def;
 }
+
 sub import_file {
-    my ($f, $def, $include_list, $include_hash, $file_type)=@_;
+    my ($f, $def, $include_list, $include_hash, $file_type) = @_;
     my $pages=$def->{pages};
     my $pagelist=$def->{pagelist};
     my $codes=$def->{codes};
@@ -321,6 +322,7 @@ sub import_file {
         }
     }
 }
+
 sub getindent {
     my ($s)=@_;
     use integer;

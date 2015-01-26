@@ -9,13 +9,11 @@ page: MyDef
 	$call mydef_main
 
 subcode: mydef_main
-    our $def;
-    our $page;
-    our $var={};
-    use MyDef::utils
-    use MyDef::parseutil
-    use MyDef::compileutil
-    use MyDef::dumpout
+    $global $def, $page, $var={}
+    $use MyDef::utils
+    $use MyDef::parseutil
+    $use MyDef::compileutil
+    $use MyDef::dumpout
 
     # ----------------------------------
     import_config("config");
@@ -30,19 +28,19 @@ subcode: mydef_main
 	$if @t
 	    $var->{include_path}.=":". join(":", @t)
 
-    $sub init
-	my (%config)=@_;
-	$while my ($k, $v) = each %config
-	    $var->{$k}=$v;
-	my $module=$var->{module};
-	$if !$module
-	    die "Module type not defined in config!\n"
-	$map require_module, $(module_list)
-	$else
-	    die "Undefined module type $module\n";
     # ----
     $call mydef_subs
     1;
+
+fncode: init(%config)
+    $while my ($k, $v) = each %config
+        $var->{$k}=$v;
+    my $module=$var->{module};
+    $if !$module
+        die "Module type not defined in config!\n"
+    $map require_module, $(module_list)
+    $else
+        die "Undefined module type $module\n";
 
 subcode: mydef_subs
     $sub addpath

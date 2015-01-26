@@ -1,29 +1,16 @@
 use strict;
-package MyDef;
-our $def;
-our $page;
-our $var={};
 use MyDef::utils;
 use MyDef::parseutil;
 use MyDef::compileutil;
 use MyDef::dumpout;
-import_config("config");
-my @include_path=split /:/, $var->{include_path};
-if($ENV{MYDEFLIB}){
-    my $mydeflib=$ENV{MYDEFLIB};
-    my @t;
-    foreach my $d (@include_path){
-        if($d=~/^\w+/ and -d "$mydeflib/$d"){
-            push @t, "$mydeflib/$d";
-        }
-    }
-    $var->{include_path}.=":$ENV{MYDEFLIB}";
-    if(@t){
-        $var->{include_path}.=":". join(":", @t);
-    }
-}
+
+package MyDef;
+our $def;
+our $page;
+our $var={};
+
 sub init {
-    my (%config)=@_;
+    my (%config) = @_;
     while(my ($k, $v) = each %config){
         $var->{$k}=$v;
     }
@@ -89,6 +76,22 @@ sub init {
     }
     else{
         die "Undefined module type $module\n";
+    }
+}
+
+import_config("config");
+my @include_path=split /:/, $var->{include_path};
+if($ENV{MYDEFLIB}){
+    my $mydeflib=$ENV{MYDEFLIB};
+    my @t;
+    foreach my $d (@include_path){
+        if($d=~/^\w+/ and -d "$mydeflib/$d"){
+            push @t, "$mydeflib/$d";
+        }
+    }
+    $var->{include_path}.=":$ENV{MYDEFLIB}";
+    if(@t){
+        $var->{include_path}.=":". join(":", @t);
     }
 }
 sub addpath {

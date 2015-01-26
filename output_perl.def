@@ -20,9 +20,24 @@ subcode: init_page
     $elif !$page->{package} and $page->{type} eq "pm"
 	$page->{package}=$page->{pagename}
 
-    $global @globals, %globals
-    @globals=()
-    %globals=()
+    $map dbl_list, globals, uses
+
+#---------------------------------------- 
+subcode: dbl_list(name)
+    $global @$(name), %$(name)
+    @$(name)=()
+    %$(name)=()
+
+subcode: dbl_push(name, v)
+    $if !$$(name){$(v)}
+        $$(name){$(v)}=1
+        push @$(name), $v
+
+subcode: dbl_push_list(name, list)
+    $(list)=~s/\s*;\s*$//
+    my @tlist=MyDef::utils::proper_split($(list))
+    $foreach $v in @tlist
+        $call dbl_push, $(name), $v
 
 #---------------------------------------- 
 subcode: case_flag_set
@@ -47,9 +62,7 @@ subcode: var_declare(scope)
 		$i++
 		$var->{"dim$i"}=$t
 	$(if:scope=global)
-	    $if !$globals{$v}
-		$globals{$v}=1
-		push @globals, $v
+            $call dbl_push, globals, $v
 	    $if $var
 		$global_scope->{var_hash}->{$name}=$var
 	$(else)
@@ -69,6 +82,9 @@ subcode: parsecode
 	    $call var_declare, global
 	$elif $func =~ /^my$/
 	    $call var_declare, my
+        $elif $func =~ /^use$/
+            $call dbl_push_list, uses, $param
+            return 0
 	$elif $func eq "sub"
 	    $if $param=~/^(\w+)\((.*)\)/
 		return single_block_pre_post(["sub $1 {", "INDENT", "my ($2)=\@_;"], ["DEDENT", "}"], "sub")
@@ -133,11 +149,18 @@ subcode: dumpout
     $if $pagetype ne "eval"
 	push @$f, "use strict;\n"
 
+    $if @uses
+        $foreach $v in @uses
+            push @$f, "use $v;\n"
+        push @$f, "\n"
+
     $if $MyDef::page->{package}
 	push @$f, "package ".$MyDef::page->{package}.";\n"
     
-    $foreach $v in @globals
-	push @$f, "our $v;\n"
+    $if @globals
+        $foreach $v in @globals
+            push @$f, "our $v;\n"
+        push @$f, "\n"
 
     $if $fn_block
 	$dump->{fn_block}=$fn_block

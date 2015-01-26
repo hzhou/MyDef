@@ -9,6 +9,8 @@ our $mode;
 our $page;
 our @globals;
 our %globals;
+our @uses;
+our %uses;
 our $case_if="if";
 our $case_elif="elsif";
 our @case_stack;
@@ -16,6 +18,7 @@ our $case_state;
 our $case_wrap;
 our $case_flag="\$b_flag_case";
 our $fn_block;
+
 $global_scope={var_list=>[], var_hash=>{}, name=>"global"};
 $cur_scope={var_list=>[], var_hash=>{}, name=>"default"};
 push @scope_stack, $global_scope;
@@ -79,6 +82,8 @@ sub init_page {
     }
     @globals=();
     %globals=();
+    @uses=();
+    %uses=();
     return $page->{init_mode};
 }
 sub set_output {
@@ -294,6 +299,17 @@ sub parsecode {
                 push @$out, "my $v;";
                 if($var){
                     $cur_scope->{var_hash}->{$name}=$var;
+                }
+            }
+            return 0;
+        }
+        elsif($func =~ /^use$/){
+            $param=~s/\s*;\s*$//;
+            my @tlist=MyDef::utils::proper_split($param);
+            foreach my $v (@tlist){
+                if(!$uses{$v}){
+                    $uses{$v}=1;
+                    push @uses, $v;
                 }
             }
             return 0;
@@ -886,11 +902,20 @@ sub dumpout {
     if($pagetype ne "eval"){
         push @$f, "use strict;\n";
     }
+    if(@uses){
+        foreach my $v (@uses){
+            push @$f, "use $v;\n";
+        }
+        push @$f, "\n";
+    }
     if($MyDef::page->{package}){
         push @$f, "package ".$MyDef::page->{package}.";\n";
     }
-    foreach my $v (@globals){
-        push @$f, "our $v;\n";
+    if(@globals){
+        foreach my $v (@globals){
+            push @$f, "our $v;\n";
+        }
+        push @$f, "\n";
     }
     if($fn_block){
         $dump->{fn_block}=$fn_block;
