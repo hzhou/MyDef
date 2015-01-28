@@ -1,3 +1,5 @@
+include: perl/indentations.def
+
 page: mydef_filter
     type: pl
     output_dir: script
@@ -51,31 +53,16 @@ subcode: parse_frame
 	    next
 
 	$if $incode
-	    $if getindentspaces($_)<$base_count
+	    $if get_indent_spaces($_)<$base_count
 		$incode=0
 	$if !$incode
 	    $if /^(\s*)subcode:/
 		$incode=1
-		$base_count=getindentspaces($1)
+		$base_count=get_indent_spaces($1)
 		$pre_indent=' ' x $base_count
 		$indent=1
 	    print $_
 	$else
 	    my $space=$pre_indent . "    " x $indent
 	    BLOCK
-
-subcode:: support_subs
-    $sub getindentspaces($t)
-	use integer
-
-	my $n=length($t)
-	my $count=0
-	$for $i=0:$n
-	    $if substr($t, $i, 1) eq ' '
-		$count++
-	    $elif substr($t, $i, 1) eq "\t"
-		$count=($count/8+1)*8
-	    $else
-		return $count
-	return $count
 

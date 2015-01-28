@@ -78,19 +78,3 @@ subcode: if_lex(@pattern)
     $case $(l)=~/\G$(pattern)/gc
 	BLOCK
 
-# -- Parsing indentation ----
-subcode: support_indentation
-    $global @indent_stack=(0)
-    $sub getindent($s)
-	use integer;
-	1 while $s=~s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e;
-	my $i=length($s);
-	$if $i==$indent_stack[-1]
-	    NOOP
-	$elif $i>$indent_stack[-1]
-	    push @indent_stack, $i
-	$else
-	    $while $i<$indent_stack[-1]
-		pop @indent_stack;
-	
-	return $#indent_stack;

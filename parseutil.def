@@ -1,5 +1,6 @@
 include: macros_util/ogdl.def
 include: macros_util/debug.def
+include: perl/indentations.def
 
 page: parseutil
     type: pm
@@ -170,7 +171,7 @@ subcode: get_indentation
 	next
     $elif $line=~/^(\s*)(.*)/
 	# get current indentation and stripping starting spaces
-	my $indent=getindent($1)
+	my $indent=get_indent($1)
 	$line=$2
 	$if $line=~/^#(?!(define|undef|include|line|error|pragma|if|ifdef|ifndef|elif|else|endif)\b)/
 	    $if $indent != $curindent
@@ -359,8 +360,6 @@ subcode: process_page_macros
 
 #---------------------------------------- 
 subcode: support_subs
-    $call support_indentation
-
     $sub expand_macro
 	my ($lref, $macros)=@_;
 	$while  $$lref=~/\$\(\w+\)/
