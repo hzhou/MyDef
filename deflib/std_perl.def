@@ -37,7 +37,7 @@ subcode: assert(cond)
     $if !($(cond))
         die "$(cond) - FALSE!\n"
 
-subcode: get_file_t(name)
+subcode: get_file_in_t(name)
     $(if:name~")
 	$(set:name=$(name:strip))
     my $t
@@ -45,6 +45,15 @@ subcode: get_file_t(name)
 	open In, "$(name)" or die "Can't open $(name).\n"
 	local $/
 	$t=<In>
+	close In
+
+subcode: get_file_lines(name)
+    $(if:name~")
+	$(set:name=$(name:strip))
+    my @lines
+    &call block
+	open In, "$(name)" or die "Can't open $(name).\n"
+	@lines=<In>
 	close In
 
 # -- HTML -----------------------------

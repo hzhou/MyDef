@@ -1,0 +1,35 @@
+#---------------------------------------- 
+#-  e.g. my $indent = get_indent($line)
+
+fncode: get_indent($s)
+    $global @indent_stack=(0)
+    use integer;
+    1 while $s=~s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e;
+    my $i=length($s);
+    $if $i==$indent_stack[-1]
+        NOOP
+    $elif $i>$indent_stack[-1]
+        push @indent_stack, $i
+    $else
+        $while $i<$indent_stack[-1]
+            pop @indent_stack;
+    
+    return $#indent_stack;
+
+#---------------------------------------- 
+#- 
+
+fncode: get_indent_spaces($t)
+    use integer
+
+    my $n=length($t)
+    my $count=0
+    $for $i=0:$n
+        $if substr($t, $i, 1) eq ' '
+            $count++
+        $elif substr($t, $i, 1) eq "\t"
+            $count=($count/8+1)*8
+        $else
+            return $count
+    return $count
+
