@@ -162,33 +162,25 @@ subcode: dumpout
             push @$f, "our $v;\n"
         push @$f, "\n"
 
-    $if $fn_block
+    $if @$fn_block
 	$dump->{fn_block}=$fn_block
 	unshift @$out, "INCLUDE_BLOCK fn_block"
 
 #----------------------------------------------- 
 subcode: list_functions
-    $global $fn_block
-    my $codes=$MyDef::def->{codes}
-    my @fn_list
-    $while my ($k, $v)= each %$codes
-	$if $v->{type} eq "fn"
-	    push @fn_list, $k
-    $if @fn_list
-	$fn_block=[]
-	&call replace_output, $fn_block
-	    @fn_list=sort { $codes->{$a}->{index} <=> $codes->{$b}->{index} } @fn_list
-	    $foreach $fn in @fn_list
-		$call parse_function, $fn
+    $global $fn_block=[]
+    &call replace_output, $fn_block
+        &call each_subcode, fn
+            $call parse_function, $name, $code
 
-subcode: parse_function(fn)
-    push @$out, "sub $fn {"
+subcode: parse_function(name, code)
+    push @$out, "sub $(name) {"
     push @$out, "INDENT"
-    my $params=$codes->{$fn}->{params}
+    my $params=$(code)->{params}
     $if $#$params>=0
 	my $pline=join(", ", @$params)
 	push @$out, "my ($pline) = \@_;"
-    MyDef::compileutil::call_sub($fn, "\$list")
+    MyDef::compileutil::call_sub($(name), "\$list")
     push @$out, "DEDENT"
     push @$out, "}"
     push @$out, "NEWLINE"

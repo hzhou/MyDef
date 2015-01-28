@@ -1,63 +1,36 @@
-For demonstrations and philosophies, visit <https://github.com/hzhou/MyDef/wiki>. 
+Documentation are now available at http://huizhou.gitbooks.io/programming-with-mydef/
 
-MyDef is a macro system that allows us to write source code of almost any language in our own way -- in specific, python indented block style, flexibility of a macro system, and with some merits of literate programing.
+MyDef is not a new programming language. It is an additional layer on top of your programming language -- a layer that can do almost anything without affect the demands of the underlying language. The layer can be very thin, in which case you still write your code exactly the same way you used to. And you should if you never had complain in programming career. But if you do, MyDef allows you to do something about it. 
 
+* I have always complained about semicolons. Now with MyDef, I don't type them anymore. 
+* I have complained about curly braces. Now with MyDef, I avoided them, along with the grammatical parentheses.
+* I have wished to refactor my code without worry about variable scopes. MyDef allows me to refactor with no side effects.
+* I have wished a less uglier way to write JavaScript, with MyDef, I liked the new look.
+* ...
+
+Before you ask what good does MyDef can give you, recall what bad you have complained, and MyDef offers a solution -- without changing your language and still allowing collaborate with your fellow coworkers even when they are stuck in their primal language. 
+
+MyDef is not just syntax, it is about paradigm. If you have a vision on how you think to program, MyDef can realize them. 
 
 INSTALL
 =======
 
-For courageous people, one could try "./bootstrap.sh" and then skip the first 3 steps. If that fails, try the following steps manually.
-
 1. MyDef currently is in perl. First setup a custome installation environment:
-    PATH=$PATH:/home/hzhou/bin
-    PERL5LIB=/home/hzhou/lib/perl5
-    MYDEFLIB=/home/hzhou/lib/MyDef
+    PATH=$PATH:~/bin
+    PERL5LIB=~/lib/perl5
+    MYDEFLIB=~/lib/MyDef
     export PATH PERL5LIB MYDEFLIB
-
-    alias pmake="perl Makefile.PL INSTALL_BASE=/home/hzhou" 
 
     The purpose is to install into one's home directory rather than system folders. I assume it is understood that /home/hzhou should be replaced with your own home directory on your specific computer.
 
-2. The real source of MyDef is in MyDef, but you need MyDef installed to compile the source. So I put a version of MyDef perl code in bootstrap folder. It is there also for the rescue when we messed up with the source code and MyDef stops compile.
-    cd bootstrap
-    pmake
-    make
-    make install
-    cd ..
+2. Now install it:
+    sh bootstrap.sh
 
-3. Next, we need install the standard def library into $MYDEFLIB folder
-    perl install_def.pl
+3. Now read the [documentation]( http://huizhou.gitbooks.io/programming-with-mydef)
 
-4. Now we try compile MyDef, which is the real source that is up-to-date
-    mydef_make.pl 
-    # a couple file in the newly created MyDef directory need be overwritten
-    touch perlmake.def mydef.def
-    make
+4. Try it.
 
-    cd MyDef # It is the output folder, bootstrap was copied from there
-
-    pmake 
-    make
-    make install
-
-5. Now we could goto tests folder and run some tests.
-    cd tests
-    perl test.pl general_test.def 
-    perl test.pl c_structures.def
-    perl test.pl xs_test.def
-    perl test.pl win32_test.def
-    perl test.pl apple_test.def
-
-    The win32 and apple test still need to be compiled over using visual studio and xcode to complete the final check.
-
-6. In general, say you want to work on some source code using MyDef, first make a empty directory, then in that directory run
-    mydef_make.pl
-
-    It will ask for module type and output directory and writes a config file. Then you could just start writing .def files there.
-
-    In each def file, MyDef looks for page: directives and outputs files that corresponding to the page name. All the macros are defined with subcode directives. subcode main is the entry point for that page.
-
-7. If you use vim, there is simple mydef syntax.
+5. If you use vim, there is simple mydef syntax.
     vim ~/.vim/filetype.vim
 	augroup filetypedetect
 	au BufNewFile,BufRead *.def setf mydef

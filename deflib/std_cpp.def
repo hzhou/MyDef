@@ -4,8 +4,6 @@ subcode: basic_frame
     $include <cstdio>
 
     $call @global
-    $(if:hascode:n_main)
-	$list n_main
     $(if:hascode:main2)
 	$list main2
 

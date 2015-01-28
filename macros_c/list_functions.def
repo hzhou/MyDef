@@ -7,6 +7,10 @@ subcode:: c_init
     %list_function_hash=()
     @list_function_list=()
 
+subcode: autolist_functions
+    &call each_subcode, fn
+        $call add_list_functions, $name
+
 # ------------------------------------
 subcode:: parsecode_func_other
     $elsif $func eq "function"

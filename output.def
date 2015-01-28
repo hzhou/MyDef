@@ -246,3 +246,16 @@ subcode: push_indent_block
     push @$out, "INDENT"
     BLOCK
     push @$out, "DEDENT"
+
+#--------
+subcode: each_subcode(type)
+    my $codes=$MyDef::def->{codes}
+    my @tlist
+    $while my ($k, $v)= each %$codes
+	$if $v->{type} eq "$(type)"
+	    push @tlist, $k
+    $if @tlist
+        @tlist=sort { $codes->{$a}->{index} <=> $codes->{$b}->{index} } @tlist
+        $foreach $name in @tlist
+            my $code=$codes->{$name}
+            BLOCK

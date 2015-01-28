@@ -1,8 +1,7 @@
 include: c/hash.def
 
 page: test, basic_frame
-    subcode: main
-	$call test_hash
+    $call test_hash
 
 subcode: test_hash
     $my hash H

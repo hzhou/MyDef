@@ -30,6 +30,8 @@ page: output_c, output_main
 	    $type_name{f}="double";
 	    $type_prefix{f}="double";
 	$call @c_init
+        $if $page->{autolist}
+            $call @autolist_functions
 
     subcode: parsecode
 	$(set:parse_condition=1)
