@@ -6,7 +6,7 @@ MyDef is not a new programming language. It is an additional layer on top of you
 * I have complained about curly braces. Now with MyDef, I avoided them, along with the grammatical parentheses.
 * I have wished to refactor my code without worry about variable scopes. MyDef allows me to refactor with no side effects.
 * I have wished a less uglier way to write JavaScript, with MyDef, I liked the new look.
-* ...
+* etc.
 
 And they are not on/off switches. You may start refactor part of your code, and simply paste the rest of your legacy code. Unlike other programming language which will tell you what to do, often strictly, you just do what you want to do in MyDef. You do need know what you want to do in this case.
 
