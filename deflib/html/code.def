@@ -7,13 +7,17 @@ subcode: css_code
     CSS: .mydef-preproc {color: #844;}
 
 #---------------------------------------- 
-perlcode: codeprint_mydef
+perlcode: codeprint
+    my $type
+    $if $param=~/(\w+)/
+	$type=$1
     my $codelist=MyDef::compileutil::get_named_block("last_grab")
     $if ref($codelist) eq "ARRAY"
         push @$out, "<pre><code>"
         push @$out, "PUSHDENT"
         $foreach $t in @$codelist
-            $call mydef_print
+	    $if $type eq "mydef"
+		$call mydef_print
             push @$out, $t
         push @$out, "POPDENT"
         push @$out, "</code></pre>"
