@@ -1,0 +1,50 @@
+
+subcode: css_code
+    CSS: pre {background-color: #ddd; margin: 4px 10px; padding-left: 20px}
+    CSS: .mydef-comment {color: #888;}
+    CSS: .mydef-label {color: #22f;}
+    CSS: .mydef-keyword {color: #282;}
+    CSS: .mydef-preproc {color: #844;}
+
+#---------------------------------------- 
+perlcode: codeprint_mydef
+    my $codelist=MyDef::compileutil::get_named_block("last_grab")
+    $if ref($codelist) eq "ARRAY"
+        push @$out, "<pre><code>"
+        push @$out, "PUSHDENT"
+        $foreach $t in @$codelist
+            $call mydef_print
+            push @$out, $t
+        push @$out, "POPDENT"
+        push @$out, "</code></pre>"
+
+#---------------------------------------- 
+subcode: global_pattern(name, p)
+    $if $t=~/$(p)/
+	my @plist=split /($(p))/, $t
+	my @tlist
+	$foreach $p in @plist
+	    $if $p=~/^$(p)$/
+		push @tlist, "<span class=\"mydef-$(name)\">$p</span>" 
+	    $else
+		push @tlist, $p
+	$t=join('', @tlist)
+
+subcode: mydef_print
+    #print "mydef_print [$t]\n"
+    $if $t!~/</ 
+	$call global_pattern, quote, ".*?"
+	$call global_pattern, macro, \$\(.*?\) 
+
+    $(set:span=<span class=\"mydef-$1\">$2</span>)
+    $if $t=~/^(\s*)((#|&#35;).*)/
+	$t="$1$(span:comment, $2)"
+    $elif $t=~/^(\s*)(page|CSS|\w+code):(.*)/
+	$t="$1$(span:label, $2):$3"
+    $elif $t=~/^(\s*)\$(call|map|if|while|switch|for|elif|elsif|else|function)\b(.*)/
+        $t="$1$(span:keyword,\$$2)$3"
+    $elif $t=~/^(\s*)\&(call)(.*)/
+        $t="$1$(span:keyword,\&$2)$3"
+    $elif $t=~/^(\s*)(include:.*)/
+        $t="$1$(span:preproc,$2)"
+
