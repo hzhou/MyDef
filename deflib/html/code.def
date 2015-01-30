@@ -6,6 +6,14 @@ subcode: css_code
     CSS: .mydef-keyword {color: #282;}
     CSS: .mydef-preproc {color: #844;}
 
+#----------------------------------------------- 
+subcode: precode
+    <pre><code>
+    PUSHDENT
+    BLOCK
+    POPDENT
+    </code></pre>
+
 #---------------------------------------- 
 perlcode: codeprint
     my $type
