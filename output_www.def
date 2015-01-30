@@ -21,6 +21,8 @@ subcode:: package_globals
 
 subcode:: init_page
     $style_sheets=[]
+    $if $page->{pageext} eq "js"
+        $init_mode="js"
 
 subcode: modeswitch
     # stackable mode : html -> js -> php
@@ -141,6 +143,9 @@ subcode: parsecode_other
 subcode: check_inline_php
     #print "check_inline_php $l\n";
     $l=~s/(\$\w+)/<?php echo \1 ?>/g
+
+#-- support mydef_print, which processes $t
+include: html/code.def
 
 subcode:: support_subs
     $sub custom_dump

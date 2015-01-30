@@ -127,10 +127,13 @@ subcode: for_i0_i1_step
     $param="my $var=$i0; $var $i1; $var$step"
 
 subcode: parsecode_foreach
-    $if $param=~/(\S+)\s+in\s+(.*)/
+    $if $param=~/^(?:my\s+)?(\S+)\s+in\s+(.*)/
 	my ($var, $list)=($1, $2)
 	$call loop_var
 	return single_block("foreach my $var ($list){", "}", "foreach")
+    $elif $param=~/^(\S+),\s*(\S+)\s+in\s+(.*)/
+        my ($k, $v, $hash)=($1, $2, $3)
+        return single_block("while (my ($k, $v)=each $hash){", "}", "foreach")
 
 subcode: loop_var
     $if !$var

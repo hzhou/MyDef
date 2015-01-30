@@ -171,30 +171,3 @@ subcode:: support_subs
 	$else
 	    return "<img src=\"$src\" $attr>"
 */
-# ------------------------------------------------------------
-subcode: global_pattern(name, p)
-    $if $t=~/$(p)/
-	my @plist=split /($(p))/, $t
-	my @tlist
-	$foreach $p in @plist
-	    $if $p=~/^$(p)$/
-		push @tlist, "<span class=\"mydef-$(name)\">$p</span>" 
-	    $else
-		push @tlist, $p
-	$t=join('', @tlist)
-
-subcode: mydef_print
-    #print "mydef_print [$t]\n"
-    $if $t!~/</ 
-	$call global_pattern, quote, ".*?"
-	$call global_pattern, macro, \$\(.*?\) 
-
-    $if $t=~/^(\s*)((#|&#35;).*)/
-	$t="$1<span class=\"mydef-comment\">$2</span>"
-    $elif $t=~/^(\s*)(page|CSS|\w+code):(.*)/
-	$t="$1<span class=\"mydef-label\">$2</span>:$3"
-    $elif $t=~/^(\s*)\$(call|map|if|while|switch|for|elif|elsif|else|function)\b(.*)/
-	$t="$1<span class=\"mydef-keyword\">\$$2</span>$3"
-    $elif $t=~/^(\s*)\&(call)(.*)/
-	$t="$1<span class=\"mydef-keyword\">\&$2</span>$3"
-

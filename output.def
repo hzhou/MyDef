@@ -29,8 +29,12 @@ subcode: output_main
 	    MyDef::set_page_extension("$(ext)")
 	$(else)
 	    MyDef::set_page_extension(undef)
+        $(if:init_mode)
+            my $init_mode="$(init_mode)"
+        $(else)
+            my $init_mode="sub"
 	$call @init_page
-	return $page->{init_mode}
+	return $init_mode
 
     $sub set_output($newout)
 	$out = $newout

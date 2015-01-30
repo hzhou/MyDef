@@ -105,6 +105,25 @@ jscode: animate
 	window.requestAnimationFrame(animate_update)
     animate_update(0)
 
+#-- AJAX
+jscode: ajax_init
+    var xmlhttp
+    $if window.XMLHttpRequest
+        xmlhttp=new XMLHttpRequest()
+    $else
+        xmlhttp=new ActiveXObject("Microsoft.XMLHTTP")
+
+jscode: ajax_get(url)
+    &call auto
+        $call ajax_init
+        xmlhttp.onreadystatechange=function(){
+            $if xmlhttp.readyState==4 && xmlhttp.status==200
+                $(set:reply=xmlhttp.responseText)
+                BLOCK
+        };
+        xmlhttp.open("GET", $(url), true)
+        xmlhttp.send()
+
 ## PHP  -----------------------------------------------------
 
 phpcode: echobig(string)

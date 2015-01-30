@@ -45,20 +45,23 @@ subcode:: support_subs
 
 subcode: php_parse_func_param
 
+include: macros_output/for.def
 subcode: php_parse_func
     $if $func =~/^if(\w*)/
         $if $1
             $param=test_var($param, $1 eq 'z')
 	return single_block("if($param){", "}")
-    $elsif $func =~ /^(el|els|else)if(\w*)$/
+    $elif $func =~ /^(el|els|else)if(\w*)$/
         $if $1
             $param=test_var($param, $1 eq 'z')
         return single_block("elseif($param){", "}")
-    $elsif $func eq "else"
+    $elif $func eq "else"
 	return single_block("else{", "}")
-    $elsif $func eq "foreach" or $func eq "for" or $func eq "while"
+    $elif $func eq "for"
+        $call parsecode_for_support, c_style
+    $elif $func eq "foreach" or $func eq "for" or $func eq "while"
 	return single_block("$func ($param){", "}")
-    $elsif $func eq "function"
+    $elif $func eq "function"
 	return single_block("function $param {", "}")
     $elif $func eq "global"
         $param=~s/\s*;\s*$//
@@ -71,6 +74,22 @@ subcode: php_parse_func
             push @$out, "global $v;"
 
         return 0
+
+subcode: loop_var
+    $if !$var
+	$var="\$i"
+    $elif $var=~/^(\w+)/
+	$var='$'.$var
+
+subcode: for_i0_i1_step
+    $if $step eq "1"
+	$step="++"
+    $elif $step eq "-1"
+	$step="--"
+    $else
+	$step= "+=$step"
+    $call loop_var
+    $param="$var=$i0; $var $i1; $var$step"
 
 subcode: php_parsecode_other
     $if $l!~/[\{\};]\s*$/

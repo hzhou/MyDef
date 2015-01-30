@@ -67,7 +67,7 @@ fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
     push @$plines, "END"
     my $cur_file=$f
     my $cur_line=0
-    $foreach my $line in @$plines
+    $foreach $line in @$plines
         $cur_line++
         $call get_multiline_comment
         $call get_indentation  # and skip comments, trim leading and tailing spaces
@@ -402,7 +402,10 @@ subcode: support_subs
 	return \@lines;
 
 subcode: load_standard_includes
-    my @standard_includes;
+    my @standard_includes
+    $if $MyDef::var->{'include'}
+        push @standard_includes, split(/[:,]\s*/, $MyDef::var->{'include'})
+
     my $stdinc="std_".$MyDef::var->{module}.".def"
     push @standard_includes, $stdinc
 
