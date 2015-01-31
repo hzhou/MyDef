@@ -125,6 +125,12 @@ jscode: ajax_get(url)
         xmlhttp.send()
 
 ## PHP  -----------------------------------------------------
+htmlcode: php_frame
+    $call php_main
+
+phpcode: php_main
+    $call main2
+
 
 phpcode: echobig(string)
     $splitString = str_split($(string), 8192)
