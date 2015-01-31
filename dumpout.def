@@ -95,11 +95,17 @@ subcode: dumpout
 	    $else
 		$string_list=undef
 
-	    my $l=$h->{list}
-	    my $t=join('', @$l)
-	    $if $h->{line}=~/"STRING"/
-		$t=~s/"/\\"/g # avoid \"?
 	    my $l=$h->{line}
+	    my $join=''
+	    $if $l=~/\bSTRING\[([^\]]*)\]/
+		$join=$1
+		$l=~s/\bSTRING\[[^\]]*\]/STRING/g
+		#-- ?: STRING[, ]word?
+	    my $t=join($join, @{$h->{list}})
+
+	    $if $l=~/"STRING"/
+		$t=~s/"/\\"/g # avoid \"?
+
 	    $l=~s/\bSTRING\b/$t/
 	    $call print_line
 	$else
