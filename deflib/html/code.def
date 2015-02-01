@@ -3,8 +3,11 @@ subcode: css_code
     CSS: pre {background-color: #ddd; margin: 4px 10px; padding-left: 20px}
     CSS: .mydef-comment {color: #888;}
     CSS: .mydef-label {color: #22f;}
-    CSS: .mydef-keyword {color: #282;}
+    CSS: .mydef-keyword {color: #494;}
     CSS: .mydef-preproc {color: #844;}
+    CSS: .mydef-include {color: #444; text-decoration: underline;}
+    CSS: .mydef-quote {color: #a2a;}
+    CSS: .mydef-macro {color: #494;}
 
 #----------------------------------------------- 
 subcode: precode
@@ -24,6 +27,9 @@ perlcode: codeprint
         push @$out, "<pre><code>"
         push @$out, "PUSHDENT"
         $foreach $t in @$codelist
+            $t=~s/&#35;/#/g
+            $t=~s/&(?!call)/&amp;/g
+            $t=~s/</&lt;/g
 	    $if $type eq "mydef"
 		$call mydef_print
             push @$out, $t
@@ -51,12 +57,12 @@ subcode: mydef_print
     $(set:span=<span class=\"mydef-$1\">$2</span>)
     $if $t=~/^(\s*)((#|&#35;).*)/
 	$t="$1$(span:comment, $2)"
-    $elif $t=~/^(\s*)(page|CSS|\w+code):(.*)/
-	$t="$1$(span:label, $2):$3"
-    $elif $t=~/^(\s*)\$(call|map|if|while|switch|for|elif|elsif|else|function)\b(.*)/
+    $elif $t=~/^(\s*)(page|\w+code):\s*(\w+)(.*)/
+	$t="$1$(span:label, $2): $(span:label, $3)$4"
+    $elif $t=~/^(\s*)(\$call|\$map|\&call)\s*(\w+)(.*)/
+	$t="$1$(span:keyword, $2) <strong>$3</strong>$4"
+    $elif $t=~/^(\s*)(CSS|include):\s*(.*)/
+	$t="$1$(span:preproc, $2): $(span:include, $3)"
+    $elif $t=~/^(\s*)\$(if|while|switch|for|elif|elsif|else|function)\b(.*)/
         $t="$1$(span:keyword,\$$2)$3"
-    $elif $t=~/^(\s*)\&(call)(.*)/
-        $t="$1$(span:keyword,\&$2)$3"
-    $elif $t=~/^(\s*)(include:.*)/
-        $t="$1$(span:preproc,$2)"
 
