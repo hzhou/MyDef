@@ -1,0 +1,52 @@
+subcode: html_tag(@tag)
+    $(allow_recurse:20)
+    $(if:tag=html)
+        print Out "<doctype html>\n"
+
+    my @tt_list=split /,\s*/, "$(tag)"
+    my $func=shift @tt_list
+    $call parse_tag_attributes
+
+    print Out "<$func$t>"
+    BLOCK
+    print Out "</$func>\n"
+
+#---------------------------------------- 
+subcode: parse_tag_attributes
+    my $t=""
+    my $is_empty_tag=0
+    my $quick_content
+    $foreach my $tt in @tt_list
+	$if $tt eq "/"
+	    $is_empty_tag=1
+	$elsif $tt=~/^#(\S+)$/
+	    # ---- ID ------------
+	    $t.=" id=\"$1\"";
+	$elif $tt=~/^(\S+?)[:=]"(.*)"/
+	    # ---- Named Attribute ----
+	    $t.=" $1=\"$2\""
+	$elif $tt=~/^(\S+?)[:=](.*)/
+	    $t.=" $1=\"$2\""
+	$elif $tt=~/^"(.*)"/
+	    # ---- Quick Content ----
+	    $quick_content=$1
+	$else
+	    # ---- Classes ----
+	    $t.=" class=\"$tt\"";
+
+    $call tag_input
+    $call tag_form
+
+subcode: tag_input
+    $case $func eq "input"
+	$if $t !~ /type=/
+	    $t.=" type=\"text\""
+	$if $quick_content
+	    $t.=" placeholder=\"$quick_content\""
+subcode: tag_form
+    $case $func eq "form"
+	$if $t !~ /action=/
+	    $t.=" action=\"<?=\$_SERVER['PHP_SELF'] ?>\""
+	$if $t !~ /method=/
+	    $t.=" method=\"POST\""
+
