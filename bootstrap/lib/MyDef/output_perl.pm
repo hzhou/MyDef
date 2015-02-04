@@ -17,7 +17,7 @@ our @case_stack;
 our $case_state;
 our $case_wrap;
 our $case_flag="\$b_flag_case";
-our $fn_block;
+our $fn_block=[];
 
 $global_scope={var_list=>[], var_hash=>{}, name=>"global"};
 $cur_scope={var_list=>[], var_hash=>{}, name=>"default"};
@@ -74,6 +74,7 @@ sub init_page {
     my ($t_page)=@_;
     $page=$t_page;
     MyDef::set_page_extension("pl");
+    my $init_mode="sub";
     if($page->{package} and !$page->{type}){
         MyDef::set_page_extension("pm");
     }
@@ -84,7 +85,7 @@ sub init_page {
     %globals=();
     @uses=();
     %uses=();
-    return $page->{init_mode};
+    return $init_mode;
 }
 sub set_output {
     my ($newout)=@_;
@@ -386,7 +387,7 @@ sub parsecode {
             }
         }
         elsif($func eq "foreach"){
-            if($param=~/(\S+)\s+in\s+(.*)/){
+            if($param=~/^(?:my\s+)?(\S+)\s+in\s+(.*)/){
                 my ($var, $list)=($1, $2);
                 if(!$var){
                     $var="\$i";
@@ -395,6 +396,10 @@ sub parsecode {
                     $var='$'.$var;
                 }
                 return single_block("foreach my $var ($list){", "}", "foreach");
+            }
+            elsif($param=~/^(\S+),\s*(\S+)\s+in\s+(.*)/){
+                my ($k, $v, $hash)=($1, $2, $3);
+                return single_block("while (my ($k, $v)=each $hash){", "}", "foreach");
             }
         }
         elsif($func eq "sumcode"){
@@ -842,32 +847,32 @@ sub parsecode {
         }
     }
     elsif($l=~/^NOOP POST_MAIN/){
+        my $old_out=MyDef::compileutil::set_output($fn_block);
         my $codes=$MyDef::def->{codes};
-        my @fn_list;
+        my @tlist;
         while(my ($k, $v)= each %$codes){
             if($v->{type} eq "fn"){
-                push @fn_list, $k;
+                push @tlist, $k;
             }
         }
-        if(@fn_list){
-            $fn_block=[];
-            my $old_out=MyDef::compileutil::set_output($fn_block);
-            @fn_list=sort { $codes->{$a}->{index} <=> $codes->{$b}->{index} } @fn_list;
-            foreach my $fn (@fn_list){
-                push @$out, "sub $fn {";
+        if(@tlist){
+            @tlist=sort { $codes->{$a}->{index} <=> $codes->{$b}->{index} } @tlist;
+            foreach my $name (@tlist){
+                my $code=$codes->{$name};
+                push @$out, "sub $name {";
                 push @$out, "INDENT";
-                my $params=$codes->{$fn}->{params};
+                my $params=$code->{params};
                 if($#$params>=0){
                     my $pline=join(", ", @$params);
                     push @$out, "my ($pline) = \@_;";
                 }
-                MyDef::compileutil::call_sub($fn, "\$list");
+                MyDef::compileutil::call_sub($name, "\$list");
                 push @$out, "DEDENT";
                 push @$out, "}";
                 push @$out, "NEWLINE";
             }
-            MyDef::compileutil::set_output($old_out);
         }
+        MyDef::compileutil::set_output($old_out);
         return 0;
     }
     if($l=~/^\s*$/){
@@ -901,25 +906,25 @@ sub dumpout {
     }
     if($pagetype ne "eval"){
         push @$f, "use strict;\n";
-    }
-    if(@uses){
-        foreach my $v (@uses){
-            push @$f, "use $v;\n";
+        if(@uses){
+            foreach my $v (@uses){
+                push @$f, "use $v;\n";
+            }
+            push @$f, "\n";
         }
-        push @$f, "\n";
-    }
-    if($MyDef::page->{package}){
-        push @$f, "package ".$MyDef::page->{package}.";\n";
-    }
-    if(@globals){
-        foreach my $v (@globals){
-            push @$f, "our $v;\n";
+        if($MyDef::page->{package}){
+            push @$f, "package ".$MyDef::page->{package}.";\n";
         }
-        push @$f, "\n";
-    }
-    if($fn_block){
-        $dump->{fn_block}=$fn_block;
-        unshift @$out, "INCLUDE_BLOCK fn_block";
+        if(@globals){
+            foreach my $v (@globals){
+                push @$f, "our $v;\n";
+            }
+            push @$f, "\n";
+        }
+        if(@$fn_block){
+            $dump->{fn_block}=$fn_block;
+            unshift @$out, "INCLUDE_BLOCK fn_block";
+        }
     }
     MyDef::dumpout::dumpout($dump);
 }

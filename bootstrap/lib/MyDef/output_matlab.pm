@@ -13,6 +13,7 @@ our $case_elif="elseif";
 our @case_stack;
 our $case_state;
 our $case_wrap;
+
 sub get_interface {
     my $interface_type="matlab";
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout, $interface_type);
@@ -21,11 +22,12 @@ sub init_page {
     my ($t_page)=@_;
     $page=$t_page;
     MyDef::set_page_extension("m");
+    my $init_mode="sub";
     undef @func_input;
     undef @func_return;
     undef $func_varargout;
     undef $func_varargin;
-    return $page->{init_mode};
+    return $init_mode;
 }
 sub set_output {
     my ($newout)=@_;

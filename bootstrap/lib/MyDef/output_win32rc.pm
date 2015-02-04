@@ -4,6 +4,7 @@ our $debug;
 our $out;
 our $mode;
 our $page;
+
 my %id_base;
 my %id_step;
 my %res_id_hash;
@@ -16,7 +17,8 @@ sub init_page {
     my ($t_page)=@_;
     $page=$t_page;
     MyDef::set_page_extension("rc");
-    return $page->{init_mode};
+    my $init_mode="sub";
+    return $init_mode;
 }
 sub set_output {
     my ($newout)=@_;

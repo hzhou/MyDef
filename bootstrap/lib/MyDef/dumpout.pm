@@ -93,12 +93,16 @@ sub dumpout {
             else{
                 $string_list=undef;
             }
-            my $l=$h->{list};
-            my $t=join('', @$l);
-            if($h->{line}=~/"STRING"/){
+            my $l=$h->{line};
+            my $join='';
+            if($l=~/\bSTRING\[([^\]]*)\]/){
+                $join=$1;
+                $l=~s/\bSTRING\[[^\]]*\]/STRING/g;
+            }
+            my $t=join($join, @{$h->{list}});
+            if($l=~/"STRING"/){
                 $t=~s/"/\\"/g;
             }
-            my $l=$h->{line};
             $l=~s/\bSTRING\b/$t/;
             if($l=~/^\s*$/){
                 push @$f, "\n";

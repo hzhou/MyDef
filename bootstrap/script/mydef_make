@@ -3,6 +3,8 @@ use strict;
 our $config_outputdir;
 our $config_outputdir_make=0;
 our $config_filetype;
+our @include_default;
+
 my @master_config;
 my $module="perl";
 my %module_type=(perl=>"pl", www=>"html", win32=>"c", apple=>"m", general=>"txt", matlab=>"m", cpp=>"cpp");
@@ -69,6 +71,10 @@ while(<In>){
         my $t=$1;
         @include_folders=split /:/, $t;
     }
+    elsif(/^include:\s*(\S+)/){
+        my $t=$1;
+        @include_default=split /[:,]\s*/, $t;
+    }
     elsif(/^macro_(\w+):\s*(.*\S)/){
         $macros{$1}=$2;
     }
@@ -91,25 +97,38 @@ print STDERR "    output_dir: $config_outputdir\n";
 my @make_folders;
 my %h_copylist;
 if(-f "copylist"){
-    open In, "copylist";
     my $location;
-    while(my $l=<In>){
-        if($l=~/^(\S*):\s*(.*)/){
+    open In, "copylist" or die "Can't open copylist.\n";
+    while(<In>){
+        my $l=$_;
+        if(/^(\S+):\s*(.*)/){
             $location=$1;
             $l=$2;
+            my $t="$config_outputdir/$location";
+            if(!-d $t){
+                mkdir $t;
+            }
         }
         if($l){
             my @tlist=split /\s+/, $l;
             foreach my $t (@tlist){
                 $t=~s/^\s+//;
                 $t=~s/\s+$//;
-                if(-f $t){
+                if($t=~/\*/){
+                    my @all=glob($t);
+                    foreach my $a (@all){
+                        $h_copylist{$a}=$location;
+                    }
+                }
+                elsif(-f $t){
                     $h_copylist{$t}=$location;
                 }
             }
         }
     }
     close In;
+    my $count=keys %h_copylist;
+    print "    copylist: loaded $count entries\n";
 }
 my @files;
 my @allfiles=glob("*");
@@ -189,6 +208,24 @@ while(my $f=pop @files){
                 }
             }
             if(!$inpage){
+                if(@include_default){
+                    foreach my $i (@include_default){
+                        my $f=$i;
+                        if(! -f $f){
+                            foreach my $d (@include_folders){
+                                if(-f "$d/$f"){
+                                    $f="$d/$f";
+                                    last;
+                                }
+                            }
+                        }
+                        push @$deplist, $f;
+                        if(!$h_def{$f}){
+                            push @files, $f;
+                            $h_def{$f}=1;
+                        }
+                    }
+                }
                 if(/^include:?\s*(\S+\.def)/){
                     my $f=$1;
                     if(! -f $f){
@@ -326,7 +363,7 @@ while(my ($f, $l) = each %folder){
 }
 if(%h_copylist){
     print Out "COPY=";
-    while( my ($f, $l) = each %h_copylist){
+    while(my ($f, $l) = each %h_copylist){
         my $sep="/";
         if($l){$sep="/$l/"};
         if($f=~/(.+)\/(.+)/){

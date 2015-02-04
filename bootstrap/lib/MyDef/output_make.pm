@@ -4,6 +4,7 @@ our $debug;
 our $out;
 our $mode;
 our $page;
+
 sub get_interface {
     my $interface_type="general";
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout, $interface_type);
@@ -12,7 +13,8 @@ sub init_page {
     my ($t_page)=@_;
     $page=$t_page;
     MyDef::set_page_extension("");
-    return $page->{init_mode};
+    my $init_mode="sub";
+    return $init_mode;
 }
 sub set_output {
     my ($newout)=@_;

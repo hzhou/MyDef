@@ -1,6 +1,7 @@
 use strict;
 package MyDef::output_xs;
 our @xs_globals;
+
 use MyDef::output_c;
 sub get_interface {
     return (\&init_page, \&parsecode, \&MyDef::output_c::set_output, \&modeswitch, \&dumpout);

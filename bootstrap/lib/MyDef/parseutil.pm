@@ -1,9 +1,10 @@
 use strict;
 package MyDef::parseutil;
 our $debug=0;
-our @indent_stack=(0);
 our $defname="default";
 our $code_index=0;
+our @indent_stack=(0);
+
 sub import_data {
     my ($file) = @_;
     if($file=~/([^\/]+)\.def/){
@@ -24,6 +25,9 @@ sub import_data {
     my @includes;
     my %includes;
     my @standard_includes;
+    if($MyDef::var->{'include'}){
+        push @standard_includes, split(/[:,]\s*/, $MyDef::var->{'include'});
+    }
     my $stdinc="std_".$MyDef::var->{module}.".def";
     push @standard_includes, $stdinc;
     import_file($file, $def, \@includes,\%includes, "main");
@@ -86,7 +90,7 @@ sub import_file {
             next;
         }
         elsif($line=~/^(\s*)(.*)/){
-            my $indent=getindent($1);
+            my $indent=get_indent($1);
             $line=$2;
             if($line=~/^#(?!(define|undef|include|line|error|pragma|if|ifdef|ifndef|elif|else|endif)\b)/){
                 if($indent != $curindent){
@@ -323,11 +327,9 @@ sub import_file {
     }
 }
 
-sub getindent {
-    my ($s)=@_;
-    use integer;
-    1 while $s=~s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e;
-    my $i=length($s);
+sub get_indent {
+    my ($s) = @_;
+    my $i=get_indent_spaces($s);
     if($i==$indent_stack[-1]){
     }
     elsif($i>$indent_stack[-1]){
@@ -340,6 +342,26 @@ sub getindent {
     }
     return $#indent_stack;
 }
+
+sub get_indent_spaces {
+    my ($t) = @_;
+    use integer;
+    my $n=length($t);
+    my $count=0;
+    for(my $i=0; $i <$n; $i++){
+        if(substr($t, $i, 1) eq ' '){
+            $count++;
+        }
+        elsif(substr($t, $i, 1) eq "\t"){
+            $count=($count/8+1)*8;
+        }
+        else{
+            return $count;
+        }
+    }
+    return $count;
+}
+
 sub expand_macro {
     my ($lref, $macros)=@_;
     while($$lref=~/\$\(\w+\)/){

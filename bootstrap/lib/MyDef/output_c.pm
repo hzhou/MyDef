@@ -40,6 +40,8 @@ our %h_hash;
 our @function_stack;
 our %list_function_hash;
 our @list_function_list;
+our $autoload;
+our $autoload_h;
 our $case_if="if";
 our $case_elif="else if";
 our @case_stack;
@@ -48,8 +50,6 @@ our $case_wrap;
 our $case_flag="b_flag_case";
 our %plugin_statement;
 our %plugin_condition;
-our $autoload;
-our $autoload_h;
 our %class_names;
 our %lamda_functions;
 our $yield;
@@ -58,6 +58,7 @@ our %function_defaults;
 our $dump_classes;
 our %tuple_hash;
 our %protected_var;
+
 $global_scope={var_list=>[], var_hash=>{}, name=>"global"};
 $cur_scope={var_list=>[], var_hash=>{}, name=>"default"};
 push @scope_stack, $global_scope;
@@ -231,6 +232,7 @@ sub init_page {
     my ($t_page)=@_;
     $page=$t_page;
     MyDef::set_page_extension("c");
+    my $init_mode="sub";
     if($MyDef::def->{"macros"}->{"use_double"} or $page->{"use_double"}){
         $type_name{f}="double";
         $type_prefix{f}="double";
@@ -260,7 +262,57 @@ sub init_page {
     @function_stack=();
     %list_function_hash=();
     @list_function_list=();
-    return $page->{init_mode};
+    if($page->{autolist}){
+        my $codes=$MyDef::def->{codes};
+        my @tlist;
+        while(my ($k, $v)= each %$codes){
+            if($v->{type} eq "fn"){
+                push @tlist, $k;
+            }
+        }
+        if(@tlist){
+            @tlist=sort { $codes->{$a}->{index} <=> $codes->{$b}->{index} } @tlist;
+            foreach my $name (@tlist){
+                my $code=$codes->{$name};
+                if($MyDef::compileutil::in_autoload){
+                    $autoload=undef;
+                    $autoload_h=0;
+                    if($page->{autoload} eq "write_h"){
+                        if(!$h_hash{"autoload"}){
+                            $autoload=[];
+                            $h_hash{"autoload"}=$autoload;
+                        }
+                        else{
+                            $autoload=$h_hash{"autoload"};
+                        }
+                    }
+                    elsif($page->{autoload} eq "h"){
+                        $autoload_h=1;
+                    }
+                }
+                else{
+                    $autoload=undef;
+                    $autoload_h=0;
+                }
+                if(!$autoload_h){
+                    my @tlist=split /,\s*/, $name;
+                    foreach my $f (@tlist){
+                        if(!$list_function_hash{$f}){
+                            $list_function_hash{$f}=1;
+                            push @list_function_list, $f;
+                            if($autoload){
+                                push @$autoload, "function-$f";
+                            }
+                        }
+                        else{
+                            $list_function_hash{$f}++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return $init_mode;
 }
 sub set_output {
     my ($newout)=@_;

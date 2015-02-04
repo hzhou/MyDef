@@ -14,6 +14,7 @@ our @mode_stack;
 our $cur_mode="html";
 our %plugin_statement;
 our %plugin_condition;
+
 use Term::ANSIColor qw(:constants);
 my $style_sheets;
 sub get_interface {
@@ -24,14 +25,18 @@ sub init_page {
     my ($t_page)=@_;
     $page=$t_page;
     MyDef::set_page_extension("html");
+    my $init_mode="html";
     $style_sheets=[];
+    if($page->{pageext} eq "js"){
+        $init_mode="js";
+    }
     $style={};
     @style_key_list=();
     %php_globals=();
     @php_globals=();
     %js_globals=();
     @js_globals=();
-    return $page->{init_mode};
+    return $init_mode;
 }
 sub set_output {
     my ($newout)=@_;
@@ -202,11 +207,11 @@ sub parsecode {
             }
             if($func =~ /^(tag|div|span|ol|ul|li|table|tr|td|th|h[1-5]|p|pre|html|head|body|form|label|fieldset|button|input|textarea|select|option|img|a|center|b|style)$/){
                 my @tt_list=split /,\s*/, $param;
-                my $is_empty_tag=0;
                 if($func eq "tag" and @tt_list){
                     $func=shift @tt_list;
                 }
                 my $t="";
+                my $is_empty_tag=0;
                 my $quick_content;
                 foreach my $tt (@tt_list){
                     if($tt eq "/"){
@@ -348,6 +353,66 @@ sub parsecode {
                 }
                 elsif($func eq "else"){
                     return single_block("else{", "}");
+                }
+                elsif($func eq "for"){
+                    if($param=~/(.*);(.*);(.*)/){
+                        single_block("for($param){", "}");
+                        return "NEWBLOCK-for";
+                    }
+                    else{
+                        my $var;
+                        if($param=~/^(\S+)\s*=\s*(.*)/){
+                            $var=$1;
+                            $param=$2;
+                        }
+                        my @tlist=split /:/, $param;
+                        my ($i0, $i1, $step);
+                        if(@tlist==1){
+                            $i0="0";
+                            $i1="<$param";
+                            $step="1";
+                        }
+                        elsif(@tlist==2){
+                            if($tlist[1] eq "0"){
+                                $i0="$tlist[0]-1";
+                                $i1=">=$tlist[1]";
+                                $step="-1";
+                            }
+                            else{
+                                $i0=$tlist[0];
+                                $i1="<$tlist[1]";
+                                $step="1";
+                            }
+                        }
+                        elsif(@tlist==3){
+                            $i0=$tlist[0];
+                            $step=$tlist[2];
+                            if($step=~/^-/){
+                                $i1=">=$tlist[1]";
+                            }
+                            else{
+                                $i1="<$tlist[1]";
+                            }
+                        }
+                        if($step eq "1"){
+                            $step="++";
+                        }
+                        elsif($step eq "-1"){
+                            $step="--";
+                        }
+                        else{
+                            $step= "+=$step";
+                        }
+                        if(!$var){
+                            $var="\$i";
+                        }
+                        elsif($var=~/^(\w+)/){
+                            $var='$'.$var;
+                        }
+                        $param="$var=$i0; $var $i1; $var$step";
+                        single_block("for($param){", "}");
+                        return "NEWBLOCK-for";
+                    }
                 }
                 elsif($func eq "foreach" or $func eq "for" or $func eq "while"){
                     return single_block("$func ($param){", "}");
@@ -569,14 +634,17 @@ sub custom_dump {
             if($t=~/^(\s*)((#|&#35;).*)/){
                 $t="$1<span class=\"mydef-comment\">$2</span>";
             }
-            elsif($t=~/^(\s*)(page|CSS|\w+code):(.*)/){
-                $t="$1<span class=\"mydef-label\">$2</span>:$3";
+            elsif($t=~/^(\s*)(page|\w+code):\s*(\w+)(.*)/){
+                $t="$1<span class=\"mydef-label\">$2</span>: <span class=\"mydef-label\">$3</span>$4";
             }
-            elsif($t=~/^(\s*)\$(call|map|if|while|switch|for|elif|elsif|else|function)\b(.*)/){
+            elsif($t=~/^(\s*)(\$call|\$map|\&call)\s*(\w+)(.*)/){
+                $t="$1<span class=\"mydef-keyword\">$2</span> <strong>$3</strong>$4";
+            }
+            elsif($t=~/^(\s*)(CSS|include):\s*(.*)/){
+                $t="$1<span class=\"mydef-preproc\">$2</span>: <span class=\"mydef-include\">$3</span>";
+            }
+            elsif($t=~/^(\s*)\$(if|while|switch|for|elif|elsif|else|function)\b(.*)/){
                 $t="$1<span class=\"mydef-keyword\">\$$2</span>$3";
-            }
-            elsif($t=~/^(\s*)\&(call)(.*)/){
-                $t="$1<span class=\"mydef-keyword\">\&$2</span>$3";
             }
             $$rl="PRINT $t";
         }
