@@ -1,7 +1,7 @@
 include: perl/indentations.def
 
 page: mydef_filter
-    type: pl
+    type:
     output_dir: script
     subcode: main
 	$call @support_subs

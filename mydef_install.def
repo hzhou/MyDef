@@ -1,0 +1,47 @@
+page: mydef_install
+    type:
+    output_dir: script
+
+        my $install_dir=$ENV{MYDEFLIB}
+        $if  !$install_dir
+            die "Missing environment variable MYDEFLIB\n"
+
+        $if  !-d $install_dir
+            mkdir $install_dir or die "Can't mkdir $install_dir\n";
+
+        my ($src, $dst)=($ARGV[0], $ARGV[1])
+        $if !$src or !$dst
+            die "Usage: $0 src dst\n"
+        $if $src ne "."
+            chdir $src or die "Can't chdir $src\n";
+
+        $if $dst ne "."
+            $install_dir.="/$dst"
+            $if  !-d $install_dir
+                mkdir $install_dir or die "Can't mkdir $install_dir\n";
+
+
+        #---------------------------------------- 
+        my @files=glob("*");
+
+        my @defs;
+        my @dirs;
+        $foreach $f in @files
+            $if $f=~/\.def$/
+                push @defs, $f;
+            $elif -d $f
+                push @dirs, $f;
+        $foreach $d in @dirs
+            my @files=glob("$d/*.def");
+            $if @files
+                $if !-d "$install_dir/$d"
+                    mkdir "$install_dir/$d" or die "Can't mkdir $install_dir/$d";
+                $foreach $f in @files
+                    push @defs, $f;
+
+        $foreach $def in @defs
+            my $dst="$install_dir/$def";
+            $if !-e $dst or -M $def < -M $dst
+                print "$def -> $dst\n";
+                system "cp $def $dst\n";
+

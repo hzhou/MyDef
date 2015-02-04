@@ -1,3 +1,5 @@
+include: perl/html.def
+
 subcode:: init_page
     $global $style, @style_key_list
     $style={};
@@ -62,14 +64,12 @@ subcode: parsecode_html_tag
     $(set:misc=img|a|center|b|style)
     $if $func =~ /^(tag|$(block)|$(list)|$(table)|$(basic)|$(html)|$(form)|$(misc))$/
 	my @tt_list=split /,\s*/, $param
-	my $is_empty_tag=0
 
 	$if $func eq "tag" and @tt_list
 	    $func=shift @tt_list;
 
+        # refer: deflib/perl/html.def
 	$call parse_tag_attributes
-	$call tag_input
-	$call tag_form
 
 	my $P="PRINT-$cur_mode"
 	$if $func=~ /img|input/
@@ -83,40 +83,6 @@ subcode: parsecode_html_tag
 	$else
 	    return single_block("$P <$func$t>", "$P </$func>")
 	return 0
-
-subcode: tag_input
-    $case $func eq "input"
-	$if $t !~ /type=/
-	    $t.=" type=\"text\""
-	$if $quick_content
-	    $t.=" placeholder=\"$quick_content\""
-subcode: tag_form
-    $case $func eq "form"
-	$if $t !~ /action=/
-	    $t.=" action=\"<?=\$_SERVER['PHP_SELF'] ?>\""
-	$if $t !~ /method=/
-	    $t.=" method=\"POST\""
-
-subcode: parse_tag_attributes
-    my $t=""
-    my $quick_content
-    $foreach my $tt in @tt_list
-	$if $tt eq "/"
-	    $is_empty_tag=1
-	$elsif $tt=~/^#(\S+)$/
-	    # ---- ID ------------
-	    $t.=" id=\"$1\"";
-	$elif $tt=~/^(\S+?)[:=]"(.*)"/
-	    # ---- Named Attribute ----
-	    $t.=" $1=\"$2\""
-	$elif $tt=~/^(\S+?)[:=](.*)/
-	    $t.=" $1=\"$2\""
-	$elif $tt=~/^"(.*)"/
-	    # ---- Quick Content ----
-	    $quick_content=$1
-	$else
-	    # ---- Classes ----
-	    $t.=" class=\"$tt\"";
 
 # ------------------------------------------------------------
 subcode: html_parse_func

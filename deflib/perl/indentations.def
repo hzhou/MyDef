@@ -3,9 +3,10 @@
 
 fncode: get_indent($s)
     $global @indent_stack=(0)
-    use integer;
-    1 while $s=~s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e;
-    my $i=length($s);
+    # use integer;
+    # 1 while $s=~s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e;
+    # my $i=length($s);
+    my $i=get_indent_spaces($s)
     $if $i==$indent_stack[-1]
         NOOP
     $elif $i>$indent_stack[-1]

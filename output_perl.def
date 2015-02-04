@@ -152,22 +152,22 @@ subcode: dumpout
     $if $pagetype ne "eval"
 	push @$f, "use strict;\n"
 
-    $if @uses
-        $foreach $v in @uses
-            push @$f, "use $v;\n"
-        push @$f, "\n"
+        $if @uses
+            $foreach $v in @uses
+                push @$f, "use $v;\n"
+            push @$f, "\n"
 
-    $if $MyDef::page->{package}
-	push @$f, "package ".$MyDef::page->{package}.";\n"
-    
-    $if @globals
-        $foreach $v in @globals
-            push @$f, "our $v;\n"
-        push @$f, "\n"
+        $if $MyDef::page->{package}
+            push @$f, "package ".$MyDef::page->{package}.";\n"
+        
+        $if @globals
+            $foreach $v in @globals
+                push @$f, "our $v;\n"
+            push @$f, "\n"
 
-    $if @$fn_block
-	$dump->{fn_block}=$fn_block
-	unshift @$out, "INCLUDE_BLOCK fn_block"
+        $if @$fn_block
+            $dump->{fn_block}=$fn_block
+            unshift @$out, "INCLUDE_BLOCK fn_block"
 
 #----------------------------------------------- 
 subcode: list_functions

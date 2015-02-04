@@ -95,6 +95,9 @@ jscode: load_element(name)
     $global $(name)
     $(name) = document.querySelector("#$(name)");
 
+jscode: set_html(name, html)
+    document.getElementById("$(name)").innerHTML=$(html)
+
 jscode: animate
     $global time_old=0
     $function animate_update(time)
