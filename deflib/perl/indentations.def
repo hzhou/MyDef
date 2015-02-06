@@ -1,3 +1,7 @@
+subcode: expand_tab(s, tabwidth)
+    use integer;
+    1 while $(s)=~s/\t+/' ' x (length($&) * $(tabwidth) - length($`) % $(tabwidth))/e;
+
 #---------------------------------------- 
 #-  e.g. my $indent = get_indent($line)
 
