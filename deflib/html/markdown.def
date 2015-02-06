@@ -1,0 +1,14 @@
+perlcode: markdown
+    my $codelist=MyDef::compileutil::get_named_block("last_grab")
+    my $prog="markdown_translate.pl"
+    use IPC::Open2
+    local(*In, *Out)
+    my $pid=open2(*Out, *In, $prog) or die "Can't open $prog\n"
+    my $space=""
+    $foreach $t in @$codelist
+        print In "$t\n"
+    close In
+    $while <Out>
+        push @$out, $_
+    close Out
+    waitpid($pid, 0)
