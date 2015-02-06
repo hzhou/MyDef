@@ -167,8 +167,8 @@ subcode: get_multiline_comment
 
 subcode: get_indentation
     $if $line=~/^\s*$/
-	#$line="NOOP"
-	next
+        # sometime empty lines are significant, passes on, where compileutil will filter
+	$line=""
     $elif $line=~/^(\s*)(.*)/
 	# get current indentation and stripping starting spaces
 	my $indent=get_indent($1)

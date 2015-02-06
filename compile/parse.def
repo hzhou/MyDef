@@ -37,7 +37,9 @@ subcode:: support_subs
 
 subcode: compile_line
     # -- handle preproc and out-of-switch
-    $if $l=~/^\$\((.*)\)/
+    $if !$l
+        # skip
+    $elif $l=~/^\$\((.*)\)/
 	my $preproc=$1
 	$call parse_preproc
     $elif $l=~/^\$:\s+(.*)/

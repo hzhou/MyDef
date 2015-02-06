@@ -44,8 +44,7 @@ subcode: compile_main
 	    print Out $l;
 	close Out;
 
-    $sub parse_code
-	my ($code)=@_;
+    $sub parse_code($code)
 	modepush($code->{type});
 	parseblock($code);
 	modepop();
