@@ -87,7 +87,7 @@ sub import_file {
             next;
         }
         if($line=~/^\s*$/){
-            next;
+            $line="";
         }
         elsif($line=~/^(\s*)(.*)/){
             my $indent=get_indent($1);
@@ -144,6 +144,8 @@ sub import_file {
                 push @$source, "SOURCE_DEDENT";
             }
             push @$source, $line;
+        }
+        elsif($line eq ""){
         }
         elsif($line=~/^(\w+)code:([:-@]?)\s*(\w+)(.*)/){
             my ($type, $dblcolon, $name, $t)=($1, $2, $3, $4);

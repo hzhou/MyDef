@@ -15,6 +15,50 @@ our $cur_mode="html";
 our %plugin_statement;
 our %plugin_condition;
 
+sub parse_tag_attributes {
+    my ($tt_list) = @_;
+    my $func=shift @$tt_list;
+    my $attr="";
+    my $quick_content;
+    foreach my $tt (@$tt_list){
+        if($tt eq "/"){
+            $quick_content="";
+        }
+        elsif($tt=~/^#(\S+)$/){
+            $attr.=" id=\"$1\"";
+        }
+        elsif($tt=~/^(\S+?)[:=]"(.*)"/){
+            $attr.=" $1=\"$2\"";
+        }
+        elsif($tt=~/^(\S+?)[:=](.*)/){
+            $attr.=" $1=\"$2\"";
+        }
+        elsif($tt=~/^"(.*)"/){
+            $quick_content=$1;
+        }
+        else{
+            $attr.=" class=\"$tt\"";
+        }
+    }
+    if($func eq "input"){
+        if($attr !~ /type=/){
+            $attr.=" type=\"text\"";
+        }
+        if($quick_content){
+            $attr.=" placeholder=\"$quick_content\"";
+        }
+    }
+    elsif($func eq "form"){
+        if($attr !~ /action=/){
+            $attr.=" action=\"<?=\$_SERVER['PHP_SELF'] ?>\"";
+        }
+        if($attr !~ /method=/){
+            $attr.=" method=\"POST\"";
+        }
+    }
+    return ($func, $attr, $quick_content);
+}
+
 use Term::ANSIColor qw(:constants);
 my $style_sheets;
 sub get_interface {
@@ -207,62 +251,24 @@ sub parsecode {
             }
             if($func =~ /^(tag|div|span|ol|ul|li|table|tr|td|th|h[1-5]|p|pre|html|head|body|form|label|fieldset|button|input|textarea|select|option|img|a|center|b|style)$/){
                 my @tt_list=split /,\s*/, $param;
-                if($func eq "tag" and @tt_list){
-                    $func=shift @tt_list;
+                if($func ne "tag"){
+                    unshift @tt_list, $func;
                 }
-                my $t="";
-                my $is_empty_tag=0;
-                my $quick_content;
-                foreach my $tt (@tt_list){
-                    if($tt eq "/"){
-                        $is_empty_tag=1;
-                    }
-                    elsif($tt=~/^#(\S+)$/){
-                        $t.=" id=\"$1\"";
-                    }
-                    elsif($tt=~/^(\S+?)[:=]"(.*)"/){
-                        $t.=" $1=\"$2\"";
-                    }
-                    elsif($tt=~/^(\S+?)[:=](.*)/){
-                        $t.=" $1=\"$2\"";
-                    }
-                    elsif($tt=~/^"(.*)"/){
-                        $quick_content=$1;
-                    }
-                    else{
-                        $t.=" class=\"$tt\"";
-                    }
-                }
-                if($func eq "input"){
-                    if($t !~ /type=/){
-                        $t.=" type=\"text\"";
-                    }
-                    if($quick_content){
-                        $t.=" placeholder=\"$quick_content\"";
-                    }
-                }
-                elsif($func eq "form"){
-                    if($t !~ /action=/){
-                        $t.=" action=\"<?=\$_SERVER['PHP_SELF'] ?>\"";
-                    }
-                    if($t !~ /method=/){
-                        $t.=" method=\"POST\"";
-                    }
-                }
+                my ($func, $attr, $quick_content)= parse_tag_attributes(\@tt_list);
                 my $P="PRINT-$cur_mode";
                 if($func=~ /img|input/){
-                    push @$out, "$P <$func$t>";
+                    push @$out, "$P <$func$attr>";
                 }
-                elsif($is_empty_tag or defined $quick_content){
-                    push @$out, "$P <$func$t>$quick_content</$func>";
+                elsif(defined $quick_content){
+                    push @$out, "$P <$func$attr>$quick_content</$func>";
                 }
                 elsif($func eq "pre"){
-                    my @pre=("$P <$func$t>", "PUSHDENT");
+                    my @pre=("$P <$func$attr>", "PUSHDENT");
                     my @post=("POPDENT", "$P </$func>");
                     return single_block_pre_post(\@pre, \@post);
                 }
                 else{
-                    return single_block("$P <$func$t>", "$P </$func>");
+                    return single_block("$P <$func$attr>", "$P </$func>");
                 }
                 return 0;
             }

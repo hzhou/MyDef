@@ -4,15 +4,15 @@ our $debug;
 our $out;
 our $mode;
 our $page;
-our @func_input;
-our @func_return;
-our $func_varargout;
-our $func_varargin;
 our $case_if="if";
 our $case_elif="elseif";
 our @case_stack;
 our $case_state;
 our $case_wrap;
+our @func_input;
+our $func_varargin;
+our @func_return;
+our $func_varargout;
 
 sub get_interface {
     my $interface_type="matlab";
@@ -23,10 +23,6 @@ sub init_page {
     $page=$t_page;
     MyDef::set_page_extension("m");
     my $init_mode="sub";
-    undef @func_input;
-    undef @func_return;
-    undef $func_varargout;
-    undef $func_varargin;
     return $init_mode;
 }
 sub set_output {

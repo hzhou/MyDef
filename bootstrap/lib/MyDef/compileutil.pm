@@ -231,7 +231,24 @@ sub call_back {
         if($codelib->{type} eq "perl"){
             $param=~s/^\s*,\s*//;
             shift @$subblock;
-            $named_blocks{last_grab}=$subblock;
+            my (@t, $indent);
+            foreach my $t (@$subblock){
+                if($t=~/^SOURCE_INDENT/){
+                    $indent++;
+                }
+                elsif($t=~/^SOURCE_DEDENT/){
+                    $indent--;
+                }
+                elsif($t!~/^SOURCE/){
+                    if($indent>0){
+                        push @t, ("    "x$indent) . $t;
+                    }
+                    else{
+                        push @t, $t;
+                    }
+                }
+            }
+            $named_blocks{last_grab}=\@t;
             $f_parse->("\$eval $codename, $param");
             $named_blocks{last_grab}=undef;
         }
@@ -624,7 +641,9 @@ sub parseblock {
             }
         }
         else{
-            if($l=~/^\$\((.*)\)/){
+            if(!$l){
+            }
+            elsif($l=~/^\$\((.*)\)/){
                 my $preproc=$1;
                 expand_macro_recurse(\$preproc);
                 if($preproc=~/^for:\s*(\S+)\s+in\s+(.*)/){
