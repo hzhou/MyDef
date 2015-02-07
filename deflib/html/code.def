@@ -87,3 +87,7 @@ subcode: mydef_print
     $elif $t=~/^(\s*)\$(if|while|switch|for|elif|elsif|else|function)\b(.*)/
         $t="$1$(span:keyword,\$$2)$3"
 
+subcode: sh_print
+    $(set:span=<span class=\"mydef-$1\">$2</span>)
+    $if $t=~/^\$ (.*)/
+        $t="<span class=\"mydef-keyword\">\$ </span><b>$1</b>"

@@ -88,6 +88,8 @@ fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
             $call get_source_indent, curindent
             $call get_source_dedent, curindent
             push @$source, $line;
+        $elif $line eq ""
+            # ---- skip ----
         $elif $line=~/^(\w+)code:([:-@]?)\s*(\w+)(.*)/
             my ($type, $dblcolon, $name, $t)=($1, $2, $3, $4)
             #---- $dblcolon -----------

@@ -64,24 +64,22 @@ subcode: parsecode_html_tag
     $(set:misc=img|a|center|b|style)
     $if $func =~ /^(tag|$(block)|$(list)|$(table)|$(basic)|$(html)|$(form)|$(misc))$/
 	my @tt_list=split /,\s*/, $param
-
-	$if $func eq "tag" and @tt_list
-	    $func=shift @tt_list;
-
-        # refer: deflib/perl/html.def
-	$call parse_tag_attributes
+        $if $func ne "tag"
+            unshift @tt_list, $func
+        # ---- refer: deflib/perl/html.def ----
+        my ($func, $attr, $quick_content)= parse_tag_attributes(\@tt_list)
 
 	my $P="PRINT-$cur_mode"
 	$if $func=~ /img|input/
-	    push @$out, "$P <$func$t>"
-	$elif $is_empty_tag or defined $quick_content
-	    push @$out, "$P <$func$t>$quick_content</$func>"
+	    push @$out, "$P <$func$attr>"
+	$elif defined $quick_content
+	    push @$out, "$P <$func$attr>$quick_content</$func>"
 	$elif $func eq "pre"
-	    my @pre=("$P <$func$t>", "PUSHDENT")
+	    my @pre=("$P <$func$attr>", "PUSHDENT")
 	    my @post=("POPDENT", "$P </$func>")
 	    return single_block_pre_post(\@pre, \@post)
 	$else
-	    return single_block("$P <$func$t>", "$P </$func>")
+	    return single_block("$P <$func$attr>", "$P </$func>")
 	return 0
 
 # ------------------------------------------------------------

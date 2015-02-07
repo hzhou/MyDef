@@ -4,49 +4,49 @@ subcode: html_tag(@tag)
         print Out "<doctype html>\n"
 
     my @tt_list=split /,\s*/, "$(tag)"
-    my $func=shift @tt_list
-    $call parse_tag_attributes
+    my ($func, $attr, $quick_content)= parse_tag_attributes(\@tt_list)
 
-    print Out "<$func$t>"
+    print Out "<$func$attr>"
     BLOCK
     print Out "</$func>\n"
 
 #---------------------------------------- 
-subcode: parse_tag_attributes
-    my $t=""
-    my $is_empty_tag=0
+fncode: parse_tag_attributes($tt_list)
+    my $func=shift @$tt_list
+    my $attr=""
     my $quick_content
-    $foreach my $tt in @tt_list
+    $foreach $tt in @$tt_list
 	$if $tt eq "/"
-	    $is_empty_tag=1
+            $quick_content=""
 	$elsif $tt=~/^#(\S+)$/
 	    # ---- ID ------------
-	    $t.=" id=\"$1\"";
+	    $attr.=" id=\"$1\"";
 	$elif $tt=~/^(\S+?)[:=]"(.*)"/
 	    # ---- Named Attribute ----
-	    $t.=" $1=\"$2\""
+	    $attr.=" $1=\"$2\""
 	$elif $tt=~/^(\S+?)[:=](.*)/
-	    $t.=" $1=\"$2\""
+	    $attr.=" $1=\"$2\""
 	$elif $tt=~/^"(.*)"/
 	    # ---- Quick Content ----
 	    $quick_content=$1
 	$else
 	    # ---- Classes ----
-	    $t.=" class=\"$tt\"";
+	    $attr.=" class=\"$tt\"";
 
     $call tag_input
     $call tag_form
+    return ($func, $attr, $quick_content)
 
 subcode: tag_input
     $case $func eq "input"
-	$if $t !~ /type=/
-	    $t.=" type=\"text\""
+	$if $attr !~ /type=/
+	    $attr.=" type=\"text\""
 	$if $quick_content
-	    $t.=" placeholder=\"$quick_content\""
+	    $attr.=" placeholder=\"$quick_content\""
 subcode: tag_form
     $case $func eq "form"
-	$if $t !~ /action=/
-	    $t.=" action=\"<?=\$_SERVER['PHP_SELF'] ?>\""
-	$if $t !~ /method=/
-	    $t.=" method=\"POST\""
+	$if $attr !~ /action=/
+	    $attr.=" action=\"<?=\$_SERVER['PHP_SELF'] ?>\""
+	$if $attr !~ /method=/
+	    $attr.=" method=\"POST\""
 

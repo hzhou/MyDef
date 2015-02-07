@@ -129,8 +129,20 @@ subcode:: support_subs
 		$param=~s/^\s*,\s*//
                 #-- remove SOURCE line ---
                 shift @$subblock
+                my (@t, $indent)
+                $foreach $t in @$subblock
+                    $if $t=~/^SOURCE_INDENT/
+                        $indent++
+                    $elif $t=~/^SOURCE_DEDENT/
+                        $indent--
+                    $elif $t!~/^SOURCE/
+                        $if $indent>0
+                            push @t, ("    "x$indent) . $t
+                        $else
+                            push @t, $t
+
                 #-- make available for & eval calls ----
-                $named_blocks{last_grab}=$subblock
+                $named_blocks{last_grab}=\@t
 		$f_parse->("\$eval $codename, $param")
                 $named_blocks{last_grab}=undef
 	    $else

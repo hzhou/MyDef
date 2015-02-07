@@ -4,14 +4,8 @@ perlcode: markdown
     use IPC::Open2
     local(*In, *Out)
     my $pid=open2(*Out, *In, $prog) or die "Can't open $prog\n"
-    my $space=""
     $foreach $t in @$codelist
-        $if $t=~/^SOURCE_INDENT/
-            $space.="    "
-        $elif $t=~/^SOURCE_DEDENT/
-            $space=~s/    $//
-        $else
-            print In "$space$t\n"
+        print In "$t\n"
     close In
     $while <Out>
         push @$out, $_
