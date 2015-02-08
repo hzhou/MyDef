@@ -39,7 +39,9 @@ perlcode: codeprint
 subcode: grab_file(f, name)
     my @t
     my ($file, $pat)=($(f), $(name))
-    $if $file=~/.*\/(.*)/
+    $if $file=~/def\/(.*)/
+        push @t, "#---- $1: $pat ----\n"
+    $elif $file=~/.*\/(.*)/
         push @t, "#---- $1: $pat ----\n"
     my $flag
     $if open In, $file 
@@ -48,9 +50,15 @@ subcode: grab_file(f, name)
                 $flag=1
             $elif /^\#----.*----/
                 $flag=0
+            $elif !$flag and /^\s*#\s*--\s*$pat\s*--/
+                $flag=2
+            $elif $flag==2 and /^\s*#\s*--.*--/
+                $flag=0
             $elif $flag
                 push @t, $_
         close In
+    $else
+        die "Can't open $file\n"
     $while $t[-1]=~/^\s*$/
         pop @t
     $codelist=\@t
