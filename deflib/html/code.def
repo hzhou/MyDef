@@ -31,20 +31,18 @@ perlcode: codeprint
         push @$out, "<pre><code>"
         push @$out, "PUSHDENT"
         $foreach $t in @$codelist
-            $t=~s/&#35;/#/g
-            $t=~s/&(?!call)/&amp;/g
-            $t=~s/</&lt;/g
-	    $if $type eq "mydef"
-		$call mydef_print
+            $call code_filter
             push @$out, $t
         push @$out, "POPDENT"
         push @$out, "</code></pre>"
 
 subcode: grab_file(f, name)
     my @t
-    my $pat=$(name)
+    my ($file, $pat)=($(f), $(name))
+    $if $file=~/.*\/(.*)/
+        push @t, "#---- $1: $pat ----\n"
     my $flag
-    $if open In, $(f) 
+    $if open In, $file 
         $while <In>
             $if /^\#----\s*$pat\s*----/
                 $flag=1
@@ -53,6 +51,17 @@ subcode: grab_file(f, name)
             $elif $flag
                 push @t, $_
         close In
+    $while $t[-1]=~/^\s*$/
+        pop @t
+    $codelist=\@t
+
+subcode: grab_file_all(f)
+    my @t
+    my $file=$(f)
+    $if $file=~/.*\/(.*)/ and $type eq "mydef"
+        push @t, "#---- file: $1 ----\n"
+    &call open_r, $file
+        push @t, $_
     $while $t[-1]=~/^\s*$/
         pop @t
     $codelist=\@t
@@ -69,8 +78,17 @@ subcode: global_pattern(name, p)
 		push @tlist, $p
 	$t=join('', @tlist)
 
-subcode: mydef_print
-    #print "mydef_print [$t]\n"
+#---------------------------------------- 
+subcode: code_filter
+    $t=~s/&#35;/#/g
+    $t=~s/&(?!call)/&amp;/g
+    $t=~s/</&lt;/g
+    $if $type eq "mydef"
+        $call mydef_filter
+
+#---------------------------------------- 
+subcode: mydef_filter
+    #print "mydef_filter [$t]\n"
     $if $t!~/</ 
 	$call global_pattern, quote, ".*?"
 	$call global_pattern, macro, \$\(.*?\) 
@@ -78,16 +96,18 @@ subcode: mydef_print
     $(set:span=<span class=\"mydef-$1\">$2</span>)
     $if $t=~/^(\s*)((#|&#35;).*)/
 	$t="$1$(span:comment, $2)"
+    $elif $t=~/(.*)(\s(#|&#35;)\s.*)/
+	$t="$1$(span:comment, $2)"
     $elif $t=~/^(\s*)(page|\w+code):\s*(\w+)(.*)/
 	$t="$1$(span:label, $2): $(span:label, $3)$4"
-    $elif $t=~/^(\s*)(\$call|\$map|\&call)\s*(\w+)(.*)/
+    $elif $t=~/^(\s*)(\$call|\$map|\&call)\s*(\S+)(.*)/
 	$t="$1$(span:keyword, $2) <strong>$3</strong>$4"
     $elif $t=~/^(\s*)(CSS|include):\s*(.*)/
-	$t="$1$(span:preproc, $2): $(span:include, $3)"
+	$t="$1$(span:preproc, $2): $(span:preproc, $3)"
     $elif $t=~/^(\s*)\$(if|while|switch|for|elif|elsif|else|function)\b(.*)/
         $t="$1$(span:keyword,\$$2)$3"
 
-subcode: sh_print
+subcode: sh_filter
     $(set:span=<span class=\"mydef-$1\">$2</span>)
     $if $t=~/^\$ (.*)/
         $t="<span class=\"mydef-keyword\">\$ </span><b>$1</b>"
