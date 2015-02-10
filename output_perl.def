@@ -165,12 +165,12 @@ subcode: dumpout
                 push @$f, "our $v;\n"
             push @$f, "\n"
 
-        #-- to be processed by dumpout --
-        unshift @$out, "DUMP_STUB global_init"
-
+        #-- to be processed by dumpout -- reverse order due to unshift
         $if @$fn_block
             $dump->{fn_block}=$fn_block
             unshift @$out, "INCLUDE_BLOCK fn_block"
+
+        unshift @$out, "DUMP_STUB global_init"
 
 #----------------------------------------------- 
 subcode: list_functions
