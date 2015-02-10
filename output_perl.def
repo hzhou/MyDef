@@ -165,6 +165,9 @@ subcode: dumpout
                 push @$f, "our $v;\n"
             push @$f, "\n"
 
+        #-- to be processed by dumpout --
+        unshift @$out, "DUMP_STUB global_init"
+
         $if @$fn_block
             $dump->{fn_block}=$fn_block
             unshift @$out, "INCLUDE_BLOCK fn_block"
