@@ -144,7 +144,7 @@ subcode: check_inline_php
     #print "check_inline_php $l\n";
     $l=~s/(\$\w+)/<?php echo \1 ?>/g
 
-#-- support mydef_print, which processes $t
+#-- support mydef_filter, which processes $t
 include: html/code.def
 
 subcode:: support_subs
@@ -161,7 +161,7 @@ subcode:: support_subs
 	    $elif $mode eq "js"
 		$$rl="PRINT $t"
 	    $else
-		$call mydef_print
+		$call mydef_filter
 		$$rl="PRINT $t"
 	return 0
 
