@@ -34,6 +34,13 @@ fncode: init(%config)
     $while my ($k, $v) = each %config
         $var->{$k}=$v;
     my $module=$var->{module};
+
+    $if !$module and -f $config{def_file}
+        &call open_r, $config{def_file}
+            $if /^\s*module:\s+(\w+)\s*$/
+                $var->{module}=$1
+                $module=$1
+        
     $if !$module
         die "Module type not defined in config!\n"
     $map require_module, $(module_list)
