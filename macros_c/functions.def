@@ -65,7 +65,7 @@ subcode:: c_support_subs
 	$if $param eq "api"
 	    $call open_function_api
 	$if $param
-	    $call open_function_params
+	    $call add_function_params
 	# --
 	$if $func->{name}
 	    my $name=$func->{name};
@@ -74,7 +74,7 @@ subcode:: c_support_subs
 	# --
 	return $func
 
-subcode: open_function_params
+subcode: add_function_params
     my $param_list=$func->{param_list}
     my $var_hash=$func->{var_hash}
     my @plist=split /,\s*/, $param
@@ -107,12 +107,17 @@ subcode: open_function_api
 
 #---------------------------------------- 
 subcode:: parsecode_func_other
-    $elif $func eq "return_type"
-	$cur_function->{ret_type}=$param;
-	return
-    $elif $func eq "parameter"
-	$call open_function_params
-	return
+    $elif $func =~/^(return_type|parameter|lexical)/
+        $if $cur_function
+            my $func = $cur_function
+            $if $1 eq "return_type"
+                $cur_function->{ret_type}=$param;
+                return
+            $elif $1 eq "parameter"
+                $call add_function_params
+                return
+        return 1
+
 # -----------------------------------------------------------------
 subcode:: c_support_subs
     $sub func_return($t)

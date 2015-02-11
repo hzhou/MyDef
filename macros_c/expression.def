@@ -298,6 +298,7 @@ subcode: check_exp_fcall(primary, token)
 	    $call check_autoload_h
 	    $call add_list_function, $(primary)
 	$if $function_defaults{$(primary)}
+            #-- prepend: essentiall implements lexical function parameters
 	    $if $function_defaults{$(primary)}=~/^prepend:(.*)/
 		$if $(token) eq ""
 		    $(token)=$1

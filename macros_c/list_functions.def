@@ -7,9 +7,25 @@ subcode:: c_init
     %list_function_hash=()
     @list_function_list=()
 
+#---- page attribute `autolist` automatically adds functions
 subcode: autolist_functions
     &call each_subcode, fn
-        $call add_list_functions, $name
+        my $source=$code->{source}
+        $foreach $l in @$source
+            $if $l=~/^SOURCE/
+                #skip
+            $elif $l=~/^(lexical|parameter|return):\s*(.+?)\s*$/
+                $if $1 eq "lexical"
+                    $function_defaults{$name}="append:$2"
+                    $l="\$parameter $2"
+                $elif $1 eq "parameter"
+                    $l="\$parameter $2"
+                $elif $1 eq "return"
+                    $l="\$return_type $2"
+            $else
+                last
+        $if $page->{autolist}
+            $call add_list_functions, $name
 
 # ------------------------------------
 subcode:: parsecode_func_other
