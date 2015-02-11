@@ -62,6 +62,7 @@ subcode: var_declare(scope)
 		$i++
 		$var->{"dim$i"}=$t
 	$(if:scope=global)
+            # $print global variable: $v
             $call dbl_push, globals, $v
 	    $if $var
 		$global_scope->{var_hash}->{$name}=$var

@@ -925,6 +925,7 @@ sub dumpout {
             $dump->{fn_block}=$fn_block;
             unshift @$out, "INCLUDE_BLOCK fn_block";
         }
+        unshift @$out, "DUMP_STUB global_init";
     }
     MyDef::dumpout::dumpout($dump);
 }

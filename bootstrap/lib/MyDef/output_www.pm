@@ -640,14 +640,17 @@ sub custom_dump {
             if($t=~/^(\s*)((#|&#35;).*)/){
                 $t="$1<span class=\"mydef-comment\">$2</span>";
             }
+            elsif($t=~/(.*)(\s(#|&#35;)\s.*)/){
+                $t="$1<span class=\"mydef-comment\">$2</span>";
+            }
             elsif($t=~/^(\s*)(page|\w+code):\s*(\w+)(.*)/){
                 $t="$1<span class=\"mydef-label\">$2</span>: <span class=\"mydef-label\">$3</span>$4";
             }
-            elsif($t=~/^(\s*)(\$call|\$map|\&call)\s*(\w+)(.*)/){
+            elsif($t=~/^(\s*)(\$call|\$map|\&call)\s*(\S+)(.*)/){
                 $t="$1<span class=\"mydef-keyword\">$2</span> <strong>$3</strong>$4";
             }
             elsif($t=~/^(\s*)(CSS|include):\s*(.*)/){
-                $t="$1<span class=\"mydef-preproc\">$2</span>: <span class=\"mydef-include\">$3</span>";
+                $t="$1<span class=\"mydef-preproc\">$2</span>: <span class=\"mydef-preproc\">$3</span>";
             }
             elsif($t=~/^(\s*)\$(if|while|switch|for|elif|elsif|else|function)\b(.*)/){
                 $t="$1<span class=\"mydef-keyword\">\$$2</span>$3";

@@ -27,6 +27,7 @@ foreach my $a (@ARGV){
 if(!$def_file){
     die "Please supply data definition file.";
 }
+$config{def_file}=$def_file;
 MyDef::init(%config);
 my $module=$MyDef::var->{module};
 MyDef::import_data($def_file);

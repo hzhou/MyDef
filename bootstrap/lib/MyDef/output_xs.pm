@@ -208,7 +208,7 @@ sub translate_scalar {
         push @$out, "$var = SvNV($sv);";
     }
     elsif($vartype eq "char *"){
-        MyDef::output_c::func_add_var("t_strlen");
+        MyDef::output_c::func_add_var("t_strlen", "STRLEN");
         push @$out, "$var = SvPV($sv, t_strlen);";
         push @$out, "$var\[t_strlen\] = '\\0';";
     }

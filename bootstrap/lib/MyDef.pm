@@ -15,6 +15,16 @@ sub init {
         $var->{$k}=$v;
     }
     my $module=$var->{module};
+    if(!$module and -f $config{def_file}){
+        open In, "$config{def_file}" or die "Can't open $config{def_file}.\n";
+        while(<In>){
+            if(/^\s*module:\s+(\w+)\s*$/){
+                $var->{module}=$1;
+                $module=$1;
+            }
+        }
+        close In;
+    }
     if(!$module){
         die "Module type not defined in config!\n";
     }
