@@ -3,12 +3,6 @@ subcode:: parsecode_func_other
 	$global $yield
 	$yield=$param
 	return
-    $elif $func eq "autolist"
-	$global %function_autolist
-	my @plist=MyDef::utils::proper_split($param)
-	$foreach $name in @plist
-	    $function_autolist{$name}=1
-	return
     $elif $func eq "set_function_defaults"
 	$global %function_defaults
 	my @plist=MyDef::utils::proper_split($param)
@@ -17,6 +11,7 @@ subcode:: parsecode_func_other
 	    $function_defaults{$name}=$pattern
 	return
 
+#----------------------------------------------- 
 subcode:: c_support_subs
     $sub check_expression($l, $context)
 	#---- Note: if $l is already terminated with ';', it simply returns $l ----
@@ -25,7 +20,6 @@ subcode:: c_support_subs
 	$call @check_statement
 	my ($assign, $left, $right)
 	$call @check_expression_init
-	$call check_expression_parse_stack
 	$while 1
 	    $call check_expression_parse, $l
 	    $call check_expression_push
@@ -133,7 +127,7 @@ subcode: check_expression_push
 	$if $token eq "++" or $token eq "--"
 	    #---- postfix -----------------
 	    $call exp_pop, $exp
-	    $call exp_push, "$exp$token", "atom-exp"
+	    $call exp_push, "$exp$token", "atom-postfix"
 	$elif $token eq ":"
 	    #---- label -----------------
 	    $call exp_pop, $exp
@@ -161,7 +155,7 @@ subcode: check_expression_push
 		#---- unary -------------
 		$call exp_pop, $op
 		$token=$op.$token
-		$type="atom-exp"
+		$type="atom-unary"
 		goto check_exp_precedence
 	    $else
 		#---- binary -------------
@@ -205,16 +199,17 @@ subcode: check_exp_bracket
 	my $exp=join("", splice(@stack, $found+1))
 	pop @stack
 	splice(@types, $found)
-	$if $types[-1] =~/^atom/ and $stack[-1]!~/^[0-9'"]/
+	$if $types[-1] =~/^atom/ and $stack[-1]!~/^[0-9'"]/ and $stack[-1]=~/(\w+)$/
+	    my $identifier=$1
 	    $call exp_pop, $primary
 	    my $processed
 	    $type="atom-exp"
 	    $if $open eq '('
-		$call check_exp_fcall, $primary, $exp
+		$call check_exp_fcall, $identifier, $exp
 	    $elif $open eq '['
-		$call check_exp_subscript, $primary, $exp
+		$call check_exp_subscript, $identifier, $exp
 	    $elif $open eq '{'
-		$call check_exp_dict, $primary, $exp
+		$call check_exp_dict, $identifier, $exp
 	    $if !$processed
 		$token=$primary.$open.$exp.$close
 		$if $open eq '['
@@ -404,7 +399,7 @@ subcode: check_exp_regex
 	$call warn, =~ missing string variable
 
 #--------------------------------------
-subcode: check_expression_parse_stack
+subcode:: check_expression_init
     my @stack
     my @types
 

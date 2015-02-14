@@ -1,11 +1,6 @@
 subcode:: _autoload
     $register_name(input) struct input_buffer *
     # load_lex
-    $(set:fn_list=skip_space, match_non_space, match_eof, match_char, match_char_i, match_char_class, match_char_class_i, match_keyword, match_keyword_i, match_char_unless, match_keyword_unless, match_identifier, match_bracket)
-
-    $autolist $(fn_list)
-    $set_function_defaults prepend:input, $(fn_list)
-
     $include ctype
 
 subcode: get_ts_token
@@ -34,14 +29,6 @@ subcode: input_restart
     $call input_check_tempchar, input
     input->n_pos=input->n_start
 
-subcode: input_get_c(c)
-    $list input_get_char
-    $(c)=input_get_char(input)
-
-subcode: input_back_char
-    $if input->n_pos>input->n_start
-	input->n_pos--
-
 subcode: input_debug
     tn_c=input->buffer[input->n_pos]
     $print "input_debug: %d - %d - %d [%c][%d]", input->n_start, input->n_pos, input->n_end, tn_c, tn_c
@@ -60,60 +47,67 @@ subcode: input_skip
 # ---------------------------------
 subcode: match_until(cond)
     $while 1
-	$call input_get_c, tn_c
+	tn_c=input_get_char(input)
 	$if tn_c<=0
 	    return 1
 	$if $(cond)
-	    $call input_back_char
+	    input_back_char(input)
 	    return 1
 
 # -----------------------------
-fncode: skip_space(input)
+fncode: skip_space
+    lexical: input
     $call match_until, !isspace(tn_c)
 
-fncode: match_non_space(input)
+fncode: match_non_space
+    lexical: input
     $call input_start
     $call match_until, isspace(tn_c)
 
-fncode: match_eof(input)
-    $call input_get_c, tn_c
+fncode: match_eof
+    lexical: input
+    tn_c=input_get_char(input)
     $if tn_c<=0
 	return 1
     $else
-	$call input_back_char
+	input_back_char(input)
 	return 0
 
 #---------------------------------------- 
 subcode: match_char_sub(cond)
-    $call input_get_c, tn_c
+    tn_c=input_get_char(input)
     $if $(cond)
 	return 1
     $else
 	$if tn_c>0
-	    $call input_back_char
+	    input_back_char(input)
 	return 0
 
 subcode: match_char_class_sub(cond)
-    $call input_get_c, tn_c
+    tn_c=input_get_char(input)
     $while *s_class
 	$if $(cond)
 	    return 1
 	s_class++
     $if tn_c>0
-	$call input_back_char
+	input_back_char(input)
     return 0
 
 #---------------------------------------- 
-fncode: match_char(input, tn_char)
+fncode: match_char(tn_char)
+    lexical: input
     $call match_char_sub, tn_c==tn_char
 
-fncode: match_char_i(input, tn_char)
+fncode: match_char_i(tn_char)
+    lexical: input
     $call match_char_sub, toupper(tn_c)==toupper(tn_char)
 
-fncode: match_char_class(input, s_class)
+fncode: match_char_class(s_class)
+    lexical: input
     $call match_char_class_sub, tn_c==*s_class
 
-fncode: match_char_class_i(input, s_class)
+fncode: match_char_class_i(s_class)
+    lexical: input
     $call match_char_class_sub, toupper(tn_c)==toupper(*s_class)
 
 #---------------------------------------- 
@@ -123,31 +117,34 @@ subcode: match_keyword_sub(notcond)
     $(set:isword=(isalnum(tn_c)||tn_c=='_'))
     $(set:isword2=(isalnum(tn_c2)||tn_c2=='_'))
     $while 1
-	$call input_get_c, tn_c
+	tn_c=input_get_char(input)
 	$if $(notcond)
 	    $call input_restart
 	    return 0
 	s_key++
 	$if !*s_key
-	    $call input_get_c, tn_c2
+	    tn_c2=input_get_char(input)
 	    $if tn_c2<=0
 		return 1
 	    $elif $(isword) && !$(isword2) || !$(isword) 
-		$call input_back_char
+		input_back_char(input)
 		return 1
 	    $else
 		$call input_restart
 		return 0
 
-fncode: match_keyword(input, s_key)
+fncode: match_keyword(s_key)
+    lexical: input
     $call match_keyword_sub, tn_c != *s_key
 
-fncode: match_keyword_i(input, s_key)    
+fncode: match_keyword_i(s_key)    
+    lexical: input
     $call match_keyword_sub, toupper(tn_c) != toupper(*s_key)
 
 #-------------------------------
 #- hacks for ">=" ">>=" etc.
-fncode: match_char_unless(input, tn_c1, s_tail)
+fncode: match_char_unless(tn_c1, s_tail)
+    lexical: input
     $call input_start
     $if match_char(tn_c1)
 	$if match_char_class(s_tail)
@@ -158,7 +155,8 @@ fncode: match_char_unless(input, tn_c1, s_tail)
     $else
 	return 0
 
-fncode: match_keyword_unless(input, s_key, s_tail)
+fncode: match_keyword_unless(s_key, s_tail)
+    lexical: input
     $call input_start
     $if match_keyword(s_key)
 	$if match_char_class(s_tail)
@@ -170,9 +168,10 @@ fncode: match_keyword_unless(input, s_key, s_tail)
 	return 0
 
 # ---------------------------------
-fncode: match_identifier(input)
+fncode: match_identifier
+    lexical: input
     $call input_start
-    $call input_get_c, tn_c
+    tn_c=input_get_char(input)
     $if isalpha(tn_c) || tn_c=='_'
 	$call match_until, !(isalnum(tn_c) || tn_c=='_')
     $else
@@ -180,7 +179,8 @@ fncode: match_identifier(input)
 	return 0
 
 # ---------------------------------
-fncode: match_bracket(input, tn_c1)
+fncode: match_bracket(tn_c1)
+    lexical: input
     tn_escape='\\'
     $if tn_c1=='{'
 	tn_c2='}'
@@ -197,7 +197,7 @@ fncode: match_bracket(input, tn_c1)
 
     tb_flag_escape=0
     $while 1
-	$call input_get_c, tn_c
+	tn_c=input_get_char(input)
 	$if tb_flag_escape
 	    tb_flag_escape=0
 	$elif tn_c=='\'' || tn_c=='"'
@@ -214,7 +214,7 @@ subcode: match_quote(c)
     tn_escape='\\'
     tb_flag_escape=0
     $while 1
-	$call input_get_c, tn_c
+	tn_c=input_get_char(input)
 	$if tb_flag_escape
 	    tb_flag_escape=0
 	$elif tn_c==tn_escape

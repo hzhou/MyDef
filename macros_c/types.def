@@ -38,7 +38,7 @@ subcode:: package_globals
 	u8=>"uint64_t",
 	c=>"unsigned char",
 	uc=>"unsigned char",
-	b=>"int",
+	b=>"bool",
 	s=>"char *",
 	f=>"float",
 	d=>"double",
@@ -99,6 +99,8 @@ subcode:: c_support_subs
 	    return "char";
 	$elif $val=~/^\((\w+)\)\w/
 	    return $1
+	$elif $val=~/^(true|false)/
+	    return "bool"
 	$elif $val=~/(\w+)\(.*\)/
 	    my $func=$functions{$1}
 	    return $func->{ret_type}

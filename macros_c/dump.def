@@ -68,13 +68,12 @@ subcode:: c_init
     @define_list=()
     %defines=()
 
-subcode:: support_subs
-    $sub add_define($name, $var)
-	$call check_autoload_h
-	$if !$autoload_h
-	    $if !defined $defines{$name}
-		push @define_list, $name
-	    $else
+fncode: add_define($name, $var)
+    $call check_autoload_h
+    $if !$autoload_h
+	$if !defined $defines{$name}
+	    push @define_list, $name
+	$else
 		warn "Duplicate define $name: [$defines{$name}] -> [$var]\n"
 	    $defines{$name}=$var
 	    $call add_to_autoload_h, "define-$name"

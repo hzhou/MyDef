@@ -24,8 +24,8 @@ subcode: autolist_functions
                     $l="\$return_type $2"
             $else
                 last
-        $if $page->{autolist}
-            $call add_list_functions, $name
+	$global %function_autolist
+	$function_autolist{$name}=1
 
 # ------------------------------------
 subcode:: parsecode_func_other

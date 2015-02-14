@@ -1,7 +1,14 @@
 ## singly linked list 
-subcode: slist_declare(name, list, node)
-    $struct($(name)_node) $(node), struct $(name)_node * next
-    $struct($(name)_list) $(list), n, struct $(name)_node* head, struct $(name)_node* tail
+subcode: slist_declare(name, @node_members)
+    $struct($(name)_node) $(node_members), struct $(name)_node * next
+    $struct($(name)_list) n, struct $(name)_node* head, struct $(name)_node* tail
+
+subcode: slist_local(name, var)
+    $local struct $(name)_list $(var)
+    $(set:sl=$(var).)
+    $(sl)head=NULL
+    $(sl)tail=NULL
+    $(sl)n=0
 
 subcode: slist_init(var, @plist)
     $get_struct_var_prefix(sl) $(var)
