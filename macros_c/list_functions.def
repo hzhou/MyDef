@@ -16,8 +16,10 @@ subcode: autolist_functions
                 #skip
             $elif $l=~/^(lexical|parameter|return):\s*(.+?)\s*$/
                 $if $1 eq "lexical"
-                    $function_defaults{$name}="append:$2"
-                    $l="\$parameter $2"
+		    my $t=$2
+                    $function_defaults{$name}="append:$t"
+		    $t=~s/&(\w+)/p_\1/g
+		    $l="\$parameter $t"
                 $elif $1 eq "parameter"
                     $l="\$parameter $2"
                 $elif $1 eq "return"

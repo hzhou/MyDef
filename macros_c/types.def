@@ -100,6 +100,7 @@ subcode:: c_support_subs
 	$elif $val=~/^\((\w+)\)\w/
 	    return $1
 	$elif $val=~/^(true|false)/
+	    $page->{use_bool}=1
 	    return "bool"
 	$elif $val=~/(\w+)\(.*\)/
 	    my $func=$functions{$1}

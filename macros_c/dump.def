@@ -80,6 +80,11 @@ fncode: add_define($name, $var)
 
 subcode: dump_defines
     my $cnt=0
+    $if $page->{use_bool}
+	push @$dump_out, "typedef int bool;\n"
+	push @$dump_out, "#define true 1\n"
+	push @$dump_out, "#define false 0\n"
+	$cnt++
     $foreach $k in @define_list
 	$call dump_define, $k
 	$cnt++
