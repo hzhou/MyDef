@@ -81,11 +81,10 @@ subcode: add_function_params
     my $i=0
     $foreach $p in @plist
 	$i++
+	my ($type, $name)
 	$if $p=~/(\S.*)\s+(\S+)\s*$/
-	    my ($type, $name)=($1, $2)
+	    ($type, $name)=($1, $2)
 	    $call check_pointer_type_name
-	    $var_hash->{$name}={name=>$name, type=>$type}
-	    push @$param_list, "$type $name"
 	$elif $p eq "fmt" and $i==@plist
 	    push @$param_list, "char * fmt, ..."
 	$else
@@ -93,9 +92,15 @@ subcode: add_function_params
 		push @$param_list, $fntype{$p};
 		$var_hash->{$p}={name=>$p, type=>"function"}
 	    $else
-		my $t= get_c_type($p);
-		push @$param_list, "$t $p";
-		$var_hash->{$p}={name=>$p, type=>$t}
+		$type= get_c_type($p);
+		$name=$p
+	$if $name
+	    $if $name=~/&(\w+)/
+		$name="p_$1"
+		$type.=" *"
+		$call set_macro, $1, "(*p_$1)"
+	    $var_hash->{$name}={name=>$name, type=>$type}
+	    push @$param_list, "$type $name"
 
 subcode: open_function_api
     $if $fname=~/^([a-zA-Z0-9]+)_(\w+)/

@@ -165,7 +165,7 @@ subcode:: c_support_subs
 	$if $param=~/(\$map\b.*)/
 	    my $pre=$`
 	    $param=$1
-	    $call parse_condition_map
+	    $call parse_condition_map, ||
 	$elif $param=~/^\$(\w+)\s+(.*)/
 	    my ($func, $param)=($1, $2)
 	    $call parse_condition_check_plugin

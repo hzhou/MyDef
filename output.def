@@ -217,22 +217,18 @@ subcode: parse_condition_check_plugin
 	return $condition
 
 # -------------------------------------------
-subcode: parse_condition_map
-    my @args=MyDef::utils::proper_split($param)
-    my $map=shift @args
-    # print "map: [$map]\n"
-    $if $map=~/\$map\((.*?),\s+(.*)\)/
-	# print "map: sep [$1], template [$2]\n"
-	my $sep=$1
-	my $template=$2
+subcode: parse_condition_map(or)
+    $if $param=~/\$map\s+(.*),\s+(.*)/
+	my $template=$1
+	my @or_list=split /\|/, $2
+
 	my @segs
-	$foreach $a in @args
+	$foreach $a in @or_list
 	    my $t=$template
 	    $t=~s/\$1/$a/g
 	    push @segs, $t
+	my $sep=" $(or) "
 	return $pre . join($sep, @segs)
-    $else
-	return $pre . $param
 
 #---------------------------------------- 
 #- utility subcode
@@ -240,6 +236,9 @@ subcode: parse_condition_map
 subcode: warn(@msg)
     my $curfile=MyDef::compileutil::curfile_curline()
     $print "[$curfile]$yellow $(msg)" 
+
+subcode: set_macro(name, value)
+    MyDef::compileutil::set_current_macro($(name), $(value)
 
 subcode: replace_output(name)
     my $old_out=MyDef::compileutil::set_output($(name))

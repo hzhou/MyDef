@@ -6,52 +6,51 @@ page: utils
 	$call package_subs
 	1;
 
-# ---------------------------------------------------------
-subcode:: package_subs
-    $sub proper_split($param)
-	my @tlist
-	$if $param eq "0"
-	    return (0)
-	$elif !$param
-	    return @tlist
-	# print "proper_split [$param]\n"
-	my @closure_stack
-	my $t
-	&call parse_loop, $param
-	    &call if_lex, (\s+)
-		$if $t or @closure_stack
-		    $t.=$1
-		$else
-		    #-skip
-	    $elif $param=~/\G(,)/gc
-		$if @closure_stack
-		    $t.=$1
-		$else
-		    push @tlist, $t
-		    undef $t
-	    $elif $param=~/\G([^"'\(\[\{\)\]\},]+)/gc
-		$t.=$1
-	    $elif $param=~/\G("([^"\\]|\\.)*")/gc
-		$t.=$1
-	    $elif $param=~/\G('([^'\\]|\\.)*')/gc
-		$t.=$1
-	    $elif $param=~/\G([\(\[\{])/gc
-		$t.=$1
-		push @closure_stack, $1
-	    $elif $param=~/\G([\)\]\}])/gc
-		$t.=$1
-		$if @closure_stack
-		    $call proper_split_close_bracket
-	    $elif $param=~/\G(.)/gc
-		my $curfile=MyDef::compileutil::curfile_curline()
-		$print "[$curfile]proper_split: unmatched $1 [$param]"
-		$t.=$1
-
-	$if $t
-	    $t=~s/\s+$//
-	$if $t or @tlist
-	    push @tlist, $t
+# -------------------------------------------------
+fncode: proper_split($param)
+    my @tlist
+    $if $param eq "0"
+	return (0)
+    $elif !$param
 	return @tlist
+    # print "proper_split [$param]\n"
+    my @closure_stack
+    my $t
+    &call parse_loop, $param
+	&call if_lex, (\s+)
+	    $if $t or @closure_stack
+		$t.=$1
+	    $else
+		#-skip
+	$elif $param=~/\G(,)/gc
+	    $if @closure_stack
+		$t.=$1
+	    $else
+		push @tlist, $t
+		undef $t
+	$elif $param=~/\G([^"'\(\[\{\)\]\},]+)/gc
+	    $t.=$1
+	$elif $param=~/\G("([^"\\]|\\.)*")/gc
+	    $t.=$1
+	$elif $param=~/\G('([^'\\]|\\.)*')/gc
+	    $t.=$1
+	$elif $param=~/\G([\(\[\{])/gc
+	    $t.=$1
+	    push @closure_stack, $1
+	$elif $param=~/\G([\)\]\}])/gc
+	    $t.=$1
+	    $if @closure_stack
+		$call proper_split_close_bracket
+	$elif $param=~/\G(.)/gc
+	    my $curfile=MyDef::compileutil::curfile_curline()
+	    $print "[$curfile]proper_split: unmatched $1 [$param]"
+	    $t.=$1
+
+    $if $t
+	$t=~s/\s+$//
+    $if $t or @tlist
+	push @tlist, $t
+    return @tlist
 
 subcode: proper_split_close_bracket
     my $match
@@ -70,15 +69,15 @@ subcode: proper_split_close_bracket
     $else
 	warn "proper_split: unbalanced [$param]\n"
 
-# ---------------------------------------------------------
-subcode:: package_subs
-    $sub uniq_name($name, $hash)
-	$if !$hash->{$name}
-	    return $name
-	$else
-	    my $i=2
-	    $if $name=~/[0-9_]/
-		$name.="_"
-	    $while $hash->{"$name$i"}
-		$i++
-	    return "$name$i"
+# ---------------------------------------------
+fncode: uniq_name($name, $hash)
+    $if !$hash->{$name}
+	return $name
+    $else
+	my $i=2
+	$if $name=~/[0-9_]/
+	    $name.="_"
+	$while $hash->{"$name$i"}
+	    $i++
+	return "$name$i"
+

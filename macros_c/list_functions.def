@@ -16,10 +16,8 @@ subcode: autolist_functions
                 #skip
             $elif $l=~/^(lexical|parameter|return):\s*(.+?)\s*$/
                 $if $1 eq "lexical"
-		    my $t=$2
-                    $function_defaults{$name}="append:$t"
-		    $t=~s/&(\w+)/p_\1/g
-		    $l="\$parameter $t"
+		    $l="\$parameter $2"
+		    $call parse_lexical
                 $elif $1 eq "parameter"
                     $l="\$parameter $2"
                 $elif $1 eq "return"
@@ -29,6 +27,15 @@ subcode: autolist_functions
 	$global %function_autolist
 	$function_autolist{$name}=1
 
+subcode: parse_lexical
+    my @tlist=split /,\s*/, $2
+    my @segs
+    $foreach $t in @tlist
+        $if $t=~/^(.+)\s+(\S+)$/
+            push @segs, $2
+        $else
+            push @segs, $t
+    $function_defaults{$name}="append:".join(', ', @segs)
 # ------------------------------------
 subcode:: parsecode_func_other
     $elsif $func eq "function"
