@@ -44,8 +44,8 @@ subcode:: package_globals
 	d=>"double",
 	"time"=>"time_t",
 	"file"=>"FILE *",
-	"has"=>"int",
-	"is"=>"int",
+	"has"=>"bool",
+	"is"=>"bool",
     );
 
     $global %stock_functions
@@ -167,6 +167,8 @@ subcode:: c_support_subs
 	    $type="void";
 	$elif $type =~/^\*/
 	    $type="void";
+        $elif $type eq "bool"
+            $page->{use_bool}=1
 	#----------------------------------------  
 	$if $type_include{$type}
 	    $call add_include, $type_include{$type}

@@ -32,6 +32,7 @@ fncode: input_create(FILE * f)
 fncode: input_from_string(s)
     $local struct input_buffer * b
     $call fifo_create_static, b, s, strlen(s), allocate
+    $call fifo_attach_null, b
     $call @on_input_create, b
     return b
 
@@ -46,16 +47,20 @@ subcode: local_input_buffer(input, s, n)
     $local struct input_buffer * $(input)
     $(input)=&local_input_buffer
     $call fifo_create_static, $(input), $(s), $(n), local
+    $call fifo_attach_null, $(input)
+    $call @on_input_create, $(input)
 
 #----------------------------------------------- 
 subcode: fifo_attach_file(b, f)
     $if $(f)
 	$(b)->f=$(f)
-	$(b)->n_eof=0
 	$(b)->b_tty=isatty(fileno($(f)))
     $else
-	$(b)->f=NULL
+        $call fifo_attach_null, $(b)
 
+subcode: fifo_attach_null(b)
+    $(b)->f=NULL
+    $(b)->b_tty=0
 #----------------------------------------------- 
 #-- 
 fncode: input_get_char(struct input_buffer * b)
@@ -106,8 +111,8 @@ subcode: fifo_input_eof
 fncode: input_back_char(struct input_buffer * b)
     $if b->n_eof>1
 	b->n_eof--
-    $elif input->n_pos>input->n_start
-	input->n_pos--
+    $elif b->n_pos>b->n_start
+	b->n_pos--
 
 #----------------------------------------------- 
 fncode: input_get_str(struct input_buffer * b)

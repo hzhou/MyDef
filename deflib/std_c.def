@@ -18,9 +18,15 @@ subcode: assert_action
     printf("Assert Error: ($(check)) at line %d \n", __LINE__)
     exit(1)
 
-subcode: die(msg)
-    fprintf(stderr, $(msg))
+subcode: die(@msg)
+    $call warn, $(msg)
     exit(-1)
+
+subcode: warn(@msg)
+    $(if:msg~")
+        fprintf(stderr, $(msg))
+    $(else)
+        fprintf(stderr, "$(msg)\n")
 
 #----
 subcode: try

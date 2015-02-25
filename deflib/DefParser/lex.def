@@ -40,6 +40,10 @@ subcode: input_debug
 		printf "%c", input->buffer[input->n_pos+i]
     $print "\n"
 
+#---------------------------------------- 
+subcode: input_get_c(c)
+    $(c) = input_get_char(input)
+
 # ---- overload to customize -----------------------------
 subcode: input_skip
     skip_space()

@@ -238,7 +238,7 @@ subcode: warn(@msg)
     $print "[$curfile]$yellow $(msg)" 
 
 subcode: set_macro(name, value)
-    MyDef::compileutil::set_current_macro($(name), $(value)
+    MyDef::compileutil::set_current_macro($(name), $(value))
 
 subcode: replace_output(name)
     my $old_out=MyDef::compileutil::set_output($(name))
