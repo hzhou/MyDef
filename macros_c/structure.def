@@ -2,6 +2,9 @@ subcode:: parsecode_func_other
     $elif $func eq "tuple"
 	declare_tuple($param)
 	return
+    $elif $func eq "union"
+        declare_union($param)
+        return
 
 subcode:: parsecode_func_param_other
     $elif $func eq "struct"
@@ -9,56 +12,80 @@ subcode:: parsecode_func_param_other
 	return
 
 #-----------------------------------------
-subcode:: c_support_subs
-    $sub declare_tuple($param) 
-	$global %tuple_hash
-	my $name
-	$if $tuple_hash{$param}
-	    $name=$tuple_hash{$param}
+fncode: declare_tuple($param) 
+    $global %tuple_hash
+    my $name
+    $if $tuple_hash{$param}
+        $name=$tuple_hash{$param}
+    $else
+        $name=MyDef::utils::uniq_name("T", \%structs)
+        $tuple_hash{$param}=$name
+    MyDef::compileutil::set_current_macro("T", $name)
+
+    my $s_list=[]
+    my $s_hash={}
+    $structs{$name}={list=>$s_list, hash=>$s_hash}
+    push @struct_list, $name
+    my @plist=split /,\s+/, $param;
+    my $i=0
+    $foreach $p in @plist
+        $i++
+        my $m_name="a$i"
+        push @$s_list, $m_name
+        $s_hash->{$m_name}=$p
+
+    return $name
+
+#---------------------------------------- 
+#-- $union only supported as structure member
+#--     each delcare overwites previous definition
+#--     to be used by nearby $struct delcaration
+fncode: declare_union($param)
+    $global $union_hash
+    $if !$param
+        $union_hash={}
+        return $union_hash
+    $elif !defined $union_hash or %$union_hash
+        $call warn, "\$union has to be preceded by structure member/n"
+
+    my @plist=split /,\s+/, $param;
+    $foreach $p in @plist
+        my ($type, $name)
+	$if $p=~/(.*\S)\s+(\S+)\s*$/
+	    ($type, $name)=($1, $2)
+	    $if $name=~/^(\*+)(.*)/
+		$type.=" $1"
+		$name=$2
+	    $p=$name
 	$else
-	    $name=MyDef::utils::uniq_name("T", \%structs)
-	    $tuple_hash{$param}=$name
-	MyDef::compileutil::set_current_macro("T", $name)
+	    $name=$p;
+            $type=get_c_type($p)
 
-	my $s_list=[]
-	my $s_hash={}
-	$structs{$name}={list=>$s_list, hash=>$s_hash}
-	push @struct_list, $name
-	my @plist=split /,\s+/, $param;
-	my $i=0
-	$foreach $p in @plist
-	    $i++
-	    my $m_name="a$i"
-	    push @$s_list, $m_name
-	    $s_hash->{$m_name}=$p
-
-	return $name
+        $union_hash->{$name}=$type
 
 #-----------------------------------------
-subcode:: c_support_subs
-    $sub declare_struct 
-	my ($name, $param)=@_;
-	$call check_autoload_h
-	my ($s_list, $s_hash)
-	my ($s_init, $s_exit)
-	$if $structs{$name}
-	    $s_list=$structs{$name}->{list}
-	    $s_hash=$structs{$name}->{hash}
-	    $s_init=$s_hash->{"-init"}
-	    $s_exit=$s_hash->{"-exit"}
-	$else
-	    $s_init=[]
-	    $s_exit=[]
-	    $s_list=[]
-	    $s_hash={"-init"=>$s_init, "-exit"=>$s_exit}
-	    $structs{$name}={list=>$s_list, hash=>$s_hash}
-	    $if !$autoload_h
-		push @struct_list, $name
+fncode: declare_struct($name, $param)
+    $call check_autoload_h
+    my ($s_list, $s_hash)
+    my ($s_init, $s_exit)
+    $if $structs{$name}
+        $s_list=$structs{$name}->{list}
+        $s_hash=$structs{$name}->{hash}
+        $s_init=$s_hash->{"-init"}
+        $s_exit=$s_hash->{"-exit"}
+    $else
+        $s_init=[]
+        $s_exit=[]
+        $s_list=[]
+        $s_hash={"-init"=>$s_init, "-exit"=>$s_exit}
+        $structs{$name}={list=>$s_list, hash=>$s_hash}
+        $if !$autoload_h
+            push @struct_list, $name
 
-	$call add_to_autoload_h, "struct-$name"
-	$type_prefix{"st$name"}="struct $name";
+    $call add_to_autoload_h, "struct-$name"
+    $type_prefix{"st$name"}="struct $name";
 
-	$call declare_struct_elements
+    $call declare_struct_elements
 
 subcode:: c_support_subs
     #--- ... for c++ constructor ----
@@ -122,11 +149,12 @@ subcode: declare_struct_elements
 	    $p=$';
 
 	$i++
-	#--------
+	#-- init -------
 	$if $p=~/(.*?)(\S+)\s*=\s*(.*)/
 	    $p="$1$2";
 	    push @$s_init, "$2=$3";
 
+        #-- normal -----
 	$if $p=~/(.*\S)\s+(\S+)\s*$/
 	    $type=$1;
 	    $m_name=$2;
@@ -146,6 +174,8 @@ subcode: declare_struct_elements
 	    $elif $p=~/^(left|right)$/
 		#---- binary tree ----
 		$type="struct $name *"
+            $elif $p=~/^data$/
+                $type="union"
 	    $elif $fntype{$p}
 		$type="function";
 	    $else
@@ -157,6 +187,9 @@ subcode: declare_struct_elements
 	$s_hash->{$m_name}=$type
 	$if $needfree
 	    $s_hash->{"$name-needfree"}=1
+
+        $if $type eq "union"
+            $s_hash->{-union}=declare_union()
 
 subcode:: c_support_subs
     $sub get_struct_element_type 

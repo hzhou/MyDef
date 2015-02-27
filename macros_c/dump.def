@@ -209,13 +209,22 @@ subcode: dump_struct
     push @$dump_out, "struct $name {\n";
     my $s_list=$structs{$name}->{list}
     my $s_hash=$structs{$name}->{hash}
-    my $i=0;
-    $foreach my $p in @$s_list
-	$i++;
-	$if $s_hash->{$p} eq "function"
-	    push @$dump_out, "\t".$fntype{$p}.";\n";
+    my $indent=4
+    my $sp=' 'x$indent
+    $foreach $p in @$s_list
+        my $type=$s_hash->{$p}
+	$if $type eq "function"
+	    push @$dump_out, "$sp".$fntype{$p}.";\n";
+        $elif $type eq "union"
+            my $uhash=$s_hash->{-union}
+            push @$dump_out, "$sp"."union {\n"
+            $sp=' 'x($indent+4)
+            $foreach %$uhash
+                push @$dump_out, "$sp$v $k;\n"
+            $sp=' 'x($indent)
+            push @$dump_out, "$sp} $p;\n"
 	$else
-	    push @$dump_out, "\t$s_hash->{$p} $p;\n";
+	    push @$dump_out, "$sp$type $p;\n";
     push @$dump_out, "};\n\n";
 
 #---- Simple Constructors/Destructors ----------------------------------------

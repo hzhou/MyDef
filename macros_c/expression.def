@@ -231,7 +231,7 @@ subcode: check_exp_exponential
     $type="atom-exp"
 
 subcode: check_exp_member
-    $if $types[-1] =~/^op/ && $stack[-1] eq "." or $stack[-1] eq "->"
+    $if $types[-1] =~/^op/ && ($stack[-1] eq "." or $stack[-1] eq "->")
 	$if $types[-2] !~/^atom/
 	    #error
 	$token=join("", splice(@stack, -2)).$token

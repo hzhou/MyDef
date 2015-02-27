@@ -132,6 +132,8 @@ subcode: parsecode_foreach
 	my ($var, $list)=($1, $2)
 	$call loop_var
 	return single_block("foreach my $var ($list){", "}", "foreach")
+    $elif $param=~/^(%.*)/
+        return single_block("while (my (\$k, \$v) = each $1){", "}", "foreach")
     $elif $param=~/^(\S+),\s*(\S+)\s+in\s+(.*)/
         my ($k, $v, $hash)=($1, $2, $3)
         return single_block("while (my ($k, $v)=each $hash){", "}", "foreach")
