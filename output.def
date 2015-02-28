@@ -234,6 +234,8 @@ subcode: parse_condition_map(or)
 #- utility subcode
 
 subcode: warn(@msg)
+    $(if:msg~")
+	$(set:msg=$(msg:strip))
     my $curfile=MyDef::compileutil::curfile_curline()
     $print "[$curfile]$yellow $(msg)" 
 

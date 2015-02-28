@@ -12,6 +12,8 @@ subcode:: parsecode_func_param_other
 	return
 
 #-----------------------------------------
+#-- $tuple declares anonymous struct with a1, a2, ...
+#--   ref: deflib/c/darray.def
 fncode: declare_tuple($param) 
     $global %tuple_hash
     my $name
@@ -40,6 +42,7 @@ fncode: declare_tuple($param)
 #-- $union only supported as structure member
 #--     each delcare overwites previous definition
 #--     to be used by nearby $struct delcaration
+#--      ref: calc
 fncode: declare_union($param)
     $global $union_hash
     $if !$param
@@ -174,7 +177,7 @@ subcode: declare_struct_elements
 	    $elif $p=~/^(left|right)$/
 		#---- binary tree ----
 		$type="struct $name *"
-            $elif $p=~/^data$/
+            $elif $p=~/^(u|data)$/
                 $type="union"
 	    $elif $fntype{$p}
 		$type="function";
