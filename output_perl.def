@@ -46,7 +46,7 @@ subcode: case_flag_set
 subcode: case_flag_reset
     push @$out, "my \$b_flag_case=0;"
 
-#---- used for sumcode -------
+#---- scope  for sumcode -------
 subcode: var_declare(scope)
     $param=~s/\s*;\s*$//
     my @tlist=MyDef::utils::proper_split($param)
