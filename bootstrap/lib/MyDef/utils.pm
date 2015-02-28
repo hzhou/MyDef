@@ -1,7 +1,7 @@
 use strict;
 package MyDef::utils;
 sub proper_split {
-    my ($param)=@_;
+    my ($param) = @_;
     my @tlist;
     if($param eq "0"){
         return (0);
@@ -85,8 +85,9 @@ sub proper_split {
     }
     return @tlist;
 }
+
 sub uniq_name {
-    my ($name, $hash)=@_;
+    my ($name, $hash) = @_;
     if(!$hash->{$name}){
         return $name;
     }
@@ -101,4 +102,5 @@ sub uniq_name {
         return "$name$i";
     }
 }
+
 1;

@@ -40,8 +40,7 @@ our %h_hash;
 our @function_stack;
 our %list_function_hash;
 our @list_function_list;
-our $autoload;
-our $autoload_h;
+our %function_autolist;
 our $case_if="if";
 our $case_elif="else if";
 our @case_stack;
@@ -50,14 +49,229 @@ our $case_wrap;
 our $case_flag="b_flag_case";
 our %plugin_statement;
 our %plugin_condition;
+our $autoload;
+our $autoload_h;
 our %class_names;
 our %lamda_functions;
 our $yield;
-our %function_autolist;
 our %function_defaults;
 our $dump_classes;
-our %tuple_hash;
 our %protected_var;
+our %tuple_hash;
+our $union_hash;
+
+sub declare_tuple {
+    my ($param) = @_;
+    my $name;
+    if($tuple_hash{$param}){
+        $name=$tuple_hash{$param};
+    }
+    else{
+        $name=MyDef::utils::uniq_name("T", \%structs);
+        $tuple_hash{$param}=$name;
+    }
+    MyDef::compileutil::set_current_macro("T", $name);
+    my $s_list=[];
+    my $s_hash={};
+    $structs{$name}={list=>$s_list, hash=>$s_hash};
+    push @struct_list, $name;
+    my @plist=split /,\s+/, $param;
+    my $i=0;
+    foreach my $p (@plist){
+        $i++;
+        my $m_name="a$i";
+        push @$s_list, $m_name;
+        $s_hash->{$m_name}=$p;
+    }
+    return $name;
+}
+
+sub declare_union {
+    my ($param) = @_;
+    if(!$param){
+        $union_hash={};
+        return $union_hash;
+    }
+    elsif(!defined $union_hash or %$union_hash){
+        my $curfile=MyDef::compileutil::curfile_curline();
+        print "[$curfile]\x1b[33m \$union has to be preceded by structure member/n\n\x1b[0m";
+    }
+    my @plist=split /,\s+/, $param;
+    foreach my $p (@plist){
+        my ($type, $name);
+        if($p=~/(.*\S)\s+(\S+)\s*$/){
+            ($type, $name)=($1, $2);
+            if($name=~/^(\*+)(.*)/){
+                $type.=" $1";
+                $name=$2;
+            }
+            $p=$name;
+        }
+        else{
+            $name=$p;
+            $type=get_c_type($p);
+        }
+        $union_hash->{$name}=$type;
+    }
+}
+
+sub declare_struct {
+    my ($name, $param) = @_;
+    if($MyDef::compileutil::in_autoload){
+        $autoload=undef;
+        $autoload_h=0;
+        if($page->{autoload} eq "write_h"){
+            if(!$h_hash{"autoload"}){
+                $autoload=[];
+                $h_hash{"autoload"}=$autoload;
+            }
+            else{
+                $autoload=$h_hash{"autoload"};
+            }
+        }
+        elsif($page->{autoload} eq "h"){
+            $autoload_h=1;
+        }
+    }
+    else{
+        $autoload=undef;
+        $autoload_h=0;
+    }
+    my ($s_list, $s_hash);
+    my ($s_init, $s_exit);
+    if($structs{$name}){
+        $s_list=$structs{$name}->{list};
+        $s_hash=$structs{$name}->{hash};
+        $s_init=$s_hash->{"-init"};
+        $s_exit=$s_hash->{"-exit"};
+    }
+    else{
+        $s_init=[];
+        $s_exit=[];
+        $s_list=[];
+        $s_hash={"-init"=>$s_init, "-exit"=>$s_exit};
+        $structs{$name}={list=>$s_list, hash=>$s_hash};
+        if(!$autoload_h){
+            push @struct_list, $name;
+        }
+    }
+    if($autoload){
+        push @$autoload, "struct-$name";
+    }
+    $type_prefix{"st$name"}="struct $name";
+    my @plist=split /,\s+/, $param;
+    my $i=0;
+    foreach my $p (@plist){
+        my ($m_name, $type, $needfree);
+        if($p=~/^\s*$/){
+            next;
+        }
+        elsif($p=~/(-\w+)=>(.*)/){
+            $s_hash->{$1}=$2;
+            next;
+        }
+        elsif($p=~/class (\w+)/){
+            my $o=$structs{$1};
+            if($o){
+                my $h=$o->{hash};
+                my $l=$o->{list};
+                foreach my $m (@$l){
+                    if(!$s_hash->{$m}){
+                        $s_hash->{$m}=$h->{$m};
+                        push @$s_list, $m;
+                    }
+                }
+            }
+            next;
+        }
+        elsif($p=~/^@/){
+            $needfree=1;
+            $p=$';
+        }
+        $i++;
+        if($p=~/(.*?)(\S+)\s*=\s*(.*)/){
+            $p="$1$2";
+            push @$s_init, "$2=$3";
+        }
+        if($p=~/(.*\S)\s+(\S+)\s*$/){
+            $type=$1;
+            $m_name=$2;
+            if($m_name=~/^(\*+)(.*)/){
+                $type.=" $1";
+                $m_name=$2;
+            }
+            $p=$m_name;
+        }
+        elsif($basic_types{$p} or $p=~/\*$/){
+            $m_name="a$i";
+            $type=$p;
+        }
+        else{
+            $m_name=$p;
+            if($p=~/^(next|prev)$/){
+                $type="struct $name *";
+            }
+            elsif($p=~/^(left|right)$/){
+                $type="struct $name *";
+            }
+            elsif($p=~/^(u|data)$/){
+                $type="union";
+            }
+            elsif($fntype{$p}){
+                $type="function";
+            }
+            else{
+                $type=get_c_type($p);
+            }
+        }
+        if(!$s_hash->{$m_name}){
+            push @$s_list, $m_name;
+        }
+        $s_hash->{$m_name}=$type;
+        if($needfree){
+            $s_hash->{"$name-needfree"}=1;
+        }
+        if($type eq "union"){
+            $s_hash->{-union}=declare_union();
+        }
+    }
+}
+
+sub add_define {
+    my ($name, $var) = @_;
+    if($MyDef::compileutil::in_autoload){
+        $autoload=undef;
+        $autoload_h=0;
+        if($page->{autoload} eq "write_h"){
+            if(!$h_hash{"autoload"}){
+                $autoload=[];
+                $h_hash{"autoload"}=$autoload;
+            }
+            else{
+                $autoload=$h_hash{"autoload"};
+            }
+        }
+        elsif($page->{autoload} eq "h"){
+            $autoload_h=1;
+        }
+    }
+    else{
+        $autoload=undef;
+        $autoload_h=0;
+    }
+    if(!$autoload_h){
+        if(!defined $defines{$name}){
+            push @define_list, $name;
+        }
+        else{
+            warn "Duplicate define $name: [$defines{$name}] -> [$var]\n";
+        }
+        $defines{$name}=$var;
+            if($autoload){
+                push @$autoload, "define-$name";
+            }
+    }
+}
 
 $global_scope={var_list=>[], var_hash=>{}, name=>"global"};
 $cur_scope={var_list=>[], var_hash=>{}, name=>"default"};
@@ -189,14 +403,14 @@ sub get_mtime {
     u8=>"uint64_t",
     c=>"unsigned char",
     uc=>"unsigned char",
-    b=>"int",
+    b=>"bool",
     s=>"char *",
     f=>"float",
     d=>"double",
     "time"=>"time_t",
     "file"=>"FILE *",
-    "has"=>"int",
-    "is"=>"int",
+    "has"=>"bool",
+    "is"=>"bool",
 );
 %stock_functions=(
     "printf"=>1,
@@ -262,54 +476,56 @@ sub init_page {
     @function_stack=();
     %list_function_hash=();
     @list_function_list=();
-    if($page->{autolist}){
-        my $codes=$MyDef::def->{codes};
-        my @tlist;
-        while(my ($k, $v)= each %$codes){
-            if($v->{type} eq "fn"){
-                push @tlist, $k;
-            }
+    my $codes=$MyDef::def->{codes};
+    my @tlist;
+    while(my ($k, $v)= each %$codes){
+        if($v->{type} eq "fn"){
+            push @tlist, $k;
         }
-        if(@tlist){
-            @tlist=sort { $codes->{$a}->{index} <=> $codes->{$b}->{index} } @tlist;
-            foreach my $name (@tlist){
-                my $code=$codes->{$name};
-                if($MyDef::compileutil::in_autoload){
-                    $autoload=undef;
-                    $autoload_h=0;
-                    if($page->{autoload} eq "write_h"){
-                        if(!$h_hash{"autoload"}){
-                            $autoload=[];
-                            $h_hash{"autoload"}=$autoload;
+    }
+    if(@tlist){
+        @tlist=sort { $codes->{$a}->{index} <=> $codes->{$b}->{index} } @tlist;
+        foreach my $name (@tlist){
+            my $code=$codes->{$name};
+            my $source=$code->{source};
+            foreach my $l (@$source){
+                if($l=~/^SOURCE/){
+                }
+                elsif($l=~/^(lexical|parameter|return):\s*(.+?)\s*$/){
+                    if($1 eq "lexical"){
+                        my @tlist=split /,\s*/, $2;
+                        my @params;
+                        my @segs;
+                        foreach my $t (@tlist){
+                            if($t=~/(.*)\((\w+)\)$/){
+                                push @params, $1;
+                                push @segs, $2;
+                            }
+                            else{
+                                push @params, $t;
+                                if($t=~/^(.+)\s+(\S+)$/){
+                                    push @segs, $2;
+                                }
+                                else{
+                                    push @segs, $t;
+                                }
+                            }
                         }
-                        else{
-                            $autoload=$h_hash{"autoload"};
-                        }
+                        $function_defaults{$name}="append:".join(', ', @segs);
+                        $l="\$parameter ". join(", ", @params);
                     }
-                    elsif($page->{autoload} eq "h"){
-                        $autoload_h=1;
+                    elsif($1 eq "parameter"){
+                        $l="\$parameter $2";
+                    }
+                    elsif($1 eq "return"){
+                        $l="\$return_type $2";
                     }
                 }
                 else{
-                    $autoload=undef;
-                    $autoload_h=0;
-                }
-                if(!$autoload_h){
-                    my @tlist=split /,\s*/, $name;
-                    foreach my $f (@tlist){
-                        if(!$list_function_hash{$f}){
-                            $list_function_hash{$f}=1;
-                            push @list_function_list, $f;
-                            if($autoload){
-                                push @$autoload, "function-$f";
-                            }
-                        }
-                        else{
-                            $list_function_hash{$f}++;
-                        }
-                    }
+                    last;
                 }
             }
+            $function_autolist{$name}=1;
         }
     }
     return $init_mode;
@@ -1211,46 +1427,63 @@ sub parsecode {
                 declare_tuple($param);
                 return;
             }
-            elsif($func eq "return_type"){
-                $cur_function->{ret_type}=$param;
+            elsif($func eq "union"){
+                declare_union($param);
                 return;
             }
-            elsif($func eq "parameter"){
-                my $param_list=$func->{param_list};
-                my $var_hash=$func->{var_hash};
-                my @plist=split /,\s*/, $param;
-                my $i=0;
-                foreach my $p (@plist){
-                    $i++;
-                    if($p=~/(\S.*)\s+(\S+)\s*$/){
-                        my ($type, $name)=($1, $2);
-                        if($name=~/^(\*+)(.+)/){
-                            $type.=" $1";
-                            $name=$2;
-                        }
-                        elsif($name=~/^(&)(.+)/){
-                            $type.=" $1";
-                            $name=$2;
-                        }
-                        $var_hash->{$name}={name=>$name, type=>$type};
-                        push @$param_list, "$type $name";
+            elsif($func =~/^(return_type|parameter|lexical)/){
+                if($cur_function){
+                    my $func = $cur_function;
+                    if($1 eq "return_type"){
+                        $cur_function->{ret_type}=$param;
+                        return;
                     }
-                    elsif($p eq "fmt" and $i==@plist){
-                        push @$param_list, "char * fmt, ...";
-                    }
-                    else{
-                        if($fntype{$p}){
-                            push @$param_list, $fntype{$p};
-                            $var_hash->{$p}={name=>$p, type=>"function"};
+                    elsif($1 eq "parameter"){
+                        my $param_list=$func->{param_list};
+                        my $var_hash=$func->{var_hash};
+                        my @plist=split /,\s*/, $param;
+                        my $i=0;
+                        foreach my $p (@plist){
+                            $i++;
+                            my ($type, $name);
+                            if($p=~/(\S.*)\s+(\S+)\s*$/){
+                                ($type, $name)=($1, $2);
+                                if($name=~/^(\*+)(.+)/){
+                                    $type.=" $1";
+                                    $name=$2;
+                                }
+                                elsif($name=~/^(&)(.+)/){
+                                    $type.=" $1";
+                                    $name=$2;
+                                }
+                            }
+                            elsif($p eq "fmt" and $i==@plist){
+                                push @$param_list, "char * fmt, ...";
+                            }
+                            else{
+                                if($fntype{$p}){
+                                    push @$param_list, $fntype{$p};
+                                    $var_hash->{$p}={name=>$p, type=>"function"};
+                                }
+                                else{
+                                    $type= get_c_type($p);
+                                    $name=$p;
+                                }
+                            }
+                            if($name){
+                                if($name=~/&(\w+)/){
+                                    $name="p_$1";
+                                    $type.=" *";
+                                    MyDef::compileutil::set_current_macro($1, "(*p_$1)");
+                                }
+                                $var_hash->{$name}={name=>$name, type=>$type};
+                                push @$param_list, "$type $name";
+                            }
                         }
-                        else{
-                            my $t= get_c_type($p);
-                            push @$param_list, "$t $p";
-                            $var_hash->{$p}={name=>$p, type=>$t};
-                        }
+                        return;
                     }
                 }
-                return;
+                return 1;
             }
             elsif($func eq "global" or $func eq "symbol" or $func eq "auto_global"){
                 if($param=~/^(\w+)\s+(.*)$/){
@@ -1685,13 +1918,6 @@ sub parsecode {
                 $yield=$param;
                 return;
             }
-            elsif($func eq "autolist"){
-                my @plist=MyDef::utils::proper_split($param);
-                foreach my $name (@plist){
-                    $function_autolist{$name}=1;
-                }
-                return;
-            }
             elsif($func eq "set_function_defaults"){
                 my @plist=MyDef::utils::proper_split($param);
                 my $pattern=shift @plist;
@@ -1896,14 +2122,25 @@ sub dumpout {
             push @$dump_out, "struct $name {\n";
             my $s_list=$structs{$name}->{list};
             my $s_hash=$structs{$name}->{hash};
-            my $i=0;
+            my $indent=4;
+            my $sp=' 'x$indent;
             foreach my $p (@$s_list){
-                $i++;
-                if($s_hash->{$p} eq "function"){
-                    push @$dump_out, "\t".$fntype{$p}.";\n";
+                my $type=$s_hash->{$p};
+                if($type eq "function"){
+                    push @$dump_out, "$sp".$fntype{$p}.";\n";
+                }
+                elsif($type eq "union"){
+                    my $uhash=$s_hash->{-union};
+                    push @$dump_out, "$sp"."union {\n";
+                    $sp=' 'x($indent+4);
+                    while (my ($k, $v) = each %$uhash){
+                        push @$dump_out, "$sp$v $k;\n";
+                    }
+                    $sp=' 'x($indent);
+                    push @$dump_out, "$sp} $p;\n";
                 }
                 else{
-                    push @$dump_out, "\t$s_hash->{$p} $p;\n";
+                    push @$dump_out, "$sp$type $p;\n";
                 }
             }
             push @$dump_out, "};\n\n";
@@ -1952,6 +2189,12 @@ sub dumpout {
         push @$dump_out, "\n";
     }
     my $cnt=0;
+    if($page->{use_bool}){
+        push @$dump_out, "typedef int bool;\n";
+        push @$dump_out, "#define true 1\n";
+        push @$dump_out, "#define false 0\n";
+        $cnt++;
+    }
     foreach my $k (@define_list){
         push @$dump_out, "#define $k $defines{$k}\n";
         $cnt++;
@@ -1997,14 +2240,25 @@ sub dumpout {
         push @$dump_out, "struct $name {\n";
         my $s_list=$structs{$name}->{list};
         my $s_hash=$structs{$name}->{hash};
-        my $i=0;
+        my $indent=4;
+        my $sp=' 'x$indent;
         foreach my $p (@$s_list){
-            $i++;
-            if($s_hash->{$p} eq "function"){
-                push @$dump_out, "\t".$fntype{$p}.";\n";
+            my $type=$s_hash->{$p};
+            if($type eq "function"){
+                push @$dump_out, "$sp".$fntype{$p}.";\n";
+            }
+            elsif($type eq "union"){
+                my $uhash=$s_hash->{-union};
+                push @$dump_out, "$sp"."union {\n";
+                $sp=' 'x($indent+4);
+                while (my ($k, $v) = each %$uhash){
+                    push @$dump_out, "$sp$v $k;\n";
+                }
+                $sp=' 'x($indent);
+                push @$dump_out, "$sp} $p;\n";
             }
             else{
-                push @$dump_out, "\t$s_hash->{$p} $p;\n";
+                push @$dump_out, "$sp$type $p;\n";
             }
         }
         push @$dump_out, "};\n\n";
@@ -2116,21 +2370,17 @@ sub parse_condition {
     if($param=~/(\$map\b.*)/){
         my $pre=$`;
         $param=$1;
-        my @args=MyDef::utils::proper_split($param);
-        my $map=shift @args;
-        if($map=~/\$map\((.*?),\s+(.*)\)/){
-            my $sep=$1;
-            my $template=$2;
+        if($param=~/\$map\s+(.*),\s+(.*)/){
+            my $template=$1;
+            my @or_list=split /\|/, $2;
             my @segs;
-            foreach my $a (@args){
+            foreach my $a (@or_list){
                 my $t=$template;
                 $t=~s/\$1/$a/g;
                 push @segs, $t;
             }
+            my $sep=" || ";
             return $pre . join($sep, @segs);
-        }
-        else{
-            return $pre . $param;
         }
     }
     elsif($param=~/^\$(\w+)\s+(.*)/){
@@ -2150,146 +2400,6 @@ sub parse_condition {
         }
     }
     return check_expression($param, "condition");
-}
-sub declare_tuple {
-    my ($param)=@_;
-    my $name;
-    if($tuple_hash{$param}){
-        $name=$tuple_hash{$param};
-    }
-    else{
-        $name=MyDef::utils::uniq_name("T", \%structs);
-        $tuple_hash{$param}=$name;
-    }
-    MyDef::compileutil::set_current_macro("T", $name);
-    my $s_list=[];
-    my $s_hash={};
-    $structs{$name}={list=>$s_list, hash=>$s_hash};
-    push @struct_list, $name;
-    my @plist=split /,\s+/, $param;
-    my $i=0;
-    foreach my $p (@plist){
-        $i++;
-        my $m_name="a$i";
-        push @$s_list, $m_name;
-        $s_hash->{$m_name}=$p;
-    }
-    return $name;
-}
-sub declare_struct {
-    my ($name, $param)=@_;
-    if($MyDef::compileutil::in_autoload){
-        $autoload=undef;
-        $autoload_h=0;
-        if($page->{autoload} eq "write_h"){
-            if(!$h_hash{"autoload"}){
-                $autoload=[];
-                $h_hash{"autoload"}=$autoload;
-            }
-            else{
-                $autoload=$h_hash{"autoload"};
-            }
-        }
-        elsif($page->{autoload} eq "h"){
-            $autoload_h=1;
-        }
-    }
-    else{
-        $autoload=undef;
-        $autoload_h=0;
-    }
-    my ($s_list, $s_hash);
-    my ($s_init, $s_exit);
-    if($structs{$name}){
-        $s_list=$structs{$name}->{list};
-        $s_hash=$structs{$name}->{hash};
-        $s_init=$s_hash->{"-init"};
-        $s_exit=$s_hash->{"-exit"};
-    }
-    else{
-        $s_init=[];
-        $s_exit=[];
-        $s_list=[];
-        $s_hash={"-init"=>$s_init, "-exit"=>$s_exit};
-        $structs{$name}={list=>$s_list, hash=>$s_hash};
-        if(!$autoload_h){
-            push @struct_list, $name;
-        }
-    }
-    if($autoload){
-        push @$autoload, "struct-$name";
-    }
-    $type_prefix{"st$name"}="struct $name";
-    my @plist=split /,\s+/, $param;
-    my $i=0;
-    foreach my $p (@plist){
-        my ($m_name, $type, $needfree);
-        if($p=~/^\s*$/){
-            next;
-        }
-        elsif($p=~/(-\w+)=>(.*)/){
-            $s_hash->{$1}=$2;
-            next;
-        }
-        elsif($p=~/class (\w+)/){
-            my $o=$structs{$1};
-            if($o){
-                my $h=$o->{hash};
-                my $l=$o->{list};
-                foreach my $m (@$l){
-                    if(!$s_hash->{$m}){
-                        $s_hash->{$m}=$h->{$m};
-                        push @$s_list, $m;
-                    }
-                }
-            }
-            next;
-        }
-        elsif($p=~/^@/){
-            $needfree=1;
-            $p=$';
-        }
-        $i++;
-        if($p=~/(.*?)(\S+)\s*=\s*(.*)/){
-            $p="$1$2";
-            push @$s_init, "$2=$3";
-        }
-        if($p=~/(.*\S)\s+(\S+)\s*$/){
-            $type=$1;
-            $m_name=$2;
-            if($m_name=~/^(\*+)(.*)/){
-                $type.=" $1";
-                $m_name=$2;
-            }
-            $p=$m_name;
-        }
-        elsif($basic_types{$p} or $p=~/\*$/){
-            $m_name="a$i";
-            $type=$p;
-        }
-        else{
-            $m_name=$p;
-            if($p=~/^(next|prev)$/){
-                $type="struct $name *";
-            }
-            elsif($p=~/^(left|right)$/){
-                $type="struct $name *";
-            }
-            elsif($fntype{$p}){
-                $type="function";
-            }
-            else{
-                $type=get_c_type($p);
-            }
-        }
-        if(!$s_hash->{$m_name}){
-            push @$s_list, $m_name;
-        }
-        $s_hash->{$m_name}=$type;
-        if($needfree){
-            $s_hash->{"$name-needfree"}=1;
-        }
-    }
 }
 sub get_struct_constructor {
     my ($name)=@_;
@@ -2420,8 +2530,9 @@ sub open_function {
         my $i=0;
         foreach my $p (@plist){
             $i++;
+            my ($type, $name);
             if($p=~/(\S.*)\s+(\S+)\s*$/){
-                my ($type, $name)=($1, $2);
+                ($type, $name)=($1, $2);
                 if($name=~/^(\*+)(.+)/){
                     $type.=" $1";
                     $name=$2;
@@ -2430,8 +2541,6 @@ sub open_function {
                     $type.=" $1";
                     $name=$2;
                 }
-                $var_hash->{$name}={name=>$name, type=>$type};
-                push @$param_list, "$type $name";
             }
             elsif($p eq "fmt" and $i==@plist){
                 push @$param_list, "char * fmt, ...";
@@ -2442,10 +2551,18 @@ sub open_function {
                     $var_hash->{$p}={name=>$p, type=>"function"};
                 }
                 else{
-                    my $t= get_c_type($p);
-                    push @$param_list, "$t $p";
-                    $var_hash->{$p}={name=>$p, type=>$t};
+                    $type= get_c_type($p);
+                    $name=$p;
                 }
+            }
+            if($name){
+                if($name=~/&(\w+)/){
+                    $name="p_$1";
+                    $type.=" *";
+                    MyDef::compileutil::set_current_macro($1, "(*p_$1)");
+                }
+                $var_hash->{$name}={name=>$name, type=>$type};
+                push @$param_list, "$type $name";
             }
         }
     }
@@ -2812,6 +2929,10 @@ sub infer_c_type {
     elsif($val=~/^\((\w+)\)\w/){
         return $1;
     }
+    elsif($val=~/^(true|false)/){
+        $page->{use_bool}=1;
+        return "bool";
+    }
     elsif($val=~/(\w+)\(.*\)/){
         my $func=$functions{$1};
         return $func->{ret_type};
@@ -2895,6 +3016,9 @@ sub get_c_type {
     }
     elsif($type =~/^\*/){
         $type="void";
+    }
+    elsif($type eq "bool"){
+        $page->{use_bool}=1;
     }
     if($type_include{$type}){
         my @flist=split /,\s*/, $type_include{$type};
@@ -3178,7 +3302,7 @@ sub check_expression {
         elsif($l=~/\G(\w+)/gc){
             $token=$1;
             $type="atom-identifier";
-            if($types[-1] =~/^op/ && $stack[-1] eq "." or $stack[-1] eq "->"){
+            if($types[-1] =~/^op/ && ($stack[-1] eq "." or $stack[-1] eq "->")){
                 if($types[-2] !~/^atom/){
                     #error;
                 }
@@ -3277,24 +3401,25 @@ sub check_expression {
                 my $exp=join("", splice(@stack, $found+1));
                 pop @stack;
                 splice(@types, $found);
-                if($types[-1] =~/^atom/ and $stack[-1]!~/^[0-9'"]/){
+                if($types[-1] =~/^atom/ and $stack[-1]!~/^[0-9'"]/ and $stack[-1]=~/(\w+)$/){
+                    my $identifier=$1;
                     my $primary=pop @stack;
                     pop @types;
                     my $processed;
                     $type="atom-exp";
                     if($open eq '('){
-                        if($primary=~/^(sin|cos|tan|asin|acos|atan|atan2|exp|log|log10|pow|sqrt|ceil|floor|fabs)$/){
+                        if($identifier=~/^(sin|cos|tan|asin|acos|atan|atan2|exp|log|log10|pow|sqrt|ceil|floor|fabs)$/){
                             $includes{"<math.h>"}=1;
                             $objects{"libm"}=1;
                         }
-                        elsif($primary=~/^(mem|str)[a-z]+$/){
+                        elsif($identifier=~/^(mem|str)[a-z]+$/){
                             $includes{"<string.h>"}=1;
                         }
-                        elsif($primary=~/^(malloc|free)$/){
+                        elsif($identifier=~/^(malloc|free)$/){
                             $includes{"<stdlib.h>"}=1;
                         }
                         else{
-                            if($function_autolist{$primary}){
+                            if($function_autolist{$identifier}){
                                 if($MyDef::compileutil::in_autoload){
                                     $autoload=undef;
                                     $autoload_h=0;
@@ -3315,19 +3440,19 @@ sub check_expression {
                                     $autoload=undef;
                                     $autoload_h=0;
                                 }
-                                if(!$list_function_hash{$primary}){
-                                    $list_function_hash{$primary}=1;
-                                    push @list_function_list, $primary;
+                                if(!$list_function_hash{$identifier}){
+                                    $list_function_hash{$identifier}=1;
+                                    push @list_function_list, $identifier;
                                     if($autoload){
-                                        push @$autoload, "function-$primary";
+                                        push @$autoload, "function-$identifier";
                                     }
                                 }
                                 else{
-                                    $list_function_hash{$primary}++;
+                                    $list_function_hash{$identifier}++;
                                 }
                             }
-                            if($function_defaults{$primary}){
-                                if($function_defaults{$primary}=~/^prepend:(.*)/){
+                            if($function_defaults{$identifier}){
+                                if($function_defaults{$identifier}=~/^prepend:(.*)/){
                                     if($exp eq ""){
                                         $exp=$1;
                                     }
@@ -3335,7 +3460,7 @@ sub check_expression {
                                         $exp=$1.",".$exp;
                                     }
                                 }
-                                elsif($function_defaults{$primary}=~/^append:(.*)/){
+                                elsif($function_defaults{$identifier}=~/^append:(.*)/){
                                     if($exp eq ""){
                                         $exp=$1;
                                     }
@@ -3350,9 +3475,9 @@ sub check_expression {
                     }
                     elsif($open eq '['){
                         if($exp<0){
-                            my $var=find_var($primary);
+                            my $var=find_var($identifier);
                             if($var and $var->{dimension}){
-                                $token=$primary.'['.$var->{dimension}."$exp".']';
+                                $token=$identifier.'['.$var->{dimension}."$exp".']';
                                 $type="atom";
                                 pop @stack;
                                 pop @types;
@@ -3495,7 +3620,7 @@ sub check_expression {
                 my $exp=pop @stack;
                 pop @types;
                 push @stack, "$exp$token";
-                push @types, "atom-exp";
+                push @types, "atom-postfix";
             }
             elsif($token eq ":"){
                 my $exp=pop @stack;
@@ -3551,7 +3676,7 @@ sub check_expression {
                     my $op=pop @stack;
                     pop @types;
                     $token=$op.$token;
-                    $type="atom-exp";
+                    $type="atom-unary";
                     goto check_exp_precedence;
                 }
                 else{
@@ -4072,41 +4197,6 @@ sub process_function_std {
     }
     foreach my $t (@{$func->{finish}}){
         push @$post, $t;
-    }
-}
-sub add_define {
-    my ($name, $var)=@_;
-    if($MyDef::compileutil::in_autoload){
-        $autoload=undef;
-        $autoload_h=0;
-        if($page->{autoload} eq "write_h"){
-            if(!$h_hash{"autoload"}){
-                $autoload=[];
-                $h_hash{"autoload"}=$autoload;
-            }
-            else{
-                $autoload=$h_hash{"autoload"};
-            }
-        }
-        elsif($page->{autoload} eq "h"){
-            $autoload_h=1;
-        }
-    }
-    else{
-        $autoload=undef;
-        $autoload_h=0;
-    }
-    if(!$autoload_h){
-        if(!defined $defines{$name}){
-            push @define_list, $name;
-        }
-        else{
-            warn "Duplicate define $name: [$defines{$name}] -> [$var]\n";
-        }
-        $defines{$name}=$var;
-        if($autoload){
-            push @$autoload, "define-$name";
-        }
     }
 }
 sub add_typedef {

@@ -397,6 +397,9 @@ sub parsecode {
                 }
                 return single_block("foreach my $var ($list){", "}", "foreach");
             }
+            elsif($param=~/^(%.*)/){
+                return single_block("while (my (\$k, \$v) = each $1){", "}", "foreach");
+            }
             elsif($param=~/^(\S+),\s*(\S+)\s+in\s+(.*)/){
                 my ($k, $v, $hash)=($1, $2, $3);
                 return single_block("while (my ($k, $v)=each $hash){", "}", "foreach");
