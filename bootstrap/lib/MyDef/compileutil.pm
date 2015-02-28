@@ -1,5 +1,15 @@
 use strict;
 package MyDef::compileutil;
+our $cur_file;
+our $cur_line;
+our $f_init;
+our $f_parse;
+our $f_setout;
+our $f_modeswitch;
+our $f_dumpout;
+our $interface_type;
+our $deflist;
+our %misc_vars;
 our $out;
 our @output_list;
 our %named_blocks;
@@ -11,13 +21,130 @@ our @mode_stack=("sub");
 our $cur_mode;
 our $in_autoload;
 
-my ($cur_file, $cur_line);
-our $f_init;
-our $f_parse;
-our $f_setout;
-our $f_modeswitch;
-our $f_dumpout;
-our $interface_type;
+sub expand_macro_recurse {
+    my ($lref) = @_;
+    $$lref=~s/\$\.(?=\w)/\$(this)/g;
+    if($$lref=~/(?<!\\)\$\(\w/){
+        $$lref=MyDef::utils::expand_macro($$lref, \&get_macro);
+    }
+}
+
+sub get_macro {
+    my ($s) = @_;
+    if($s=~/^((rep|perl|map)\b.*)/){
+        my $t=$1;
+        if($t=~/^rep\[(.*?)\](\d+):(.*)/){
+            if($2>1){
+                return "$3$1" x ($2-1) . $3;
+            }
+            else{
+                die "Illegal rep macro in \"$s\"!\n";
+            }
+        }
+        elsif($t=~/^perl:(.*)/){
+            my $outdir=".";
+            if($MyDef::var->{output_dir}){
+                $outdir=$MyDef::var->{output_dir};
+            }
+            my $defname=$MyDef::def->{defname};
+            my $t=$1;
+            $t=~s/,/ /g;
+            if(open In, "perl $outdir/perl-$defname.pl $t|"){
+                my $t=<In>;
+                close In;
+                return $t;
+            }
+            else{
+                die "Failed perl $outdir/perl-$defname.pl\n";
+            }
+        }
+        elsif($t=~/^map\s+(.*):(.*):(.*)/){
+            my ($pat, $sep)=($1, $3);
+            my @tlist=split /\|/, $2;
+            my @segs;
+            foreach my $t (@tlist){
+                my $p=$pat;
+                $p=~s/\$1/$t/g;
+                push @segs, $p;
+            }
+            return join(" $sep ", @segs);
+        }
+        else{
+            warn "syntax error: [$s]\n";
+            return undef;
+        }
+    }
+    elsif($s=~/^(\w+):(.*)/){
+        my $p=$2;
+        my $t=get_macro($1);
+        if($t){
+            if($p=~/(\d+)-(\d+)/){
+                return substr($t, $1, $2-$1+1);
+            }
+            elsif($p=~/(\d+):(\d+|word|number|strip)/){
+                my $s=substr($t, $1);
+                if($2 eq "word"){
+                    if($s=~/^\s*(\w+)/){
+                        $s=$1;
+                    }
+                }
+                elsif($2 eq "number"){
+                    if($s=~/^\s*([+-]?\d+)/){
+                        $s=$1;
+                    }
+                }
+                elsif($2 ne "strip"){
+                    $s=substr($s, 0, $2);
+                }
+                return $s;
+            }
+            elsif($p eq "len"){
+                return length($t);
+            }
+            elsif($p eq "strlen"){
+                if($t=~/^".*"$/){
+                    return eval "length($t)";
+                }
+                else{
+                    return length($t);
+                }
+            }
+            elsif($p eq "strip"){
+                return substr($t, 1, -1);
+            }
+            elsif($p=~/list:(.*)/){
+                my $idx=$1;
+                my @tlist=MyDef::utils::proper_split($t);
+                if($idx eq "n"){
+                    return @tlist;
+                }
+                elsif($idx=~/(\d+)/){
+                    return $tlist[$1];
+                }
+            }
+            else{
+                my @plist=MyDef::utils::proper_split($p);
+                my $i=1;
+                foreach my $pp (@plist){
+                    $t=~s/\$$i/$pp/g;
+                    $i++;
+                }
+                return $t;
+            }
+        }
+    }
+    elsif($s=~/^(.+)/){
+        for(my $j=$#$deflist; $j >=-1; $j--){
+            my $macros=$deflist->[$j];
+            if(exists($macros->{$1})){
+                return $macros->{$1};
+            }
+        }
+        warn "[$cur_file:$cur_line] Macro $1 not defined in $s\n";
+        return undef;
+    }
+}
+
 sub set_interface {
     ($f_init, $f_parse, $f_setout, $f_modeswitch, $f_dumpout, $interface_type)=@_;
 }
@@ -31,9 +158,7 @@ sub set_output {
     $f_setout->($out);
     return $old;
 }
-our $deflist;
 my $debug;
-our %misc_vars;
 my @callsub_stack;
 my $block_index=0;
 our @block_stack;
@@ -1118,7 +1243,7 @@ sub set_macro {
             expand_macro_recurse(\$t1);
         }
         if($t2=~/\$\(.*\)/){
-            expand_macro_recurse(\$t2, 1);
+            expand_macro_recurse(\$t2);
         }
         $m->{$t1}=$t2;
     }
@@ -1140,157 +1265,6 @@ sub export_macro {
 sub get_current_macro {
     my ($name)=@_;
     return $deflist->[-1]->{$name};
-}
-sub expand_macro {
-    my ($lref, $macros)=@_;
-    my $hasmacro=0;
-    my $updated=0;
-    if($$lref=~/\$\(\w[^()]*\)/){
-        my @segs=split /(\$\(\w[^()]*\))/, $$lref;
-        my $j=0;
-        foreach my $s (@segs){
-            if($s=~/^\$\(rep\[(.*?)\](\d+):(.*)\)/){
-                if($2>1){
-                    $segs[$j]="$3$1" x ($2-1) . $3;
-                    $updated++;
-                }
-                else{
-                    die "Illegal rep macro in \"$$lref\"!\n";
-                }
-            }
-            elsif($s=~/^\$\(perl:(.*)\)/){
-                my $outdir=".";
-                if($MyDef::var->{output_dir}){
-                    $outdir=$MyDef::var->{output_dir};
-                }
-                my $defname=$MyDef::def->{defname};
-                my $t=$1;
-                $t=~s/,/ /g;
-                if(open In, "perl $outdir/perl-$defname.pl $t|"){
-                    my $t=<In>;
-                    $segs[$j]=$t;
-                    close In;
-                }
-                else{
-                    die "Failed perl $outdir/perl-$defname.pl\n";
-                }
-                $updated++;
-            }
-            elsif($s=~/^\$\((\w+):(.*)\)/){
-                my $t=$macros->{$1};
-                my $p=$2;
-                if($t){
-                    $updated++;
-                    if($p=~/(\d+)-(\d+)/){
-                        $segs[$j]=substr($t, $1, $2-$1+1);
-                    }
-                    elsif($p=~/(\d+):(\d+|word|number|strip)/){
-                        my $s=substr($t, $1);
-                        if($2 eq "word"){
-                            if($s=~/^\s*(\w+)/){
-                                $s=$1;
-                            }
-                        }
-                        elsif($2 eq "number"){
-                            if($s=~/^\s*([+-]?\d+)/){
-                                $s=$1;
-                            }
-                        }
-                        elsif($2 ne "strip"){
-                            $s=substr($s, 0, $2);
-                        }
-                        $segs[$j]=$s;
-                    }
-                    elsif($p eq "len"){
-                        $segs[$j]=length($t);
-                    }
-                    elsif($p eq "strlen"){
-                        if($t=~/^".*"$/){
-                            $segs[$j]=eval "length($t)";
-                        }
-                        else{
-                            $segs[$j]=length($t);
-                        }
-                    }
-                    elsif($p eq "strip"){
-                        $segs[$j]=substr($t, 1, -1);
-                    }
-                    elsif($p=~/list:(.*)/){
-                        my $idx=$1;
-                        my @tlist=MyDef::utils::proper_split($t);
-                        if($idx eq "n"){
-                            $segs[$j]=@tlist;
-                        }
-                        elsif($idx=~/(\d+)/){
-                            $segs[$j]=$tlist[$1];
-                        }
-                    }
-                    else{
-                        my @plist=MyDef::utils::proper_split($p);
-                        my $i=1;
-                        foreach my $pp (@plist){
-                            $t=~s/\$$i/$pp/g;
-                            $i++;
-                        }
-                        $segs[$j]=$t;
-                    }
-                }
-            }
-            elsif($s=~/^\$\((.+)\)/){
-                if(exists($macros->{$1})){
-                    my $t=$macros->{$1};
-                    if($t eq $s){
-                        die "Looping macro $1 in \"$$lref\" [$t]=[$s]!\n";
-                    }
-                    $segs[$j]=$t;
-                    $updated++;
-                }
-                else{
-                }
-            }
-            $j++;
-        }
-        if($updated){
-            $$lref=join '', @segs;
-        }
-        else{
-            $hasmacro=1;
-        }
-    }
-    return ($hasmacro, $updated);
-}
-sub expand_macro_recurse {
-    my ($lref, $nowarn)=@_;
-    my ($hasmacro, $updated);
-    $$lref=~s/\$\.(?=\w)/\$(this)/g;
-    $updated=1;
-    while($updated){
-        for(my $j=$#$deflist; $j >=-1; $j--){
-            ($hasmacro, $updated)=expand_macro($lref, $deflist->[$j]);
-            if($updated or !$hasmacro){
-                last;
-            }
-        }
-    }
-    if($hasmacro and !$nowarn){
-        while($$lref=~/(\$\([^()]+\))/g){
-            if(substr($`, -1) ne "\\"){
-                warn "[$cur_file:$cur_line] Macro $1 not defined in $$lref\n";
-            }
-        }
-    }
-    return !$hasmacro;
-}
-sub get_macro {
-    my ($name)=@_;
-    my $t='$'."($name)";
-    my $ret=expand_macro_recurse(\$t, 1);
-    if($ret){
-        return $t;
-    }
-    else{
-        return undef;
-    }
 }
 sub get_ogdl {
     my ($name)=@_;

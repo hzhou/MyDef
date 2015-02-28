@@ -86,6 +86,62 @@ sub proper_split {
     return @tlist;
 }
 
+sub expand_macro {
+    my ($line, $sub) = @_;
+    my @paren_stack;
+    my $segs=[];
+    while(1){
+        if($line=~/\G$/gc){
+            last;
+        }
+        elsif($line=~/\G\$\(/gc){
+            if(@$segs && substr($segs->[-1], -1, 1) eq "\\"){
+                if(!@paren_stack){
+                    push @$segs, "\$(";
+                }
+                else{
+                    push @$segs, "\$";
+                    push @paren_stack, $segs;
+                    $segs=[];
+                    push @paren_stack, "(";
+                }
+            }
+            else{
+                push @paren_stack, $segs;
+                $segs=[];
+                push @paren_stack, "\$\(";
+            }
+        }
+        elsif(!@paren_stack){
+            if($line=~/\G([^\$]|\$(?!\())+/gc){
+                push @$segs, $&;
+            }
+        }
+        else{
+            if($line=~/\G\(/gc){
+                push @paren_stack, $segs;
+                $segs=[];
+                push @paren_stack, "(";
+            }
+            elsif($line=~/\G\)/gc){
+                my $t=join('', @$segs);
+                my $open=pop @paren_stack;
+                $segs=pop @paren_stack;
+                if($open eq "(" or $t!~/^\w/){
+                    push @$segs, "($t)";
+                }
+                else{
+                    push @$segs, $sub->($t);
+                }
+            }
+            elsif($line=~/\G([^\$()]|\$(?!\())+/gc){
+                push @$segs, $&;
+            }
+        }
+    }
+    return join('', @$segs);
+}
+
 sub uniq_name {
     my ($name, $hash) = @_;
     if(!$hash->{$name}){

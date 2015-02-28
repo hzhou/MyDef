@@ -17,7 +17,7 @@ page: compileutil
 	$call compile_main
 
 subcode: compile_main
-    my ($cur_file, $cur_line);
+    $global $cur_file, $cur_line
     $call package_global
     $call support_subs
     # ---------------------------------------------------
@@ -54,18 +54,14 @@ subcode: compile_main
 
 #################################################
 subcode:: package_global
-    our $f_init
-    our $f_parse
-    our $f_setout
-    our $f_modeswitch
-    our $f_dumpout
-    our $interface_type
+    $(set:interface=$f_init, $f_parse, $f_setout, $f_modeswitch, $f_dumpout, $interface_type)
+    $global $(interface)
 
     $sub set_interface
-	($f_init, $f_parse, $f_setout, $f_modeswitch, $f_dumpout, $interface_type)=@_;
+	($(interface))=@_;
 
     $sub get_interface
-	return ($f_init, $f_parse, $f_setout, $f_modeswitch, $f_dumpout, $interface_type)
+	return ($(interface))
 
     $sub set_output($output)
 	my $old=$out
@@ -74,12 +70,8 @@ subcode:: package_global
 	return $old
 
     # ---------------------------------------------------
-    our $deflist;
-
-    my $debug;
-
-    our %misc_vars;
-
+    $global $deflist, %misc_vars
+    my $debug
 
 subcode: compile
     my $mode=$f_init->($page);

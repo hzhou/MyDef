@@ -1,10 +1,30 @@
 page: test
     type: pl
     subcode: main
-	$call test_proper_split
+        $call test_expand_macro
+	# $call test_proper_split
 	# $call test_benchmark
 	# $call test_c_expression
 
+#---------------------------------------- 
+subcode: test_expand_macro
+    use MyDef::utils
+    # my $line = "test \$"."(macro \$"."(nested (arbitary) ) )"
+    my $line="test \$(\$(a))"
+    $print line: [$line]
+    my $t=MyDef::utils::expand_macro($line, \&expand)
+    $print result: [$t]
+
+    $sub expand($s)
+        $print $s
+        $if $s eq "a"
+            return "b"
+        $elif $s eq "b"
+            return "c"
+        $else
+            return "[-]"
+
+#---------------------------------------- 
 subcode: test_proper_split
     use MyDef::utils
     my $param="a, b, (c1, c2, c3[1, 2, 3], c4), \"any, thing '(' goes,\", , skiped 1"

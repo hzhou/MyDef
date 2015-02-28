@@ -99,7 +99,7 @@ subcode:: support_subs
 	    $if $t1=~/\$\(.*\)/
 		expand_macro_recurse(\$t1)
 	    $if $t2=~/\$\(.*\)/
-	        expand_macro_recurse(\$t2, 1)
+	        expand_macro_recurse(\$t2)
 	    $m->{$t1}=$t2
 	$elif my $t=get_def($p)
 	    $m->{$p}=$t
@@ -116,36 +116,52 @@ subcode:: support_subs
 	return $deflist->[-1]->{$name}
 
 # ------------------------------------------------------
-subcode: expand_macro_seg
-    $if $s=~/^\$\(rep\[(.*?)\](\d+):(.*)\)/
-	$if $2>1
-	    $segs[$j]="$3$1" x ($2-1) . $3
-	    $updated++;
-	$else
-	    die "Illegal rep macro in \"$$lref\"!\n"
-    $elif $s=~/^\$\(perl:(.*)\)/
-	my $outdir=".";
-	$if $MyDef::var->{output_dir}
-	    $outdir=$MyDef::var->{output_dir};
-	my $defname=$MyDef::def->{defname}
-	my $t=$1
-	$t=~s/,/ /g
-	$if open In, "perl $outdir/perl-$defname.pl $t|"
-	    my $t=<In>
-	    $segs[$j]=$t
-	    close In
-	$else
-	    die "Failed perl $outdir/perl-$defname.pl\n"
-	$updated++;
-    $elif $s=~/^\$\((\w+):(.*)\)/
+fncode: expand_macro_recurse($lref)
+    $$lref=~s/\$\.(?=\w)/\$(this)/g
+    $if $$lref=~/(?<!\\)\$\(\w/
+        $$lref=MyDef::utils::expand_macro($$lref, \&get_macro)
+
+fncode: get_macro($s)
+    $if $s=~/^((rep|perl|map)\b.*)/
+        my $t=$1
+        $if $t=~/^rep\[(.*?)\](\d+):(.*)/
+            $if $2>1
+                return "$3$1" x ($2-1) . $3
+            $else
+                die "Illegal rep macro in \"$s\"!\n"
+        $elif $t=~/^perl:(.*)/
+            my $outdir=".";
+            $if $MyDef::var->{output_dir}
+                $outdir=$MyDef::var->{output_dir};
+            my $defname=$MyDef::def->{defname}
+            my $t=$1
+            $t=~s/,/ /g
+            $if open In, "perl $outdir/perl-$defname.pl $t|"
+                my $t=<In>
+                close In
+                return $t
+            $else
+                die "Failed perl $outdir/perl-$defname.pl\n"
+        $elif $t=~/^map\s+(.*):(.*):(.*)/
+            my ($pat, $sep)=($1, $3)
+            my @tlist=split /\|/, $2
+            my @segs
+            $foreach $t in @tlist
+                my $p=$pat
+                $p=~s/\$1/$t/g
+                push @segs, $p
+            return join(" $sep ", @segs)
+        $else
+            warn "syntax error: [$s]\n"
+            return undef
+    $elif $s=~/^(\w+):(.*)/
 	#---- all kinds of annotations --------
-	my $t=$macros->{$1};
 	my $p=$2;
+	my $t=get_macro($1)
 	$if $t
-	    $updated++;
 	    $if $p=~/(\d+)-(\d+)/
 		#-- substr, e.g. $(macro:0-3) ----
-		$segs[$j]=substr($t, $1, $2-$1+1);
+		return substr($t, $1, $2-$1+1);
 	    $elif $p=~/(\d+):(\d+|word|number|strip)/
 		#-- substr with regex predicate ----
 		my $s=substr($t, $1)
@@ -157,25 +173,25 @@ subcode: expand_macro_seg
 			$s=$1
 		$elif $2 ne "strip"
 		    $s=substr($s, 0, $2)
-		$segs[$j]=$s
+		return $s
 	    $elif $p eq "len"
 		#-- strlen, e.g. $(macro:len)------
-		$segs[$j]=length($t)
+		return length($t)
 	    $elif $p eq "strlen"
 		#-- literal strlen -----
 		$if $t=~/^".*"$/
-		    $segs[$j]=eval "length($t)"
+		    return eval "length($t)"
 		$else
-		    $segs[$j]=length($t)
+		    return length($t)
 	    $elif $p eq "strip"
-		$segs[$j]=substr($t, 1, -1)
+		return substr($t, 1, -1)
 	    $elif $p=~/list:(.*)/
 		my $idx=$1
 		my @tlist=MyDef::utils::proper_split($t)
 		$if $idx eq "n"
-		    $segs[$j]=@tlist
+		    return @tlist
 		$elif $idx=~/(\d+)/
-		    $segs[$j]=$tlist[$1]
+		    return $tlist[$1]
 	    $else
 		#--INLINE macro -- $(macro:p1,p2,p3)
 		my @plist=MyDef::utils::proper_split($p)
@@ -183,54 +199,13 @@ subcode: expand_macro_seg
 		$foreach $pp in @plist
 		    $t=~s/\$$i/$pp/g
 		    $i++
-		$segs[$j]=$t
-    $elif $s=~/^\$\((.+)\)/
+		return $t
+    $elif $s=~/^(.+)/
         #---- straight macro ----
-	$if exists($macros->{$1})
-	    my $t=$macros->{$1};
-	    $if $t eq $s
-		die "Looping macro $1 in \"$$lref\" [$t]=[$s]!\n";
-	    $segs[$j]=$t;
-	    $updated++;
-	$else
-	    # warn "Undefined macro $s\n"
+        $for $j=$#$deflist:-1:-1
+            my $macros=$deflist->[$j]
+            $if exists($macros->{$1})
+                return $macros->{$1}
+        warn "[$cur_file:$cur_line] Macro $1 not defined in $s\n"
+        return undef
 
-subcode:: support_subs
-    $sub expand_macro
-	my ($lref, $macros)=@_;
-	my $hasmacro=0
-	my $updated=0
-	$if  $$lref=~/\$\(\w[^()]*\)/
-	    my @segs=split /(\$\(\w[^()]*\))/, $$lref;
-	    my $j=0;
-	    $foreach my $s in  @segs
-		$call expand_macro_seg
-		$j++;
-	    $if $updated
-		$$lref=join '', @segs;
-	    $else
-		$hasmacro=1;
-	return ($hasmacro, $updated)
-
-    $sub expand_macro_recurse($lref, $nowarn)
-	my ($hasmacro, $updated)
-	$$lref=~s/\$\.(?=\w)/\$(this)/g
-	$updated=1
-	$while $updated
-	    $for $j=$#$deflist:-1:-1
-		($hasmacro, $updated)=expand_macro($lref, $deflist->[$j]);
-		$if $updated or !$hasmacro
-		    last;
-	$if $hasmacro and !$nowarn
-	    $while $$lref=~/(\$\([^()]+\))/g
-		$if substr($`, -1) ne "\\"
-		    warn "[$cur_file:$cur_line] Macro $1 not defined in $$lref\n"
-	return !$hasmacro
-
-    $sub get_macro($name)
-	my $t='$'."($name)"
-	my $ret=expand_macro_recurse(\$t, 1)
-	$if $ret
-	    return $t
-	$else
-	    return undef

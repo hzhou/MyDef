@@ -3,10 +3,9 @@ page: utils
     output_dir: lib/MyDef
     package: MyDef::utils
     subcode: main
-	$call package_subs
 	1;
 
-# -------------------------------------------------
+#-------------------------------------------------
 fncode: proper_split($param)
     my @tlist
     $if $param eq "0"
@@ -69,7 +68,46 @@ subcode: proper_split_close_bracket
     $else
 	warn "proper_split: unbalanced [$param]\n"
 
-# ---------------------------------------------
+#---------------------------------------- 
+fncode: expand_macro($line, $sub)
+    my @paren_stack
+    my $segs=[]
+    &call parse_loop, $line
+        &call if_lex, \$\(
+            $if @$segs && substr($segs->[-1], -1, 1) eq "\\"
+                #-- escaped ----
+                $if !@paren_stack
+                    push @$segs, "\$("
+                $else
+                    push @$segs, "\$"
+                    push @paren_stack, $segs
+                    $segs=[]
+                    push @paren_stack, "("
+            $else
+                push @paren_stack, $segs
+                $segs=[]
+                push @paren_stack, "\$\("
+        $elif !@paren_stack
+            &call if_lex, ([^\$]|\$(?!\())+
+                push @$segs, $&
+        $else
+            &call if_lex, \(
+                push @paren_stack, $segs
+                $segs=[]
+                push @paren_stack, "("
+            &call if_lex, \)
+                my $t=join('', @$segs)
+                my $open=pop @paren_stack
+                $segs=pop @paren_stack
+                $if $open eq "(" or $t!~/^\w/
+                    push @$segs, "($t)"
+                $else
+                    push @$segs, $sub->($t)
+            &call if_lex, ([^\$()]|\$(?!\())+
+                push @$segs, $&
+    return join('', @$segs)
+
+#---------------------------------------------
 fncode: uniq_name($name, $hash)
     $if !$hash->{$name}
 	return $name
