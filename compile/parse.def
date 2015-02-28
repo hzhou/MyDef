@@ -62,7 +62,7 @@ subcode: compile_line
     $else
 	NormalParse:
 	undef $context;
-	expand_macro_recurse(\$l);
+	expand_macro(\$l);
 	$while 1
 	    # -- parse_line could return a new $l
 	    # -- otherwise, last in the end breaks the loop

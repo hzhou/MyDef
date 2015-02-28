@@ -1,5 +1,5 @@
 subcode: parse_preproc
-    expand_macro_recurse(\$preproc)
+    expand_macro(\$preproc)
     # $print "parse_preproc: $preproc"
     $if $preproc=~/^for:\s*(\S+)\s+in\s+(.*)/
 	my $vname=$1;

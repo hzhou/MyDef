@@ -33,7 +33,7 @@ subcode:: preproc_elifs
 	    set_macro($deflist->[-2], $p)
     $elif $preproc=~/^reset:\s*(\w+)([\.\+\-])?=(.*)/
 	my ($v, $op, $d)=($1, $2, $3, $4)
-	expand_macro_recurse(\$d)
+	expand_macro(\$d)
 	my $i=$#$deflist;
 	$while $i>0 and !defined $deflist->[$i]->{$v}
 	    $i--
@@ -48,11 +48,11 @@ subcode:: preproc_elifs
 	    delete $m->{$1}
     $elif $preproc=~/^eval:\s*(\w+)=(.*)/
 	my ($t1,$t2)=($1,$2)
-	expand_macro_recurse(\$t2)
+	expand_macro(\$t2)
 	$deflist->[-1]->{$t1}=eval($t2)
     $elif $preproc=~/^split:\s*(\w+)/
 	my $p="\$($1)"
-	expand_macro_recurse(\$p)
+	expand_macro(\$p)
 	my @tlist=MyDef::utils::proper_split($p)
 	my $n=@tlist
 	$deflist->[-1]->{p_n}=$n
@@ -97,9 +97,9 @@ subcode:: support_subs
 	$elif $p=~/(\S+?)=(.*)/
 	    my ($t1, $t2)=($1, $2)
 	    $if $t1=~/\$\(.*\)/
-		expand_macro_recurse(\$t1)
+		expand_macro(\$t1)
 	    $if $t2=~/\$\(.*\)/
-	        expand_macro_recurse(\$t2)
+	        expand_macro(\$t2)
 	    $m->{$t1}=$t2
 	$elif my $t=get_def($p)
 	    $m->{$p}=$t
@@ -116,7 +116,7 @@ subcode:: support_subs
 	return $deflist->[-1]->{$name}
 
 # ------------------------------------------------------
-fncode: expand_macro_recurse($lref)
+fncode: expand_macro($lref)
     $$lref=~s/\$\.(?=\w)/\$(this)/g
     $if $$lref=~/(?<!\\)\$\(\w/
         $$lref=MyDef::utils::expand_macro($$lref, \&get_macro)

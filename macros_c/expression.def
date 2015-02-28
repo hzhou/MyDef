@@ -315,7 +315,7 @@ subcode: check_exp_subscript(primary, token)
 	    $token=$(primary).'['.$var->{dimension}."$(token)".']'
 	    #$(token)=-$(token)
 	    #$token="\$($var->{class}_index_negative:$(primary),$(token)\)"
-	    #MyDef::compileutil::expand_macro_recurse(\$token)
+	    #MyDef::compileutil::expand_macro(\$token)
 	    $type="atom"
 	    $call exp_pop, undef
 	    $call exp_pop, undef

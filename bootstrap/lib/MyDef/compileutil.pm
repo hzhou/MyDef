@@ -21,7 +21,7 @@ our @mode_stack=("sub");
 our $cur_mode;
 our $in_autoload;
 
-sub expand_macro_recurse {
+sub expand_macro {
     my ($lref) = @_;
     $$lref=~s/\$\.(?=\w)/\$(this)/g;
     if($$lref=~/(?<!\\)\$\(\w/){
@@ -770,7 +770,7 @@ sub parseblock {
             }
             elsif($l=~/^\$\((.*)\)/){
                 my $preproc=$1;
-                expand_macro_recurse(\$preproc);
+                expand_macro(\$preproc);
                 if($preproc=~/^for:\s*(\S+)\s+in\s+(.*)/){
                     my $vname=$1;
                     my $vparam=$2;
@@ -906,7 +906,7 @@ sub parseblock {
                 }
                 elsif($preproc=~/^reset:\s*(\w+)([\.\+\-])?=(.*)/){
                     my ($v, $op, $d)=($1, $2, $3, $4);
-                    expand_macro_recurse(\$d);
+                    expand_macro(\$d);
                     my $i=$#$deflist;
                     while($i>0 and !defined $deflist->[$i]->{$v}){
                         $i--;
@@ -928,12 +928,12 @@ sub parseblock {
                 }
                 elsif($preproc=~/^eval:\s*(\w+)=(.*)/){
                     my ($t1,$t2)=($1,$2);
-                    expand_macro_recurse(\$t2);
+                    expand_macro(\$t2);
                     $deflist->[-1]->{$t1}=eval($t2);
                 }
                 elsif($preproc=~/^split:\s*(\w+)/){
                     my $p="\$($1)";
-                    expand_macro_recurse(\$p);
+                    expand_macro(\$p);
                     my @tlist=MyDef::utils::proper_split($p);
                     my $n=@tlist;
                     $deflist->[-1]->{p_n}=$n;
@@ -942,7 +942,7 @@ sub parseblock {
                     }
                 }
                 elsif($preproc=~/^ogdl_/){
-                    expand_macro_recurse(\$preproc);
+                    expand_macro(\$preproc);
                     if($preproc=~/^ogdl_load:\s*(\w+)/){
                         get_ogdl($1);
                     }
@@ -1071,7 +1071,7 @@ sub parseblock {
             else{
                 NormalParse:
                 undef $context;
-                expand_macro_recurse(\$l);
+                expand_macro(\$l);
                 while(1){
                     if($l=~/^(&call|\$call|\$map|\$call-PRINT)\s+(.*)$/){
                         my ($func, $param)=($1, $2);
@@ -1240,10 +1240,10 @@ sub set_macro {
     elsif($p=~/(\S+?)=(.*)/){
         my ($t1, $t2)=($1, $2);
         if($t1=~/\$\(.*\)/){
-            expand_macro_recurse(\$t1);
+            expand_macro(\$t1);
         }
         if($t2=~/\$\(.*\)/){
-            expand_macro_recurse(\$t2);
+            expand_macro(\$t2);
         }
         $m->{$t1}=$t2;
     }

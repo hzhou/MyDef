@@ -38,7 +38,7 @@ subcode:: package_global
     my %ogdl_path_index
 
 subcode: ogdl_parse
-    expand_macro_recurse(\$preproc)
+    expand_macro(\$preproc)
     $if $preproc=~/^ogdl_load:\s*(\w+)/
 	get_ogdl($1)
     $elif $preproc=~/^ogdl_each/
