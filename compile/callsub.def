@@ -71,6 +71,7 @@ subcode: call_sub_setup_p_macro
 	$macro->{"p$i"}=$p
 
 subcode: call_sub_setup_macro
+    #-- normalize @plist -----
     $if $np+@plist!=@$params
 	my $n2=@plist;
 	my $n3=@$params;
@@ -85,8 +86,10 @@ subcode: call_sub_setup_macro
 	$else
 	    warn "    [$cur_file:$cur_line] Code $codename parameter mismatch ($np + $n2) != $n3. [pline:$pline]\n";
 
+    #-- pre_plist ----
     $for $i=0:$np
 	$macro->{$params->[$i]}=$pre_plist[$i];
+    #-- plist ------
     $for $j=0:@$params-$np
 	my $p=$params->[$np+$j];
 	$if $p=~/^\@(\w+)/
@@ -95,6 +98,9 @@ subcode: call_sub_setup_macro
 	    $macro->{$p}=$1;
 	$else
 	    $macro->{$p}=$plist[$j];
+    #-- extra -----
+    $macro->{_recurse}=$codelib->{recurse}
+    #-- debug -----
     $if $debug eq "macro"
 	print "Code $codename: "
 	$while my ($k, $v)=each %$macro
@@ -104,6 +110,7 @@ subcode: call_sub_setup_macro
 # ------
 subcode: call_sub_block
     $if $codelib
+        $codelib->{recurse}++
 	push @callsub_stack, $codename
 	$if $calltype=~/\$call-(\w+)/
 	    modepush($1)
@@ -113,6 +120,7 @@ subcode: call_sub_block
 	BLOCK
 	modepop()
 	pop @callsub_stack
+        $codelib->{recurse}--
 	set_current_macro("notfound", 0)
     $else
 	# $call @somecode
@@ -152,6 +160,7 @@ subcode:: support_subs
                 $global @callback_block_stack
                 push @callback_block_stack, {source=>$subblock, name=>"$codename", cur_file=>$cur_file, cur_line=>$cur_line}
 
+                $codelib->{recurse}++
                 push @callsub_stack, $codename
                 my $params=$codelib->{params};
                 my $np=@pre_plist;
@@ -160,6 +169,7 @@ subcode:: support_subs
                 parseblock($codelib);
                 pop @$deflist;
                 pop @callsub_stack
+                $codelib->{recurse}--
 
                 pop @callback_block_stack
 
@@ -193,15 +203,8 @@ subcode:: support_subs
 		print STDERR "    [$cur_file:$cur_line] Code $codename not found!\n";
 	    return undef
 	$else
-	    my $recurse=0
-	    $if !$codelib->{allow_recurse}
-		$codelib->{allow_recurse}=0
-	    $foreach my $name in @callsub_stack
-		$if $name eq $codename
-		    $recurse++
-		    $if $recurse>$codelib->{allow_recurse}
-			die "Recursive subcode: $codename [$recurse]\n"
-	    $codelib->{recurse}=$recurse
+            $if !$codelib->{allow_recurse} < $codelib->{recurse}
+                die "Recursive subcode: $codename [$codelib->{recurse}]\n"
 	    return $codelib
 
 subcode:: support_subs
