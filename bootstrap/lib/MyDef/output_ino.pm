@@ -26,7 +26,7 @@ sub parsecode {
             $MyDef::compileutil::eval_sub_error{$codename}=1;
             print "evalsub - $codename\n";
             print "[$t]\n";
-            print "eval error: [$@]\n";
+            print "eval error: [$@] package [", __PACKAGE__, "]\n";
         }
         return;
     }

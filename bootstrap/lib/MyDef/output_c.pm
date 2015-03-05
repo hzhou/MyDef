@@ -59,6 +59,8 @@ our $dump_classes;
 our %protected_var;
 our %tuple_hash;
 our $union_hash;
+our %re_hash;
+our $re_index=0;
 
 sub declare_tuple {
     my ($param) = @_;
@@ -270,6 +272,696 @@ sub add_define {
             if($autoload){
                 push @$autoload, "define-$name";
             }
+    }
+}
+
+sub translate_regex {
+    my ($re, $option) = @_;
+    my $pat="/$re/$option";
+    if($re_hash{$pat}){
+        return $re_hash{$pat};
+    }
+    else{
+        my $r=parse_regex($re);
+        if($debug){
+            print "translate_regex: [$re]\n";
+            debug_regex($r);
+        }
+        my $opt={group_idx=>0};
+        if($option=~/i/){
+            $opt->{i}=1;
+        }
+        $re_index++;
+        my $name="match_re_$re_index";
+        $re_hash{$pat}="$name(input)";
+        my @output;
+        my $t_code={'type'=>"fn", 'source'=>\@output};
+        $t_code->{params}=["input"];
+        $t_code->{name}=$name;
+        $page->{codes}->{$name}=$t_code;
+        if(!$list_function_hash{$name}){
+            $list_function_hash{$name}=1;
+            push @list_function_list, $name;
+            if($autoload){
+                push @$autoload, "function-$name";
+            }
+        }
+        else{
+            $list_function_hash{$name}++;
+        }
+        push @output, "\$: // $pat ";
+        push @$out, "// $pat";
+        push @output, "\$return_type bool";
+        if($r->{has_Any}>0){
+            if($r->{has_Any}>1){
+                die "Lex Regex: too many '.*'\n";
+            }
+            else{
+                if($r->{type}=~/^(group|seq)/){
+                    my $rlist=$r->{list};
+                    my $n=$r->{n};
+                    my $i=0;
+                    while($i<$n){
+                        my $t=$rlist->[$i];
+                        if($t->{type} eq "Any" or $t->{type} eq "group" && $t->{n}==1 && $t->{list}->[0]->{type} eq "Any"){
+                            last;
+                        }
+                        $i++;
+                    }
+                    my ($pre, $any, $post);
+                    if($i==1){
+                        $pre=$rlist->[0];
+                    }
+                    elsif($i>1){
+                        my @t1=@$rlist[0..($i-1)];
+                        $pre={type=>"seq", n=>$i, list=>\@t1};
+                    }
+                    if($rlist->[$i]->{type} eq "group"){
+                        $any=$rlist->[$i]->{list}->[0];
+                        $any->{capture}=1;
+                    }
+                    else{
+                        $any=$rlist->[$i];
+                    }
+                    if($n-($i+1)==1){
+                        $post=$rlist->[$i+1];
+                    }
+                    elsif($n-($i+1)>1){
+                        my @t1=@$rlist[($i+1)..($n-1)];
+                        $post={type=>"seq", n=>($n-$i-1), list=>\@t1};
+                    }
+                    if(!$post){
+                        die "Lex Regex: trailing .* not supported\n";
+                    }
+                    my ($gid0, $sub_pre, $gid, $sub_post);
+                    if($r->{type} eq "group"){
+                        $opt->{group_idx}++;
+                        $gid0=$opt->{group_idx};
+                    }
+                    if($pre){
+                        $pre->{0}="return false";
+                        $pre->{1}="";
+                        $sub_pre=translate_regex_atom($pre, $opt, 1);
+                    }
+                    if($any->{capture}){
+                        $opt->{group_idx}++;
+                        $gid=$opt->{group_idx};
+                    }
+                    if($post){
+                        $post->{0}="";
+                        $post->{1}="return true";
+                        if($gid0>0){
+                            $post->{1}="if(level==0){input->s[$gid0]=tn_pos_0;input->e[$gid0]=input->n_pos;} return true;";
+                        }
+                        $sub_post=translate_regex_atom($post, $opt, 1);
+                    }
+                    $re_hash{$pat}="$name(input, 0)";
+                    push @{$t_code->{params}}, "int level";
+                    push @output, "tn_pos_0 = input->n_pos";
+                    if(!$pre){
+                        if($gid>0){
+                            push @output, "\$if level==0";
+                            push @output, "SOURCE_INDENT";
+                            push @output, "input->s[$gid]=input->n_pos";
+                            push @output, "SOURCE_DEDENT";
+                        }
+                        push @output, "\$while 1";
+                        push @output, "SOURCE_INDENT";
+                        if($gid>0){
+                            push @output, "\$if level==0";
+                            push @output, "SOURCE_INDENT";
+                            push @output, "input->e[$gid]=input->n_pos";
+                            push @output, "SOURCE_DEDENT";
+                        }
+                        push @output, @$sub_post;
+                        push @output, "\$call input_get_c, tn_c";
+                        push @output, "\$if tn_c==-1";
+                        push @output, "SOURCE_INDENT";
+                        push @output, "input->n_pos=tn_pos_0";
+                        push @output, "return false";
+                        push @output, "SOURCE_DEDENT";
+                        push @output, "SOURCE_DEDENT";
+                        push @output, "return false";
+                    }
+                    else{
+                        push @output, @$sub_pre;
+                        if($gid>0){
+                            push @output, "\$if level==0";
+                            push @output, "SOURCE_INDENT";
+                            push @output, "input->s[$gid]=input->n_pos";
+                            push @output, "SOURCE_DEDENT";
+                        }
+                        push @output, "\$while 1";
+                        push @output, "SOURCE_INDENT";
+                        if($gid>0){
+                            push @output, "\$if level==0";
+                            push @output, "SOURCE_INDENT";
+                            push @output, "input->e[$gid]=input->n_pos";
+                            push @output, "SOURCE_DEDENT";
+                        }
+                        push @output, @$sub_post;
+                        push @output, "\$if !$name(input, level+1)";
+                        push @output, "SOURCE_INDENT";
+                        push @output, "\$call input_get_c, tn_c";
+                        push @output, "\$if tn_c==-1";
+                        push @output, "SOURCE_INDENT";
+                        push @output, "input->n_pos=tn_pos_0";
+                        push @output, "return false";
+                        push @output, "SOURCE_DEDENT";
+                        push @output, "SOURCE_DEDENT";
+                        push @output, "SOURCE_DEDENT";
+                        push @output, "return false";
+                    }
+                }
+                else{
+                    die "Lex Regex .* not supported\n";
+                }
+            }
+        }
+        else{
+            $r->{0}="return false;";
+            $r->{1}="input->e[0]=input->n_pos;return true;";
+            my $subout=translate_regex_atom($r, $opt, 1);
+            push @output, "input->s[0]=input->n_pos";
+            push @output, @$subout;
+        }
+        return $re_hash{$pat};
+    }
+}
+
+sub translate_regex_atom {
+    my ($r, $opt, $level) = @_;
+    my ($condition, @output);
+    my $v_res="tb_res_$level";
+    my $v_pos="tn_pos_$level";
+    if($r->{type} =~/^(group|seq|alt|\?!|\?=)/){
+        my $gid;
+        if($r->{type} eq "group"){
+            $opt->{group_idx}++;
+            $gid=$opt->{group_idx};
+        }
+        push @output, "\$do";
+        push @output, "SOURCE_INDENT";
+        if($gid and $gid<10){
+            push @output, "input->s[$gid]=input->n_pos";
+        }
+        push @output, "$v_pos = input->n_pos";
+        push @output, "$v_res = false";
+        foreach my $t (@{$r->{list}}){
+            if($r->{type} eq "alt"){
+                $t->{1}="break;";
+                $t->{0}="";
+            }
+            else{
+                $t->{1}="";
+                $t->{0}="break;";
+            }
+            my $subout=translate_regex_atom($t, $opt, $level+1);
+            push @output, @$subout;
+        }
+        if($gid and $gid<10){
+            push @output, "input->e[$gid]=input->n_pos";
+        }
+        push @output, "$v_res = true";
+        push @output, "SOURCE_DEDENT";
+        if($r->{type} eq "alt"){
+            if($r->{1}){
+                push @output, "if(!$v_res){";
+                push @output, "    $r->{1}";
+                push @output, "}";
+                push @output, "else{";
+            }
+            else{
+                push @output, "if($v_res){";
+            }
+            push @output, "INDENT";
+            push @output, "    NOOP";
+            if($r->{0}){
+                push @output, "$r->{0}";
+            }
+            push @output, "DEDENT";
+            push @output, "}";
+        }
+        elsif($r->{type} eq "?="){
+            push @output, "input->n_pos = $v_pos";
+            if($r->{1}){
+                push @output, "if($v_res){";
+                push @output, "    $r->{1}";
+                push @output, "}";
+                push @output, "else{";
+            }
+            else{
+                push @output, "if(!$v_res){";
+            }
+            push @output, "INDENT";
+            push @output, "    NOOP";
+            if($r->{0}){
+                push @output, "$r->{0}";
+            }
+            push @output, "DEDENT";
+            push @output, "}";
+        }
+        elsif($r->{type} eq "?!"){
+            push @output, "input->n_pos = $v_pos";
+            if($r->{1}){
+                push @output, "if(!$v_res){";
+                push @output, "    $r->{1}";
+                push @output, "}";
+                push @output, "else{";
+            }
+            else{
+                push @output, "if($v_res){";
+            }
+            push @output, "INDENT";
+            push @output, "    NOOP";
+            if($r->{0}){
+                push @output, "$r->{0}";
+            }
+            push @output, "DEDENT";
+            push @output, "}";
+        }
+        else{
+            if($r->{1}){
+                push @output, "if($v_res){";
+                push @output, "    $r->{1}";
+                push @output, "}";
+                push @output, "else{";
+            }
+            else{
+                push @output, "if(!$v_res){";
+            }
+            push @output, "INDENT";
+            push @output, "    input->n_pos = $v_pos";
+            if($r->{0}){
+                push @output, "$r->{0}";
+            }
+            push @output, "DEDENT";
+            push @output, "}";
+        }
+    }
+    elsif($r->{type} eq "*"){
+        my $t=$r->{atom};
+        $t->{1}="";
+        $t->{0}="break;";
+        my $subout=translate_regex_atom($t, $opt, $level+1);
+        push @output, "\$while 1";
+        push @output, "SOURCE_INDENT";
+        push @output, @$subout;
+        push @output, "SOURCE_DEDENT";
+        if($r->{1}){
+            push @output, $r->{1};
+        }
+    }
+    elsif($r->{type} eq "?"){
+        my $t=$r->{atom};
+        $t->{1}=$r->{1};
+        $t->{0}="";
+        my $subout=translate_regex_atom($t, $opt, $level+1);
+        push @output, @$subout;
+        if($r->{1}){
+            push @output, "    ".$r->{1};
+        }
+    }
+    elsif($r->{type} eq "+"){
+        my $t=$r->{atom};
+        my $v_cnt="tn_cnt_$level";
+        $t->{1}="$v_cnt++;";
+        $t->{0}="break;";
+        my $subout=translate_regex_atom($t, $opt, $level+1);
+        push @output, "\$my $v_cnt=0;";
+        push @output, "\$while 1";
+        push @output, "SOURCE_INDENT";
+        push @output, @$subout;
+        push @output, "SOURCE_DEDENT";
+        if($r->{0} or $r->{1}){
+            push @output, "if($v_cnt>0){$r->{1}}else{$r->{0}}";
+        }
+    }
+    else{
+        push @output, "\$call input_get_c, tn_c";
+        my $cond;
+        if($r->{type} eq "AnyChar"){
+        }
+        elsif($r->{type} eq "class"){
+            if($r->{list}){
+                if($opt->{i}){
+                    push @output, "tn_c = toupper(tn_c)";
+                    foreach my $c (@{$r->{list}}){
+                        $c=uc($c);
+                    }
+                }
+                $cond=translate_class($r->{list});
+            }
+            elsif($r->{char} eq "s"){
+                $cond="isspace(tn_c)";
+            }
+            elsif($r->{char} eq "S"){
+                $cond="!isspace(tn_c)";
+            }
+            elsif($r->{char} eq "d"){
+                $cond="isdigit(tn_c)";
+            }
+            elsif($r->{char} eq "D"){
+                $cond="!isdigit(tn_c)";
+            }
+            elsif($r->{char} eq "w"){
+                $cond="isalnum(tn_c) || tn_c=='_'";
+            }
+            elsif($r->{char} eq "W"){
+                $cond="!isalnum(tn_c) && tn_c!='_'";
+            }
+        }
+        else{
+            if($opt->{i} and $r->{char} ne uc($r->{char})){
+                push @output, "tn_c = toupper(tn_c)";
+                $r->{char}=uc($r->{char});
+            }
+            $cond= "tn_c=='$r->{char}'";
+        }
+        if($r->{1}){
+            push @output, "if($cond){";
+            push @output, "    $r->{1}";
+            push @output, "}";
+            push @output, "else{";
+        }
+        else{
+            push @output, "if(!($cond)){";
+        }
+        push @output, "INDENT";
+        push @output, "    \$call input_back_c";
+        if($r->{0}){
+            push @output, "$r->{0}";
+        }
+        push @output, "DEDENT";
+        push @output, "}";
+    }
+    return \@output;
+}
+
+sub translate_class {
+    my ($r) = @_;
+    my @tlist;
+    my $negate;
+    if($r->[0] eq '^'){
+        $negate=shift @$r;
+    }
+    foreach my $c (@$r){
+        if($c=~/(\w+)-(\w+)/){
+            push @tlist, "tn_c>='$1' && tn_c<='$2'";
+        }
+        else{
+            push @tlist, "tn_c=='$c'";
+        }
+    }
+    if($negate){
+        return "!(". join(' || ', @tlist). ")";
+    }
+    else{
+        return join(' || ', @tlist);
+    }
+}
+
+sub parse_regex {
+    my ($re) = @_;
+    my @paren_stack;
+    my $atoms=[];
+    my $alts=[];
+    my $has_Any=0;
+    my $escape;
+    my $_recurse="[1]";
+    my $i=0;
+    while($i<length($re)){
+        my $c=substr($re, $i, 1);
+        $i++;
+        if(!$escape && $c eq "\\"){
+            $escape=1;
+            next;
+        }
+        elsif($escape){
+            my $atom;
+            if($c=~/[0aefnrt]/){
+                if($c eq "a"){
+                    $c= "\$(c)";
+                }
+                elsif($c eq "e"){
+                    $c= "\$(c)";
+                }
+                elsif($c eq "f"){
+                    $c= "\$(c)";
+                }
+                elsif($c eq "n"){
+                    $c= "\$(c)";
+                }
+                elsif($c eq "r"){
+                    $c= "\$(c)";
+                }
+                elsif($c eq "t"){
+                    $c= "\$(c)";
+                }
+                elsif($c eq "0"){
+                    $c= "\$(c)";
+                }
+                $atom={type=>"char", char=>$c};
+            }
+            elsif($c=~/[sSdDwW]/){
+                $atom={type=>"class", char=>$c};
+            }
+            else{
+                $atom={type=>"char", char=>$c};
+            }
+            push @$atoms, $atom;
+            $escape=0;
+        }
+        elsif($c eq '('){
+            push @paren_stack, {atoms=>$atoms, alts=>$alts, type=>"group"};
+            $atoms=[];
+            $alts=[];
+            if(substr($re, $i, 2) eq "?:"){
+                $paren_stack[-1]->{type}="seq";
+                $i+=2;
+            }
+            elsif(substr($re, $i, 2) eq "?="){
+                $paren_stack[-1]->{type}="?=";
+                $i+=2;
+            }
+            elsif(substr($re, $i, 2) eq "?!"){
+                $paren_stack[-1]->{type}="?!";
+                $i+=2;
+            }
+        }
+        elsif($c eq ')'){
+            my $type="seq";
+            $type=$paren_stack[-1]->{type};
+            my $atom;
+            my $n=@$atoms;
+            if($n==0){
+                warn "regex_parse: empty group\n";
+                $atom=undef;
+            }
+            elsif($type ne "seq"){
+                $atom={type=>$type, n=>$n, list=>$atoms};
+                $atoms=[];
+            }
+            else{
+                if($n==1){
+                    $atom=pop @$atoms;
+                }
+                else{
+                    $atom={type=>"seq", n=>$n, list=>$atoms};
+                    $atoms=[];
+                }
+            }
+            push @$alts, $atom;
+            my $atom;
+            my $n=@$alts;
+            if($n==1){
+                $atom=pop @$alts;
+            }
+            elsif($n>1){
+                $atom={type=>"alt", n=>$n, list=>$alts};
+                $alts=[];
+            }
+            my $p=pop @paren_stack;
+            if(!$p){
+                die "REGEX $re: Unmatched parenthesis\n";
+            }
+            $atoms=$p->{atoms};
+            $alts=$p->{alts};
+            push @$atoms, $atom;
+        }
+        elsif($c eq '|'){
+            my $type="seq";
+            my $atom;
+            my $n=@$atoms;
+            if($n==0){
+                warn "regex_parse: empty alt\n";
+                $atom=undef;
+            }
+            elsif($type ne "seq"){
+                $atom={type=>$type, n=>$n, list=>$atoms};
+                $atoms=[];
+            }
+            else{
+                if($n==1){
+                    $atom=pop @$atoms;
+                }
+                else{
+                    $atom={type=>"seq", n=>$n, list=>$atoms};
+                    $atoms=[];
+                }
+            }
+            push @$alts, $atom;
+        }
+        elsif($c eq '*' or $c eq '+' or $c eq '?'){
+            if(!@$atoms){
+                die "REGEX $re: Empty '$c'\n";
+            }
+            if(substr($re, $i, 1) eq "?"){
+                my $curfile=MyDef::compileutil::curfile_curline();
+                print "[$curfile]\x1b[33m Non-Greedy quantifier not supported!\n\x1b[0m";
+                $c.='?';
+                $i++;
+            }
+            my $t=pop @$atoms;
+            push @$atoms, {type=>$c, atom=>$t};
+        }
+        elsif($c eq '['){
+            my @class=();
+            my $escape;
+            my $_recurse="[2]";
+            while($i<length($re)){
+                my $c=substr($re, $i, 1);
+                $i++;
+                if(!$escape && $c eq "\\"){
+                    $escape=1;
+                    next;
+                }
+                elsif($escape){
+                    if($c=~/[0aefnrt]/){
+                        if($c eq "a"){
+                            $c= "\$(c)";
+                        }
+                        elsif($c eq "e"){
+                            $c= "\$(c)";
+                        }
+                        elsif($c eq "f"){
+                            $c= "\$(c)";
+                        }
+                        elsif($c eq "n"){
+                            $c= "\$(c)";
+                        }
+                        elsif($c eq "r"){
+                            $c= "\$(c)";
+                        }
+                        elsif($c eq "t"){
+                            $c= "\$(c)";
+                        }
+                        elsif($c eq "0"){
+                            $c= "\$(c)";
+                        }
+                    }
+                    push @class, $c;
+                    $escape=0;
+                }
+                elsif($c eq ']'){
+                    last;
+                }
+                else{
+                    if(@class>=2 and $class[-1] eq "-"){
+                        pop @class;
+                        $class[-1].="-$c";
+                    }
+                    else{
+                        push @class, $c;
+                    }
+                }
+            }
+            my $atom={type=>"class", list=>\@class};
+            push @$atoms, $atom;
+        }
+        elsif($c eq '.'){
+            my $atom={type=>"AnyChar"};
+            if(substr($re, $i, 1) eq "*"){
+                $atom->{type}="Any";
+                $has_Any++;
+                $i++;
+            }
+            push @$atoms, $atom;
+        }
+        else{
+            my $atom={type=>"char", char=>$c};
+            push @$atoms, $atom;
+        }
+    }
+    if(@paren_stack){
+        die "REGEX $re: Unmatched parenthesis\n";
+    }
+    my $type="seq";
+    my $atom;
+    my $n=@$atoms;
+    if($n==0){
+        warn "regex_parse: empty final\n";
+        $atom=undef;
+    }
+    elsif($type ne "seq"){
+        $atom={type=>$type, n=>$n, list=>$atoms};
+        $atoms=[];
+    }
+    else{
+        if($n==1){
+            $atom=pop @$atoms;
+        }
+        else{
+            $atom={type=>"seq", n=>$n, list=>$atoms};
+            $atoms=[];
+        }
+    }
+    push @$alts, $atom;
+    my $atom;
+    my $n=@$alts;
+    if($n==1){
+        $atom=pop @$alts;
+    }
+    elsif($n>1){
+        $atom={type=>"alt", n=>$n, list=>$alts};
+        $alts=[];
+    }
+    if($has_Any){
+        $atom->{has_Any}=$has_Any;
+    }
+    return $atom;
+}
+
+sub debug_regex {
+    my ($r, $level) = @_;
+    if(!$level){
+        $level=0;
+    }
+    print '  ' x $level;
+    if($r->{type} eq "class"){
+        if($r->{list}){
+            print "[ ", join(" ", @{$r->{list}}), " ]\n";
+        }
+        else{
+            print "\\ $r->{char}\n";
+        }
+    }
+    elsif($r->{type} eq "char"){
+        print "$r->{char}\n";
+    }
+    elsif($r->{type} eq "AnyChar"){
+        print ".\n";
+    }
+    else{
+        print "$r->{type}\n";
+        if($r->{list}){
+            foreach my $t (@{$r->{list}}){
+                debug_regex($t, $level+1);
+            }
+        }
+        elsif($r->{atom}){
+            debug_regex($r->{atom}, $level+1);
+        }
     }
 }
 
@@ -597,7 +1289,7 @@ sub parsecode {
             $MyDef::compileutil::eval_sub_error{$codename}=1;
             print "evalsub - $codename\n";
             print "[$t]\n";
-            print "eval error: [$@]\n";
+            print "eval error: [$@] package [", __PACKAGE__, "]\n";
         }
         return;
     }
@@ -937,7 +1629,7 @@ sub parsecode {
                     $MyDef::compileutil::eval_sub_error{$codename}=1;
                     print "evalsub - $codename\n";
                     print "[$t]\n";
-                    print "eval error: [$@]\n";
+                    print "eval error: [$@] package [", __PACKAGE__, "]\n";
                 }
                 return;
             }
@@ -952,9 +1644,14 @@ sub parsecode {
                 $param=parse_condition($param);
                 return single_block("$name($param){", "}");
             }
-            elsif($func =~/^dowhile/){
-                $param=parse_condition($param);
-                return single_block("do{", "}while($param);");
+            elsif($func =~/^do(while)?/){
+                if($1){
+                    $param=parse_condition($param);
+                    return single_block("do{", "}while($param);");
+                }
+                else{
+                    return single_block("do{", "}while(0);");
+                }
             }
             elsif($func eq "pack"){
                 data_pack($param);
@@ -2394,10 +3091,13 @@ sub parse_condition {
                 $MyDef::compileutil::eval_sub_error{$codename}=1;
                 print "evalsub - $codename\n";
                 print "[$t]\n";
-                print "eval error: [$@]\n";
+                print "eval error: [$@] package [", __PACKAGE__, "]\n";
             }
             return $condition;
         }
+    }
+    elsif($param=~/^\/(.*)\/(i?)\s*$/){
+        return translate_regex($1, $2);
     }
     return check_expression($param, "condition");
 }
@@ -3544,7 +4244,7 @@ sub check_expression {
                     $MyDef::compileutil::eval_sub_error{$codename}=1;
                     print "evalsub - $codename\n";
                     print "[$t]\n";
-                    print "eval error: [$@]\n";
+                    print "eval error: [$@] package [", __PACKAGE__, "]\n";
                 }
                 $token=$condition;
                 $type="atom-regex";
@@ -3585,7 +4285,7 @@ sub check_expression {
                         $MyDef::compileutil::eval_sub_error{$codename}=1;
                         print "evalsub - $codename\n";
                         print "[$t]\n";
-                        print "eval error: [$@]\n";
+                        print "eval error: [$@] package [", __PACKAGE__, "]\n";
                     }
                     $token=$condition;
                     $type="atom-regex";

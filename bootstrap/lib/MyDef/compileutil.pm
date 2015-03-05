@@ -388,6 +388,7 @@ sub call_back {
             $pline=$param;
             @plist=MyDef::utils::proper_split($param);
             push @callback_block_stack, {source=>$subblock, name=>"$codename", cur_file=>$cur_file, cur_line=>$cur_line};
+            $codelib->{recurse}++;
             push @callsub_stack, $codename;
             my $params=$codelib->{params};
             my $np=@pre_plist;
@@ -430,6 +431,7 @@ sub call_back {
                     $macro->{$p}=$plist[$j];
                 }
             }
+            $macro->{recurse_level}=$codelib->{recurse};
             if($debug eq "macro"){
                 print "Code $codename: ";
                 while(my ($k, $v)=each %$macro){
@@ -441,6 +443,7 @@ sub call_back {
             parseblock($codelib);
             pop @$deflist;
             pop @callsub_stack;
+            $codelib->{recurse}--;
             pop @callback_block_stack;
             modepop();
         }
@@ -466,6 +469,7 @@ sub call_sub {
         }
         else{
             if($codelib){
+                $codelib->{recurse}++;
                 push @callsub_stack, $codename;
                 if($calltype=~/\$call-(\w+)/){
                     modepush($1);
@@ -556,6 +560,7 @@ sub call_sub {
                                 $macro->{$p}=$plist[$j];
                             }
                         }
+                        $macro->{recurse_level}=$codelib->{recurse};
                         if($debug eq "macro"){
                             print "Code $codename: ";
                             while(my ($k, $v)=each %$macro){
@@ -570,6 +575,7 @@ sub call_sub {
                 }
                 modepop();
                 pop @callsub_stack;
+                $codelib->{recurse}--;
                 set_current_macro("notfound", 0);
             }
             else{
@@ -588,19 +594,9 @@ sub get_subcode {
         return undef;
     }
     else{
-        my $recurse=0;
-        if(!$codelib->{allow_recurse}){
-            $codelib->{allow_recurse}=0;
+        if($codelib->{allow_recurse} < $codelib->{recurse}){
+            die "Recursive subcode: $codename [$codelib->{recurse}]\n";
         }
-        foreach my $name (@callsub_stack){
-            if($name eq $codename){
-                $recurse++;
-                if($recurse>$codelib->{allow_recurse}){
-                    die "Recursive subcode: $codename [$recurse]\n";
-                }
-            }
-        }
-        $codelib->{recurse}=$recurse;
         return $codelib;
     }
 }
