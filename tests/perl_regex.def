@@ -1,0 +1,5 @@
+include: perl/parse_regex.def
+
+page: test
+    my $r=parse_regex("ab(c|de)*")
+    debug_regex($r)

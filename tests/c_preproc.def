@@ -1,0 +1,12 @@
+page: test
+    #include "t.c"
+    #define name Hui
+    #undef name
+    #if 1
+    #ifndef name
+    #elif 1
+    #else blah
+    #endif
+    #line 1
+    #error 1
+    #pragma 2

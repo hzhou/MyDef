@@ -13,7 +13,7 @@ perlcode: pcre_condition
     $call pcre_plugin_match, condition
 
 #---------------------------------------- 
-perlcode: pcre_plugin_match(condition)
+subcode: pcre_plugin_match(condition)
     my ($str, $pattern, $option, $replace)
     $(set:pat=(?:[^\/\\]|\\.)*)
     $if $param=~/^(\S+)\s*=~\s*\/(.*)\/(.*)/

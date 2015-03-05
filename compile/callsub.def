@@ -99,7 +99,7 @@ subcode: call_sub_setup_macro
 	$else
 	    $macro->{$p}=$plist[$j];
     #-- extra -----
-    $macro->{_recurse}=$codelib->{recurse}
+    $macro->{recurse_level}=$codelib->{recurse}
     #-- debug -----
     $if $debug eq "macro"
 	print "Code $codename: "
@@ -203,7 +203,7 @@ subcode:: support_subs
 		print STDERR "    [$cur_file:$cur_line] Code $codename not found!\n";
 	    return undef
 	$else
-            $if !$codelib->{allow_recurse} < $codelib->{recurse}
+            $if $codelib->{allow_recurse} < $codelib->{recurse}
                 die "Recursive subcode: $codename [$codelib->{recurse}]\n"
 	    return $codelib
 

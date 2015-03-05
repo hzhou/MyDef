@@ -197,13 +197,14 @@ subcode: parsecode_plugin
 subcode: parsecode_run_eval(code)
     $(if:code!=$codename)
 	my $codename=$(code)
+    # print "parsecode_run_eval - $codename - ", __PACKAGE__, "\n"
     my $t=MyDef::compileutil::eval_sub($codename)
     eval $t
     $if $@ and !$MyDef::compileutil::eval_sub_error{$codename}
 	$MyDef::compileutil::eval_sub_error{$codename}=1
 	print "evalsub - $codename\n"
 	print "[$t]\n"
-	print "eval error: [$@]\n"
+	print "eval error: [$@] package [", __PACKAGE__, "]\n"
 
 subcode: parsecode_check_plugin
     $if $plugin_statement{$func}

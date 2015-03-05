@@ -81,9 +81,12 @@ subcode: parsecode_func
 	my $name=$1;
 	$param=parse_condition($param)
 	return single_block("$name($param){", "}")
-    $elsif $func =~/^dowhile/
-	$param=parse_condition($param)
-	return single_block("do{", "}while($param);")
+    $elsif $func =~/^do(while)?/
+        $if $1
+            $param=parse_condition($param)
+            return single_block("do{", "}while($param);")
+        $else
+            return single_block("do{", "}while(0);")
     #---------------------------------------- 
     $elif $func eq "pack"
 	data_pack($param)
@@ -160,6 +163,8 @@ subcode: check_functioncall
 
 #---------------------------------------- 
 #--- called from output.def ------------
+include: macros_c/translate_regex.def
+
 subcode:: c_support_subs
     $sub parse_condition($param)
 	$if $param=~/(\$map\b.*)/
@@ -169,6 +174,8 @@ subcode:: c_support_subs
 	$elif $param=~/^\$(\w+)\s+(.*)/
 	    my ($func, $param)=($1, $2)
 	    $call parse_condition_check_plugin
+        $elif $param=~/^\/(.*)\/(i?)\s*$/
+            return translate_regex($1, $2)
 
 	return check_expression($param, "condition")
 

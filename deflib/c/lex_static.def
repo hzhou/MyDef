@@ -1,0 +1,28 @@
+include: c/lex.def
+
+subcode: local_input(s)
+    $get_var_attr $(s), strlen
+    $(if:!strlen)
+	$(set:strlen=strlen($(s)))
+    $local struct input_buffer local_input_buffer
+
+    $local input
+    input=&local_input_buffer
+    input->buffer=$(s)
+    input->n_pos=0
+    input->n_end=$(strlen)
+
+#---------------------------------------- 
+fncode: input_get_char(input)
+    $if input->n_pos < input->n_end
+        tn_c=input->buffer[input->n_pos]
+        input->n_pos++
+        return tn_c
+    $else
+        input->n_pos++
+        return -1
+
+fncode: input_back_char(input)
+    $if input->n_pos>0
+        input->n_pos--
+

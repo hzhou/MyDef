@@ -1,0 +1,4 @@
+page: test
+    a: b
+
+    print "$(a)\n"

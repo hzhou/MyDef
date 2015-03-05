@@ -1,0 +1,198 @@
+#-----------------------------------------
+#-- parse regex pattern
+fncode: parse_regex($re)
+    $call @parse_regex_vars
+    my $has_Any=0
+
+    &call regex_parse_loop, normal
+	$elif $c eq '('
+            $call push_paren
+            $if substr($re, $i, 2) eq "?:"
+                $paren_stack[-1]->{type}="seq"
+                $i+=2
+            $elif substr($re, $i, 2) eq "?="
+                # positive lookahead
+                $paren_stack[-1]->{type}="?="
+                $i+=2
+            $elif substr($re, $i, 2) eq "?!"
+                # negative lookahead
+                $paren_stack[-1]->{type}="?!"
+                $i+=2
+	$elif $c eq ')'
+	    $call concat_atoms, group
+	    $call concat_alts
+            $call pop_paren
+            $call push_atom
+	$elif $c eq '|'
+	    $call concat_atoms, alt
+	$elif $c eq '*' or $c eq '+' or $c eq '?'
+	    $if !@$atoms
+		die "REGEX $re: Empty '$c'\n";
+	    $if substr($re, $i, 1) eq "?"
+                $call warn, Non-Greedy quantifier not supported!
+		# non-greedy
+		$c.='?'
+		$i++
+            my $t=pop @$atoms
+            push @$atoms, {type=>$c, atom=>$t}
+	$elif $c eq '['
+            $call parse_regex_inclass
+            $call push_atom
+	$elif $c eq '.'
+            my $atom={type=>"AnyChar"}
+	    $if substr($re, $i, 1) eq "*"
+                $atom->{type}="Any"
+                $has_Any++
+                $i++
+            $call push_atom
+	$else
+            my $atom={type=>"char", char=>$c}
+	    $call push_atom
+    # -----
+    $call check_paren_stack
+    $call concat_atoms, final
+    $call concat_alts
+    $if $has_Any
+        $atom->{has_Any}=$has_Any
+    return $atom
+
+#-----------------------------
+fncode: debug_regex($r, $level)
+    $if !$level
+        $level=0
+    print '  ' x $level
+
+    $if $r->{type} eq "class"
+        $if $r->{list}
+            print "[ ", join(" ", @{$r->{list}}), " ]\n"
+        $else
+            print "\\ $r->{char}\n"
+    $elif $r->{type} eq "char"
+        print "$r->{char}\n"
+    $elif $r->{type} eq "AnyChar"
+        print ".\n"
+    $else
+        print "$r->{type}\n"
+        $if $r->{list}
+            $foreach $t in @{$r->{list}}
+                debug_regex($t, $level+1)
+        $elif $r->{atom}
+            debug_regex($r->{atom}, $level+1)
+
+#---------------------------------------- 
+subcode: parse_regex_inclass
+    my @class=()
+    &call regex_parse_loop, inclass
+        $elif $c eq ']'
+            last
+        $else
+            $call push_class
+    my $atom={type=>"class", list=>\@class}
+
+subcode: push_class
+    $if @class>=2 and $class[-1] eq "-"
+        pop @class
+        $class[-1].="-$c"
+    $else
+        push @class, $c
+
+#---------------------------------------- 
+subcode: regex_parse_loop(type)
+    my $escape
+    $(allow_recurse:10)
+    my $_recurse="[$(recurse_level)]"
+    $(if:recurse_level=1)
+        my $i=0
+    $while $i<length($re)
+        my $c=substr($re, $i, 1)
+        $i++
+        # $print parse_loop-$(type) $i: [$c]
+        $if !$escape && $c eq "\\"
+            $escape=1
+            next
+        $elif $escape
+            $call parse_escape_$(type)
+            $escape=0
+        BLOCK
+
+# ----
+subcode: parse_escape_normal
+    my $atom
+    $if $c=~/[0aefnrt]/
+        $call escape_char
+        $atom={type=>"char", char=>$c}
+    $elif $c=~/[sSdDwW]/
+	$atom={type=>"class", char=>$c}
+    $else
+        $atom={type=>"char", char=>$c}
+    $call push_atom
+
+subcode: parse_escape_inclass
+    $if $c=~/[0aefnrt]/
+	$call escape_char
+    push @class, $c
+
+# ----
+subcode: escape_char
+    $map esc_char, a, e, f, n, r, t, 0
+
+subcode: esc_char(c)
+    $case $c eq "$(c)"
+	$c= "\$(c)"
+
+#---------------------------------------- 
+subcode:: parse_regex_vars
+    my @paren_stack
+    my $atoms=[]
+    my $alts=[]
+
+# ----
+subcode: push_paren
+    push @paren_stack, {atoms=>$atoms, alts=>$alts, type=>"group"}
+    $atoms=[]
+    $alts=[]
+
+subcode: pop_paren
+    my $p=pop @paren_stack;
+    $if !$p
+        die "REGEX $re: Unmatched parenthesis\n";
+    $atoms=$p->{atoms}
+    $alts=$p->{alts}
+
+subcode: check_paren_stack
+    $if @paren_stack
+        die "REGEX $re: Unmatched parenthesis\n";
+
+# ----
+subcode: concat_atoms(type)
+    my $type="seq"
+    $(if:type=group)
+        $type=$paren_stack[-1]->{type}
+    my $atom
+    my $n=@$atoms
+    $if $n==0
+        warn "regex_parse: empty $(type)\n"
+        $atom=undef
+    $elif $type ne "seq"
+        $atom={type=>$type, n=>$n, list=>$atoms}
+        $atoms=[]
+    $else
+        $if $n==1
+            $atom=pop @$atoms
+        $else
+            $atom={type=>"seq", n=>$n, list=>$atoms}
+            $atoms=[]
+    push @$alts, $atom
+
+subcode: concat_alts
+    my $atom
+    my $n=@$alts
+    $if $n==1
+        $atom=pop @$alts
+    $elif $n>1
+        $atom={type=>"alt", n=>$n, list=>$alts}
+        $alts=[]
+
+# ----
+subcode: push_atom
+    push @$atoms, $atom

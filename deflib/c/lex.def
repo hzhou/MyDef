@@ -1,0 +1,102 @@
+subcode:: _autoload
+    $struct(input_buffer) unsigned char * buffer, n_pos, n_end
+    $register_name(input) struct input_buffer *
+    $include ctype
+
+#---------------------------------------- 
+subcode: input_get_c(c)
+    $(c) = input_get_char(input)
+
+subcode: input_back_c
+    input_back_char(input)
+
+#---------------------------------------- 
+subcode:: _autoload
+    #-- capture buffers
+    $struct(input_buffer) int s[10], int e[10]
+
+subcode: get_ts_group(i)
+    ts_group=input->buffer+input->s[$(i)]
+
+subcode: with_ts_group(i)
+    ts_group=input->buffer+input->s[$(i)]
+    tn_c=input->buffer[input->e[$(i)]]
+    input->buffer[input->e[$(i)]] = 0
+    BLOCK
+    input->buffer[input->e[$(i)]] = tn_c
+
+subcode: sub_input(vs, ve)
+    $(vs)=input->e[1]
+    $(ve)=input->n_end
+    input->n_pos=input->s[1]
+    input->n_end=input->e[1]
+    BLOCK
+    input->n_pos=$(vs)
+    input->n_end=$(ve)
+
+#---------------------------------------- 
+subcode: match_char_sub(cond)
+    $call input_get_c, tn_c
+    $if $(cond)
+	return 1
+    $else
+	$if tn_c>0
+	    $call input_back_c
+	return 0
+
+#----
+fncode: match_char(tn_char)
+    lexical: input
+    $return_type bool
+    $call match_char_sub, tn_c==tn_char
+
+fncode: match_char_i(tn_char)
+    lexical: input
+    $return_type bool
+    $call match_char_sub, toupper(tn_c)==toupper(tn_char)
+
+#---------------------------------------- 
+subcode: match_keyword_sub(notcond)
+    $return_type int
+    input->s[0]=input->n_pos
+    $(set:isword=(isalnum(tn_c)||tn_c=='_'))
+    $(set:isword2=(isalnum(tn_c2)||tn_c2=='_'))
+    $while 1
+	$call input_get_c, tn_c
+	$if $(notcond)
+            input->n_pos=input->s[0]
+	    return false
+	s_key++
+	$if !*s_key
+            #-- check word boundary
+	    $call input_get_c, tn_c2
+	    $if tn_c2<=0
+		return true
+	    $elif $(isword) && !$(isword2) || !$(isword) 
+		$call input_back_c
+		return true
+	    $else
+		input->n_pos=input->s[0]
+		return false
+
+fncode: match_keyword(s_key)
+    lexical: input
+    $return_type bool
+    $call match_keyword_sub, tn_c != *s_key
+
+fncode: match_keyword_i(s_key)    
+    lexical: input
+    $return_type bool
+    $call match_keyword_sub, toupper(tn_c) != toupper(*s_key)
+
+#---------------------------------------- 
+fncode: match_eof
+    lexical: input
+    $return_type bool
+    $call input_get_c, tn_c
+    $if tn_c<=0 && input->n_pos>=input->n_end
+	return 1
+    $else
+	$call input_back_c
+	return 0
+

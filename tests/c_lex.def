@@ -1,0 +1,31 @@
+include: c/lex_static.def
+
+page: test, basic_frame
+    $local s
+    #-- string constants are not modifiable, 
+    #--   it will segfaut @ with_ts_group
+    s=strdup("0x101f 378 (nested (brackets)) 2x (tail)")
+    $call local_input, s
+
+    $while 1
+        DEBUG ON
+        $if match_eof()
+            break
+        $elif /\s+/
+            NOOP
+        $elif /(?:0x)([0-9a-f]+)/i
+            &call with_ts_group, 1
+                tn_val=strtol(ts_group, NULL, 16)
+                $print input (hex): $tn_val
+        $elif /(\d+)(?= )/
+            &call with_ts_group, 1
+                tn_val=atol(ts_group)
+                $print input (dec): $tn_val
+        $elif /(\(.*\))/
+            &call with_ts_group, 1
+                $print parenthese: $ts_group
+        $else
+            $call input_get_c, tn_c
+            printf("Unrecognized char [%c]\n", tn_c)
+            
+
