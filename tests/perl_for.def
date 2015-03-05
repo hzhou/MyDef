@@ -2,6 +2,7 @@ page: test
     type: pl
     subcode: main
 	# $call test_1
+	$call test_sumcode
 	$call test_sumcode_2
 
 subcode: test_sumcode
@@ -16,7 +17,7 @@ subcode: test_sumcode_2
     $sumcode $a[i,j]=i+j
     $sumcode print "i, j: $a[i,j]\n"
 
-    print "\n"
+    $print
     $my @b[2,2]
     $sumcode $b[i,j]=$T[i,k]*$a[k,j]
     $sumcode print "i, j: $b[i,j]\n"

@@ -118,8 +118,11 @@ subcode:: support_subs
 # ------------------------------------------------------
 fncode: expand_macro($lref)
     $$lref=~s/\$\.(?=\w)/\$(this)/g
-    $if $$lref=~/(?<!\\)\$\(\w/
-        $$lref=MyDef::utils::expand_macro($$lref, \&get_macro)
+    $while $$lref=~/(?<!\\)\$\(\w/
+        my $t=$$lref
+        $$lref=MyDef::utils::expand_macro($t, \&get_macro)
+        $if $t eq $$lref
+            last
 
 fncode: get_macro($s)
     $if $s=~/^((rep|perl|map)\b.*)/
@@ -189,7 +192,7 @@ fncode: get_macro($s)
 		my $idx=$1
 		my @tlist=MyDef::utils::proper_split($t)
 		$if $idx eq "n"
-		    return @tlist
+		    return scalar(@tlist)
 		$elif $idx=~/(\d+)/
 		    return $tlist[$1]
 	    $else

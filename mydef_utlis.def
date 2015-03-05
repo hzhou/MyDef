@@ -91,6 +91,7 @@ fncode: expand_macro($line, $sub)
             &call if_lex, ([^\$]|\$(?!\())+
                 push @$segs, $&
         $else
+            # inside $( ... )
             &call if_lex, \(
                 push @paren_stack, $segs
                 $segs=[]
