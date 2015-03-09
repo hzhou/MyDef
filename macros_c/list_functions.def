@@ -211,3 +211,15 @@ subcode: function_pop
     $if $level==0
 	$call case_reset
 
+#---------------------------------------- 
+fncode: inject_function($name, $params, $source)
+    my $t_code={'type'=>"fn", name=>$name, 'source'=>$source, params=>$params}
+    $MyDef::def->{codes}->{$name}=$t_code
+
+    $if !$list_function_hash{$name}
+        $list_function_hash{$name}=1
+        push @list_function_list, $name
+    $else
+        $list_function_hash{$name}++
+
+

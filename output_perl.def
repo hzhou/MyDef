@@ -107,6 +107,8 @@ subcode: parsecode
 		$call parsecode_sum_support, perl
 	$elif $func eq "print"
 	    $call parsecode_print
+        $elif $func eq "source-$param"
+            return "SKIPBLOCK"
     $elif $l=~/^NOOP POST_MAIN/
 	$call list_functions
 	return 0
@@ -194,6 +196,11 @@ subcode: parse_function(name, code)
     push @$out, "}"
     push @$out, "NEWLINE"
     
+#---- for extensions ----
+fncode: inject_function($name, $params, $source)
+    my $t_code={'type'=>"fn", name=>$name, params=>$params, 'source'=>$source}
+    $MyDef::def->{codes}->{$name}=$t_code
+
 #----------------------------------------------- 
 subcode: check_termination
     #$l=~s/^\|//;
