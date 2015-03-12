@@ -1,0 +1,49 @@
+subcode:: _autoload
+    $class hash, int_hash, str_hash
+    $include mydef_hash.h
+
+#----------------------------------------------- 
+subcode: hash_init(var, scope, @type)
+    $call str_hash_init, $(var), $(scope), $(type)
+
+subcode: int_hash_init(var, scope, @type)
+    $call new_hash, int
+
+subcode: str_hash_init(var, scope, @type)
+    $call new_hash, str
+
+subcode: new_hash(type)
+    $$(scope) struct $(type)_hash * $(var)
+    $allocate $(var)
+    memset($(h), 0, sizeof(*$(var))
+
+    $call init_hash_record
+
+    $set_var_attr $(var), class=hash, member_count=$(type_n)
+    $set_var_attr $(var), type=$(type)
+    $set_var_attr $(var), exit=hash_exit
+
+subcode: hash_exit(var)
+    $get_var_att $(var), type
+    $(type)_hash_exit($(var))
+
+subcode: init_hash_record
+    $(if:type=default)
+        $(set:type_n=0)
+    $(else)
+        $(set:type_n=$(type:list:n))
+        $(if:type_n=1)
+            $(var)->n_rec_size=sizeof($(type))
+            $set_var_attr $(var), record=$(type)
+        $(else)
+            $tuple $(type)
+            $(var)->n_rec_size=sizeof($(T))
+            $set_var_attr $(var), record=$(T)
+
+#----------------------------------------------- 
+subcode: hash_lookup(var, key)
+    $get_var_att $(var), type
+
+subcode: hash_lookup_condition(var, key)
+
+subcode: hash_lookup_left(var, key)

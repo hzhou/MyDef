@@ -19,16 +19,24 @@ subcode: str_hash
 #-- integer keys are much simpler
 subcode: int_hash
     $call hash_common
-    $struct(str_hash) int * key_table 
+    $struct(str_hash) int * key_table, char * flag_table 
 
-#---- 
-subcode: new_hash(h)
-    $local struct str_hash * $(h)
-    $allocate $(h)
-    $(h)->n_size=0
-    $(h)->n_fill=0
-    $(h)->n_rec_size=0
+#----------------------------------------------- 
+fncode: int_hash_exit(struct int_hash * h)
+    $if h->n_size>0
+        free(key_table)
+        free(flag_table)
+        $if h->n_rec_size>0
+            free(rec_table)
+    free(h)
 
+fncode: str_hash_exit(struct str_hash * h)
+    $if h->n_size>0
+        free(key_table)
+        free(pc_pool)
+        $if h->n_rec_size>0
+            free(rec_table)
+    free(h)
 #---------------------------------------- 
 #-- Use open addressing: Knuth, ch6, Algorithm L 
 #--    simple table, no links, good performance until 80%
