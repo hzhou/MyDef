@@ -1,4 +1,4 @@
-include: c/hash2.def
+include: c/hash.def
 include: c/string.def
 
 page: test, basic_frame
@@ -6,12 +6,10 @@ page: test, basic_frame
 
 subcode: test_hash
     $my hash H
-    H.$resize 80000
+    # H.$resize 80000
     
-    # $(for:i in 1..5000)
-    #        H{a$(i)}=$(i)
     $local string s
-    $for i=0:5
+    $for i=0:10
         s.$clear
         s.$add "a", i
         H{s}=i
@@ -23,12 +21,22 @@ subcode: test_hash
     &call str_hash_foreach, H
 	$print "%s => ${$(value)}", $(key)
 
-    $print "  34: %d", H{34}
-    $print "  68: %d", H{68}
     $(if:0)
+        $print "  34: %d", H{34}
+        $print "  68: %d", H{68}
         $print "  a17: $H{a17}"
         $print "  b17: $H{b17}"
         $print "  hello: %d", H{hello}
         
         $if H{a18}
             $print "Got a18"
+
+subcode: test_hash_int
+    $my int_hash H: int
+    H.$resize 80000
+    
+    $for i=0:5
+        H{i}=i
+        
+    $print "  1: %d", H{1}
+    $print "  3: %d", H{3}

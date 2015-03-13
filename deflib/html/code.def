@@ -27,6 +27,8 @@ perlcode: codeprint
         $codelist=MyDef::compileutil::get_named_block("last_grab")
         $if $param=~/(\w+)/
             $type=$1
+        $while $codelist->[-1]=~/^\s*$/
+            pop @$codelist
     $if ref($codelist) eq "ARRAY"
         push @$out, "<pre><code>"
         push @$out, "PUSHDENT"

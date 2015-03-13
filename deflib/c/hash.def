@@ -13,11 +13,11 @@ macros:
 #---- init ------------------------------------ 
 subcode: int_hash_init(var, scope, @type)
     $(set:hashtype=int)
-    $call hash_init
+    $call hash_init, $(var), $(scope), $(type)
 
 subcode: str_hash_init(var, scope, @type)
     $(set:hashtype=str)
-    $call hash_init
+    $call hash_init, $(var), $(scope), $(type)
 
 #----
 subcode: hash_init(var, scope, @type)
@@ -108,10 +108,10 @@ subcode: int_hash_exist(var, key)
 
 #---- resize ------------------------------------ 
 subcode: str_hash_resize(var, n)
-    f_strhash_resize((struct hash *)$(var), $(n))
+    f_strhash_resize($(var), $(n))
 
 subcode: int_hash_resize(var, n)
-    f_inthash_resize((struct hash *)$(var), $(n))
+    f_inthash_resize($(var), $(n))
 
 #---------------------------------------- 
 #---------------------------------------- 
@@ -129,9 +129,11 @@ fncode: f_inthash_resize(void * hash, n_size)
 
 subcode: hash_resize(type)
     $local struct $(type)hash * h = hash
-
     $if n_size==0
-	n_size=h->n_size*$(hash_resize_ratio)
+        $if h->n_size<=0
+            n_size=10
+        $else
+            n_size=h->n_size*$(hash_resize_ratio)
     $elif n_size<=h->n_size
 	return
 
@@ -213,6 +215,7 @@ subcode: get_strhash_k
     k = tu_h % $(M)
 
 subcode: get_inthash_k
+    $(set:M=h->n_size)
     pc_key=(unsigned char *)&key
     tu_h= $(fnv_offset)
     $for i=0:sizeof(int)
@@ -229,6 +232,7 @@ fncode: f_strhash_lookup_left(void* hash, pc_key, int keylen)
         h->p_key[k]=h->i_str
         $call addto_str_pool, h, pc_key, keylen
         h->p_exist[k]=1
+        h->n_count++
     return k
 
 fncode: f_inthash_lookup_left(void* hash, int key)
@@ -237,6 +241,7 @@ fncode: f_inthash_lookup_left(void* hash, int key)
     $if !h->p_exist[k]
         h->p_key[k]=key
         h->p_exist[k]=1
+        h->n_count++
     return k
 
 subcode: hash_lookup_left(type)
@@ -245,7 +250,7 @@ subcode: hash_lookup_left(type)
     $(set:upper=h->n_count >= h->n_size * $(hash_resize_upper))
     $if h->n_size==0 || $(limit) || (h->n_size>20 && $(upper))
         f_$(type)hash_resize(h, 0)
-        $print "f_$(type)hash_resize @ %s -> %d", pc_key, h->n_size
+        # $print "f_$(type)hash_resize @ %s -> %d", pc_key, h->n_size
 
 #---------------------------------------- 
 fncode: f_strhash_exist(void* h, pc_key, int keylen)

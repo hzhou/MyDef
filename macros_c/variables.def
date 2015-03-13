@@ -125,17 +125,20 @@ subcode:: c_support_subs
 	    print "temp_var $macro_name -> $name of $var->{type}\n"
 
 	my $hash=$cur_scope->{var_hash}
-	$if $hash->{$name} and $hash->{$name}->{type} ne $type
+        my $type=$var->{type}
+	$if $hash->{$name} and $hash->{$name}->{temptype} ne $type
 	    my $i=2
 	    $if $name=~/[0-9_]/
 		$name.="_"
-	    $while $hash->{"$name$i"} and $hash->{"$name$i"} ne $type
+	    $while $hash->{"$name$i"} and $hash->{"$name$i"}->{temptype} ne $type
 		$i++
+            $name="$name$i"
 	$if !$hash->{$name}
-	    $var->{name}=$name
-	    $hash->{$name}=$var
-	    my $var_list=$cur_scope->{var_list}
-	    push @$var_list, $name
+            $var->{name}=$name
+            $var->{temptype}=$type
+            $hash->{$name}=$var
+            my $var_list=$cur_scope->{var_list}
+            push @$var_list, $name
 
 	MyDef::compileutil::set_current_macro($macro_name, $name)
 	return $name

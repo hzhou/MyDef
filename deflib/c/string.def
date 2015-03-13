@@ -79,6 +79,11 @@ subcode: string_add(var, @plist)
     $(foreach:p)
 	$call string_append, $(var), $(p)
 
+subcode: string_set(var, @plist)
+    $call string_clear, $(var)
+    $(foreach:p)
+	$call string_append, $(var), $(p)
+
 subcode: string_addchar(var, c)
     $(set:string=$(var), &$(var)_len, &$(var)_size)
     $fcall $(var)=f_string_append_char($(string), $(c))
@@ -95,11 +100,6 @@ subcode: string_fmt(var, @param)
 	$(var)_len+=tn_ret
     $(else)
 	$call string_add, $(var), $(fmt)
-
-#---------------------------------------- 
-subcode: string_set(var, s)
-    $call string_clear, $(var)
-    $call string_append, $(var), $(s)
 
 #---------------------------------------- 
 subcode: string_replace(var, i0, i1, @replace)
