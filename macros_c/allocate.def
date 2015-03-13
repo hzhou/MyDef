@@ -47,7 +47,8 @@ subcode: allocate_block(auto)
 		$call allocate_array, $out
 	    $(if:auto=auto)
 		push @$post, "free($p);"
-    $call allocate_init
+
+            $call allocate_init
 
 #------------------------------------------ 
 subcode: allocate_dimension
@@ -66,10 +67,14 @@ subcode: allocate_array(out)
 
 subcode: allocate_init
     $if defined $init_value and $init_value ne ""
-	func_add_var("i", "int");
-	push @$out, "for(i=0;i<$dim;i++){";
-	$foreach my $p in @plist
-	    $if $p
-		push @$out, "    $p\[i]=$init_value;";
-	push @$out, "}";
+        $if $init_value eq "0"
+            $if $type eq "void"
+                push @$out, "memset($p, 0, $dim);"
+            $else
+                push @$out, "memset($p, 0, $dim*sizeof($type));"
+        $else
+            func_add_var("i", "int");
+            push @$out, "for(i=0;i<$dim;i++){";
+            push @$out, "    $p\[i]=$init_value;";
+            push @$out, "}";
 

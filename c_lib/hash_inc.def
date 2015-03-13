@@ -41,9 +41,29 @@ subcode: init_hash_record
             $set_var_attr $(var), record=$(T)
 
 #----------------------------------------------- 
+subcode: hash_lookup_condition(var, key)
+    $get_var_att $(var), type
+    $(if:type=int)
+        $yield hash_lookup_int($(var), $(key))
+    $(else)
+        $call hash_lookup_check_str_key, $(key)
+        $yield hash_lookup_str($(var), $(key), $(keylen))
+    
 subcode: hash_lookup(var, key)
     $get_var_att $(var), type
 
-subcode: hash_lookup_condition(var, key)
-
 subcode: hash_lookup_left(var, key)
+    $get_var_att $(var), type
+
+#-- str key utility -------------
+subcode: hash_lookup_check_str_key(key)
+    $(if:key~^")
+	$(export:keylen=$(key:strlen))
+    $(else)
+	$get_type(keytype) $(key)
+	$(if:keytype!=char *)
+	    $(export:key="$(key)")
+	    $(export:keylen=$(key:len))
+	$(else)
+	    $(export:keylen=strlen($(key)))
+

@@ -1,6 +1,6 @@
 subcode:: _autoload
     $class string
-    #---------------------------------------- 
+#---------------------------------------- 
 macros:
     string_param: 
     string_ref: $1, &$1_len, &$1_size

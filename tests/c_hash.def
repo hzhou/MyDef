@@ -1,21 +1,34 @@
-include: c/hash.def
+include: c/hash2.def
+include: c/string.def
 
 page: test, basic_frame
     $call test_hash
 
 subcode: test_hash
     $my hash H
+    H.$resize 80000
     
-    $(for:i in 1..500)
-	H{a$(i)}=$(i)
+    # $(for:i in 1..5000)
+    #        H{a$(i)}=$(i)
+    $local string s
+    $for i=0:5
+        s.$clear
+        s.$add "a", i
+        H{s}=i
+        
     H{34}=43
     H{"68"}=86
     H{hello}=12345
+    # $call hash_debug, H
+    &call str_hash_foreach, H
+	$print "%s => ${$(value)}", $(key)
+
     $print "  34: %d", H{34}
     $print "  68: %d", H{68}
-    $print "  a17: $H{a17}"
-    $print "  b17: $H{b17}"
-    $print "  hello: %d", H{hello}
-    
-    $if H{a18}
-	$print "Got a18"
+    $(if:0)
+        $print "  a17: $H{a17}"
+        $print "  b17: $H{b17}"
+        $print "  hello: %d", H{hello}
+        
+        $if H{a18}
+            $print "Got a18"
