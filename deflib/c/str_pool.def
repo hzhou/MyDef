@@ -1,0 +1,60 @@
+#---- String Pool, similar to Knuth's TeX implementation
+#---- currently being used by c/hash.def
+
+macros:
+    strpool: i_str, i_pool, n_str, n_pool, pn_str, pc_pool
+
+#-- * add $(strpool) to a structure
+#-- * always check & $call resize_str_pool_n
+#---------------------------------------- 
+subcode: resize_str_pool_n(var, size)
+    tn_avg_str_size=6
+    $if $(var)->i_str>0
+        tn_avg_str_size = $(var)->i_pool/$(var)->i_str + 1
+
+    $(var)->n_str = $(size)
+    $(var)->n_pool = tn_avg_str_size * $(var)->n_str
+    $(var)->pn_str = realloc($(var)->pn_str, $(var)->n_str * sizeof(int))
+    $(var)->pc_pool = realloc($(var)->pc_pool, $(var)->n_pool)
+
+    $(var)->pc_pool[$(var)->n_pool-1]=0
+
+    $if $(var)->i_str==0
+        $(var)->pn_str[0]=0
+
+#---------------------------------------- 
+subcode: addto_str_pool(var, str, len)
+    # assert $(var)->i_str + 2 <$(var)->n_str
+    $if $(var)->i_pool+$(len) >= $(var)->n_pool
+        $call resize_str_pool_c, $(var), $(len)
+    memcpy($(var)->pc_pool+$(var)->i_pool, $(str), $(len))
+    $(var)->i_str++
+    $(var)->i_pool+=$(len)
+    $(var)->pn_str[$(var)->i_str]=$(var)->i_pool
+    
+subcode: resize_str_pool_c(var, len)
+    tn_avg_str_size = $(var)->i_pool/$(var)->i_str + 1
+    $if tn_avg_str_size < $(len)
+        tn_avg_str_size = $(len)
+    $(var)->n_pool = tn_avg_str_size * $(var)->n_str
+    $(var)->pc_pool = realloc($(var)->pc_pool, $(var)->n_pool)
+
+#---------------------------------------- 
+subcode: get_str_pool(var, i)
+    $(export:s=($(var)->pc_pool+$(var)->pn_str[$(i)]))
+    $(export:strlen=($(var)->pn_str[$(i)+1]-$(var)->pn_str[$(i)]))
+
+#---------------------------------------- 
+subcode: each_str_pool(var)
+    $temp unsigned char * s, int l, c
+    $(set:strlen=$(l))
+    $for i=0:$(var)->i_str
+        $(s)=$(var)->pc_pool+$(var)->pn_str[i]
+        $(strlen) = $(var)->pn_str[i+1]-$(var)->pn_str[i]
+        $(c) = $(s)[$(strlen)]
+        $(s)[$(strlen)] = '\0'
+        BLOCK
+        $(s)[$(strlen)] = $(c)
+
+
+
