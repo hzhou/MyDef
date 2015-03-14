@@ -3,6 +3,10 @@ page: makemake
     module: perl
     type: pl
 
+    my $libdir=$ENV{HOME}. "/lib"
+    $if !-d $libdir
+        die " $libdir not found\n"
+
     my @cfiles=glob("out/*.c")
 
     my @targets
@@ -19,11 +23,10 @@ page: makemake
         print Out "\tar cr libmydef.a $objlist\n"
         print Out "\n";
         print Out "install: libmydef.a\n";
-        print Out "\tinstall -m 0644 libmydef.a \${HOME}/lib\n";
+        print Out "\tinstall -m 0644 libmydef.a $libdir/\n";
+        print Out "\tinstall -m 0644 libmydef.inc $libdir/MyDef/c/\n";
 
-    my $install_dir=$ENV{MYDEFLIB}
-    $install_dir=~s/:.*//
-    &call open_w, $install_dir/c/libmydef.inc
+    &call open_w, out/libmydef.inc
         $foreach $name in @decl_list
             print Out "F $name: $decl_list{$name}\n"
 

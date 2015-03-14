@@ -12,7 +12,10 @@ macros:
 
 subcode: libhash(int)
     $struct($(int)hash) $($(int)hash), void * p_val
-    $list f_$(int)hash_resize, f_$(int)hash_lookup, f_$(int)hash_lookup_left, f_$(int)hash_exist
+    $list f_$(int)hash_resize
+    $list f_$(int)hash_lookup
+    $list f_$(int)hash_lookup_left
+    $list f_$(int)hash_exist
 
 #---- init ------------------------------------ 
 subcode: int_hash_init(var, scope, @type)

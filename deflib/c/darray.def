@@ -1,12 +1,16 @@
 subcode:: _autoload
     $class darray
+    $include stdlib
 
 #--- dynamic array ----------------------------
 #    Consideration:: 
 # 	do not over worry about global name collision
 #       rather, work on how to get program detect name collisions
 
-#---------------------------------------- 
+subcode: libdarray
+    $list f_darray_expand
+
+#---- init ------------------------------------ 
 #-   $my darray P: int
 subcode: darray_init(var, scope, @type)
     $(if:$(type:list:n)=1)
@@ -62,7 +66,7 @@ subcode: darray_check(var)
 subcode: darray_expand(var)
     $get_pointer_type(type) $(var)
     $(var)=($(type) *)realloc($(var), $(var)_size*sizeof($(type)))
-    $call @assert, $(var)
+    # $call @assert, $(var)
 
 fncode: f_darray_expand(void * P, n_rec_size, pn_size)
     $return_type void *
@@ -71,6 +75,6 @@ fncode: f_darray_expand(void * P, n_rec_size, pn_size)
 	tn_temp=64
     (*pn_size)+=tn_temp
     P=realloc(P, (*pn_size)*n_rec_size)
-    $call @assert, P
+    # $call @assert, P
     return P
 

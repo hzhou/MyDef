@@ -5,6 +5,16 @@ macros:
     string_param: 
     string_ref: $1, &$1_len, &$1_size
 
+subcode: libstring
+    $list f_string_resize
+    $list f_string_append
+    $list f_string_append_float
+    $list f_string_append_char
+    $list f_string_append_hex
+    $list f_string_append_int
+    $list f_string_append_float
+
+#---- init ------------------------------------ 
 subcode: string_init(var, scope, @type)
     $include string
     $$(scope) char * $(var)=NULL
@@ -44,7 +54,7 @@ fncode: f_string_resize(s, pn_len, pn_size, n)
 	$if $(size)<n
 	    $(size)=n
 	    s=realloc(s, $(size))
-	    $call @assert, s
+	    # $call @assert, s
 	    memset(s+$(len), 0, $(size)-$(len))
 	$elif $(len)>n
 	    $(len)=n
@@ -249,8 +259,7 @@ subcode: string_expand(var, len, size, inc)
 	$while $(len)+$(inc)>$(n)
 	    $(n)=$(n)*5/3
 	$(var)=(char *)realloc($(var), $(n)+1)
-	$call @assert, $(var)
+	# $call @assert, $(var)
 	memset($(var)+$(size), 0, $(n)-$(size)+1)
 	$(size)=$(n)
-	
 

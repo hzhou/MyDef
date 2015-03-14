@@ -19,6 +19,7 @@ INSTALL
 
 1. MyDef currently is in perl. First setup a custome installation environment:
     PATH=$PATH:$HOME/bin
+    LIBRARY_PATH=$HOME/lib
     PERL5LIB=$HOME/lib/perl5
     MYDEFLIB=$HOME/lib/MyDef
     export PATH PERL5LIB MYDEFLIB
