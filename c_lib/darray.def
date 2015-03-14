@@ -1,0 +1,4 @@
+include: c/darray.def
+page: darray
+    subcode: main
+        $call libdarray
