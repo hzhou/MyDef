@@ -26,6 +26,16 @@ subcode: autolist_functions
 	$global %function_autolist
 	$function_autolist{$name}=1
 
+#---- auto_declare -----------------------------
+subcode: load_autodecl
+    my $lines=MyDef::parseutil::get_lines("c/libmydef.inc")
+    $foreach $l in @$lines
+        $if $l=~/F\s+(\w+):\s*(.*)/
+            $functions{$1}={declare=>$2, autodecl=>1}
+            $function_autolist{$1}=1
+
+
+#---- lexical parameter ------------------------------------ 
 subcode: parse_lexical
     my @tlist=split /,\s*/, $2
     my @params
@@ -43,7 +53,7 @@ subcode: parse_lexical
     $function_defaults{$name}="append:".join(', ', @segs)
     $l="\$parameter ". join(", ", @params)
 
-# ------------------------------------
+#------------------------------------
 subcode:: parsecode_func_other
     $elsif $func eq "function"
 	$call parse_function
@@ -77,7 +87,7 @@ subcode: add_list_function(f)
     $else
 	$list_function_hash{$(f)}++
 
-# #### -------------------------------
+# ##############################
 subcode: parsecode_post
     #---- NOOP POST_MAIN: called at end of parse or 
     #-      end of each parse group as in output_xs.def
@@ -91,6 +101,8 @@ subcode: parse_function_list_item(f)
     $if $lamda_functions{$funcname}
 	my $block=$lamda_functions{$funcname}
 	push @$out, @$block
+    $elif $functions{$funcname} && $functions{$funcname}->{autodecl}
+        push @function_declare_list, $funcname
     $else
 	my ($paramline, $codename)
 	$codename=$(f)

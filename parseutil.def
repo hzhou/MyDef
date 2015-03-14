@@ -361,48 +361,26 @@ subcode: process_page_macros
 	$page->{$k}=$v;
 
 #---------------------------------------- 
-subcode: support_subs
-    $sub expand_macro
-	my ($lref, $macros)=@_;
-	$while  $$lref=~/\$\(\w+\)/
-	    my @segs=split /(\$\(\w+\))/, $$lref;
-	    my $j=0;
-	    my $flag=0;
-	    $foreach my $s in @segs
-		$if $s=~/\$\((\w+)\)/
-		    my $t=$macros->{$1};
-		    $if $t eq $s
-			die "Looping macro $1 in \"$$lref\"!\n";
-		    $if $t
-			$segs[$j]=$t;
-			$flag++;
-		$j++;
-	    $if $flag
-		$$lref=join '', @segs;
-	    $else
-		last;
+fncode: expand_macro($lref, $macros)
+    $while  $$lref=~/\$\(\w+\)/
+        my @segs=split /(\$\(\w+\))/, $$lref;
+        my $j=0;
+        my $flag=0;
+        $foreach my $s in @segs
+            $if $s=~/\$\((\w+)\)/
+                my $t=$macros->{$1};
+                $if $t eq $s
+                    die "Looping macro $1 in \"$$lref\"!\n";
+                $if $t
+                    $segs[$j]=$t;
+                    $flag++;
+            $j++;
+        $if $flag
+            $$lref=join '', @segs;
+        $else
+            last;
 
-    $sub get_lines
-	my ($file)=@_;
-
-	my $filename="";
-	$if -f $file
-	    $filename=$file;
-	$if !$filename and $MyDef::var->{'include_path'}
-	    my @dirs=split /:/, $MyDef::var->{'include_path'};
-	    $foreach $dir in @dirs
-		$if -f "$dir/$file"
-		    $filename="$dir/$file";
-		    last;
-	$if !-f $filename
-	    warn "$file not found\n";
-	    warn "  search path: $MyDef::var->{'include_path'}\n"
-	#print STDERR "Parsing Definition File: $filename\n";
-	open In, $filename or die "Can't open $file.\n";
-	my @lines=<In>;
-	close In;
-	return \@lines;
-
+#---------------------------------------- 
 subcode: load_standard_includes
     my @standard_includes
     $if $MyDef::var->{'include'}
@@ -517,4 +495,24 @@ subcode: compile_perlcode
 	push @$pagelist, "perl-$defname"
 	$pages->{"perl-$defname"}=$page
 
+
+#---- utils ------------------------------------ 
+fncode: get_lines($file)
+    my $filename="";
+    $if -f $file
+        $filename=$file;
+    $if !$filename and $MyDef::var->{'include_path'}
+        my @dirs=split /:/, $MyDef::var->{'include_path'};
+        $foreach $dir in @dirs
+            $if -f "$dir/$file"
+                $filename="$dir/$file";
+                last;
+    $if !-f $filename
+        warn "$file not found\n";
+        warn "  search path: $MyDef::var->{'include_path'}\n"
+    #print STDERR "Parsing Definition File: $filename\n";
+    open In, $filename or die "Can't open $file.\n";
+    my @lines=<In>;
+    close In;
+    return \@lines;
 

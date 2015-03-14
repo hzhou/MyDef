@@ -117,6 +117,8 @@ subcode:: parsecode_func_other
             my $func = $cur_function
             $if $1 eq "return_type"
                 $cur_function->{ret_type}=$param;
+                $if $param=~/bool/
+                    $page->{use_bool}=1
                 return
             $elif $1 eq "parameter"
                 $call add_function_params

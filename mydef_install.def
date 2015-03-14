@@ -3,6 +3,7 @@ page: mydef_install
     output_dir: script
 
         my $install_dir=$ENV{MYDEFLIB}
+        $install_dir=~s/:.*//
         $if  !$install_dir
             die "Missing environment variable MYDEFLIB\n"
 

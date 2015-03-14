@@ -10,6 +10,10 @@ macros:
     strhash: $(hash_size), $(hash_key), $(strpool)
     inthash: $(hash_size), $(hash_key)
 
+subcode: libhash(int)
+    $struct($(int)hash) $($(int)hash), void * p_val
+    $list f_$(int)hash_resize, f_$(int)hash_lookup, f_$(int)hash_lookup_left, f_$(int)hash_exist
+
 #---- init ------------------------------------ 
 subcode: int_hash_init(var, scope, @type)
     $(set:hashtype=int)
@@ -23,11 +27,12 @@ subcode: str_hash_init(var, scope, @type)
 subcode: hash_init(var, scope, @type)
     $(if:hashtype=int)
         $(set:hash=$(inthash))
-        $struct(inthash) $(hash), void * p_val
     $(else)
         $(set:hashtype=str)
         $(set:hash=$(strhash))
-        $struct(strhash) $(hash), void * p_val
+
+    $(if:!use_libmydef)
+        $struct($(hashtype)hash) $(hash), void * p_val
 
     $call hash_value_type
     $$(scope) struct $(hashtype)hash_$(T) * $(var)
@@ -256,12 +261,12 @@ subcode: hash_lookup_left(type)
 fncode: f_strhash_exist(void* h, pc_key, int keylen)
     $return_type bool
     k=f_strhash_lookup(h, pc_key, keylen)
-    return (struct strhash *)h->p_exist[k]
+    return ((struct strhash *)h)->p_exist[k];
 
-fncode: f_inthash_exist(void* h, key)
+fncode: f_inthash_exist(void* h, int key)
     $return_type bool
     k=f_inthash_lookup(h, key)
-    return (struct inthash *)h->p_exist[k]
+    return ((struct inthash *)h)->p_exist[k];
 
 ########################################
 #---- exit ------------------------------------ 
