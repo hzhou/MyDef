@@ -22,6 +22,7 @@ subcode:: c_support_subs
 #------------------------------------------ 
 subcode: allocate_block(auto)
     $includes{"<stdlib.h>"}=1;
+    $includes{"<string.h>"}=1;
     $call allocate_dimension
     my @plist=split /,\s+/, $param2;
     $foreach $p in @plist

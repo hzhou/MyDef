@@ -16,7 +16,14 @@ subcode: open_r_line(file)
 
 #---------------------------------------- 
 subcode: stat_file(file)
-    $call fmt_filename, $(file)
+    $include <sys/stat.h>
+    $get_type(type) $(file) 
+    $(if:file~")
+        $(set:f=$(file))
+    $(elif:type=char *)
+        $(set:f=$(file))
+    $(else)
+        $call fmt_filename, $(file)
     $local struct stat fstat
     tn_ret=stat($(f), &fstat)
     $(export:exist=tn_ret==0)

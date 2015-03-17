@@ -78,8 +78,14 @@ subcode:: c_support_subs
 			$v.=$1
 			$v=check_expression($v)
 		    #- $print $var ---------
-		    push @arg_list, $v
-		    push @fmt_list, get_var_fmt($v, 1)
+                    my $var=find_var($v)
+                    $if $var->{strlen}
+                        push @fmt_list, "%.*s"
+                        push @arg_list, $var->{strlen}
+                        push @arg_list, $v
+                    $else
+                        push @fmt_list, get_var_fmt($v, 1)
+                        push @arg_list, $v
 		    &call if_lex, -
 			# print $var-follow ----
 		&call if_lex, \{(.*?)\}

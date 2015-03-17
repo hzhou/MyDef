@@ -124,7 +124,7 @@ fncode: expand_macro($lref)
         $if $t eq $$lref
             last
 
-fncode: get_macro($s)
+fncode: get_macro($s, $nowarn)
     $if $s=~/^((rep|perl|map)\b.*)/
         my $t=$1
         $if $t=~/^rep\[(.*?)\](\d+):(.*)/
@@ -209,6 +209,7 @@ fncode: get_macro($s)
             my $macros=$deflist->[$j]
             $if exists($macros->{$1})
                 return $macros->{$1}
-        warn "[$cur_file:$cur_line] Macro $1 not defined in $s\n"
+        $if !$nowarn
+            warn "[$cur_file:$cur_line] Macro $1 not defined in $s\n"
         return undef
 

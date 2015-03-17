@@ -102,12 +102,6 @@ subcode: check_expression_parse(l)
     #---- operator ----
     $elif $(l)=~/\G=~/gc
 	$call check_exp_regex
-    $elif $(l)=~/\G(=[=~]?)/gc
-	$if $1 eq "=~"
-	    $call check_exp_regex
-	$else
-	    $token=$1
-	    $type="operator"
     $elif $(l)=~/\G([=+\-\*\/%\^\&\|><\?,\.!~:]+)/gc
 	$token=$1
 	$type="operator"

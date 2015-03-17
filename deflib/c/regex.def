@@ -23,20 +23,37 @@ subcode: pcre_plugin_match(condition)
     #---------------------------------------- 
     $if $pattern
 	$pattern=~s/\\/\\\\/g
+        $pattern=~s/"/\\"/g
 	$cur_function->{regex_idx}++
 	my $idx=$cur_function->{regex_idx}
 	MyDef::compileutil::set_current_macro("re_var", $str)
-	MyDef::compileutil::call_sub("pcre_match_compile, re$idx, $pattern")
+	MyDef::compileutil::set_current_macro("re_pat", $pattern)
+
+        #-- process options
+        my $pos=0
+        $if $option=~/g/
+            func_add_var("int tn_pcre_pos=0")
+            $pos="tn_pcre_pos"
+        $if $option=~/i/
+            $option='PCRE_CASELESS'
+        $else
+            $option="0"
+	MyDef::compileutil::set_current_macro("re_opt", $option)
+
+	MyDef::compileutil::call_sub("pcre_match_compile, re$idx")
 	my $var=find_var($str)
 	my $strlen="strlen($str)"
 	$if $var and $var->{strlen}
 	    $strlen=$var->{strlen}
 	my $capsize=60
 	func_add_var("int pn_pcre_off[$capsize]")
+
 	$(if:condition=condition)
-	    $condition="pcre_exec(re$idx, NULL, $str, $strlen, 0, 0, pn_pcre_off, $capsize)>0"
+	    $condition="pcre_exec(re$idx, NULL, $str, $strlen, $pos, 0, pn_pcre_off, $capsize)>0"
+            $if $pos
+                $condition.=" && ($pos=pn_pcre_off[1])"
 	$(else)
-	    push @$out, "pcre_exec(re$idx, NULL, $str, $strlen, 0, 0, pn_pcre_off, $capsize);"
+	    push @$out, "pcre_exec(re$idx, NULL, $str, $strlen, $pos, 0, pn_pcre_off, $capsize);"
 	#---------------------------------------- 
 	$if defined $replace
 	    $if $var->{class} eq "string"
@@ -46,55 +63,41 @@ subcode: pcre_plugin_match(condition)
 		print "regex replacement not supported for non-strings\n"
 
 #--------------------------------------------
-subcode: pcre_match_compile(re, @pat)
+#-- compile $(re_pat)
+subcode: pcre_match_compile(re)
     $include pcre
     $uselib pcre
     $(block:fn_init)
 	$local pcre * $(re)
 	$set_var_attr $(re), exit=free
 	$local const char * pcre_err_msg, int pcre_err_pos
-	tn_pcre_opt=0
-	$(re)=pcre_compile("$(pat)", tn_pcre_opt, &pcre_err_msg, &pcre_err_pos, NULL) 
+	$(re)=pcre_compile("$(re_pat)", $(re_opt), &pcre_err_msg, &pcre_err_pos, NULL) 
 	$if !$(re)
-	    $print pcre_compile error: $(pat)
+	    $print pcre_compile error: $(re_pat)
 
 #=========================================================
 perlcode: pcre_plugin_capture
-    my $capture_type=MyDef::compileutil::get_macro("regex_capture_type")
-    $if $capture_type ne "size" and $capture_type ne "dup"
-	$capture_type="zero"
-
     $if $param=~/(.*?)\s*=>\s*(.*\d)/
 	my ($g1, $g2)=($1, $2)
 	my @names=split /,\s*/, $g1
 	my @indexes=split /,\s*/, $g2
 	$for $i=0:@names
 	    my $name=$names[$i]
-	    my $idx=$indexes[$i]
-	    MyDef::compileutil::call_sub("pcre_capture, $name, $idx, $capture_type")
+            my $i0=$indexes[$i]*2
+            my $i1=$i0+1
+	    MyDef::compileutil::call_sub("pcre_capture, $name, $i0, $i1")
     $else
 	my @names=split /,\s*/, $param
 	$for $i=0:@names
 	    my $name=$names[$i]
-	    my $idx=$i+1
-	    MyDef::compileutil::call_sub("pcre_capture, $name, $idx, $capture_type")
+            my $i0=($i+1)*2
+            my $i1=$i0+1
+	    MyDef::compileutil::call_sub("pcre_capture, $name, $i0, $i1")
 
 # --------------------------------------------
-subcode: pcre_capture(name, idx, type)
-    $(set:off=pn_pcre_off[$(idx)*2])
-    $(set:size=pn_pcre_off[$(idx)*2+1]-pn_pcre_off[$(idx)*2])
+subcode: pcre_capture(name, i0, i1)
+    $(set:off=pn_pcre_off[$(i0)])
+    $(set:size=pn_pcre_off[$(i1)]-pn_pcre_off[$(i0)])
     $my char * $(name)
-    $(if:type=zero)
-	$(name)=$(re_var)+$(off)
-	$(re_var)[pn_pcre_off[$(idx)*2+1]]='\0'
-	$set_var_attr $(name), strlen=$(size)
-    $(elif:type=size)
-	$(name)=$(re_var)+$(off)
-	$set_var_attr $(name), strlen=$(size)
-    $(elif:type=dup)
-	$(name)=(char *) malloc($(size)+1)
-	$(block:_post3)
-	    free($(name))
-	$if $(name)
-	    strncpy($(name), $(re_var)+$(off), $(size))
-	    $(name)[$(size)]='\0'
+    $(name)=$(re_var)+$(off)
+    $set_var_attr $(name), strlen=$(size)
