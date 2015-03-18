@@ -13,8 +13,7 @@ page: compileutil
     output_dir: lib/MyDef
     package: MyDef::compileutil
 
-    subcode: main
-	$call compile_main
+    $call compile_main
 
 subcode: compile_main
     $global $cur_file, $cur_line
@@ -71,7 +70,7 @@ subcode:: package_global
 
     # ---------------------------------------------------
     $global $deflist, %misc_vars
-    my $debug
+    $global $debug
 
 subcode: compile
     my $mode=$f_init->($page);

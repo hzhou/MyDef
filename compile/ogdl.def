@@ -30,8 +30,8 @@ subcode: ogdl_inherit
 			$if @$v
 			    unshift @{$cur_ogdl->{_list}}, @$v
 # ---------------------------
-subcode:: package_global
-    my $cur_ogdl
+subcode:: parseblock_init
+    $global $cur_ogdl
     my @ogdl_stack
     my @ogdl_path
     my $ogdl_path_index_base

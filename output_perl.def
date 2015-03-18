@@ -79,6 +79,7 @@ subcode: parsecode
     $if $l=~/^\s*\$(\w+)\s*(.*)$/
 	my $func=$1;
 	my $param=$2;
+        # TODO: think about $loopvar 
 	$if $func =~ /^global$/
 	    $call var_declare, global
 	$elif $func =~ /^my$/

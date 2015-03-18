@@ -1,6 +1,6 @@
-subcode:: package_global
-    my %list_list
-    my %list_hash
+subcode:: _autoload
+    $global %list_list
+    $global %list_hash
 
 subcode:: preproc_elifs
     $elif $preproc=~/^list_init:(\w+)/

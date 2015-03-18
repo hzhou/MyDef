@@ -1,39 +1,39 @@
 #---------------------------------------- 
 #- parseblock()
-subcode:: support_subs
-    $sub parseblock($code)
-	my $block=$code->{source}
-	$if !$block
-	    warn "parseblock: undefined block [$code]\n"
+fncode: parseblock($code)
+    my $block=$code->{source}
+    $if !$block
+        warn "parseblock: undefined block [$code]\n"
 
-	my $indent=0
-	$call parse_stack_push
+    $call @parseblock_init
 
-	my @last_line
-	my $context;
-	my $lindex=0;
+    my $indent=0
+    $call parse_stack_push
 
-	my $callback_output;
-	my @callback_stack; # &call
-	my $pending_mode_pop;
+    my @last_line
+    my $lindex=0;
 
-	$while $lindex<@$block
-	    my $l=$block->[$lindex];
-	    $if $debug eq "compile"
-		$call dump_line, compile
-	    $lindex++
-	    $cur_line++
+    my $callback_output;
+    my @callback_stack; # &call
+    my $pending_mode_pop;
 
-	    # -- such as DEBUG
-	    $call parse_catch_meta
-	    # -- such as indentation and BLOCK_n
-	    $call parse_filter_meta
+    $while $lindex<@$block
+        my $l=$block->[$lindex];
+        $if $debug eq "compile"
+            $call dump_line, compile
+        $lindex++
+        $cur_line++
 
-	    $if $cur_mode eq "PRINT"
-		$call parse_line
-	    $else
-		$call compile_line
-	$call parse_stack_pop
+        # -- such as DEBUG
+        $call parse_catch_meta
+        # -- such as indentation and BLOCK_n
+        $call parse_filter_meta
+
+        $if $cur_mode eq "PRINT"
+            $call parse_line
+        $else
+            $call compile_line
+    $call parse_stack_pop
 
 subcode: compile_line
     # -- handle preproc and out-of-switch
@@ -61,7 +61,6 @@ subcode: compile_line
 	    push @callback_block_stack, $block
     $else
 	NormalParse:
-	undef $context;
 	expand_macro(\$l);
 	$while 1
 	    # -- parse_line could return a new $l
@@ -89,13 +88,9 @@ subcode:: support_subs
 	$block_stack[-1]->{$key}=1
 
 ######## Parse Output Stacks ######################################
-subcode:: package_global
-    my $block_index=0
-    our @block_stack;    # maintain state for each parseblock
-
-    our $parse_line_count=0
-
 subcode: parse_stack_push
+    $global $block_index=0
+    $global @block_stack
     # ---- protect $out context
     $block_index++
     my $blk= {out=>$out, index=>$block_index, eindex=>$block_index, file=>$cur_file, line=>$cur_line, code=>$code}
@@ -184,6 +179,7 @@ subcode: parse_line
     my $callback_scope
 
     my $idx=$#$out+1;
+    $global $parse_line_count=0
     $parse_line_count++
     my $msg=$f_parse->($l);
     $if $msg
