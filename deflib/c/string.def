@@ -158,7 +158,7 @@ fncode: f_string_append_int(s, pn_len, pn_size, int num)
     $else
 	$if num<0
 	    *s2++='-'
-	    num=-num
+	    num=(-num)
 	$call itoa, num, 10
 	$for i=n:0
 	    *s2++=tpn_digits[i] + '0'
@@ -170,7 +170,7 @@ fncode: f_string_append_float(s, pn_len, pn_size, double fnum, n_digits)
     s2=s+(*pn_len)
     $if fnum<0
 	*s2++='-'
-	fnum=-fnum
+	fnum=(-fnum)
 
     $local int num
     num=(int)fnum
