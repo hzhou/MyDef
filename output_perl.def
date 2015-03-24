@@ -84,6 +84,9 @@ subcode: parsecode
 	    $call var_declare, global
 	$elif $func =~ /^my$/
 	    $call var_declare, my
+	$elif $func =~ /^loopvar$/
+            $call add_loop_var
+            return 0
         $elif $func =~ /^use$/
             $call dbl_push_list, uses, $param
             return 0
@@ -113,11 +116,26 @@ subcode: parsecode
     $elif $l=~/^NOOP POST_MAIN/
 	$call list_functions
 	return 0
+    $elif $l=~/^loop:/
+        $call define_loop_var
+        return 0
 
     $call check_termination
     push @$out, $l
 
     return 0;
+
+#---------------------------------------- 
+subcode: define_loop_var
+    $global $loop_idx
+    $loop_idx+=1
+    push @$out, "DUMP_STUB loop_$loop_idx"
+
+subcode: add_loop_var
+    my @tlist=MyDef::utils::proper_split($param)
+    my $block=MyDef::compileutil::get_named_block("loop_$loop_idx")
+    $foreach $v in @tlist
+        push @$block, "my $v;"
 
 #---------------------------------------- 
 subcode: for_i0_i1_step
