@@ -17,23 +17,27 @@ subcode: parse_preproc
                 @tlist=split /,\s*/, $vparam;
 
             my $subblock=grabblock($block, \$lindex);
-            $foreach my $t in @tlist
+            my $i=0
+            $foreach $t in @tlist
                 #-- new layer of macro context -------------
-                my $macro={$vname=>$t};
+                my $macro={$vname=>$t, "i"=>$i}
                 push @$deflist, $macro;
                 parseblock({source=>$subblock, name=>"\${for}"})
                 pop @$deflist;
+                $i++
         $elsif $preproc=~/^foreach:p/
             my $subblock=grabblock($block, \$lindex);
             my $plist=$deflist->[-1]->{plist}
             $if $plist
                 my @plist=MyDef::utils::proper_split($plist)
+                my $i=0
                 $foreach $p in @plist
                     #-- new layer of macro context -------------
-                    my $macro={"p"=>$p};
+                    my $macro={"p"=>$p, "i"=>$i}
                     push @$deflist, $macro;
                     parseblock({source=>$subblock, name=>"\${foreach}"})
                     pop @$deflist;
+                    $i++
             $else
                 warn "[$cur_file:$cur_line]\$(foreach:p) missing \$(plist)\n"
         $call @preproc_elifs
