@@ -106,7 +106,7 @@ subcode: parsecode
 	$elif $func eq "foreach"
 	    $call parsecode_foreach
 	$elif $func eq "sumcode"
-	    $if $param=~/^\((.*)\)\s+(.*)/
+	    $if $param=~/^\((.*?)\)\s+(.*)/
 		my $dimstr=$1
 		$param=$2
 		$call parsecode_sum_simple, perl

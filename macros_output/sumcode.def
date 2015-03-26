@@ -215,6 +215,7 @@ subcode: sumcode_var
 	    $call sumcode_idx, $ii, $i
 
 subcode: sumcode_idx(idx, i)
+    #-- get idx dimension based on var ----
     my ($dim, $inc)
     $if $var->{"dim$(i)"}
 	$dim=$var->{"dim$(i)"}
@@ -235,29 +236,41 @@ subcode: sumcode_idx(idx, i)
 #- sumcode simple
 #---------------------------------------- 
 subcode: sumcode_simple_parse
-    my @idxlist=('i','j','k','l')
-    my @dimlist=MyDef::utils::proper_split($dimstr)
-    my %dim_hash
-    $for $i=0:@dimlist
-	$dim_hash{$idxlist[$i]}=$dimlist[$i]
-
     my ($left, $right)
     $if $param=~/(.*?)\s*(?<![\+\-\*\/%&\|><=])=(?!=)\s*(.*)/
 	($left, $right)=($1, $2)
     $else
 	$left=$param
 
+    my @idxlist=('i','j','k','l')
+    my @dimlist=MyDef::utils::proper_split($dimstr)
+    my %dim_hash
     my (@left_idx, @right_idx)
-    $for $i=0:@dimlist
-	my $idx=$idxlist[$i]
-	$if $left=~/\b$idx\b/
-	    push @left_idx, $idx
+    $foreach $dim in @dimlist
+        my $ii=shift @idxlist
+	$dim_hash{$ii}=$dim
+
+	$if $left=~/\b$ii\b/
+	    push @left_idx, $ii
 	$else
-	    push @right_idx, $idx
+	    push @right_idx, $ii
 
-    $(for:left in left,right)
-	$$(left)=~s/\b([ijkl])\b/$(i)_\1/g
+    $call sumcode_simple_get_idx, left
+    $if $right
+        $call sumcode_simple_get_idx, right
 
+subcode: sumcode_simple_get_idx(left)
+    my @segs=split /(\[[ijkl,]*?\])/, $$(left)
+    $foreach $s in @segs
+	$if $s=~/^\[([ijkl,]*?)\]$/
+            #---- %k_hash ----
+            my @idxlist=split /,/, $1
+            $if @idxlist > 1
+                my $k=join('', @idxlist)
+                $k_hash{$k}=1
+                $s="[$(k)_$k\]"
+    $$(left)=join '', @segs
+    $$(left)=~s/\b([ijkl])\b/$(i)_\1/g
 
 subcode: sumcode_simple_generate
     my @code
