@@ -1,3 +1,9 @@
+macros:
+    link: <a href="$($1)">$1</a>
+    url: <a href="$1">$1</a>
+    a: <a href="$2">$1</a>
+    img: <img src="$1" />
+    code: <code>$1</code>
 
 ## Frames ---------------------------------------------------------
 htmlcode: basic_frame

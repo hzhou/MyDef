@@ -8,7 +8,6 @@ macros:
 subcode: libstring
     $list f_string_resize
     $list f_string_append
-    $list f_string_append_float
     $list f_string_append_char
     $list f_string_append_hex
     $list f_string_append_int
@@ -122,78 +121,78 @@ subcode: string_replace(var, i0, i1, @replace)
     $call string_append, temp_string
     
 #---------------------------------------- 
-fncode: f_string_append(s, pn_len, pn_size, char * src, int len)
-    $call string_expand, s, *pn_len, *pn_size, len
-    memcpy(s+*pn_len, src, len)
-    *pn_len+=len
+#-- all f_string function use this pattern
+subcode: f_string(l, @p)
+    $parameter s, pn_len, pn_size
+    $parameter $(p)
+    $call string_expand, s, *pn_len, *pn_size, $(l)
+    s2=s+(*pn_len)
+
+#---------------------------------------- 
+fncode: f_string_append
+    $call f_string, n_len, s_src, n_len
+    memcpy(s2, s_src, n_len)
+    *pn_len+=n_len
     return s
 
-fncode: f_string_append_char(s, pn_len, pn_size, c)
-    $call string_expand, s, *pn_len, *pn_size, 1
-    s[*pn_len]=c
+fncode: f_string_append_char
+    $call f_string, 1, c
+    *s2=c
     *pn_len+=1
     return s
 
-fncode: f_string_append_hex(s, pn_len, pn_size, c)
-    $call string_expand, s, *pn_len, *pn_size, 2
+fncode: f_string_append_hex
+    $call f_string, 2, c
     t_c=c>>4
     $if t_c<10
-	s[*pn_len]=t_c+'0'
+	*s2=t_c+'0'
     $else
-	s[*pn_len]=t_c-10+'a'
+	*s2=t_c-10+'a'
     t_c=c&0xf
+    s2++
     $if t_c<10
-	s[*pn_len+1]=t_c+'0'
+	*s2=t_c+'0'
     $else
-	s[*pn_len+1]=t_c-10+'a'
+	*s2=t_c-10+'a'
     *pn_len+=2
     return s
 
-fncode: f_string_append_int(s, pn_len, pn_size, int num)
+fncode: f_string_append_int
     #-- maximum uint_64 is 18446744073709551615 (20 digits)
-    $call string_expand, s, *pn_len, *pn_size, 30
-    s2=s+(*pn_len)
-    $if num==0
+    $call f_string, 30, n
+    $if n==0
 	*s2++='0'
     $else
-	$if num<0
-	    *s2++='-'
-	    num=(-num)
-	$call itoa, num, 10
-	$for i=n:0
-	    *s2++=tpn_digits[i] + '0'
+        $call get_sign, n
+	$call itoa, n, 10
+        $call itoa_copy
     *pn_len=s2-s
     return s
 
-fncode: f_string_append_float(s, pn_len, pn_size, double fnum, n_digits)
-    $call string_expand, s, *pn_len, *pn_size, 40
-    s2=s+(*pn_len)
-    $if fnum<0
-	*s2++='-'
-	fnum=(-fnum)
+fncode: f_string_append_float
+    $call f_string, 40, d, n_digits
+    $call get_sign, d
 
-    $local int num
-    num=(int)fnum
-    fnum-=num
+    n=(int)d
+    d-=n
 
-    $if 1.0-fnum<5e-7
-	num++
-	fnum=0.0
+    $if 1.0-d<5e-7
+	n++
+	d=0.0
 
-    $call itoa, num, 10
+    $call itoa, n, 10
     $call ftoa_get_precision
     $call ftoa_carryover_int
-    $for i=n:0
-	*s2++=tpn_digits[i] + '0'
-    $if fnum>f_eps && n_digits>0
+    $call itoa_copy
+    $if d>f_eps && n_digits>0
 	*s2++='.'
 	$for i=0:n_digits
-	    fnum *= 10
-	    num=(int)fnum
-	    fnum-=num
-	    s2[i]=num+'0'
-	    # $print "s2 $i ($fnum): %c", s2[i]
-	$if fnum>0.5
+	    d *= 10
+	    n=(int)d
+	    d-=n
+	    s2[i]=n+'0'
+	    # $print "s2 $i ($d): %c", s2[i]
+	$if d>0.5
 	    $call ftoa_carryover_float
 	$else
 	    $call ftoa_remove_zeros
@@ -204,35 +203,45 @@ fncode: f_string_append_float(s, pn_len, pn_size, double fnum, n_digits)
     return s
 
 #---------------------------------------- 
+subcode: get_sign(n)
+    $if $(n)<0
+        *s2++='-'
+        $(n)=(-$(n))
+
 subcode: itoa(n, base)
     $local tpn_digits[40]
-    $local n
     $if $(n)==0
 	tpn_digits[0]=0
-	n=1
+	i=1
     $else
-	n=0
+	i=0
 	$while $(n)>0
-	    tpn_digits[n++]=$(n) % $(base)
+	    tpn_digits[i++]=$(n) % $(base)
 	    $(n)/=$(base)
 
+subcode: itoa_copy
+    $while i>0
+        i--
+        *s2++=tpn_digits[i] + '0'
+
+#-------
 subcode: ftoa_get_precision
-    n_digits-=n
+    n_digits-=i
     $local double f_eps=0.5
-    $for i=0:n_digits
+    $for j=0:n_digits
 	f_eps/=10.0
 
 subcode: ftoa_carryover_int
-    $if 1.0-fnum<f_eps
-	$for i=0:n
-	    $if tpn_digits[i]<9
-		tpn_digits[i]++
+    $if 1.0-d<f_eps
+	$for j=0:i
+	    $if tpn_digits[j]<9
+		tpn_digits[j]++
 		break
 	    $else
-		tpn_digits[i]=0
-	$if i==n
-	    tpn_digits[i]=1
-	    n=i+1
+		tpn_digits[j]=0
+	$if j==i
+	    tpn_digits[j]=1
+	    i++
 
 subcode: ftoa_carryover_float
     $while i>0

@@ -18,6 +18,7 @@ subcode: parse_preproc
 
             my $subblock=grabblock($block, \$lindex);
             $foreach my $t in @tlist
+                #-- new layer of macro context -------------
                 my $macro={$vname=>$t};
                 push @$deflist, $macro;
                 parseblock({source=>$subblock, name=>"\${for}"})
@@ -28,6 +29,7 @@ subcode: parse_preproc
             $if $plist
                 my @plist=MyDef::utils::proper_split($plist)
                 $foreach $p in @plist
+                    #-- new layer of macro context -------------
                     my $macro={"p"=>$p};
                     push @$deflist, $macro;
                     parseblock({source=>$subblock, name=>"\${foreach}"})

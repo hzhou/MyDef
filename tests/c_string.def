@@ -11,8 +11,9 @@ subcode: test_string
     $my string a
     $my tn_a=123456
     $my tf_b=123.456
+    $my tf_c=0.0123456
     a.$clear
-    a.$add "a = ", tn_a, ", b = ", tf_b
+    a.$add "a = ", tn_a, ", b = ", tf_b, ", c = ", tf_c
     $print $a
 
     a.$clear
