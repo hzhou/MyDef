@@ -157,7 +157,7 @@ subcode: check_expression_push
 		    $stack[-1]="$stack[-1] "
 		$elif $stack[-1]=~/^(eq|ne|lt|le|gt|ge)$/
 		    $call check_exp_string_op
-		$elif $stack[-1]=~/^\S+$/
+		$elif $stack[-1]=~/^\S+$/ && $stack[-1] ne "::"
 		    $stack[-1]=" $stack[-1] "
 		$call exp_push, $token, $type
 	$elif $types[-1] =~/^atom/

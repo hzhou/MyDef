@@ -36,6 +36,7 @@ subcode: parsecode_sum_common
 #---------------------------------------- 
 subcode: sumcode_init_style(style)
     $(if:style=c)
+        my $type="double"
 	$(export:mytype=\$my $type)
 	$(export:my=\$my int)
 	$(mexport:sum=sum,i=i,k=k)
@@ -61,7 +62,6 @@ subcode: sumcode_parse
     $else
 	$left=$param
 
-    my $type
     my (%k_hash, @k_list)
 
     my %var_hash
@@ -155,6 +155,15 @@ subcode: sumcode_simple_parse
     $call sumcode_simple_get_idx, left
     $if $right
         $call sumcode_simple_get_idx, right
+    $(if:style=c)
+        $if @right_idx and !$type
+            $if $right=~/^(\w+)/
+                my $var=find_var($1)
+                $if $right=~/^\w+\[/
+                    $type=pointer_type($var->{type})
+                $else
+                    $type=$var->{type}
+
 
 subcode: sumcode_simple_get_idx(left)
     my @segs=split /(\[[ijkl,]*?\])/, $$(left)

@@ -41,6 +41,7 @@ subcode: compile_line
         # skip
     $elif $l=~/^\$\((.*)\)/
 	my $preproc=$1
+        my $tail=$';
 	$call parse_preproc
     $elif $l=~/^\$:\s+(.*)/
 	# Literal by-pass

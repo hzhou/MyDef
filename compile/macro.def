@@ -2,7 +2,14 @@
 # -------------------------------------------------------
 #  $deflist=[$MyDef::def, $MyDef::def->{macros}, $page];
 
+subcode: strip_quote(v)
+    $if $(v)=~/^"(.*)"$/
+        $(v)=$1
+
 subcode:: preproc_elifs
+    $elif $preproc=~/^set:\s*(\w+)$/
+        my $name=$1
+        $call set_macro_join
     $elif $preproc=~/^set:\s*(.*)/
 	# immediate macros
 	set_macro($deflist->[-1], $1)
@@ -59,6 +66,34 @@ subcode:: preproc_elifs
 	$for $i=1:$n+1
 	    $deflist->[-1]->{"p_$i"}=$tlist[$i-1]
 
+#---------------------------------------- 
+subcode: set_macro_join
+    $if !$tail
+        $deflist->[-1]->{$name}=""
+    $else
+        $tail=~s/^\s+//
+        my @tlist=MyDef::utils::proper_split($tail)
+        my $verb=shift @tlist
+        $if $verb eq "join"
+            my $sep=shift @tlist
+            my $pat=shift @tlist
+            $map strip_quote, $sep, $pat
+            my $subblock=grabblock($block, \$lindex)
+            my @tlist2
+            $call set_macro_join_pattern, @tlist
+            $foreach $t in @$subblock
+                $if $t!~/^SOURCE:/
+                    my @tlist3=MyDef::utils::proper_split($t)
+                    $call set_macro_join_pattern, @tlist3
+            $deflist->[-1]->{$name}= join($sep, @tlist2)
+            
+subcode: set_macro_join_pattern(tlist)
+    $foreach $t2 in $(tlist)
+        my $t3=$pat
+        $t3=~s/\*/$t2/g
+        push @tlist2, $t3
+
+#---------------------------------------- 
 subcode:: support_subs
     $sub calc_op($v, $op, $d)
 	$if $op eq "."
