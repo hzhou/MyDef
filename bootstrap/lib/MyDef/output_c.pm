@@ -725,7 +725,7 @@ sub sumcode_generate {
             $pos--;
             $i--;
             while($pos>=0 and $i>=0 and substr($k, $pos, 1) eq $allidx[$i]){
-                if(index(substr($k, $pos+1), $allidx[$i])>=0 or index(substr($k, 0, $pos-1), $allidx[$i])>=0){
+                if(index(substr($k, $pos+1), $allidx[$i])>=0 or ($pos>0 && index(substr($k, 0, $pos), $allidx[$i])>=0)){
                     $k_calc_hash{"$k-$allidx[$i]"}=1;
                     next EACH_K;
                 }

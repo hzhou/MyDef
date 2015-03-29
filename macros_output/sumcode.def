@@ -132,6 +132,7 @@ subcode: sumcode_idx
 #- sumcode simple
 #---------------------------------------- 
 subcode: sumcode_simple_parse
+    # $print sumcode_simple_parse: $param
     my ($left, $right)
     $if $param=~/(.*?)\s*(?<![\+\-\*\/%&\|><=])=(?!=)\s*(.*)/
 	($left, $right)=($1, $2)
@@ -250,12 +251,14 @@ subcode: sumcode_process_k
     my %k_init_hash
     #-- prepare above three hashes ----
     my @allidx=(@$left_idx, @$right_idx)
+    # print "left_idx: @$left_idx, right_idx: @$right_idx\n"
     EACH_K:
     $foreach $k in @$klist
         $call find_inner_idx
         $(set:i=$allidx[$i])
 	$if index(substr($k, $pos+1), $(i))>=0
 	    #--- repeated index such as k_ii
+            # $print k_calc_hash $k - $(i): repeated index
 	    $k_calc_hash{"$k-$(i)"}=1
 	    next EACH_K
 	$else
@@ -264,13 +267,15 @@ subcode: sumcode_process_k
 	    $pos--
 	    $i--
 	    $while $pos>=0 and $i>=0 and substr($k, $pos, 1) eq $(i)
-		$if index(substr($k, $pos+1), $(i))>=0 or index(substr($k, 0, $pos-1), $(i))>=0
+		$if index(substr($k, $pos+1), $(i))>=0 or ($pos>0 && index(substr($k, 0, $pos), $(i))>=0)
+                    # $print k_calc_hash $k - $pos - $(i): repeated index
 		    $k_calc_hash{"$k-$(i)"}=1
 		    next EACH_K
                 $pos--
                 $i--
 
 	    $if $i>=0
+                # $print k_calc_hash $k - $i - $(i)
 		$k_calc_hash{"$k-$(i)"}=1
 	    $else
 		$k_init_hash{$k}=1
@@ -296,6 +301,7 @@ subcode: sumcode_set_each_k
     $foreach $k in @$klist
         my $kvar=$h->{"$k-var"}
 	$if $k_calc_hash{"$k-$i"}
+            # $print "    k_calc_hash: $k - $i"
 	    $call sumcode_calc_k
 
 subcode: sumcode_inc_each_k
