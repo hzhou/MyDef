@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 use strict;
 my $install_dir=$ENV{MYDEFLIB};
+    $install_dir=~s/:.*//;
     if(!$install_dir){
         die "Missing environment variable MYDEFLIB\n";
     }

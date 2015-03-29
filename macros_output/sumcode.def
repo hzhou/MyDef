@@ -252,35 +252,37 @@ subcode: sumcode_process_k
     my @allidx=(@$left_idx, @$right_idx)
     EACH_K:
     $foreach $k in @$klist
-	my $pos
-	my $i=$#allidx
-	$while $i>=0
-	    $pos=index($k, $allidx[$i])
-	    $if $pos>=0
-		break
-	    $i--
-	$if index(substr($k, $pos+1), $allidx[$i])>=0
+        $call find_inner_idx
+        $(set:i=$allidx[$i])
+	$if index(substr($k, $pos+1), $(i))>=0
 	    #--- repeated index such as k_ii
-	    $k_calc_hash{"$k-$allidx[$i]"}=1
+	    $k_calc_hash{"$k-$(i)"}=1
 	    next EACH_K
 	$else
-	    $k_inc_hash{"$k-$allidx[$i]"}=1
+	    $k_inc_hash{"$k-$(i)"}=1
 
 	    $pos--
 	    $i--
-	    $while $pos>=0 and $i>=0 and substr($k, $pos, 1) eq $allidx[$i]
-		$if index(substr($k, $pos+1), $allidx[$i])>=0 or index(substr($k, 0, $pos-1), $allidx[$i])>=0
-		    $k_calc_hash{"$k-$allidx[$i]"}=1
+	    $while $pos>=0 and $i>=0 and substr($k, $pos, 1) eq $(i)
+		$if index(substr($k, $pos+1), $(i))>=0 or index(substr($k, 0, $pos-1), $(i))>=0
+		    $k_calc_hash{"$k-$(i)"}=1
 		    next EACH_K
-		$else
-		    $pos--
-		    $i--
+                $pos--
+                $i--
 
 	    $if $i>=0
-		$k_calc_hash{"$k-$allidx[$i]"}=1
+		$k_calc_hash{"$k-$(i)"}=1
 	    $else
 		$k_init_hash{$k}=1
 
+subcode: find_inner_idx
+    my $pos
+    my $i=$#allidx
+    $while $i>=0
+        $pos=index($k, $allidx[$i])
+        $if $pos>=0
+            break
+        $i--
 #---------------------------------------- 
 subcode: sumcode_init_each_k
     $foreach $k in @$klist
@@ -307,8 +309,14 @@ subcode: sumcode_inc_k
     $if substr($k, -1, 1) eq $i
 	push @code, "$kvar++"
     $else
-	my $dim=$h->{"$i-dim"}
-	push @code, "$kvar += $dim"
+        my @tlist
+        my $pos=index($k, $i)
+        $pos++
+        $while $pos<length($k); $pos++
+            my $j=substr($k, $pos, 1)
+            my $dim=$h->{"$j-dim"}
+            push @tlist, $dim
+	push @code, "$kvar += ".join("*", @tlist)
 
 subcode: sumcode_calc_k
     $if !$loop_k_hash{$k}

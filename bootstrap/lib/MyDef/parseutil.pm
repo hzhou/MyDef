@@ -329,6 +329,59 @@ sub import_file {
     }
 }
 
+sub expand_macro {
+    my ($lref, $macros) = @_;
+    while($$lref=~/\$\(\w+\)/){
+        my @segs=split /(\$\(\w+\))/, $$lref;
+        my $j=0;
+        my $flag=0;
+        foreach my $s (@segs){
+            if($s=~/\$\((\w+)\)/){
+                my $t=$macros->{$1};
+                if($t eq $s){
+                    die "Looping macro $1 in \"$$lref\"!\n";
+                }
+                if($t){
+                    $segs[$j]=$t;
+                    $flag++;
+                }
+            }
+            $j++;
+        }
+        if($flag){
+            $$lref=join '', @segs;
+        }
+        else{
+            last;
+        }
+    }
+}
+
+sub get_lines {
+    my ($file) = @_;
+    my $filename="";
+    if(-f $file){
+        $filename=$file;
+    }
+    if(!$filename and $MyDef::var->{'include_path'}){
+        my @dirs=split /:/, $MyDef::var->{'include_path'};
+        foreach my $dir (@dirs){
+            if(-f "$dir/$file"){
+                $filename="$dir/$file";
+                last;
+            }
+        }
+    }
+    if(!-f $filename){
+        warn "$file not found\n";
+        warn "  search path: $MyDef::var->{'include_path'}\n";
+    }
+    open In, $filename or die "Can't open $file.\n";
+    my @lines=<In>;
+    close In;
+    return \@lines;
+}
+
 sub get_indent {
     my ($s) = @_;
     my $i=get_indent_spaces($s);
@@ -364,57 +417,6 @@ sub get_indent_spaces {
     return $count;
 }
 
-sub expand_macro {
-    my ($lref, $macros)=@_;
-    while($$lref=~/\$\(\w+\)/){
-        my @segs=split /(\$\(\w+\))/, $$lref;
-        my $j=0;
-        my $flag=0;
-        foreach my $s (@segs){
-            if($s=~/\$\((\w+)\)/){
-                my $t=$macros->{$1};
-                if($t eq $s){
-                    die "Looping macro $1 in \"$$lref\"!\n";
-                }
-                if($t){
-                    $segs[$j]=$t;
-                    $flag++;
-                }
-            }
-            $j++;
-        }
-        if($flag){
-            $$lref=join '', @segs;
-        }
-        else{
-            last;
-        }
-    }
-}
-sub get_lines {
-    my ($file)=@_;
-    my $filename="";
-    if(-f $file){
-        $filename=$file;
-    }
-    if(!$filename and $MyDef::var->{'include_path'}){
-        my @dirs=split /:/, $MyDef::var->{'include_path'};
-        foreach my $dir (@dirs){
-            if(-f "$dir/$file"){
-                $filename="$dir/$file";
-                last;
-            }
-        }
-    }
-    if(!-f $filename){
-        warn "$file not found\n";
-        warn "  search path: $MyDef::var->{'include_path'}\n";
-    }
-    open In, $filename or die "Can't open $file.\n";
-    my @lines=<In>;
-    close In;
-    return \@lines;
-}
 sub post_foreachfile {
     my $def=shift;
     my $pages=$def->{pages};

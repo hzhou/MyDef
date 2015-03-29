@@ -62,6 +62,9 @@ subcode: js_parse_for
 	    $else
 		$stepclause="var $var=$i0;$var<$i1;$var++";
 	return single_block("for($stepclause){", "}")
+    $elif $param=~/^(\w+)$/
+        $call set_macro, "item", "$1\[i]"
+        return single_block("for(i=0;i<$1.length;i++){", "}")
     $else
 	return single_block("$func($param){", "}")
 

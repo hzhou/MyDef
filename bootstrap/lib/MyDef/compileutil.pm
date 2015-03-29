@@ -1,5 +1,7 @@
 use strict;
 package MyDef::compileutil;
+our %list_list;
+our %list_hash;
 our $cur_file;
 our $cur_line;
 our $f_init;
@@ -10,27 +12,637 @@ our $f_dumpout;
 our $interface_type;
 our $deflist;
 our %misc_vars;
+our $debug;
 our $out;
 our @output_list;
 our %named_blocks;
 our @callback_block_stack;
 our %eval_sub_cache;
 our %eval_sub_error;
-our %index_name_hash;
 our @mode_stack=("sub");
 our $cur_mode;
 our $in_autoload;
+our $cur_ogdl;
+our $block_index=0;
+our @block_stack;
+our $parse_line_count=0;
+our %index_name_hash;
+
+sub parseblock {
+    my ($code) = @_;
+    my $block=$code->{source};
+    if(!$block){
+        warn "parseblock: undefined block [$code]\n";
+    }
+    my $switch_context;
+    my @ogdl_stack;
+    my @ogdl_path;
+    my $ogdl_path_index_base;
+    my %ogdl_path_index;
+    my $indent=0;
+    $block_index++;
+    my $blk= {out=>$out, index=>$block_index, eindex=>$block_index, file=>$cur_file, line=>$cur_line, code=>$code};
+    push @block_stack, $blk;
+    if($code->{"scope"}){
+        my $idx=$block_index;
+        my $scope=$code->{scope};
+        $blk->{scope}=$scope;
+        $f_parse->("SUBBLOCK BEGIN $idx $scope");
+        push @$out, "DUMP_STUB block$idx\_pre";
+    }
+    my @last_line;
+    my $lindex=0;
+    my $callback_output;
+    my @callback_stack;
+    my $pending_mode_pop;
+    while($lindex<@$block){
+        my $l=$block->[$lindex];
+        if($debug eq "compile"){
+            my $yellow="\033[33;1m";
+            my $normal="\033[0m";
+            print "$yellow compile: [$l]$normal\n";
+        }
+        $lindex++;
+        $cur_line++;
+        if($l =~ /^DEBUG (\w+)/){
+            if($1 eq "OFF"){
+                if($debug){
+                    if(!$block_stack[-1]->{debug}){
+                        $block_stack[-1]->{debug_off}=$debug;
+                    }
+                    $debug=0;
+                    $f_parse->("DEBUG OFF");
+                }
+            }
+            elsif($1 eq "MACRO"){
+                for(my $i=0;$i<=$#$deflist;$i++){
+                    print "DUMP DEFLIST $i:\n";
+                    my $h=$deflist->[$i];
+                    foreach my $k (keys(%$h)){
+                        print "    $k: $h->{$k}\n";
+                    }
+                }
+            }
+            else{
+                $debug=$1;
+                $block_stack[-1]->{debug}=$debug;
+                $f_parse->("DEBUG $debug");
+            }
+            next;
+        }
+        elsif($l =~ /^BLOCK RELEASE/i){
+            $block_stack[-1]->{eindex}=$block_stack[-2]->{eindex};
+            next;
+        }
+        elsif($l =~/^SOURCE: (.*) - (\d+)$/){
+            $cur_file=$1;
+            $cur_line=$2;
+            next;
+        }
+        if($l eq "SOURCE_INDENT"){
+            $indent++;
+        }
+        elsif($l eq "SOURCE_DEDENT"){
+            $indent-- if $indent>0;
+        }
+        if($cur_mode eq "PRINT"){
+            undef $callback_output;
+            my $callback_scope;
+            my $idx=$#$out+1;
+            $parse_line_count++;
+            my $msg=$f_parse->($l);
+            if($msg){
+                if(ref($msg) eq "ARRAY"){
+                    $callback_output=$msg;
+                    $idx=0;
+                }
+                elsif($msg=~/^NEWBLOCK(.*)/){
+                    $callback_output=$out;
+                    if($1=~/^-(.*)/){
+                        $callback_scope=$1;
+                    }
+                }
+                elsif($msg=~/^SKIPBLOCK(.*)/){
+                    my $blk=grabblock($block, \$lindex);
+                    if($1=~/^-(\w+)/){
+                        $named_blocks{$1}=$blk;
+                    }
+                    last;
+                }
+                elsif($msg=~/^SET:(\w+)=(.*)/){
+                    $deflist->[-1]->{$1}=$2;
+                    last;
+                }
+                elsif($msg=~/^PARSE:(.*)/){
+                    $l=$1;
+                    next;
+                }
+                if($callback_output){
+                    my $n=new_output();
+                    my $subblock=grabblock($block, \$lindex);
+                    my $temp=$out;
+                    set_output($output_list[$n]);
+                    parseblock({source=>$subblock, name=>"BLOCK_$n", scope=>$callback_scope});
+                    set_output($temp);
+                    my $n_end_parse=0;
+                    for(my $i=$idx; $i <$#$callback_output+1; $i++){
+                        if($callback_output->[$i]=~/^BLOCK$/){
+                            $callback_output->[$i]="BLOCK_$n";
+                        }
+                        elsif($callback_output->[$i]=~/^PARSE:(.*)/){
+                            $n_end_parse++;
+                            $f_parse->($1);
+                            $callback_output->[$i]="NOOP";
+                        }
+                    }
+                    if($n_end_parse==0){
+                        my $temp=$out;
+                        set_output($output_list[$n]);
+                        $f_parse->("NOOP");
+                        set_output($temp);
+                    }
+                }
+            }
+        }
+        else{
+            if(!$l){
+            }
+            elsif($l=~/^\$\((.*)\)/){
+                my $preproc=$1;
+                my $tail=$';
+                expand_macro(\$preproc);
+                my $flag_done;
+                $flag_done=1;
+                if($preproc=~/^if:\s*(.*)/){
+                    my $subblock=grabblock($block, \$lindex);
+                    if(testcondition($1)){
+                        parseblock({source=>$subblock, name=>"\${if:}"});
+                        $switch_context="off";
+                    }
+                    else{
+                        $switch_context="on";
+                    }
+                    if($debug eq "preproc"){
+                        print "parse_preproc_if: ($1) -> $switch_context\n";
+                    }
+                }
+                elsif($preproc=~/^els?e?if:\s*(.*)/){
+                    my $subblock=grabblock($block, \$lindex);
+                    if($switch_context eq "on"){
+                        if(testcondition($1)){
+                            parseblock({source=>$subblock, name=>"\${if:}"});
+                            $switch_context="off";
+                        }
+                        else{
+                            $switch_context="on";
+                        }
+                        if($debug eq "preproc"){
+                            print "parse_preproc_if: ($1) -> $switch_context\n";
+                        }
+                    }
+                }
+                elsif($preproc=~/^else/){
+                    my $subblock=grabblock($block, \$lindex);
+                    if($switch_context eq "on"){
+                        parseblock({source=>$subblock, name=>"\${else}"});
+                        undef $switch_context;
+                    }
+                }
+                elsif($preproc=~/^ifeach:\s*(.*)/){
+                    my $subblock=grabblock($block, \$lindex);
+                    my $cond=$1;
+                    my $plist=$deflist->[-1]->{plist};
+                    undef $switch_context;
+                    my $cond_var="p";
+                    if($cond=~/^(\w+)/){
+                        $cond_var=$1;
+                    }
+                    if($plist){
+                        my @plist=split /,\s*/, $plist;
+                        foreach my $p (@plist){
+                            my $macro={$cond_var=>$p};
+                            push @$deflist, $macro;
+                            if(testcondition($cond)){
+                                parseblock({source=>$subblock, name=>"\${ifeach:}"});
+                                $switch_context="off";
+                            }
+                            pop @$deflist;
+                        }
+                    }
+                    if(!$switch_context){
+                        $switch_context="on";
+                    }
+                }
+                else{
+                    $flag_done=0;
+                    undef $switch_context;
+                }
+                if(!$flag_done){
+                    undef $switch_context;
+                    if($preproc=~/^for:\s*(\S+)\s+in\s+(.*)/){
+                        my $vname=$1;
+                        my $vparam=$2;
+                        my @tlist;
+                        if($vparam=~/(\d+)\.\.(\d+)/){
+                            for(my $i=$1;$i<=$2;$i++){
+                                push @tlist, $i;
+                            }
+                        }
+                        else{
+                            @tlist=split /,\s*/, $vparam;
+                        }
+                        my $subblock=grabblock($block, \$lindex);
+                        my $i=0;
+                        foreach my $t (@tlist){
+                            my $macro={$vname=>$t, "i"=>$i};
+                            push @$deflist, $macro;
+                            parseblock({source=>$subblock, name=>"\${for}"});
+                            pop @$deflist;
+                            $i++;
+                        }
+                    }
+                    elsif($preproc=~/^foreach:p/){
+                        my $subblock=grabblock($block, \$lindex);
+                        my $plist=$deflist->[-1]->{plist};
+                        if($plist){
+                            my @plist=MyDef::utils::proper_split($plist);
+                            my $i=0;
+                            foreach my $p (@plist){
+                                my $macro={"p"=>$p, "i"=>$i};
+                                push @$deflist, $macro;
+                                parseblock({source=>$subblock, name=>"\${foreach}"});
+                                pop @$deflist;
+                                $i++;
+                            }
+                        }
+                        else{
+                            warn "[$cur_file:$cur_line]\$(foreach:p) missing \$(plist)\n";
+                        }
+                    }
+                    elsif($preproc=~/^set:\s*(\w+)$/){
+                        my $name=$1;
+                        if(!$tail){
+                            $deflist->[-1]->{$name}="";
+                        }
+                        else{
+                            $tail=~s/^\s+//;
+                            my @tlist=MyDef::utils::proper_split($tail);
+                            my $verb=shift @tlist;
+                            if($verb eq "join"){
+                                my $sep=shift @tlist;
+                                my $pat=shift @tlist;
+                                if($sep=~/^"(.*)"$/){
+                                    $sep=$1;
+                                }
+                                if($pat=~/^"(.*)"$/){
+                                    $pat=$1;
+                                }
+                                my $subblock=grabblock($block, \$lindex);
+                                my @tlist2;
+                                foreach my $t2 (@tlist){
+                                    my $t3=$pat;
+                                    $t3=~s/\*/$t2/g;
+                                    push @tlist2, $t3;
+                                }
+                                foreach my $t (@$subblock){
+                                    if($t!~/^SOURCE:/){
+                                        my @tlist3=MyDef::utils::proper_split($t);
+                                        foreach my $t2 (@tlist3){
+                                            my $t3=$pat;
+                                            $t3=~s/\*/$t2/g;
+                                            push @tlist2, $t3;
+                                        }
+                                    }
+                                }
+                                $deflist->[-1]->{$name}= join($sep, @tlist2);
+                            }
+                        }
+                    }
+                    elsif($preproc=~/^set:\s*(.*)/){
+                        set_macro($deflist->[-1], $1);
+                    }
+                    elsif($preproc=~/^set([012]):\s*(.*)/){
+                        set_macro($deflist->[$1], $2);
+                    }
+                    elsif($preproc=~/^setmacro:\s*(.*)/){
+                        set_macro($deflist->[2], $1);
+                    }
+                    elsif($preproc=~/autoinc:\s*(\w+)/){
+                        my $page=$deflist->[2];
+                        $page->{$1}++;
+                    }
+                    elsif($preproc=~/^export:\s*(.*)/){
+                        my $t=$1;
+                        if($t=~/^\w+,/){
+                            my @plist=split /,\s*/, $t;
+                            foreach my $p (@plist){
+                                set_macro($deflist->[-2], $p);
+                            }
+                        }
+                        else{
+                            set_macro($deflist->[-2], $t);
+                        }
+                    }
+                    elsif($preproc=~/^mset:\s*(.*)/){
+                        my @plist=split /,\s*/, $1;
+                        foreach my $p (@plist){
+                            set_macro($deflist->[-1], $p);
+                        }
+                    }
+                    elsif($preproc=~/^mexport:\s*(.*)/){
+                        my @plist=split /,\s*/, $1;
+                        foreach my $p (@plist){
+                            set_macro($deflist->[-2], $p);
+                        }
+                    }
+                    elsif($preproc=~/^reset:\s*(\w+)([\.\+\-])?=(.*)/){
+                        my ($v, $op, $d)=($1, $2, $3, $4);
+                        expand_macro(\$d);
+                        my $i=$#$deflist;
+                        while($i>0 and !defined $deflist->[$i]->{$v}){
+                            $i--;
+                        }
+                        if($i==0){
+                            $i=-1;
+                        }
+                        if($op){
+                            $deflist->[$i]->{$v}=calc_op($deflist->[$i]->{$v}, $op, $d);
+                        }
+                        else{
+                            $deflist->[$i]->{$v}=$d;
+                        }
+                    }
+                    elsif($preproc=~/^unset:\s*(\w+)/){
+                        foreach my $m (@$deflist){
+                            delete $m->{$1};
+                        }
+                    }
+                    elsif($preproc=~/^eval:\s*(\w+)=(.*)/){
+                        my ($t1,$t2)=($1,$2);
+                        expand_macro(\$t2);
+                        $deflist->[-1]->{$t1}=eval($t2);
+                    }
+                    elsif($preproc=~/^split:\s*(\w+)/){
+                        my $p="\$($1)";
+                        expand_macro(\$p);
+                        my @tlist=MyDef::utils::proper_split($p);
+                        my $n=@tlist;
+                        $deflist->[-1]->{p_n}=$n;
+                        for(my $i=1; $i <$n+1; $i++){
+                            $deflist->[-1]->{"p_$i"}=$tlist[$i-1];
+                        }
+                    }
+                    elsif($preproc=~/^ogdl_/){
+                        expand_macro(\$preproc);
+                        if($preproc=~/^ogdl_load:\s*(\w+)/){
+                            get_ogdl($1);
+                        }
+                        elsif($preproc=~/^ogdl_each/){
+                            my $subblock=grabblock($block, \$lindex);
+                            my $itemlist=$cur_ogdl->{_list};
+                            push @ogdl_stack, $cur_ogdl;
+                            foreach my $item (@$itemlist){
+                                $cur_ogdl=$item;
+                                parseblock({source=>$subblock, name=>"\${ogdl_each}"});
+                            }
+                            $cur_ogdl=pop @ogdl_stack;
+                        }
+                        elsif($preproc=~/^ogdl_set_path:(\d+)=(.*)/){
+                            $ogdl_path[$1]=$2;
+                        }
+                        elsif($preproc=~/^ogdl_path_init/){
+                            $ogdl_path_index_base=0;
+                        }
+                        elsif($preproc=~/^ogdl_path:(\d+)/){
+                            splice @ogdl_path, $1+1;
+                            my $path=join('/', @ogdl_path);
+                            $ogdl_path_index{$path}=$ogdl_path_index_base;
+                            $deflist->[-1]->{path}=$path;
+                            $deflist->[-1]->{path_index}=$ogdl_path_index_base;
+                            $ogdl_path_index_base++;
+                        }
+                        elsif($preproc=~/^ogdl_get:(\w+)=(.*)/){
+                            my $key=$1;
+                            my $val;
+                            my @klist=split /,\s*/, $2;
+                            foreach my $k (@klist){
+                                if(defined $cur_ogdl->{$k}){
+                                    $val=$cur_ogdl->{$k};
+                                }
+                                else{
+                                    $val=$k;
+                                }
+                            }
+                            $deflist->[-1]->{$key}=$val;
+                        }
+                        elsif($preproc=~/^ogdl_get:(\w+)/){
+                            $deflist->[-1]->{$1}=$cur_ogdl->{$1};
+                        }
+                    }
+                    elsif($preproc=~/^list_init:(\w+)/){
+                        $list_list{$1}=[];
+                    }
+                    elsif($preproc=~/^list_push:(\w+)=(.*)/){
+                        push @{$list_list{$1}}, $2;
+                    }
+                    elsif($preproc=~/^list_set:(\w+),(\d+)=(.*)/){
+                        $list_list{$1}->[$2]=$3;
+                    }
+                    elsif($preproc=~/^list_each:(\w+)/){
+                        my $key=$1;
+                        my $subblock=grabblock($block, \$lindex);
+                        my $idx=0;
+                        foreach my $val (@{$list_list{$key}}){
+                            $deflist->[-1]->{idx}=$idx;
+                            $deflist->[-1]->{val}=$val;
+                            parseblock({source=>$subblock, name=>"list_each $key"});
+                            $idx++;
+                        }
+                    }
+                    elsif($preproc=~/^hash_init:(\w+)/){
+                        $list_hash{$1}={};
+                    }
+                    elsif($preproc=~/^hash_set:(\w+),([^=]+)=(.*)/){
+                        $list_hash{$1}->{$2}=$3;
+                    }
+                    elsif($preproc=~/^index_name:(\w+)/){
+                        if(!$index_name_hash{$1}){
+                            $index_name_hash{$1}=1;
+                        }
+                        else{
+                            $index_name_hash{$1}+=1;
+                        }
+                        $deflist->[-1]->{index_name}="$1_$index_name_hash{$1}";
+                    }
+                    elsif($preproc=~/^allow_recurse:(\d+)/){
+                        my $code=$block_stack[-1]->{code};
+                        if($code->{allow_recurse}){
+                            $deflist->[-1]->{recurse}=$code->{recurse};
+                        }
+                        else{
+                            $code->{allow_recurse}=$1;
+                            $deflist->[-1]->{recurse}=0;
+                        }
+                    }
+                    elsif($preproc=~/^block:\s*(\w+)/){
+                        my $name=$1;
+                        my $subblock=grabblock($block, \$lindex);
+                        my $output=get_named_block($name);
+                        my $temp=$out;
+                        set_output($output);
+                        parseblock({source=>$subblock, name=>"block:$name"});
+                        set_output($temp);
+                    }
+                    else{
+                        goto NormalParse;
+                    }
+                }
+            }
+            elsif($l=~/^\$:\s+(.*)/){
+                push @$out, $1;
+            }
+            elsif($l=~/^BLOCK\s*$/){
+                if($#callback_block_stack <0){
+                    print "\x1b[33mBLOCK called out of context!\x1b[0m\n";
+                    push @$out, $1;
+                }
+                else{
+                    my $block=pop @callback_block_stack;
+                    my $depth=$#callback_block_stack+1;
+                    if($debug){
+                        print "BLOCK [$cur_file:$cur_line] -> [$block->{cur_file}: $block->{cur_line}] depth=$depth: ";
+                        foreach my $b (@callback_block_stack){
+                            print "$b->{name}, ";
+                        }
+                        print $block->{name}, "\n";
+                    }
+                    parseblock($block);
+                    push @callback_block_stack, $block;
+                }
+            }
+            else{
+                NormalParse:
+                expand_macro(\$l);
+                while(1){
+                    if($l=~/^(&call|\$call|\$map|\$call-PRINT)\s+(.*)$/){
+                        my ($func, $param)=($1, $2);
+                        $param=~s/\s*$//;
+                        if($func eq "\$map"){
+                            call_sub($param, $func);
+                        }
+                        elsif($func =~ /^\$call/){
+                            call_sub($param, $func);
+                        }
+                        elsif($func eq "\&call"){
+                            my $subblock=grabblock($block, \$lindex);
+                            call_back($param, $subblock);
+                        }
+                    }
+                    elsif($l=~/^\$-:\s*(.*)/){
+                        push @$out, "MAKE_STRING:$1";
+                        my $subblock=grabblock($block, \$lindex);
+                        parseblock({source=>$subblock, name=>"MAKE_STRING"});
+                        push @$out, "POP_STRING";
+                    }
+                    else{
+                        undef $callback_output;
+                        my $callback_scope;
+                        my $idx=$#$out+1;
+                        $parse_line_count++;
+                        my $msg=$f_parse->($l);
+                        if($msg){
+                            if(ref($msg) eq "ARRAY"){
+                                $callback_output=$msg;
+                                $idx=0;
+                            }
+                            elsif($msg=~/^NEWBLOCK(.*)/){
+                                $callback_output=$out;
+                                if($1=~/^-(.*)/){
+                                    $callback_scope=$1;
+                                }
+                            }
+                            elsif($msg=~/^SKIPBLOCK(.*)/){
+                                my $blk=grabblock($block, \$lindex);
+                                if($1=~/^-(\w+)/){
+                                    $named_blocks{$1}=$blk;
+                                }
+                                last;
+                            }
+                            elsif($msg=~/^SET:(\w+)=(.*)/){
+                                $deflist->[-1]->{$1}=$2;
+                                last;
+                            }
+                            elsif($msg=~/^PARSE:(.*)/){
+                                $l=$1;
+                                next;
+                            }
+                            if($callback_output){
+                                my $n=new_output();
+                                my $subblock=grabblock($block, \$lindex);
+                                my $temp=$out;
+                                set_output($output_list[$n]);
+                                parseblock({source=>$subblock, name=>"BLOCK_$n", scope=>$callback_scope});
+                                set_output($temp);
+                                my $n_end_parse=0;
+                                for(my $i=$idx; $i <$#$callback_output+1; $i++){
+                                    if($callback_output->[$i]=~/^BLOCK$/){
+                                        $callback_output->[$i]="BLOCK_$n";
+                                    }
+                                    elsif($callback_output->[$i]=~/^PARSE:(.*)/){
+                                        $n_end_parse++;
+                                        $f_parse->($1);
+                                        $callback_output->[$i]="NOOP";
+                                    }
+                                }
+                                if($n_end_parse==0){
+                                    my $temp=$out;
+                                    set_output($output_list[$n]);
+                                    $f_parse->("NOOP");
+                                    set_output($temp);
+                                }
+                            }
+                        }
+                    }
+                    last;
+                }
+            }
+        }
+    }
+    my $blk=$block_stack[-1];
+    my $idx=$blk->{index};
+    if($blk->{scope}){
+        $f_parse->("SUBBLOCK END $blk->{index} $blk->{scopes}");
+    }
+    pop @block_stack;
+    $cur_file=$blk->{file};
+    $cur_line=$blk->{line};
+    if($named_blocks{"block$idx\_post"}){
+        push @$out, "DUMP_STUB block$idx\_post";
+    }
+    if($blk->{debug}){
+        $debug=0;
+        $f_parse->("DEBUG OFF");
+    }
+    elsif($blk->{debug_off}){
+        $debug=$blk->{debug_off};
+        $f_parse->("DEBUG $debug");
+    }
+}
 
 sub expand_macro {
     my ($lref) = @_;
     $$lref=~s/\$\.(?=\w)/\$(this)/g;
-    if($$lref=~/(?<!\\)\$\(\w/){
-        $$lref=MyDef::utils::expand_macro($$lref, \&get_macro);
+    while($$lref=~/(?<!\\)\$\(\w/){
+        my $t=$$lref;
+        $$lref=MyDef::utils::expand_macro($t, \&get_macro);
+        if($t eq $$lref){
+            last;
+        }
     }
 }
 
 sub get_macro {
-    my ($s) = @_;
+    my ($s, $nowarn) = @_;
     if($s=~/^((rep|perl|map)\b.*)/){
         my $t=$1;
         if($t=~/^rep\[(.*?)\](\d+):(.*)/){
@@ -116,7 +728,7 @@ sub get_macro {
                 my $idx=$1;
                 my @tlist=MyDef::utils::proper_split($t);
                 if($idx eq "n"){
-                    return @tlist;
+                    return scalar(@tlist);
                 }
                 elsif($idx=~/(\d+)/){
                     return $tlist[$1];
@@ -140,7 +752,9 @@ sub get_macro {
                 return $macros->{$1};
             }
         }
-        warn "[$cur_file:$cur_line] Macro $1 not defined in $s\n";
+        if(!$nowarn){
+            warn "[$cur_file:$cur_line] Macro $1 not defined in $s\n";
+        }
         return undef;
     }
 }
@@ -158,18 +772,7 @@ sub set_output {
     $f_setout->($out);
     return $old;
 }
-my $debug;
 my @callsub_stack;
-my $block_index=0;
-our @block_stack;
-our $parse_line_count=0;
-my $cur_ogdl;
-my @ogdl_stack;
-my @ogdl_path;
-my $ogdl_path_index_base;
-my %ogdl_path_index;
-my %list_list;
-my %list_hash;
 sub init_output {
     @output_list=([]);
     set_output($output_list[0]);
@@ -631,544 +1234,6 @@ sub eval_sub_string {
     $f_setout->($out);
     my $t=join("", @t);
     return $t;
-}
-sub parseblock {
-    my ($code)=@_;
-    my $block=$code->{source};
-    if(!$block){
-        warn "parseblock: undefined block [$code]\n";
-    }
-    my $indent=0;
-    $block_index++;
-    my $blk= {out=>$out, index=>$block_index, eindex=>$block_index, file=>$cur_file, line=>$cur_line, code=>$code};
-    push @block_stack, $blk;
-    if($code->{"scope"}){
-        my $idx=$block_index;
-        my $scope=$code->{scope};
-        $blk->{scope}=$scope;
-        $f_parse->("SUBBLOCK BEGIN $idx $scope");
-        push @$out, "DUMP_STUB block$idx\_pre";
-    }
-    my @last_line;
-    my $context;
-    my $lindex=0;
-    my $callback_output;
-    my @callback_stack;
-    my $pending_mode_pop;
-    while($lindex<@$block){
-        my $l=$block->[$lindex];
-        if($debug eq "compile"){
-            my $yellow="\033[33;1m";
-            my $normal="\033[0m";
-            print "$yellow compile: [$l]$normal\n";
-        }
-        $lindex++;
-        $cur_line++;
-        if($l =~ /^DEBUG (\w+)/){
-            if($1 eq "OFF"){
-                if($debug){
-                    if(!$block_stack[-1]->{debug}){
-                        $block_stack[-1]->{debug_off}=$debug;
-                    }
-                    $debug=0;
-                    $f_parse->("DEBUG OFF");
-                }
-            }
-            elsif($1 eq "MACRO"){
-                for(my $i=0;$i<=$#$deflist;$i++){
-                    print "DUMP DEFLIST $i:\n";
-                    my $h=$deflist->[$i];
-                    foreach my $k (keys(%$h)){
-                        print "    $k: $h->{$k}\n";
-                    }
-                }
-            }
-            else{
-                $debug=$1;
-                $block_stack[-1]->{debug}=$debug;
-                $f_parse->("DEBUG $debug");
-            }
-            next;
-        }
-        elsif($l =~ /^BLOCK RELEASE/i){
-            $block_stack[-1]->{eindex}=$block_stack[-2]->{eindex};
-            next;
-        }
-        elsif($l =~/^SOURCE: (.*) - (\d+)$/){
-            $cur_file=$1;
-            $cur_line=$2;
-            next;
-        }
-        if($l eq "SOURCE_INDENT"){
-            $indent++;
-        }
-        elsif($l eq "SOURCE_DEDENT"){
-            $indent-- if $indent>0;
-        }
-        if($cur_mode eq "PRINT"){
-            undef $callback_output;
-            my $callback_scope;
-            my $idx=$#$out+1;
-            $parse_line_count++;
-            my $msg=$f_parse->($l);
-            if($msg){
-                if(ref($msg) eq "ARRAY"){
-                    $callback_output=$msg;
-                    $idx=0;
-                }
-                elsif($msg=~/^NEWBLOCK(.*)/){
-                    $callback_output=$out;
-                    if($1=~/^-(.*)/){
-                        $callback_scope=$1;
-                    }
-                }
-                elsif($msg=~/^SKIPBLOCK/){
-                    grabblock($block, \$lindex);
-                    last;
-                }
-                elsif($msg=~/^SET:(\w+)=(.*)/){
-                    $deflist->[-1]->{$1}=$2;
-                    last;
-                }
-                elsif($msg=~/^PARSE:(.*)/){
-                    $l=$1;
-                    next;
-                }
-                if($callback_output){
-                    my $n=new_output();
-                    my $subblock=grabblock($block, \$lindex);
-                    my $temp=$out;
-                    set_output($output_list[$n]);
-                    parseblock({source=>$subblock, name=>"BLOCK_$n", scope=>$callback_scope});
-                    set_output($temp);
-                    my $n_end_parse=0;
-                    for(my $i=$idx; $i <$#$callback_output+1; $i++){
-                        if($callback_output->[$i]=~/^BLOCK$/){
-                            $callback_output->[$i]="BLOCK_$n";
-                        }
-                        elsif($callback_output->[$i]=~/^PARSE:(.*)/){
-                            $n_end_parse++;
-                            $f_parse->($1);
-                            $callback_output->[$i]="NOOP";
-                        }
-                    }
-                    if($n_end_parse==0){
-                        my $temp=$out;
-                        set_output($output_list[$n]);
-                        $f_parse->("NOOP");
-                        set_output($temp);
-                    }
-                }
-            }
-        }
-        else{
-            if(!$l){
-            }
-            elsif($l=~/^\$\((.*)\)/){
-                my $preproc=$1;
-                expand_macro(\$preproc);
-                if($preproc=~/^for:\s*(\S+)\s+in\s+(.*)/){
-                    my $vname=$1;
-                    my $vparam=$2;
-                    my @tlist;
-                    if($vparam=~/(\d+)\.\.(\d+)/){
-                        for(my $i=$1;$i<=$2;$i++){
-                            push @tlist, $i;
-                        }
-                    }
-                    else{
-                        @tlist=split /,\s*/, $vparam;
-                    }
-                    my $subblock=grabblock($block, \$lindex);
-                    foreach my $t (@tlist){
-                        my $macro={$vname=>$t};
-                        push @$deflist, $macro;
-                        parseblock({source=>$subblock, name=>"\${for}"});
-                        pop @$deflist;
-                    }
-                }
-                elsif($preproc=~/^foreach:p/){
-                    my $subblock=grabblock($block, \$lindex);
-                    my $plist=$deflist->[-1]->{plist};
-                    if($plist){
-                        my @plist=MyDef::utils::proper_split($plist);
-                        foreach my $p (@plist){
-                            my $macro={"p"=>$p};
-                            push @$deflist, $macro;
-                            parseblock({source=>$subblock, name=>"\${foreach}"});
-                            pop @$deflist;
-                        }
-                    }
-                    else{
-                        warn "[$cur_file:$cur_line]\$(foreach:p) missing \$(plist)\n";
-                    }
-                }
-                elsif($preproc=~/^if:\s*(.*)/){
-                    my $subblock=grabblock($block, \$lindex);
-                    if(testcondition($1)){
-                        parseblock({source=>$subblock, name=>"\${if:}"});
-                        $context="switch_off";
-                    }
-                    else{
-                        $context="switch_on";
-                    }
-                    if($debug eq "preproc"){
-                        print "parse_preproc_if: ($1) -> $context\n";
-                    }
-                }
-                elsif($preproc=~/^els?e?if:\s*(.*)/){
-                    my $subblock=grabblock($block, \$lindex);
-                    if($context eq "switch_on"){
-                        if(testcondition($1)){
-                            parseblock({source=>$subblock, name=>"\${if:}"});
-                            $context="switch_off";
-                        }
-                        else{
-                            $context="switch_on";
-                        }
-                        if($debug eq "preproc"){
-                            print "parse_preproc_if: ($1) -> $context\n";
-                        }
-                    }
-                }
-                elsif($preproc=~/^else/){
-                    my $subblock=grabblock($block, \$lindex);
-                    if($context eq "switch_on"){
-                        parseblock({source=>$subblock, name=>"\${else}"});
-                        undef $context;
-                    }
-                }
-                elsif($preproc=~/^ifeach:\s*(.*)/){
-                    my $cond=$1;
-                    my $subblock=grabblock($block, \$lindex);
-                    my $plist=$deflist->[-1]->{plist};
-                    undef $context;
-                    my $cond_var="p";
-                    if($cond=~/^(\w+)/){
-                        $cond_var=$1;
-                    }
-                    if($plist){
-                        my @plist=split /,\s*/, $plist;
-                        foreach my $p (@plist){
-                            my $macro={$cond_var=>$p};
-                            push @$deflist, $macro;
-                            if(testcondition($cond)){
-                                parseblock({source=>$subblock, name=>"\${ifeach:}"});
-                                $context="switch_off";
-                            }
-                            pop @$deflist;
-                        }
-                    }
-                    if(!$context){
-                        $context="switch_on";
-                    }
-                }
-                elsif($preproc=~/^set:\s*(.*)/){
-                    set_macro($deflist->[-1], $1);
-                }
-                elsif($preproc=~/^set([012]):\s*(.*)/){
-                    set_macro($deflist->[$1], $2);
-                }
-                elsif($preproc=~/^setmacro:\s*(.*)/){
-                    set_macro($deflist->[2], $1);
-                }
-                elsif($preproc=~/autoinc:\s*(\w+)/){
-                    my $page=$deflist->[2];
-                    $page->{$1}++;
-                }
-                elsif($preproc=~/^export:\s*(.*)/){
-                    my $t=$1;
-                    if($t=~/^\w+,/){
-                        my @plist=split /,\s*/, $t;
-                        foreach my $p (@plist){
-                            set_macro($deflist->[-2], $p);
-                        }
-                    }
-                    else{
-                        set_macro($deflist->[-2], $t);
-                    }
-                }
-                elsif($preproc=~/^mset:\s*(.*)/){
-                    my @plist=split /,\s*/, $1;
-                    foreach my $p (@plist){
-                        set_macro($deflist->[-1], $p);
-                    }
-                }
-                elsif($preproc=~/^mexport:\s*(.*)/){
-                    my @plist=split /,\s*/, $1;
-                    foreach my $p (@plist){
-                        set_macro($deflist->[-2], $p);
-                    }
-                }
-                elsif($preproc=~/^reset:\s*(\w+)([\.\+\-])?=(.*)/){
-                    my ($v, $op, $d)=($1, $2, $3, $4);
-                    expand_macro(\$d);
-                    my $i=$#$deflist;
-                    while($i>0 and !defined $deflist->[$i]->{$v}){
-                        $i--;
-                    }
-                    if($i==0){
-                        $i=-1;
-                    }
-                    if($op){
-                        $deflist->[$i]->{$v}=calc_op($deflist->[$i]->{$v}, $op, $d);
-                    }
-                    else{
-                        $deflist->[$i]->{$v}=$d;
-                    }
-                }
-                elsif($preproc=~/^unset:\s*(\w+)/){
-                    foreach my $m (@$deflist){
-                        delete $m->{$1};
-                    }
-                }
-                elsif($preproc=~/^eval:\s*(\w+)=(.*)/){
-                    my ($t1,$t2)=($1,$2);
-                    expand_macro(\$t2);
-                    $deflist->[-1]->{$t1}=eval($t2);
-                }
-                elsif($preproc=~/^split:\s*(\w+)/){
-                    my $p="\$($1)";
-                    expand_macro(\$p);
-                    my @tlist=MyDef::utils::proper_split($p);
-                    my $n=@tlist;
-                    $deflist->[-1]->{p_n}=$n;
-                    for(my $i=1; $i <$n+1; $i++){
-                        $deflist->[-1]->{"p_$i"}=$tlist[$i-1];
-                    }
-                }
-                elsif($preproc=~/^ogdl_/){
-                    expand_macro(\$preproc);
-                    if($preproc=~/^ogdl_load:\s*(\w+)/){
-                        get_ogdl($1);
-                    }
-                    elsif($preproc=~/^ogdl_each/){
-                        my $subblock=grabblock($block, \$lindex);
-                        my $itemlist=$cur_ogdl->{_list};
-                        push @ogdl_stack, $cur_ogdl;
-                        foreach my $item (@$itemlist){
-                            $cur_ogdl=$item;
-                            parseblock({source=>$subblock, name=>"\${ogdl_each}"});
-                        }
-                        $cur_ogdl=pop @ogdl_stack;
-                    }
-                    elsif($preproc=~/^ogdl_set_path:(\d+)=(.*)/){
-                        $ogdl_path[$1]=$2;
-                    }
-                    elsif($preproc=~/^ogdl_path_init/){
-                        $ogdl_path_index_base=0;
-                    }
-                    elsif($preproc=~/^ogdl_path:(\d+)/){
-                        splice @ogdl_path, $1+1;
-                        my $path=join('/', @ogdl_path);
-                        $ogdl_path_index{$path}=$ogdl_path_index_base;
-                        $deflist->[-1]->{path}=$path;
-                        $deflist->[-1]->{path_index}=$ogdl_path_index_base;
-                        $ogdl_path_index_base++;
-                    }
-                    elsif($preproc=~/^ogdl_get:(\w+)=(.*)/){
-                        my $key=$1;
-                        my $val;
-                        my @klist=split /,\s*/, $2;
-                        foreach my $k (@klist){
-                            if(defined $cur_ogdl->{$k}){
-                                $val=$cur_ogdl->{$k};
-                            }
-                            else{
-                                $val=$k;
-                            }
-                        }
-                        $deflist->[-1]->{$key}=$val;
-                    }
-                    elsif($preproc=~/^ogdl_get:(\w+)/){
-                        $deflist->[-1]->{$1}=$cur_ogdl->{$1};
-                    }
-                }
-                elsif($preproc=~/^list_init:(\w+)/){
-                    $list_list{$1}=[];
-                }
-                elsif($preproc=~/^list_push:(\w+)=(.*)/){
-                    push @{$list_list{$1}}, $2;
-                }
-                elsif($preproc=~/^list_set:(\w+),(\d+)=(.*)/){
-                    $list_list{$1}->[$2]=$3;
-                }
-                elsif($preproc=~/^list_each:(\w+)/){
-                    my $key=$1;
-                    my $subblock=grabblock($block, \$lindex);
-                    my $idx=0;
-                    foreach my $val (@{$list_list{$key}}){
-                        $deflist->[-1]->{idx}=$idx;
-                        $deflist->[-1]->{val}=$val;
-                        parseblock({source=>$subblock, name=>"list_each $key"});
-                        $idx++;
-                    }
-                }
-                elsif($preproc=~/^hash_init:(\w+)/){
-                    $list_hash{$1}={};
-                }
-                elsif($preproc=~/^hash_set:(\w+),([^=]+)=(.*)/){
-                    $list_hash{$1}->{$2}=$3;
-                }
-                elsif($preproc=~/^index_name:(\w+)/){
-                    if(!$index_name_hash{$1}){
-                        $index_name_hash{$1}=1;
-                    }
-                    else{
-                        $index_name_hash{$1}+=1;
-                    }
-                    $deflist->[-1]->{index_name}="$1_$index_name_hash{$1}";
-                }
-                elsif($preproc=~/^allow_recurse:(\d+)/){
-                    my $code=$block_stack[-1]->{code};
-                    if($code->{allow_recurse}){
-                        $deflist->[-1]->{recurse}=$code->{recurse};
-                    }
-                    else{
-                        $code->{allow_recurse}=$1;
-                        $deflist->[-1]->{recurse}=0;
-                    }
-                }
-                elsif($preproc=~/^block:\s*(\w+)/){
-                    my $name=$1;
-                    my $subblock=grabblock($block, \$lindex);
-                    my $output=get_named_block($name);
-                    my $temp=$out;
-                    set_output($output);
-                    parseblock({source=>$subblock, name=>"block:$name"});
-                    set_output($temp);
-                }
-                else{
-                    goto NormalParse;
-                }
-            }
-            elsif($l=~/^\$:\s+(.*)/){
-                push @$out, $1;
-            }
-            elsif($l=~/^BLOCK\s*$/){
-                if($#callback_block_stack <0){
-                    print "\x1b[33mBLOCK called out of context!\x1b[0m\n";
-                    push @$out, $1;
-                }
-                else{
-                    my $block=pop @callback_block_stack;
-                    my $depth=$#callback_block_stack+1;
-                    if($debug){
-                        print "BLOCK [$cur_file:$cur_line] -> [$block->{cur_file}: $block->{cur_line}] depth=$depth: ";
-                        foreach my $b (@callback_block_stack){
-                            print "$b->{name}, ";
-                        }
-                        print $block->{name}, "\n";
-                    }
-                    parseblock($block);
-                    push @callback_block_stack, $block;
-                }
-            }
-            else{
-                NormalParse:
-                undef $context;
-                expand_macro(\$l);
-                while(1){
-                    if($l=~/^(&call|\$call|\$map|\$call-PRINT)\s+(.*)$/){
-                        my ($func, $param)=($1, $2);
-                        $param=~s/\s*$//;
-                        if($func eq "\$map"){
-                            call_sub($param, $func);
-                        }
-                        elsif($func =~ /^\$call/){
-                            call_sub($param, $func);
-                        }
-                        elsif($func eq "\&call"){
-                            my $subblock=grabblock($block, \$lindex);
-                            call_back($param, $subblock);
-                        }
-                    }
-                    elsif($l=~/^\$-:\s*(.*)/){
-                        push @$out, "MAKE_STRING:$1";
-                        my $subblock=grabblock($block, \$lindex);
-                        parseblock({source=>$subblock, name=>"MAKE_STRING"});
-                        push @$out, "POP_STRING";
-                    }
-                    else{
-                        undef $callback_output;
-                        my $callback_scope;
-                        my $idx=$#$out+1;
-                        $parse_line_count++;
-                        my $msg=$f_parse->($l);
-                        if($msg){
-                            if(ref($msg) eq "ARRAY"){
-                                $callback_output=$msg;
-                                $idx=0;
-                            }
-                            elsif($msg=~/^NEWBLOCK(.*)/){
-                                $callback_output=$out;
-                                if($1=~/^-(.*)/){
-                                    $callback_scope=$1;
-                                }
-                            }
-                            elsif($msg=~/^SKIPBLOCK/){
-                                grabblock($block, \$lindex);
-                                last;
-                            }
-                            elsif($msg=~/^SET:(\w+)=(.*)/){
-                                $deflist->[-1]->{$1}=$2;
-                                last;
-                            }
-                            elsif($msg=~/^PARSE:(.*)/){
-                                $l=$1;
-                                next;
-                            }
-                            if($callback_output){
-                                my $n=new_output();
-                                my $subblock=grabblock($block, \$lindex);
-                                my $temp=$out;
-                                set_output($output_list[$n]);
-                                parseblock({source=>$subblock, name=>"BLOCK_$n", scope=>$callback_scope});
-                                set_output($temp);
-                                my $n_end_parse=0;
-                                for(my $i=$idx; $i <$#$callback_output+1; $i++){
-                                    if($callback_output->[$i]=~/^BLOCK$/){
-                                        $callback_output->[$i]="BLOCK_$n";
-                                    }
-                                    elsif($callback_output->[$i]=~/^PARSE:(.*)/){
-                                        $n_end_parse++;
-                                        $f_parse->($1);
-                                        $callback_output->[$i]="NOOP";
-                                    }
-                                }
-                                if($n_end_parse==0){
-                                    my $temp=$out;
-                                    set_output($output_list[$n]);
-                                    $f_parse->("NOOP");
-                                    set_output($temp);
-                                }
-                            }
-                        }
-                    }
-                    last;
-                }
-            }
-        }
-    }
-    my $blk=$block_stack[-1];
-    my $idx=$blk->{index};
-    if($blk->{scope}){
-        $f_parse->("SUBBLOCK END $blk->{index} $blk->{scopes}");
-    }
-    pop @block_stack;
-    $cur_file=$blk->{file};
-    $cur_line=$blk->{line};
-    if($named_blocks{"block$idx\_post"}){
-        push @$out, "DUMP_STUB block$idx\_post";
-    }
-    if($blk->{debug}){
-        $debug=0;
-        $f_parse->("DEBUG OFF");
-    }
-    elsif($blk->{debug_off}){
-        $debug=$blk->{debug_off};
-        $f_parse->("DEBUG $debug");
-    }
 }
 sub curfile_curline {
     return "$cur_file:$cur_line";

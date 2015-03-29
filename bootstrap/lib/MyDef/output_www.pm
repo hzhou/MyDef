@@ -339,6 +339,10 @@ sub parsecode {
                         }
                         return single_block("for($stepclause){", "}");
                     }
+                    elsif($param=~/^(\w+)$/){
+                        MyDef::compileutil::set_current_macro("item", "$1\[i]");
+                        return single_block("for(i=0;i<$1.length;i++){", "}");
+                    }
                     else{
                         return single_block("$func($param){", "}");
                     }
@@ -643,8 +647,8 @@ sub custom_dump {
             elsif($t=~/(.*)(\s(#|&#35;)\s.*)/){
                 $t="$1<span class=\"mydef-comment\">$2</span>";
             }
-            elsif($t=~/^(\s*)(page|\w+code):\s*(\w+)(.*)/){
-                $t="$1<span class=\"mydef-label\">$2</span>: <span class=\"mydef-label\">$3</span>$4";
+            elsif($t=~/^(\s*)(page|\w+code)(:.?\s*)(\w+)(.*)/){
+                $t="$1<span class=\"mydef-label\">$2</span>$3<span class=\"mydef-label\">$4</span>$5";
             }
             elsif($t=~/^(\s*)(\$call|\$map|\&call)\s*(\S+)(.*)/){
                 $t="$1<span class=\"mydef-keyword\">$2</span> <strong>$3</strong>$4";
