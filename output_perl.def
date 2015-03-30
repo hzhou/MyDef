@@ -105,7 +105,7 @@ subcode: parsecode
 	    $call parsecode_for_support, c_style
 	$elif $func eq "foreach"
 	    $call parsecode_foreach
-	$elif $func eq "sumcode" or $func eq "loop"
+	$elif $func eq "sumcode" or $func eq "loop" or $func eq "sum"
 	    $if $param=~/^\((.*?)\)\s+(.*)/
 		my $dimstr=$1
 		$param=$2

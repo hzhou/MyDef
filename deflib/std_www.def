@@ -1,9 +1,12 @@
 macros:
-    link: <a href="$($1)">$1</a>
-    url: <a href="$1">$1</a>
     a: <a href="$2">$1</a>
+    url: <a href="$1">$1</a>
+    link: <a href="$($1)">$1</a>
+
     img: <img src="$1" />
     code: <code>$1</code>
+    em: <em>$1</em>
+    b: <strong>$1</strong>
 
 ## Frames ---------------------------------------------------------
 htmlcode: basic_frame
