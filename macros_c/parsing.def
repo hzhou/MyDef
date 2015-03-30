@@ -270,7 +270,7 @@ subcode:: parsecode_func_other
 	$call parsecode_sum_support, c
 
 subcode:: parsecode_func_param_other
-    $case $func eq "sumcode"
+    $case $func eq "sumcode" or $func eq "loop" or $func eq "sum"
 	my $dimstr=$param1
 	my $param=$param2
 	$call parsecode_sum_simple, c
