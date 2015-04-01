@@ -110,7 +110,7 @@ subcode: parsecode
 		my $dimstr=$1
 		$param=$2
 		$call parsecode_sum_simple, perl
-	    $else
+	    $elif $func eq "sumcode"
 		$call parsecode_sum_support, perl
 	$elif $func eq "print"
 	    $call parsecode_print

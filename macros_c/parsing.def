@@ -266,7 +266,7 @@ subcode: dataunpack_var
 include: macros_output/sumcode.def
 
 subcode:: parsecode_func_other
-    $case $func eq "sumcode"
+    $case $func eq "sumcode" or $func eq "loop" or $func eq "sum"
 	$call parsecode_sum_support, c
 
 subcode:: parsecode_func_param_other

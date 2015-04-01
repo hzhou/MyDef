@@ -117,6 +117,23 @@ jscode: animate
 	window.requestAnimationFrame(animate_update)
     animate_update(0)
 
+#-- 
+jscode: load_js(src)
+    var obj = document.createElement('script')
+    obj.setAttribute("type", "text/javascript")
+    obj.setAttribute("src", "$(src)")
+    obj.onload = function () {
+        BLOCK
+    };
+    document.getElementsByTagName("head")[0].appendChild(obj)
+
+jscode: load_css(src)
+    var obj = document.createElement('link')
+    obj.setAttribute("rel", "stylesheet")
+    obj.setAttribute("type", "text/css")
+    obj.setAttribute("href", "$(src)")
+    document.getElementsByTagName("head")[0].appendChild(obj)
+
 #-- AJAX
 jscode: ajax_init
     var xmlhttp
