@@ -118,13 +118,19 @@ jscode: animate
     animate_update(0)
 
 #-- 
-jscode: load_js(src)
+jscode: load_js_sync(src)
     var obj = document.createElement('script')
     obj.setAttribute("type", "text/javascript")
     obj.setAttribute("src", "$(src)")
     obj.onload = function () {
         BLOCK
     };
+    document.getElementsByTagName("head")[0].appendChild(obj)
+
+jscode: load_js(src)
+    var obj = document.createElement('script')
+    obj.setAttribute("type", "text/javascript")
+    obj.setAttribute("src", "$(src)")
     document.getElementsByTagName("head")[0].appendChild(obj)
 
 jscode: load_css(src)
