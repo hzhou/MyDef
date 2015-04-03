@@ -84,17 +84,6 @@ jscode: setfa(target, @arg)
 	BLOCK
     };
 
-jscode: listen(obj, event)
-    $(obj).addEventListener("$(event)", function(event){
-	BLOCK
-    }, false);
-
-jscode: setInterval(name, time)
-    $global $(name)
-    $(name)=window.setInterval(function(){
-	BLOCK
-    }, $(time));
-
 jscode: auto
     (function() {
 	BLOCK
@@ -106,6 +95,24 @@ jscode: load_element(name)
 
 jscode: set_html(name, html)
     document.getElementById("$(name)").innerHTML=$(html)
+
+#---------------------------------------- 
+jscode: listen(obj, event)
+    $(obj).addEventListener("$(event)", function(event){
+	BLOCK
+    }, false);
+
+jscode: on_click(name)
+    document.getElementById("$(name)").addEventListener("click", function(event){
+	BLOCK
+    }, false);
+
+#---------------------------------------- 
+jscode: setInterval(name, time)
+    $global $(name)
+    $(name)=window.setInterval(function(){
+	BLOCK
+    }, $(time));
 
 jscode: animate
     $global time_old=0
@@ -158,6 +165,18 @@ jscode: ajax_get(url)
         };
         xmlhttp.open("GET", $(url), true)
         xmlhttp.send()
+
+jscode: ajax_post(url, content)
+    &call auto
+        $call ajax_init
+        xmlhttp.onreadystatechange=function(){
+            $if xmlhttp.readyState==4 && xmlhttp.status==200
+                $(set:reply=xmlhttp.responseText)
+                BLOCK
+        };
+        xmlhttp.open("POST", $(url), true)
+        xmlhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
+        xmlhttp.send($(content))
 
 ## PHP  -----------------------------------------------------
 htmlcode: php_frame

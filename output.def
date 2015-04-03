@@ -69,7 +69,7 @@ subcode: output_main
 
     # ---- Final output, allows for 2nd pass translation
     $sub dumpout($f, $out, $pagetype)
-	my $dump={out=>$out,f=>$f}
+	my $dump={out=>$out,f=>$f, module=>"$(pagename)"}
 	$call @dumpout
 	MyDef::dumpout::dumpout($dump);
 

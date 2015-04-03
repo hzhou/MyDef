@@ -2,18 +2,18 @@ include: c/regex.def
 
 page: test, basic_frame
     subcode: main
-	$local string s
-	s.$resize(200)
-	&call open_r, "/home/hzhou/MailArchive/spam/2013_02.mbox"
-	    $while fgets(s, 200, file_in)
-		s_len=strlen(s)
-		# Envelop-From: vickyad86@schwegler.com Wed Feb 29 22:17:19 2012
-		$if s=~/^From (\S+)\s+(\w+)\s+(\w+)\s+(\d+)\s+(\d+:\d+:\d+)\s+(\d+)/
-		    #$regex_capture addr, day, mon, date, time, year => 1, 2, 3, 4, 5, 6
-		    $regex_capture ts_addr, ts_day, ts_mon, ts_date, ts_time, ts_year
-		    printf("Envelop-From: [%s %s %s] %s\n", ts_mon, ts_date, ts_time, ts_addr)
-		$elif s=~/^To:.*<(\S+)>/
-		    $regex_capture ts_to=>1
-		    printf("\tTo: %s\n", ts_to)
+        $local string s
+        s.$resize(200)
+        &call open_r, "/home/hzhou/MailArchive/spam/2013_02.mbox"
+            $while fgets(s, 200, file_in)
+                s_len=strlen(s)
+                # Envelop-From: vickyad86@schwegler.com Wed Feb 29 22:17:19 2012
+                $if s=~/^From (\S+)\s+(\w+)\s+(\w+)\s+(\d+)\s+(\d+:\d+:\d+)\s+(\d+)/
+                    #$regex_capture addr, day, mon, date, time, year => 1, 2, 3, 4, 5, 6
+                    $regex_capture ts_addr, ts_day, ts_mon, ts_date, ts_time, ts_year
+                    printf("Envelop-From: [%s %s %s] %s\n", ts_mon, ts_date, ts_time, ts_addr)
+                $elif s=~/^To:.*<(\S+)>/
+                    $regex_capture ts_to=>1
+                    printf("\tTo: %s\n", ts_to)
 
 

@@ -30,6 +30,7 @@ subcode: mydef_main
 
     1;
 
+#---------------------------------------- 
 fncode: init(%config)
     $while my ($k, $v) = each %config
         $var->{$k}=$v;
@@ -41,11 +42,7 @@ fncode: init(%config)
                 $var->{module}=$1
                 $module=$1
         
-    $if !$module
-        die "Module type not defined in config!\n"
-    $map require_module, $(module_list)
-    $else
-        die "Undefined module type $module\n";
+    $call check_module
 
 fncode: import_data($file)
     $def= MyDef::parseutil::import_data($file)
@@ -57,6 +54,25 @@ fncode: createpage($pagename)
 
     my $plines=MyDef::compileutil::compile()
     MyDef::compileutil::output($plines)
+
+fncode: pipe_page($module)
+    $var->{module}=$module
+    $call check_module
+    $def = MyDef::parseutil::import_data("-pipe")
+    my $pagename = $def->{pagelist}->[0]
+    $if $pagename
+        $page=$def->{pages}->{$pagename}
+        my $plines=MyDef::compileutil::compile()
+        $foreach $l in @$plines
+            print $l
+
+#----
+subcode: check_module
+    $if !$module
+        die "Module type not defined in config!\n"
+    $map require_module, $(module_list)
+    $else
+        die "Undefined module type $module\n";
 
 #---------------------------------------- 
 fncode: addpath($path)

@@ -112,9 +112,8 @@ subcode: sumcode_idx
     my ($dim, $inc)
     $if $var->{"dim$i"}
 	$dim=$var->{"dim$i"}
-    $(if:i=1)
-	$elif $var->{"dimension"}
-	    $dim=$var->{"dimension"}
+    $elif $var->{"dimension"} and $i==1
+        $dim=$var->{"dimension"}
     $else
 	$call warn, sumcode: var $v missing dimension $i
 

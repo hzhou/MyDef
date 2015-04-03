@@ -8,7 +8,7 @@ page: parseutil
     package: MyDef::parseutil
     subcode: main
 	$global $debug=0
-	$call support_subs
+	# $call support_subs
 	$call support_eachfile
 	$call support_ogdl
 	1;
@@ -49,11 +49,12 @@ fncode: import_data($file)
     # ---- End of Parsing ---------------------------
     post_foreachfile($def);
     post_matchblock($def);
-    #$call compile_perlcode
-    #$call dump_hash, $def
+    # $call compile_perlcode
+    # $call dump_def
     return $def;
 
 fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
+    # $print import_file [$f]
     #---- import a single def file, update include_list -----
     my $pages=$def->{pages}
     my $pagelist=$def->{pagelist}
@@ -498,21 +499,25 @@ subcode: compile_perlcode
 
 #---- utils ------------------------------------ 
 fncode: get_lines($file)
-    my $filename="";
-    $if -f $file
-        $filename=$file;
-    $if !$filename and $MyDef::var->{'include_path'}
-        my @dirs=split /:/, $MyDef::var->{'include_path'};
-        $foreach $dir in @dirs
-            $if -f "$dir/$file"
-                $filename="$dir/$file";
-                last;
-    $if !-f $filename
-        warn "$file not found\n";
-        warn "  search path: $MyDef::var->{'include_path'}\n"
-    #print STDERR "Parsing Definition File: $filename\n";
-    open In, $filename or die "Can't open $file.\n";
-    my @lines=<In>;
-    close In;
-    return \@lines;
+    $if $file eq "-pipe"
+        my @lines=<STDIN>
+        return \@lines
+    $else
+        my $filename="";
+        $if -f $file
+            $filename=$file;
+        $if !$filename and $MyDef::var->{'include_path'}
+            my @dirs=split /:/, $MyDef::var->{'include_path'};
+            $foreach $dir in @dirs
+                $if -f "$dir/$file"
+                    $filename="$dir/$file";
+                    last;
+        $if !-f $filename
+            warn "$file not found\n";
+            warn "  search path: $MyDef::var->{'include_path'}\n"
+        #print STDERR "Parsing Definition File: $filename\n";
+        open In, $filename or die "Can't open $file.\n";
+        my @lines=<In>;
+        close In;
+        return \@lines;
 

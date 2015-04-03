@@ -13,3 +13,11 @@ subcode: dump_line(name)
     my $normal="\033[0m";
     print "$yellow $(name): [$l]$normal\n"
 
+subcode: dump_def
+    print "Dump def $def\n"
+    $while my ($k, $v) = each %$def
+	print "    ", "$k: $v\n"
+        $if $k eq "codes"
+            $while my ($k2, $v2) = each %$v
+                print "        ", $v2->{type}, "code: $k2\n"
+

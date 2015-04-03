@@ -333,17 +333,7 @@ subcode:: c_init
     @extern_binary=()
 
 subcode: value_from_file
-    $if $init=~/^\[string_from_file:(\S+)\]/
-	my @t;
-	open In, $1 or die "string_from_file: can't open $1\n"
-	$while <In>
-	    chomp
-	    s/\\/\\\\/g
-	    s/"/\\"/g
-	    push @t, $_
-	close In
-	$init="=\"".join("\\n\\\n", @t)."\""
-    $elif $init=~/^=\[binary_from_file:(\S+)\]/
+    $if $init=~/^=\[binary_from_file:(\S+)\]/
 	$global_hash->{"_$name"}="extern char _$name"
 	push @$global_list, "_$name"
 	$init="=&_$name"
