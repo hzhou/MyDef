@@ -1,87 +1,87 @@
 page: test
     type: pl
     subcode: main
-	# $call test_read_file
-	# $call test_sub
-	# $call test_for
-	$call test_case, 1
-	# $call test_case, 2
-	# $call test_case_compound
+        # $call test_read_file
+        # $call test_sub
+        # $call test_for
+        $call test_case, 1
+        # $call test_case, 2
+        # $call test_case_compound
 
     subcode: test_read_file
-	print "Test \&call open_r ...\n"
-	&call read_sub
-	    print "subcode: $1\n"
+        print "Test \&call open_r ...\n"
+        &call read_sub
+            print "subcode: $1\n"
 
     subcode: read_sub
-	&call open_r, ../perl_test.def
-	    $if /^\s*subcode:\s+(\w+)/
-		BLOCK
+        &call open_r, ../perl_test.def
+            $if /^\s*subcode:\s+(\w+)/
+                BLOCK
 
     subcode: test_sub
-	print "Test \$sub and \$global ...\n"
-	test_global("Hui")
-	test_global("Xiaoyi")
-	test_global("Harry")
+        print "Test \$sub and \$global ...\n"
+        test_global("Hui")
+        test_global("Xiaoyi")
+        test_global("Harry")
 
-	$sub test_global($name)
-	    $global $index
-	    $index++
-	    print "$index: $name\n"
+        $sub test_global($name)
+            $global $index
+            $index++
+            print "$index: $name\n"
 
     subcode: test_for
-	print "Test \$for ...\n"
-	$for $i=0:10
-	    print $i
-	    $if $i<10-1
-		print ", "
+        print "Test \$for ...\n"
+        $for $i=0:10
+            print $i
+            $if $i<10-1
+                print ", "
 
-	print "\n"
-	$for $i=10:0
-	    print $i, " "
-	print "\n"
+        print "\n"
+        $for $i=10:0
+            print $i, " "
+        print "\n"
 
 # ------------------------------------
 subcode: test_case(option)
-    DEBUG case
+    # DEBUG case
     print "Test \$case option $(option)...\n"
     my $t=4
     print " * \$case -> if/elsif: 4 < 5\n"
     $case $t<5
-	print "$t < 5\n"
+        print "$t < 5\n"
     $case $t<10
-	print "5 <= $t < 10\n"
+        print "5 <= $t < 10\n"
 
     $(if:option=2)
-	print " \$case restart before \$call othercase ...\n"
+        print " \$case restart before \$call othercase ...\n"
     $call othercase
 
     $case $t<1000
-	print "100 <= $t < 1000\n"
+        print "100 <= $t < 1000\n"
     $else
-	print "1000 <= $t\n"
+        print "1000 <= $t\n"
 
 subcode: othercase
     $case $t<100
-	$if $t<5
-	    print "$t < 5\n"
-	$case $t<10
-	    print "5 <= $t < 10\n"
-	$else
-	    print "$t >= 10\n"
+        $if $t<5
+            print "$t < 5\n"
+        $case $t<10
+            print "5 <= $t < 10\n"
+        $else
+            print "$t >= 10\n"
 
 # ------------------------------------
 subcode: test_case_compound
     DEBUG case
     $for $i=0:2
-	my $t=4
-	print " * Compound case: \&case: 4 < 5\n"
-	&case compound_test, 5
-	    print "$t < 5\n"
-	&case compound_test, 10
-	    print "5 <= $t < 10\n"
-	&case compound_test, 100
-	    print "10 <= $t < 100\n"
+        my $t=4
+        print " * Compound case: \&case: 4 < 5\n"
+        &case compound_test, 5
+            print "$t < 5\n"
+        &case compound_test, 10
+            print "5 <= $t < 10\n"
+        &case compound_test, 100
+            print "10 <= $t < 100\n"
 
 subcode: test_wrap
     print "Start test wrap...\n"
@@ -90,5 +90,5 @@ subcode: test_wrap
 
 subcode: compound_test(n)
     $if $t>=$(n)
-	CASEEXIT
+        CASEEXIT
 

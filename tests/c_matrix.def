@@ -1,14 +1,15 @@
 include: c/matrix.def
 
+# reference: http://hz2.org/blog/einstein_notation.html
+
 macros:
     float: float
 
 page: test, basic_frame
-    subcode: main
-	# $call test_a
-	$call test_matrix_mult
-	# $call test_static
-	# $call test_cholesky
+    # $call test_a
+    $call test_matrix_mult
+    # $call test_static
+    # $call test_cholesky
 
 subcode: test_a
     $local $(float) a[100]

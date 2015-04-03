@@ -3,31 +3,31 @@ page: test
     type: rc
     module: win32rc
     subcode: main
-	$icon IDI_TEST test.ico
-	$write menu_main
-	$write dialog_about
+        $icon IDI_TEST test.ico
+        $write menu_main
+        $write dialog_about
 
 resource: menu_main
     MENU
-	text: &File
-	IDM_Open
-	    text: &Open
-	IDM_Save
-	    disable: 1
-	    text: &Save
-	MENU
-	    disable: 1
-	    text: Extra
-	    var: menu_extra
-	    reserve: IDM_Extra -- 15
+        text: &File
+        IDM_Open
+            text: &Open
+        IDM_Save
+            disable: 1
+            text: &Save
+        MENU
+            disable: 1
+            text: Extra
+            var: menu_extra
+            reserve: IDM_Extra -- 15
     MENU
-	text: &Edit
-	IDM_Copy
-	    text: &Copy
-	IDM_Paste
-	    text: &Paste
+        text: &Edit
+        IDM_Copy
+            text: &Copy
+        IDM_Paste
+            text: &Paste
     IDM_Exit
-	text: E&xit
+        text: E&xit
 
 # ---- dialog default ---------
 resource: dialog_default
@@ -40,21 +40,21 @@ resource: dialog_about, dialog_default
     caption: About PuTTY, MyDef Version
     text_align: center
     button_Close
-	text: &Close
-	size: 160, 52, 48, 14
-	default: close
+        text: &Close
+        size: 160, 52, 48, 14
+        default: close
     button_License
-	text: View &License
-	size: 6, 52, 70, 14
+        text: View &License
+        size: 6, 52, 70, 14
     button_Web
-	text: Visit &Web Site
-	size: 84, 52, 70, 14
+        text: Visit &Web Site
+        size: 84, 52, 70, 14
     text_Title
-	text: PuTTY, MyDef Fork
-	size: 10, 6, 194, 8
+        text: PuTTY, MyDef Fork
+        size: 10, 6, 194, 8
     text_Version
-	size: 10, 16, 194, 16
+        size: 10, 16, 194, 16
     text_CopyRight
-	text: \251 1997-2011 Simon Tatham. All rights reserved.
-	size: 10, 34, 194, 16
+        text: \251 1997-2011 Simon Tatham. All rights reserved.
+        size: 10, 34, 194, 16
 

@@ -1,3 +1,7 @@
+#  verify MyDef recognizes C preprocessor (despite conflict with its comment syntax)
+
+# -- the syntax highlighting may not be so easy to fix
+
 page: test
     #include "t.c"
     #define name Hui

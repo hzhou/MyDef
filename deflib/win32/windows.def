@@ -29,7 +29,7 @@ subcode: register_wndclass(name, proc)
 	wc.cbWndExtra = DLGWINDOWEXTRA
     $(elif:proc:8=WndProc_)
 	$(block:global_init)
-	    $eval wndproc, $(proc)
+	    $call wndproc, $(proc)
 	wc.lpfnWndProc = $(proc)
 	wc.cbWndExtra = 0
 
@@ -102,7 +102,7 @@ subcode: cw_dim(x, v)
 
 # ---- WNDPROC -----------------------------------------
 #  $(block:global_init)
-#      $eval wndproc, WndProc_main
+#      $call wndproc, WndProc_main
 #
 perlcode: wndproc
     $(set:C=MyDef::output_c::)

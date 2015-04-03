@@ -16,24 +16,24 @@ subcode:: on_dumpout
     # ----  Main Function -------------------
     my $winmain=$$(C)functions{"WinMain"};
     $if $winmain
-	$winmain->{skip_declare}=1;
-	$winmain->{ret_type}="int APIENTRY";
-	$winmain->{param_list}=["HINSTANCE hInst", "HINSTANCE hPrev", "LPSTR s_cmdline", "int n_cmdshow"];
-	push @{$winmain->{init}}, "cur_instance=hInst;";
-	push @{$winmain->{init}}, "DUMP_STUB main_init";
-	push @{$winmain->{finish}}, "DUMP_STUB main_exit";
-	push @{$winmain->{finish}}, "return 0;";
+        $winmain->{skip_declare}=1;
+        $winmain->{ret_type}="int APIENTRY";
+        $winmain->{param_list}=["HINSTANCE hInst", "HINSTANCE hPrev", "LPSTR s_cmdline", "int n_cmdshow"];
+        push @{$winmain->{init}}, "cur_instance=hInst;";
+        push @{$winmain->{init}}, "DUMP_STUB main_init";
+        push @{$winmain->{finish}}, "DUMP_STUB main_exit";
+        push @{$winmain->{finish}}, "return 0;";
 
     $if !$winmain
-	$$(C)global_hash->{cur_instance}->{attr}="extern"
-	$$(C)global_hash->{hwnd_main}->{attr}="extern"
+        $$(C)global_hash->{cur_instance}->{attr}="extern"
+        $$(C)global_hash->{hwnd_main}->{attr}="extern"
 
     # ---- Windows Include and Library ----
     push @$f, "#define _CRT_SECURE_NO_WARNINGS\n"
     push @$f, "#define WIN32_LEAN_AND_MEAN\n"
     push @$f, "#include <windows.h>\n";
     $foreach $i in keys %$(C)objects
-	$if $i=~/^lib(.*)/
-	    push @$f, "#pragma comment(lib, \"$1\")\n"
-	    $$(C)objects{$i}=undef
+        $if $i=~/^lib(.*)/
+            push @$f, "#pragma comment(lib, \"$1\")\n"
+            $$(C)objects{$i}=undef
 

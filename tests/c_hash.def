@@ -1,12 +1,10 @@
 include: c/hash.def
 include: c/string.def
 
-page: test, basic_frame
-    $call test_hash
+# reference: http://hz2.org/blog/hash_table_in_c.html
 
-subcode: test_hash
+page: test, basic_frame
     $my hash H
-    # H.$resize 80000
     
     $local string s
     $for i=0:10
@@ -17,20 +15,21 @@ subcode: test_hash
     H{34}=43
     H{"68"}=86
     H{hello}=12345
-    # $call hash_debug, H
+
+    #-- actually an ordered hash ----
     &call str_hash_foreach, H
-	$print "%s => ${$(value)}", $(key)
+        $print "%s => ${$(value)}", $(key)
 
-    $(if:0)
-        $print "  34: %d", H{34}
-        $print "  68: %d", H{68}
-        $print "  a17: $H{a17}"
-        $print "  b17: $H{b17}"
-        $print "  hello: %d", H{hello}
-        
-        $if H{a18}
-            $print "Got a18"
+    $print "  34: %d", H{34}
+    $print "  68: %d", H{68}
+    $print "  a7: $H{a7}"
+    $print "  b7: $H{b7}"
+    $print "  hello: %d", H{hello}
+    
+    $if H{a8}
+        $print "Got a8"
 
+#---- other tests ------------------------------------ 
 subcode: test_hash_int
     $my int_hash H: int
     H.$resize 80000

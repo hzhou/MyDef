@@ -3,11 +3,6 @@ include: ext.def
 include: win32/windows.def
 include: win32/gdi.def
 
-# GUI needs Model View Controller
-# think about the editor: 
-#    View is the window
-#    Model is the text buffer
-#    Controller is the code that connects View and Model
 subcode: win32_autoload
     $register_prefix(ui) UINT
     $register_prefix(lpstr) LPSTR

@@ -7,8 +7,8 @@ page: test, basic_frame
     s=strdup("0x101f 378 (nested (brackets)) 2x (tail)")
     $call local_input, s
 
+    #-- regex here are merely syntax sugur ------
     $while 1
-        DEBUG ON
         $if match_eof()
             break
         $elif /\s+/

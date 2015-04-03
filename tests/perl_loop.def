@@ -1,26 +1,29 @@
+# reference: http://hz2.org/blog/einstein_notation.html
+
+#-- $sum, $loop, $sumcode means the same thing
 page: test
     type: pl
-    subcode: main
-	# $call test_1
-	$call test_sumcode
-	$call test_sumcode_2
+
+    # $call test_1
+    $call test_sumcode
+    $call test_sumcode_2
 
 subcode: test_sumcode
-    $my @a[10]
-    $sumcode $a[i]=i
-    $sumcode print "i: $a[i]\n"
+    $my @a
+    $loop(10) $a[i]=i
+    $loop(10) print "i: $a[i]\n"
 
 subcode: test_sumcode_2
-    $sumcode(10) print "sumcode simple: i \n"
+    $loop(10) print "sumcode simple: i \n"
 
-    $my @a[2,2], @T[2,2]=(0,1,1,0)
-    $sumcode $a[i,j]=i+j
-    $sumcode print "i, j: $a[i,j]\n"
+    $my @a, @T=(0,1,1,0)
+    $loop(2,2) $a[i,j]=i+j
+    $loop(2,2) print "i, j: $a[i,j]\n"
 
     $print
-    $my @b[2,2]
-    $sumcode $b[i,j]=$T[i,k]*$a[k,j]
-    $sumcode print "i, j: $b[i,j]\n"
+    $my @b
+    $sum(2,2) $b[i,j]=$T[i,k]*$a[k,j]
+    $loop(2,2) print "i, j: $b[i,j]\n"
 
 #---------------------------------------- 
 subcode: test_1

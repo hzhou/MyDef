@@ -1,57 +1,19 @@
-page: test
-    subcode: main
-	$list WinMain
+# win32 is c, all c extension works here
 
-fncode: WinMain
+page: test, basic_frame
     $global hwnd_main
-    NEWLINE
     $call wc_background, COLOR_BACKGROUND
+    #-- register_wndclass will also create WndProc and hook up all the message handlers
     $call register_wndclass, "test", WndProc_main
     $call create_window, hwnd_main, "test"
-    $call create_menu
     $call win_show, hwnd_main
     $call win_loop
 
-subcode: create_menu
-    $(set:IDM_base=0x100)
-    $(set:IDM_step=0x10)
-    #$(unset:IDM_step)
-    $local HMENU menu_main
-    menu_main=CreateMenu()
-    $call AppendMenu, menu_main, menu_main
-
-    SetMenu(hwnd_main, menu_main)
-
-resource: menu_main
-    MENU
-	text: &File
-	IDM_Open
-	    text: &Open
-	IDM_Save
-	    disable: 1
-	    text: &Save
-	MENU
-	    disable: 1
-	    text: Extra
-	    var: menu_extra
-	    reserve: IDM_Extra -- 15
-    MENU
-	text: &Edit
-	IDM_Copy
-	    text: &Copy
-	IDM_Paste
-	    text: &Paste
-    IDM_Exit
-	text: E&xit
-
 # -------------------------------------------------
+#-- pay attention to the naming convention
 subcode: main_on_WM_PAINT
-    $local PAINTSTRUCT ps
-    $local HDC hdc
-    hdc=BeginPaint(hwnd, &ps)
-    TextOut(hdc, 10, 10, "Hello World!", 12)
-    EndPaint(hwnd, &ps)
-    return 0
+    &call on_paint
+        TextOut(hdc, 10, 10, "Hello World!", 12)
 
 #### RC file ########################################
 
@@ -59,4 +21,4 @@ page: test
     type: rc
     module: win32rc
     subcode: main
-	Icon test.ico
+        Icon test.ico
