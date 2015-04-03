@@ -74,6 +74,7 @@ subcode: pcre_match_compile(re)
 	$(re)=pcre_compile("$(re_pat)", $(re_opt), &pcre_err_msg, &pcre_err_pos, NULL) 
 	$if !$(re)
 	    $print pcre_compile error: $(re_pat)
+            exit(0)
 
 #=========================================================
 perlcode: pcre_plugin_capture

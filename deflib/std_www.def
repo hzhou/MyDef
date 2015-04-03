@@ -36,8 +36,8 @@ htmlcode: js_frame
 	    $call @content
 
 ## HTML ------------------------------------------------------
-subcode: meta_refresh(time, content)
-    PRINT <meta http-equiv="refresh" content="$(time);url=$(content)">
+subcode: meta_refresh(time, url)
+    PRINT <meta http-equiv="refresh" content="$(time);url=$(url)">
 
 subcode: js_src(url)
     <script type="text/javascript" src="$(url)"></script>
@@ -71,7 +71,17 @@ htmlcode: input_pass(name)
 htmlcode: input_submit(label)
     <input type="submit" value="$(label)">
 
+htmlcode: input_option(value)
+    <option value="$(value)">$(value)</option>
+
 ## JavaScript -----------------------------------------------------
+macros:
+    id: document.getElementById('$1')
+    style: document.getElementById('$1').style
+    value: document.getElementById('$1').value
+    hide: document.getElementById('$1').style.display='none'
+    show: document.getElementById('$1').style.display='block'
+
 jscode: setf(target)
     $(allow_recurse:10)
     $(target) = function(){
@@ -104,6 +114,11 @@ jscode: listen(obj, event)
 
 jscode: on_click(name)
     document.getElementById("$(name)").addEventListener("click", function(event){
+	BLOCK
+    }, false);
+
+jscode: on_change(name)
+    document.getElementById("$(name)").addEventListener("change", function(event){
 	BLOCK
     }, false);
 
