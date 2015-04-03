@@ -1,0 +1,35 @@
+macros:
+    path: /home/hzhou
+
+page: ajax_mydef_page, php_frame
+    module: www
+    type: php
+
+    $module = $_GET['module']
+    $if !$module
+        $module="general"
+
+    $input = $HTTP_RAW_POST_DATA
+
+    $desc=array(0=>array("pipe", "r"), 1=>array("pipe", "w"));
+    $env=array("MYDEFLIB"=>"$(path)/lib/MyDef", "PERL5LIB"=>"$(path)/lib/perl5");
+    $cmd = "$(path)/bin/mydef_page -m$module -pipe";
+    $r = proc_open($cmd, $desc, $pipes, '/tmp', $env)
+    $if is_resource($r)
+        fwrite($pipes[0], $input)
+        fclose($pipes[0])
+
+        echo stream_get_contents($pipes[1])
+        fclose($pipes[1])
+
+        proc_close($r)
+    $else
+        echo $input
+
+page: ajax_load_test, php_frame
+    module: www
+    type: php
+
+    $filename=$_GET['file']
+
+    echo file_get_contents("$(path)/projects/MyDef/tests/$filename.def")

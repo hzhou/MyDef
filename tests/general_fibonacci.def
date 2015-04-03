@@ -1,0 +1,30 @@
+# reference: http://hz2.org/blog/fibonacci_sequence.html
+
+page: test
+    type: hs
+
+    $call seq, fib, 0, 1, a0+a1
+    $call seq, geom, 1, a0*2
+    $call seq, fac, 1, a0*n
+    $call seq, rec, "recursive", "I know (" ++ a0 ++ ") " ++ show n
+
+# ---- engine part, tuck in the library ----
+perlcode: seq
+    $if $param=~/(\w+)[,:]\s*(.*)/
+        my $name=$1
+        my @tlist=split /,\s*/, $2
+        my $n=$#tlist
+
+        my @t=split /\b(a\d+)\b/, $tlist[$n]
+        $foreach $t in @t
+            $if $t=~/^a(\d+)/
+                my $i=$n-$1
+                $t="$name(n-$i)"
+        my $t=join('', @t)
+
+        $for $i=0:$n
+            push @$out, "$name $i = $tlist[$i]\n"
+        push @$out, "$name n = $t\n"
+        push @$out, "\n"
+                                
+

@@ -1,0 +1,129 @@
+page: test, js_frame
+    title: MyDef Demo
+
+    subcode: content
+        $call templates
+        $h1
+            MyDef Demo
+        $p hint
+            CSS: .hint {color:#888;}
+            Editable code, click "Make" to see the translation.
+
+        $div #editor, /
+        $div #shell
+            $call shell
+        $div #output, /
+
+#---- layout ------------------------------------ 
+subcode:: meta
+    $call css_syntax
+    $call js_src, /ace/ace.js
+
+subcode:: meta
+    CSS: #editor { width: 900px; height: 400px; margin:10px; line-height: 1.5em;}
+    CSS: #editor {border: 1px solid #555;}
+    CSS: #shell, { width: 900px; height: 100px; margin:10px;  line-height: 1.5em;}
+    CSS: #output { width: 900px; height: 500px;margin:10px;  line-height: 1.5em;}
+    
+jscode:: js_onload
+    $if window.innerHeight > 1000
+        $(style:output).height = window.innerHeight - 550 + 'px'
+    $if window.innerWidth >600
+        $(for:i in editor,shell,output)
+            $(style:$(i)).width = window.innerWidth - 100 + 'px'
+
+#---- template ------------------------------------ 
+jscode:: js_onload
+    $(value:template) = "c_regex"
+
+subcode: templates
+    CSS: #div_template {width: 600px; float: right; text-align:right; padding-right: 50px;}
+    $div #div_template
+        Template: 
+        $tag select, #template
+            $map input_option, blank, c_array, c_files, c_hash, c_lex, c_matrix, c_preproc, c_regex, c_scope, c_string, c_types, general_test, perl_loop, perl_macros, perl_test, win32_test, www_test, xs_test
+        &nbsp;
+        $a href:https://github.com/hzhou/MyDef/tree/master/deflib, target:github
+            library
+
+jscode:: js_onload
+    &call on_change, template
+        $if $(value:template) == 'blank'
+            editor.setValue("page: test\n", 1)
+            $(value:module)="general"
+            $(hide:output)
+        $else
+            load_mydef($(value:template))
+
+#---- make ------------------------------------ 
+subcode: shell
+    &nbsp;
+    Output Module: 
+    &nbsp;
+    $tag select, #module
+        $map input_option, c, cpp, general, perl, win32, www, xs
+    &nbsp;
+    $tag button, #make, "Make"
+
+jscode:: js_onload
+    &call on_click, make
+        make_mydef()
+
+#---- mydef editor ------------------------------------ 
+jscode:: js_onload
+    $global editor
+    editor = ace.edit("editor")
+    editor.$blockScrolling = Infinity 
+    editor.setDisplayIndentGuides(false)
+    editor.getSession().setMode("ace/mode/mydef")
+    editor.getSession().setUseSoftTabs(true)
+    load_mydef("c_regex")
+    
+#---- output ------------------------------------ 
+jscode:: js_onload
+    CSS: #output {display: none;}
+    $global output
+    output = ace.edit("output")
+    output.$blockScrolling = Infinity 
+    output.setReadOnly(true)
+    output.setTheme("ace/theme/kuroir")
+    output.setHighlightActiveLine(false);
+
+#---- global ------------------
+jscode: js_global
+    $function load_mydef(f)
+        var i=f.indexOf('_')
+        $if i>0
+            $(value:module)=f.substring(0, i)
+        &call ajax_get, "ajax_load_test.php?file="+f
+            editor.setValue($(reply), -1)
+            $(hide:output)
+
+    $function make_mydef()
+        var s = editor.getValue()
+        var m = $(value:module)
+        &call ajax_post_text, "ajax_mydef_page.php?module="+m, s
+            $(show:output)
+            output.setValue($(reply), -1)
+            $if m=='c' || m=='win32' || m=='cpp'
+                output.getSession().setMode("ace/mode/c_cpp")
+            $elif m=='www'
+                output.getSession().setMode("ace/mode/php")
+            $elif m=='perl'
+                output.getSession().setMode("ace/mode/perl")
+            $else
+                output.getSession().setMode("ace/mode/text")
+
+
+#---------------------------------------- 
+subcode:: css_syntax
+    CSS: .ace_hidden-cursors {opacity:0} 
+
+    CSS: .ace_string {color: #F2a !important }
+    CSS: .ace_comment {color: #aaa !important }
+    CSS: .ace_keyword {color: #2a4 !important }
+    CSS: .ace_support.ace_function {color: #00f !important }
+    CSS: .ace_meta.ace_function {color: #04a !important }
+
+
+
