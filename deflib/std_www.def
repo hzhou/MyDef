@@ -155,27 +155,43 @@ jscode: ajax_init
     $else
         xmlhttp=new ActiveXObject("Microsoft.XMLHTTP")
 
+jscode: ajax_action
+    $call ajax_init
+    xmlhttp.onreadystatechange=function(){
+        $if xmlhttp.readyState==4 && xmlhttp.status==200
+            $(set:reply=xmlhttp.responseText)
+            BLOCK
+    };
+
 jscode: ajax_get(url)
     &call auto
-        $call ajax_init
-        xmlhttp.onreadystatechange=function(){
-            $if xmlhttp.readyState==4 && xmlhttp.status==200
-                $(set:reply=xmlhttp.responseText)
-                BLOCK
-        };
+        &call ajax_action
+            BLOCK
         xmlhttp.open("GET", $(url), true)
         xmlhttp.send()
 
 jscode: ajax_post(url, content)
     &call auto
-        $call ajax_init
-        xmlhttp.onreadystatechange=function(){
-            $if xmlhttp.readyState==4 && xmlhttp.status==200
-                $(set:reply=xmlhttp.responseText)
-                BLOCK
-        };
+        &call ajax_action
+            BLOCK
         xmlhttp.open("POST", $(url), true)
         xmlhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
+        xmlhttp.send($(content))
+
+jscode: ajax_post_text(url, content)
+    &call auto
+        &call ajax_action
+            BLOCK
+        xmlhttp.open("POST", $(url), true)
+        xmlhttp.setRequestHeader("Content-type", "text/plain")
+        xmlhttp.send($(content))
+
+jscode: ajax_post_json(url, content)
+    &call auto
+        &call ajax_action
+            BLOCK
+        xmlhttp.open("POST", $(url), true)
+        xmlhttp.setRequestHeader("Content-type", "application/json; charset=utf-8")
         xmlhttp.send($(content))
 
 ## PHP  -----------------------------------------------------
