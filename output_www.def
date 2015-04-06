@@ -1,11 +1,8 @@
 include: output.def
-include: macros_www/common.def
 include: macros_www/html.def
 include: macros_www/php.def
 include: macros_www/js.def
 include: macros_www/field.def
-
-# Many Legacy/Ugly code here. Wish I will have to time/interest to clean it up.
 
 page: output_www, output_main
     type: pm
@@ -16,11 +13,15 @@ page: output_www, output_main
 
 subcode:: package_globals
     use Term::ANSIColor qw(:constants);
-    # ------ global variables
-    my $style_sheets
 
 subcode:: init_page
+    $global $style, @style_key_list
+    $style={};
+    @style_key_list=()
+
+    $global $style_sheets
     $style_sheets=[]
+
     $if $page->{pageext} eq "js"
         $init_mode="js"
 
@@ -89,12 +90,16 @@ subcode: parsecode_PRINT
     return 0
 
 subcode: parsecode_special
-    $if $l=~/^\s*CSS: (.*)\s*\{(.*)\}/
-	$if $style->{$1}
-	    $style->{$1}.=";$2";
-	$else
-	    $style->{$1}=$2;
-	    push @style_key_list, $1;
+    $if $l=~/^CSS:\s*(.*)/
+        my $t=$1
+        $if $t=~/(.*?)\s*\{(.*)\}/
+            $if $style->{$1}
+                $style->{$1}.=";$2";
+            $else
+                $style->{$1}=$2;
+                push @style_key_list, $1;
+        $elif $t=~/(\S*\.css)/
+            push @$style_sheets, $1
 	return
     $elif $l=~/^\s*\$(title|charset)\s+(.*)/
 	$page->{$1}=$2

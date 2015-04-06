@@ -150,25 +150,31 @@ subcode: pop_make_string
     $call print_line
 
 subcode: string_from_file
-    my @t
-    &call open_r, $file
-        chomp
-        s/\\/\\\\/g
-        s/"/\\"/g
-        push @t, $_
-    push @$f, "    "x$indentation
-    push @$f, "$head = "
-    $if $type eq "string"
-        push @$f, '"'
-        $foreach $t in @t
-            push @$f, "$t\\\n"
-        push @$f, "\";\n"
-    $elif $type eq "strings"
-        # $if $dump->{module} eq "output_www"
-        my $indent="    " x ($indentation+1)
-        push @$f, "[\n"
-        $foreach $t in @t
-            push @$f, "$indent\"$t\",\n"
-        push @$f, "$indent];\n"
+    $if $dump->{module} eq "output_perl"
+        push @$f, "$head = <<HERE;\n"
+        &call open_r, $file
+            push @$f, $_
+        push @$f, "HERE\n"
+    $else
+        my @t
+        &call open_r, $file
+            chomp
+            s/\\/\\\\/g
+            s/"/\\"/g
+            push @t, $_
+        push @$f, "    "x$indentation
+        push @$f, "$head = "
+        $if $type eq "string"
+            push @$f, '"'
+            $foreach $t in @t
+                push @$f, "$t\\\n"
+            push @$f, "\";\n"
+        $elif $type eq "strings"
+            # $if $dump->{module} eq "output_www"
+            my $indent="    " x ($indentation+1)
+            push @$f, "[\n"
+            $foreach $t in @t
+                push @$f, "$indent\"$t\",\n"
+            push @$f, "$indent];\n"
 
 

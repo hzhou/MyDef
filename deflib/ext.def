@@ -20,3 +20,11 @@ subcode: push_indent_block
     push @$out, "INDENT"
     BLOCK
     push @$out, "DEDENT"
+
+#---- &call perlcode [optional approach]
+subcode: grab_codelist
+    my $codelist = $MyDef::compileutil::named_blocks{"last_grab"}
+    $if !defined $codelist
+        BLOCK
+    # $else
+        # $print codelist: [$codelist]

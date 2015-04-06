@@ -37,11 +37,13 @@ subcode: compile_main
 	$if $pageext
 	    $outname.=".$pageext";
 	print "  --> [$outname]\n";
-
-	open Out, ">$outname" or die "Can't write $outname\n";
-	$foreach my $l in @$plines
-	    print Out $l;
-	close Out;
+        my $n=@$plines
+        $if $n==0
+            $print "Strange, no output!"
+        $else
+            &call open_w, $outname
+                $foreach $l in @$plines
+                    print Out $l;
 
     $sub parse_code($code)
 	modepush($code->{type});

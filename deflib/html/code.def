@@ -18,18 +18,20 @@ subcode: precode
     </code></pre>
 
 #---------------------------------------- 
+include: ext.def
+
 perlcode: codeprint
-    my ($type, $codelist)
-    $if $param=~/(\w+),\s*(\S+),\s*(.*?)\s*$/
-        $type=$1
-        $call grab_file, $2, $3
-    $else
-        $codelist=MyDef::compileutil::get_named_block("last_grab")
+    my $type
+    &call grab_codelist
+        $if $param=~/(\w+),\s*(\S+),\s*(.*?)\s*$/
+            $type=$1
+            $call grab_file, $2, $3
+    $if !$type
         $if $param=~/(\w+)/
             $type=$1
+    $if ref($codelist) eq "ARRAY"
         $while $codelist->[-1]=~/^\s*$/
             pop @$codelist
-    $if ref($codelist) eq "ARRAY"
         push @$out, "<pre><code>"
         push @$out, "PUSHDENT"
         $foreach $t in @$codelist

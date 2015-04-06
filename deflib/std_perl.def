@@ -60,9 +60,10 @@ subcode: get_file_lines(name)
 #-- similar to HERE document -----------
 perlcode: print_block
     my $codelist=MyDef::compileutil::get_named_block("last_grab")
-    $foreach $t in @$codelist
-        $t=~s/"/\\\"/g
-        push @$out, "print Out \"$t\\n\";"
+    $if $codelist
+        $foreach $t in @$codelist
+            $t=~s/"/\\\"/g
+            push @$out, "print Out \"$t\\n\";"
 
 # -- COMMON PATTERNS ---------------
 subcode: topdown_loop(name, top)
