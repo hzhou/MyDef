@@ -34,10 +34,10 @@ fncode: import_data($file)
     # -------- include files ---------
     my @includes;
     my %includes;
-    $call load_standard_includes
 
     # -----------------------------------------------
     import_file($file, $def, \@includes,\%includes, "main")
+    $call load_standard_includes
     $while 1
         $if my $file=shift(@includes)
             import_file($file, $def, \@includes,\%includes, "include")
@@ -103,7 +103,8 @@ fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
         $elif $curindent==0
             $if $line=~/^include:? (.*)/
                 $if !$include_hash->{$1}
-                    push @$include_list, $1;
+                    $if $1 ne "noconfig"
+                        push @$include_list, $1;
                     $include_hash->{$1}=1;
                     #print STDERR "    include $1\n";
             $elif $line=~/^(sub)?page: (.*)/
@@ -384,7 +385,7 @@ fncode: expand_macro($lref, $macros)
 #---------------------------------------- 
 subcode: load_standard_includes
     my @standard_includes
-    $if $MyDef::var->{'include'}
+    $if $MyDef::var->{'include'} and !$includes{"noconfig"}
         push @standard_includes, split(/[:,]\s*/, $MyDef::var->{'include'})
 
     my $stdinc="std_".$MyDef::var->{module}.".def"

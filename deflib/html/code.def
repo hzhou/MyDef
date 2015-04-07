@@ -1,5 +1,4 @@
-
-subcode: css_code
+subcode: code_css
     CSS: pre {background-color: #ddd; margin: 4px 10px; padding-left: 20px}
     CSS: .mydef-comment {color: #888;}
     CSS: .mydef-label {color: #22f;}
