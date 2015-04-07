@@ -155,6 +155,12 @@ subcode: string_from_file
         &call open_r, $file
             push @$f, $_
         push @$f, "HERE\n"
+    $elif $head=~/^\$/ and $dump->{module} eq "output_www"
+        #-- php --
+        push @$f, "$head = <<<HERE\n"
+        &call open_r, $file
+            push @$f, $_
+        push @$f, "HERE;\n"
     $else
         my @t
         &call open_r, $file
