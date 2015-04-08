@@ -257,6 +257,8 @@ subcode: check_file_inpage
 	$page->{module}=$1;
     $elif /^\s*depend:\s+(.*)/
 	$page->{depend}=$1
+    $elif /^\s*cmd:\s+(.*)/
+	$page->{cmd}=$1
     $elif /^\S/
 	$inpage=0;
 
@@ -345,42 +347,38 @@ subcode: expand_dependency
 	$foreach my $t in @$l
 	    $track{$t}=1
 	my $j=0;
-	while($j<@$l){
+	$while $j<@$l
 	    my $t=$l->[$j];
 	    my $ll=$h_def{$t};
-	    foreach my $tt (@$ll){
-		if(!$track{$tt}){
+	    $foreach $tt in @$ll
+		$if !$track{$tt}
 		    $track{$tt}=1;
 		    push @$l, $tt;
-		}
-	    }
 	    $j++;
-	}
 
 subcode: write_makefile
-    open Out, ">Makefile" or die "Can't write Makefile\n";
-    print Out "MakePage=mydef_page\n";
-    print Out "\n";
+    &call open_w, Makefile
+        print Out "MakePage=mydef_page\n";
+        print Out "\n";
 
-    $call write_var_folder
-    $call write_var_copylist
+        $call write_var_folder
+        $call write_var_copylist
 
-    print Out "all_targets: ", join(" ", @tlist, @make_folders),;
-    print Out "\n\n";
+        print Out "all_targets: ", join(" ", @tlist, @make_folders),;
+        print Out "\n\n";
 
-    $if $config_outputdir_make
-	print Out "all: all_targets\n"
-	print Out "\tmake -C $config_outputdir\n";
-    $if $config_outputdir_make
-	print Out "install: $config_outputdir\n"
-	print Out "\tmake -C $config_outputdir install\n"
-	print Out "\n"
+        $if $config_outputdir_make
+            print Out "all: all_targets\n"
+            print Out "\tmake -C $config_outputdir\n";
+        $if $config_outputdir_make
+            print Out "install: $config_outputdir\n"
+            print Out "\tmake -C $config_outputdir install\n"
+            print Out "\n"
 
-    # expand def dependcy tree
-    $call write_rule_copylist
-    $call write_rule_pages
-    $call write_rule_submake
-    close Out;
+        # expand def dependcy tree
+        $call write_rule_copylist
+        $call write_rule_pages
+        $call write_rule_submake
 
 subcode: write_var_folder
     my %var_hash;
@@ -414,10 +412,13 @@ subcode: write_rule_pages
 	    my @t;
 	    my $l=$h_def{$def};
 	    $foreach $tt in @$l
-		$if -f $tt
+		$if !$inc->{$tt} and -f $tt
 		    push @t, $tt;
+                    $inc->{$tt}=1
 	    print Out $h->{path}, ": ", $def, " ", join(" ", @t), " $inc_dep $extra_dep\n";
-	    $if $h->{module} and ($h->{module}ne $module)
+            $if $h->{cmd}
+                print Out "\t$h->{cmd}\n"
+	    $elif $h->{module} and ($h->{module}ne $module)
 		print Out "\t\${MakePage} -m$h->{module} \$< \$\@\n";
 	    $else
 		print Out "\t\${MakePage} \$< \$\@\n";

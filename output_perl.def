@@ -247,8 +247,11 @@ subcode: check_termination
 #---------------------------------------- 
 subcode: parsecode_print
     my $str=$param
+    my $need_escape
     $if $str=~/^\s*\"(.*)\"\s*$/
 	$str=$1
+    $else
+        $need_escape=1
 
     my %colors=(red=>31,green=>32,yellow=>33,blue=>34,magenta=>35,cyan=>36)
 
@@ -268,8 +271,13 @@ subcode: parsecode_print
 		    push @group, $1
 	    $else
 		push @fmt_list, '$'
-	&call if_lex, \\\$
-	    push @fmt_list, '$'
+	&call if_lex, (\\.)
+	    push @fmt_list, $1
+        $elif $str=~/\G"/gc
+            $if $need_escape
+                push @fmt_list, "\\\""
+            $else
+                push @fmt_list, "\""
 	&call if_lex, \}
 	    #---------------------------------------- 
 	    #- $print $green{some text}
@@ -284,7 +292,7 @@ subcode: parsecode_print
 		    $n_escape++
 	    $else
 		push @fmt_list, '}'
-	&call if_lex, [^\$\}]+
+	$elif $str=~/\G[^\$\}"]+/gc
 	    push @fmt_list, $&
 
     my $tail=$fmt_list[-1]
