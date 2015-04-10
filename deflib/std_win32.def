@@ -4,6 +4,7 @@ include: win32/windows.def
 include: win32/gdi.def
 
 subcode: win32_autoload
+    $uselib user32
     $register_prefix(ui) UINT
     $register_prefix(lpstr) LPSTR
 
@@ -46,6 +47,7 @@ subcode: win_loop
 
 # ---------
 subcode: on_paint
+    $uselib gdi32
     $local PAINTSTRUCT ps
     $local HDC hdc
     hdc = BeginPaint(hwnd, &ps)
@@ -56,12 +58,18 @@ subcode: on_paint
 subcode: draw_hello
     $my rect_client
     GetClientRect(hwnd, &rect_client)
-    $uselib gdi32
     $call local_brush, temp_brush, 0xa0a0a0
     FillRect(hdc, &rect_client, temp_brush)
+
     $call quick_font, "Times New Roman", 24
     SetTextAlign(hdc, TA_CENTER|TA_BASELINE)
     TextOut(hdc, rect_client.right/2, rect_client.bottom/2, "Hello World", 11)
+
+subcode: fill_background(color)
+    $my rect_client
+    GetClientRect(hwnd, &rect_client)
+    $call local_brush, temp_brush, 0x$(color)
+    FillRect(hdc, &rect_client, temp_brush)
 
 ###############################################################
 subcode:: autoload_symbols

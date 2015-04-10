@@ -1,12 +1,14 @@
-subcode: font_init
+subcode: _autoload
+    $class font
+
     $include ft2build.h
     $include FT_FREETYPE_H
+    $uselib freetype
     $global FT_Library ftlib
     
-    tn_err=FT_Init_Freetype(&ftlib)
-
-subcode:: _autoload
-    $class font
+    $(block:main_init)
+        $if FT_Init_FreeType(&ftlib)
+            $print Error: FT_Init_FreeType
 
 # subcode: font_init(var, scope, @type)
 

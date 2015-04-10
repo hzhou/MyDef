@@ -66,9 +66,6 @@ subcode: parsecode_func_param
 	    $if $param1=~/^,\s*(\w+)/
 		global_add_symbol("int $1")
 	return
-    $elif $func eq "write_h"
-	$call write_h, $param1, $param2
-	return
     $call @parsecode_func_param_other
 
 subcode: parsecode_func
@@ -95,7 +92,7 @@ subcode: parsecode_func
 	data_unpack($param)
 	return
     $elsif $func eq "include"
-	$call add_include, $param
+	add_include($param)
 	return
     $elsif $func eq "declare"
 	$call @do_declare, $param
@@ -114,7 +111,7 @@ subcode: parsecode_func
 	$foreach my $f in @flist
 	    $objects{"lib$f"}=1;
 	    $if $lib_include{$f}
-		$call add_include, $lib_include{$f}
+		add_include($lib_include{$f})
 	return
     $elsif $func eq "fntype"
 	# Similar to type_name, but for funtion pointer types

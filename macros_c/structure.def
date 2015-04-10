@@ -68,7 +68,6 @@ fncode: declare_union($param)
 
 #-----------------------------------------
 fncode: declare_struct($name, $param)
-    $call check_autoload_h
     my ($s_list, $s_hash)
     my ($s_init, $s_exit)
     $if $structs{$name}
@@ -82,10 +81,8 @@ fncode: declare_struct($name, $param)
         $s_list=[]
         $s_hash={"-init"=>$s_init, "-exit"=>$s_exit}
         $structs{$name}={list=>$s_list, hash=>$s_hash}
-        $if !$autoload_h
-            push @struct_list, $name
+        push @struct_list, $name
 
-    $call add_to_autoload_h, "struct-$name"
     $type_prefix{"st$name"}="struct $name";
 
     $call declare_struct_elements

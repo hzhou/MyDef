@@ -7,8 +7,8 @@ subcode:: c_init
     %list_function_hash=()
     @list_function_list=()
 
-#---- page attribute `autolist` automatically adds functions
 subcode: autolist_functions
+    $global %function_autolist
     &call each_subcode, fn
         my $source=$code->{source}
         $foreach $l in @$source
@@ -23,16 +23,18 @@ subcode: autolist_functions
                     $l="\$return_type $2"
             $else
                 last
-	$global %function_autolist
-	$function_autolist{$name}=1
+	$function_autolist{$name}="static"
 
 #---- auto_declare -----------------------------
+# relying on utils to export external functions
+#     need work out solutions on structure etc.
+#     deprecate autoload_h, "auto" is a monster, explicit rules!
 subcode: load_autodecl
     my $lines=MyDef::parseutil::get_lines("c/libmydef.inc")
     $foreach $l in @$lines
         $if $l=~/F\s+(\w+):\s*(.*)/
             $functions{$1}={declare=>$2, autodecl=>1}
-            $function_autolist{$1}=1
+            $function_autolist{$1}="declare"
 
 
 #---- lexical parameter ------------------------------------ 
@@ -59,11 +61,12 @@ subcode:: parsecode_func_other
 	$call parse_function
 	return
     $elsif $func eq "list"
-	# $call parse_function_list
-	$call add_list_functions, $param
+        my @tlist=split /,\s*/, $param
+        $foreach $f in @tlist
+            $call add_list_function, $f
+            $function_autolist{$f}="global"
 	return
     $elsif $func eq "fcall"
-	$call check_autoload_h
 	$if $param=~/(\w+)\s*\(/
 	    $call add_list_function, $1
 	    $l=$param
@@ -72,18 +75,10 @@ subcode:: parsecode_func_other
 	    $l="$1()"
 
 # ------------------------------------
-subcode: add_list_functions(param)
-    $call check_autoload_h
-    $if !$autoload_h
-	my @tlist=split /,\s*/, $(param)
-	$foreach $f in @tlist
-	    $call add_list_function, $f
-
 subcode: add_list_function(f)
     $if !$list_function_hash{$(f)}
 	$list_function_hash{$(f)}=1
 	push @list_function_list, $(f)
-	$call add_to_autoload_h, "function-$(f)"
     $else
 	$list_function_hash{$(f)}++
 
@@ -126,8 +121,7 @@ subcode: parse_function_list_item(f)
 # ---- Direct $function ------------------
 subcode: parse_function
     $global %lamda_functions
-    $call check_autoload_h
-    $if !$autoload_h and $param=~/(\w+)(.*)/
+    $if $param=~/(\w+)(.*)/
 	my ($fname, $paramline)=($1, $2)
 	$if $paramline=~/\((.*)\)/
 	    $paramline=$1
@@ -135,8 +129,6 @@ subcode: parse_function
 	    $paramline=$1
 
 	my $funcname=MyDef::utils::uniq_name($fname, \%list_function_hash)
-	$call add_to_autoload_h, "function-$funcname"
-
 	my $block=[]
 	&call replace_output, $block
 	    &call function_block

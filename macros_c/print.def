@@ -154,5 +154,5 @@ subcode:: c_support_subs
 		push @$out, "fprintf(stdout, \"    :[$prefix] ".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
 	$else
 	    push @$out, "fprintf(stdout, \"    :".join(", ", @a1)."\\n\", ".join(", ", @a2).");";
-	$includes{"<stdio.h>"}=1;
+        add_include("stdio")
 

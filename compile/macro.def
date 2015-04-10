@@ -199,7 +199,9 @@ fncode: get_macro($s, $nowarn)
 	$if $t
 	    $if $p=~/(\d+)-(\d+)/
 		#-- substr, e.g. $(macro:0-3) ----
-		return substr($t, $1, $2-$1+1);
+		my $s=substr($t, $1, $2-$1+1);
+                $print $t:$1-$2 -> [$s]
+                return $s
 	    $elif $p=~/(\d+):(\d+|word|number|strip)/
 		#-- substr with regex predicate ----
 		my $s=substr($t, $1)
@@ -238,6 +240,20 @@ fncode: get_macro($s, $nowarn)
 		    $t=~s/\$$i/$pp/g
 		    $i++
 		return $t
+    $elif $s=~/^([mg])([\|&]+):(.*)/
+        my ($m, $sep, $t)=($1, $2, $3)
+        my @tlist
+        $if $t=~/^(.*==\s*)(.*)$/
+            my ($pre, $t)=($1, $2)
+            my @t = split /,\s*/, $t
+            $foreach $tt in @t
+                push @tlist, "$pre$tt"
+        $else
+            $print failed to parse multiplex macro [$sep][$t]
+        $if $m eq "g"
+            return '('.join(" $sep ", @tlist).')'
+        $else
+            return join(" $sep ", @tlist)
     $elif $s=~/^(.+)/
         #---- straight macro ----
         $for $j=$#$deflist:-1:-1

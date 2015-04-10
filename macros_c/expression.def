@@ -276,15 +276,14 @@ subcode: exp_callsub
 subcode: check_exp_fcall(primary, token)
     # print "fcall: $(primary)  $(token)\n"
     $if $(primary)=~/^(sin|cos|tan|asin|acos|atan|atan2|exp|log|log10|pow|sqrt|ceil|floor|fabs)$/
-	$includes{"<math.h>"}=1
+        add_include("math")
 	$objects{"libm"}=1
     $elif $(primary)=~/^(mem|str)[a-z]+$/
-	$includes{"<string.h>"}=1
+        add_include("string")
     $elif $(primary)=~/^(malloc|free)$/
-	$includes{"<stdlib.h>"}=1
+	add_include("stdlib")
     $else
 	$if $function_autolist{$(primary)}
-	    $call check_autoload_h
 	    $call add_list_function, $(primary)
 	$if $function_defaults{$(primary)}
             #-- prepend: essentiall implements lexical function parameters

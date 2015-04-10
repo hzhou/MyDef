@@ -1,19 +1,11 @@
 # subcode:: parsecode_func_param_other
 subcode:: parsecode_func_other
-    $elif $func eq "global" or $func eq "symbol" or $func eq "auto_global"
+    $elif $func eq "global" or $func eq "symbol"
 	$call check_var_special
-	$if $func eq "auto_global"
-	    $call check_autoload_h_direct
-	    $func eq "global"
-	$else
-	    $call check_autoload_h
-	$if $func eq "global" and $autoload_h
-	    $func="symbol"
 
 	&call each_param_v
 	    $if $func eq "global"
 		my $name=global_add_var($v)
-		$call add_to_autoload_h, "global-$name"
 	    $elif $func eq "symbol"
 		global_add_symbol($v)
 	return

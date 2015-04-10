@@ -60,14 +60,14 @@ subcode:: package_globals
 
     %type_include=(
 	time_t=>"time",
-	int8_t=>"stdlib",
-	int16_t=>"stdlib",
-	int32_t=>"stdlib",
-	int64_t=>"stdlib",
-	uint8_t=>"stdlib",
-	uint16_t=>"stdlib",
-	uint32_t=>"stdlib",
-	uint64_t=>"stdlib",
+	int8_t=>"stdint",
+	int16_t=>"stdint",
+	int32_t=>"stdint",
+	int64_t=>"stdint",
+	uint8_t=>"stdint",
+	uint16_t=>"stdint",
+	uint32_t=>"stdint",
+	uint64_t=>"stdint",
     );
 
     # TODO: limit to function call?
@@ -171,7 +171,7 @@ subcode:: c_support_subs
             $page->{use_bool}=1
 	#----------------------------------------  
 	$if $type_include{$type}
-	    $call add_include, $type_include{$type}
+	    add_include($type_include{$type})
 	# --
 	$while $name=~/\[.*?\]/g
 	    $type=pointer_type($type);

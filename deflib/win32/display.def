@@ -1,18 +1,22 @@
 include: win32/bitmap.def
-include: c/freetype.def
 
 #----------------------------------------------------------------- 
 #- Based on windows DIB, which is upside down (right side up for mathematicians)
 #----------------------------------------------------------------- 
 
 macros:
-    FontType: FT_Face
+    FontType: int
 
-subcode:: _autoload
+subcode: _autoload
     $class display_buffer
     $struct(display_buffer) unsigned char * buffer, int width, int height 
+
+    $register_name(p_disp) struct display_buffer *
+
     #---- map to screen ----
     $struct(display_buffer) int offset_x, int offset_y
+    #---- scale
+    $struct(display_buffer) float pt
     #---- graphic state ----
     $struct(display_buffer) float x, float y
     $struct(display_buffer) $(FontType) font, float text_x, float text_y
@@ -21,27 +25,50 @@ subcode:: _autoload
 subcode: display_buffer_init(var, scope, @type)
     $global struct display_buffer $(var)
     $(var).buffer=NULL
+    $(var).pt = 1.0
 
     $set_var_attr $(var), class=display_buffer
 
+subcode: display_buffer_set_page(var, w, h)
+    f_disp_set_page(&$(var), $(w), $(h))
+
 subcode: display_buffer_resize(var, w, h)
-    $if $(var).buffer
-	free($(var).buffer)
-    $(var).width=$(w)
-    $(var).height=$(h)
-    tn_size=($(w)) * ($(h)) * 4
-    $(var).buffer=malloc(tn_size)
-    memset($(var).buffer, 255, tn_size)
+    f_disp_resize(&$(var), $(w), $(h))
 
 subcode: display_buffer_offset(var, x, y)
-    $global int $(var)_x, int $(var)_y
     $(var).offset_x=$(x)
     $(var).offset_y=$(y)
 
 subcode: display_buffer_draw(var, hdc)
-    $uselib gdi32
     $call draw_dib, hdc, $(var).offset_x, $(var).offset_y, $(var).buffer, $(var).width, $(var).height
 
+#---------------------------------------- 
+fncode: f_disp_set_page(p_disp, tn_w, tn_h)
+    tf_aspect = (float)(8.5/11)
+    tn_margin = 20
+    tn_w2 = tn_w - tn_margin
+    tn_h2 = tn_h - tn_margin
+    $if tn_h2*tf_aspect > tn_w2
+        tn_h2 = (int)(tn_w2 / tf_aspect)
+    $else
+        tn_w2 = (int)(tn_h2 * tf_aspect)
+    f_disp_resize(p_disp, tn_w2, tn_h2)
+    p_disp->pt = tn_w2 / (float)(8.5*72)
+    p_disp->offset_x = (tn_w - tn_w2)/2
+    p_disp->offset_y = (tn_h - tn_h2)/2
+
+fncode: f_disp_resize(p_disp, tn_w, tn_h)
+    $(set:D=p_disp->)
+    $if $(D)buffer
+	free($(D)buffer)
+    $(D)width  = tn_w
+    $(D)height = tn_h
+    tn_size    = tn_w * tn_h * 4
+    $(D)buffer=malloc(tn_size)
+    memset($(D)buffer, 255, tn_size)
+
+#---------------------------------------- 
+#-  drawing routines
 #---------------------------------------- 
 subcode: display_buffer_set_rect(var, margin, thick, color)
     $include stdint

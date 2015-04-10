@@ -7,8 +7,6 @@ subcode: c_dump_init
     $if %objects
 	push @dump_init, "/* link: $lib_list $obj_list */\n"
 
-    $call dump_h_files
-
     my $dump_out=\@dump_init
     $call dump_includes
     $call dump_defines
@@ -30,17 +28,21 @@ subcode: dump_classes
 
 # ---- Includes ----
 subcode:: c_init
+    $global @include_list
     $global %includes, %objects
+    @include_list=()
     %includes=()
     %objects=()
 
-subcode: add_include(l)
-    my @flist=split /,\s*/, $(l)
-    $call check_autoload_h
+fncode: add_include($l)
+    my @flist=split /,\s*/, $l
     $foreach $f in @flist
 	my $key
 	$if $f=~/\.\w+$/
 	    $key="\"$f\""
+        $elif $f=~/^[A-Z_]+/
+            # e.g. freetype2 #include FT_FREETYPE_H
+            $key=$f
 	$elif $f=~/^".*"$/
 	    $key=$f
 	$elif $f=~/^<.*>$/
@@ -49,13 +51,13 @@ subcode: add_include(l)
 	    $key="<$f.h>"
 	$else
 	    $key=$f
-	$includes{$key}=1
-	$call add_to_autoload_h, "include-$key"
+        $if !$includes{$key}
+            $includes{$key}=1
+            push @include_list, $key
 
 subcode: dump_includes
     my $cnt=0
-    my @klist=sort {substr($a, 0, 1) ne substr($b, 0, 1)?$b cmp $a:$a cmp $b} keys(%includes)
-    $foreach $k in @klist
+    $foreach $k in @include_list
 	push @$dump_out, "#include $k\n";
 	$cnt++
     $if $cnt>0
@@ -69,14 +71,11 @@ subcode:: c_init
     %defines=()
 
 fncode: add_define($name, $var)
-    $call check_autoload_h
-    $if !$autoload_h
-	$if !defined $defines{$name}
-	    push @define_list, $name
-	$else
-		warn "Duplicate define $name: [$defines{$name}] -> [$var]\n"
-	    $defines{$name}=$var
-	    $call add_to_autoload_h, "define-$name"
+    $if !defined $defines{$name}
+        push @define_list, $name
+    $else
+            warn "Duplicate define $name: [$defines{$name}] -> [$var]\n"
+        $defines{$name}=$var
 
 subcode: dump_defines
     my $cnt=0
@@ -102,17 +101,12 @@ subcode:: c_init
 
 subcode:: support_subs
     $sub add_typedef($param)
-	$call check_autoload_h
-	$if !$autoload_h
-	    $if $param=~/(.*)\s+(\w+)\s*$/
-		$typedef_hash{$2}=$1
-		push @typedef_list, $2
-		$call add_to_autoload_h, "typedef-$2"
-	    $elif $param=~/\(\*\s*(\w+)\)/
-		$typedef_hash{$1}=$param
-		push @typedef_list, $1
-		$call add_to_autoload_h, "typedef-$1"
-
+        $if $param=~/(.*)\s+(\w+)\s*$/
+            $typedef_hash{$2}=$1
+            push @typedef_list, $2
+        $elif $param=~/\(\*\s*(\w+)\)/
+            $typedef_hash{$1}=$param
+            push @typedef_list, $1
 
 subcode: dump_typedefs
     $if @typedef_list
