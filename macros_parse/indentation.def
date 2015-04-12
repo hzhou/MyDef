@@ -1,0 +1,70 @@
+subcode:: import_file_init
+    my $curindent;
+
+    my $codetype = "top"
+    my $codeindent = 0
+    my $codeitem = $def
+
+macros:
+    top_scope: $curindent == $codeindent
+    in_code: $codeindent>0 and $codetype eq "code"
+    in_macro: $codeindent>0 and $codetype eq "macro"
+    in_page: $codeindent==1 and $codetype eq "page"
+
+subcode:: import_file_init
+    my @indent_stack
+
+subcode: start_code_indent(type, indent, item)
+    $(if:type=code)
+        # check source indent
+        $lastindent = $(indent)
+        # prevent starting empty line triger dedent
+        $curindent=$(indent)
+
+    push @indent_stack, [$codetype, $codeindent, $codeitem]
+    $codetype   = "$(type)"
+    $codeindent = $(indent)
+    $codeitem   = $(item)
+
+subcode: check_end_indent
+    $while $curindent <$codeindent
+        $call @check_subcode_end
+        my $t = pop @indent_stack
+        ($codetype, $codeindent, $codeitem) = @$t
+
+#---------------------------------------- 
+subcode:: import_file_init
+    my $pages=$def->{pages}
+    my $pagelist=$def->{pagelist}
+    my $codes=$def->{codes}
+    my $macros=$def->{macros}
+
+#---------------------------------------- 
+subcode:: import_file_init
+    my $lastindent;
+
+subcode: check_subcode_end
+    $if $codetype eq "code"
+        $call get_source_dedent, codeindent
+        $call check_subcode_prepend
+
+subcode: if_code
+    $case $codeindent>0
+        $if codetype eq "code"
+            $call get_source_indent, curindent
+            $call get_source_dedent, curindent
+            push @$source, $line;
+        $elif codetype eq "macros"
+            $call process_macros
+
+subcode: get_source_indent(curindent)
+    $while $$(curindent)>$lastindent
+	$lastindent++;
+	push @$source, "SOURCE_INDENT";
+
+subcode: get_source_dedent(curindent)
+    $while $$(curindent)<$lastindent
+	$lastindent--;
+	push @$source, "SOURCE_DEDENT";
+
+#---------------------------------------- 

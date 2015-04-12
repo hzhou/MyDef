@@ -1,0 +1,87 @@
+
+subcode: subcode_start
+    $if !$codeitem->{codes}
+        $codeitem->{codes}={}
+    my $codes = $codeitem->{codes}
+
+    $if $line=~/^(\w+)code:([:-@]?)\s*(\w+)(.*)/
+        my ($type, $dblcolon, $name, $t)=($1, $2, $3, $4)
+        #---- $dblcolon -----------
+        #-        :: concat
+        #-        :@ optional default
+        #-        :- prepend
+        $if $name eq "_autoload"
+            $dblcolon=":"
+        $call start_subcode
+
+subcode:: import_file_init
+    my $source
+    my $code_prepend
+
+subcode: start_subcode
+    ### htmlcode, jscode, subcode, phpcode, fncode
+    my $src_location="SOURCE: $cur_file - $cur_line";
+    $source=[$src_location];
+
+    # -------------------
+    undef $code_prepend
+
+    $if $curindent==0 and $codes->{$name} and $codes->{$name}->{attr} ne "default"
+	# Subcode Already Exist --
+	$if $dblcolon eq "@"
+	    # -- skip the default subcode
+	$elif $dblcolon eq ":"
+	    # -- append
+	    $source=$codes->{$name}->{source}
+	    push @$source, $src_location
+	$elif $dblcolon eq "-"
+	    # -- prepend
+	    $code_prepend=$codes->{$name}->{source}
+            $codes->{$name}->{source} = $source
+	$elif $codes->{$name}->{attr} eq "optional"
+	    # -- append and finalize
+	    $codes->{$name}->{attr}=undef
+	    $source=$codes->{$name}->{source}
+	    push @$source, $src_location
+	$elif $debug>1
+	    # -- skip
+	    print STDERR "overwiritten $type code: $name\n"
+    $else
+	#---- new code or overwrite ----
+	my @params;
+	$if $t=~/\((.*)\)/
+	    $t=$1;
+	    @params=split /,\s*/, $t;
+	$global $code_index=0
+	$code_index++
+	my $t_code={'type'=>$type, 'index'=>$code_index, 'source'=>$source, 'params'=>\@params, 'name'=>$name};
+	$if $dblcolon eq "@"
+	    $t_code->{attr}="default"
+	$elif $dblcolon eq ":" or $dblcolon eq "-"
+	    $t_code->{attr}="optional"
+        $if $codetype eq "page" && $name eq "main"
+            $call add_main_code
+        $else
+            $codes->{$name}=$t_code
+
+subcode: check_subcode_prepend
+    $if $code_prepend
+        push @$source, @$code_prepend
+
+#---------------------------------------- 
+subcode: jump_to_main_code
+    my $src_location="SOURCE: $cur_file - $cur_line";
+    $source=[$src_location]
+    $if $line=~/\S/
+        push @$source, $line
+    # -------------------
+    my $t_code={'type'=>"sub", 'source'=>$source, 'params'=>[], 'name'=>"main"};
+    $call add_main_code
+    $call start_code_indent, code, 1, $t_code
+
+subcode: add_main_code
+    $if $page->{codes}->{main}
+	$page->{codes}->{'main2'}=$t_code;
+    $else
+	$page->{codes}->{"main"}=$t_code;
+
