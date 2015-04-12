@@ -31,7 +31,7 @@ page: test
 	    chdir "out";
 	    $map test, c, xs, win32, php, perl, www
 	    $else
-		print "Unhandled module type: [$module]\n"
+		print "test.pl phase 2: unhandled module type: [$module]\n"
 
 subcode: test(module)
     $case $module eq "$(module)"

@@ -1,5 +1,6 @@
 include: macros_parse/indentation.def
 include: macros_parse/subcode.def
+include: macros_parse/debug.def
 include: macros_util/ogdl.def
 include: macros_util/debug.def
 include: perl/indentations.def
@@ -52,7 +53,7 @@ fncode: import_data($file)
     post_foreachfile($def);
     post_matchblock($def);
     # $call compile_perlcode
-    # $call dump_def
+    debug_def($def)
     return $def;
 
 fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
@@ -69,8 +70,6 @@ fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
     &call parse_loop
         $call get_multiline_comment
         $call get_indentation  # and skip comments, trim leading and tailing spaces
-        $if $grab
-            $call grab_block
 
         $call check_end_indent
 
@@ -93,10 +92,12 @@ fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
             $if $line=~/^(\w+):\s*(.*)/
                 $call process_page_macros
             $else
+                $print jump_to_main_code [$line]
                 $call jump_to_main_code
 
 #---------------------------------------- 
 subcode: parse_loop
+    $(allow_recurse:2)
     $while $cur_line < @$plines
         my $line = $plines->[$cur_line]
         $cur_line++
@@ -118,13 +119,6 @@ subcode: parse_level_0
         $call grab_resource
 
 #---------------------------------------- 
-subcode:: import_file_init
-    # --- grab ogdl
-    my $grab=undef
-    my $grab_indent
-    my @grab
-
-# -----------------------------
 subcode: get_multiline_comment
     # multiline_comments, Note: we are more strict than the C comments. 
     $if $line=~/^\s*\/\*/
@@ -155,8 +149,7 @@ subcode: get_indentation
 	$curindent=$indent
 
 subcode: grab_resource
-    $grab_indent=$curindent
-    &
+    my $grab
     $if $def->{resource}->{$1}
         $grab=$def->{resource}->{$1}
     $else
@@ -167,18 +160,20 @@ subcode: grab_resource
         my @tlist=split /,\s*/, $1
         $grab->{"_parents"}=\@tlist
 
-subcode: grab_block
-    $if $curindent>$grab_indent
-	my $i=$curindent-$grab_indent-1;
-	push @grab, "$i:$line";
-	next;
-    $else
-	grab_ogdl($grab, \@grab)
-	#print_ogdl($grab, 0)
-	$grab=undef
-	@grab=()
+    #----------------------------------------------- 
+    my $grab_indent=$curindent
+    my @grab
+    &call parse_loop
+        $call get_indentation
+        $if $curindent>$grab_indent
+            my $i=$curindent-$grab_indent-1;
+            push @grab, "$i:$line";
+        $else
+            grab_ogdl($grab, \@grab)
+            #print_ogdl($grab, 0)
+    $cur_line--
 
-# --------------------------------------------------------
+
 # --------------------------------------------------------
 subcode:: import_file_init
     my $page
@@ -201,7 +196,6 @@ subcode: start_page
 	$page->{subpage}=1;
     $if $file_type eq "main"
 	$call add_page
-    $stage='page';
 
 subcode: add_page
     # ---- insert into pages

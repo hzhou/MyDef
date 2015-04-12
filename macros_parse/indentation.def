@@ -15,19 +15,21 @@ subcode:: import_file_init
     my @indent_stack
 
 subcode: start_code_indent(type, indent, item)
+    # $print start_code_indent: $(type) $(indent) $(item)
+    push @indent_stack, [$codetype, $codeindent, $codeitem]
+    $codetype   = "$(type)"
+    $codeindent = $(indent)
+    $codeitem   = $(item)
     $(if:type=code)
         # check source indent
         $lastindent = $(indent)
         # prevent starting empty line triger dedent
         $curindent=$(indent)
 
-    push @indent_stack, [$codetype, $codeindent, $codeitem]
-    $codetype   = "$(type)"
-    $codeindent = $(indent)
-    $codeitem   = $(item)
 
 subcode: check_end_indent
     $while $curindent <$codeindent
+        # $print end_code_indent: $codetype, $codeindent, $codeitem
         $call @check_subcode_end
         my $t = pop @indent_stack
         ($codetype, $codeindent, $codeitem) = @$t

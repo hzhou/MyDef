@@ -3,6 +3,7 @@ subcode: subcode_start
     $if !$codeitem->{codes}
         $codeitem->{codes}={}
     my $codes = $codeitem->{codes}
+    my $t_code
 
     $if $line=~/^(\w+)code:([:-@]?)\s*(\w+)(.*)/
         my ($type, $dblcolon, $name, $t)=($1, $2, $3, $4)
@@ -27,21 +28,22 @@ subcode: start_subcode
     undef $code_prepend
 
     $if $curindent==0 and $codes->{$name} and $codes->{$name}->{attr} ne "default"
+        $t_code=$codes->{$name}
 	# Subcode Already Exist --
 	$if $dblcolon eq "@"
 	    # -- skip the default subcode
 	$elif $dblcolon eq ":"
 	    # -- append
-	    $source=$codes->{$name}->{source}
+	    $source=$t_code->{source}
 	    push @$source, $src_location
 	$elif $dblcolon eq "-"
 	    # -- prepend
-	    $code_prepend=$codes->{$name}->{source}
-            $codes->{$name}->{source} = $source
-	$elif $codes->{$name}->{attr} eq "optional"
+	    $code_prepend=$t_code->{source}
+            $t_code->{source} = $source
+	$elif $t_code->{attr} eq "optional"
 	    # -- append and finalize
-	    $codes->{$name}->{attr}=undef
-	    $source=$codes->{$name}->{source}
+	    $t_code->{attr}=undef
+	    $source=$t_code->{source}
 	    push @$source, $src_location
 	$elif $debug>1
 	    # -- skip
@@ -54,7 +56,7 @@ subcode: start_subcode
 	    @params=split /,\s*/, $t;
 	$global $code_index=0
 	$code_index++
-	my $t_code={'type'=>$type, 'index'=>$code_index, 'source'=>$source, 'params'=>\@params, 'name'=>$name};
+	$t_code={'type'=>$type, 'index'=>$code_index, 'source'=>$source, 'params'=>\@params, 'name'=>$name};
 	$if $dblcolon eq "@"
 	    $t_code->{attr}="default"
 	$elif $dblcolon eq ":" or $dblcolon eq "-"

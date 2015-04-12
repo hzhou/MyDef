@@ -89,6 +89,6 @@ if($f=~/([a-z0-9]+)_.*\.def$/){
         system "cat test.html";
     }
     else{
-        print "Unhandled module type: [$module]\n";
+        print "test.pl phase 2: unhandled module type: [$module]\n";
     }
 }
