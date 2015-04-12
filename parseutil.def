@@ -1,3 +1,5 @@
+include: macros_parse/indentation.def
+include: macros_parse/subcode.def
 include: macros_util/ogdl.def
 include: macros_util/debug.def
 include: perl/indentations.def
@@ -56,12 +58,8 @@ fncode: import_data($file)
 fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
     # $print import_file [$f]
     #---- import a single def file, update include_list -----
-    my $pages=$def->{pages}
-    my $pagelist=$def->{pagelist}
-    my $codes=$def->{codes}
-    my $macros=$def->{macros}
     # ---------------------
-    $call perfile_variables
+    $call @import_file_init
     my $plines=get_lines($f);
     # Insert an END to flush all the indentations
     # Empty "END" stage gets ignored by default
@@ -75,86 +73,61 @@ fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
         $if $grab
             $call grab_block
 
-        $if $curindent==0
-            $if $stage eq "code"
-                $call end_subcode
+        $call check_end_indent
 
-        $if $curindent < $codeindent
-            # ---- End Code Block
-            $call get_source_dedent, codeindent
-            $codeindent=0;
         # -------------------------------
-        $if $codeindent>0
-            # ---- In Code Block ---------------------------
+        $if $line=~/^\w+code:/ && $(top_scope)
+            $call subcode_start
+            $call start_code_indent, code, $curindent+1, $t_code
+        $elif $line=~/^macros:/ && $(top_scope)
+            $call macros_start
+            $call start_code_indent, macro, $curindent+1, $macros
+        $elif $(in_code)
             $call get_source_indent, curindent
             $call get_source_dedent, curindent
-            push @$source, $line;
-        $elif $line eq ""
-            # ---- skip ----
-        $elif $line=~/^(\w+)code:([:-@]?)\s*(\w+)(.*)/
-            my ($type, $dblcolon, $name, $t)=($1, $2, $3, $4)
-            #---- $dblcolon -----------
-            #-        :: concat
-            #-        :@ optional default
-            #-        :- prepend
-            $if $name eq "_autoload"
-                $dblcolon=":"
-            $call start_subcode
+            push @$source, $line
+        $elif $(in_macro)
+            $call process_macros
         $elif $curindent==0
-            $if $line=~/^include:? (.*)/
-                $if !$include_hash->{$1}
-                    $if $1 ne "noconfig"
-                        push @$include_list, $1;
-                    $include_hash->{$1}=1;
-                    #print STDERR "    include $1\n";
-            $elif $line=~/^(sub)?page: (.*)/
-                my ($subpage, $t)=($1, $2)
-                $call start_page
-            $elif $line=~/^resource:\s+(\w+)(.*)/
-                $grab_indent=$curindent
-                $if $def->{resource}->{$1}
-                    $grab=$def->{resource}->{$1}
-                $else
-                    $grab={"_list"=>[], "_name"=>$1}
-                    $def->{resource}->{$1}=$grab
-                my $t=$2
-                $if $t=~/^\s*,\s*(.*)/
-                    my @tlist=split /,\s*/, $1
-                    $grab->{"_parents"}=\@tlist
-            $elif $line=~/^(\w+)/
-                # macros,
-                $stage=$1;
-                $if !$def->{$stage}
-                    $def->{$stage}={};
+            $call @parse_level_0
+        $elif $(in_page)
+            $if $line=~/^(\w+):\s*(.*)/
+                $call process_page_macros
+            $else
+                $call jump_to_main_code
+
+subcode: parse_level_0
+    $if $line=~/^include:? (.*)/
+        $if !$include_hash->{$1}
+            $if $1 ne "noconfig"
+                push @$include_list, $1;
+            $include_hash->{$1}=1;
+            #print STDERR "    include $1\n";
+    $elif $line=~/^(sub)?page: (.*)/
+        my ($subpage, $t)=($1, $2)
+        $call start_page
+        $call start_code_indent, page, 1, $page
+    $elif $line=~/^resource:\s+(\w+)(.*)/
+        $grab_indent=$curindent
+        $if $def->{resource}->{$1}
+            $grab=$def->{resource}->{$1}
         $else
-            $if $stage =~/^macros?$/
-                $call process_macros
-            $elsif $stage =~/^(page)$/
-                $if $line=~/^(\w+):\s*(.*)/
-                    $call process_page_macros
-                $else
-                    $call jump_to_main_code
+            $grab={"_list"=>[], "_name"=>$1}
+            $def->{resource}->{$1}=$grab
+        my $t=$2
+        $if $t=~/^\s*,\s*(.*)/
+            my @tlist=split /,\s*/, $1
+            $grab->{"_parents"}=\@tlist
 
 #---------------------------------------- 
-subcode:: perfile_variables
-    my $stage="";
-    # -- 
-    my $item
-    my $page
-
-    my $curindent;
-    my $codeindent = 0
-    my $lastindent;
-
+subcode:: import_file_init
     # --- grab ogdl
     my $grab=undef
     my $grab_indent
     my @grab
 
-    DUMP_STUB import_file_init
-
 # -----------------------------
-subcode:: perfile_variables
+subcode:: import_file_init
     my $multi_line_comment_on
 
 subcode: get_multiline_comment
@@ -200,105 +173,11 @@ subcode: grab_block
 	$grab=undef
 	@grab=()
 
-subcode: get_source_indent(curindent)
-    $while $$(curindent)>$lastindent
-	$lastindent++;
-	push @$source, "SOURCE_INDENT";
-subcode: get_source_dedent(curindent)
-    $while $$(curindent)<$lastindent
-	$lastindent--;
-	push @$source, "SOURCE_DEDENT";
-
 # --------------------------------------------------------
-subcode:: perfile_variables
-    my $source
-    my $cur_codename
-    my $code_prepend
-
-subcode: start_subcode
-    ### htmlcode, jscode, subcode, phpcode, fncode
-    my $src_location="SOURCE: $cur_file - $cur_line";
-    $source=[$src_location];
-    $codeindent=$curindent+1;
-    $lastindent=$codeindent;
-    # -------------------
-    $if $curindent == 0
-	$stage='code'
-	$cur_codename=$name
-	undef $code_prepend
-
-    $if $curindent==0 and $codes->{$name} and $codes->{$name}->{attr} ne "default"
-	# Subcode Already Exist --
-	$if $dblcolon eq "@"
-	    # -- skip the default subcode
-	$elif $dblcolon eq ":"
-	    # -- append
-	    $source=$codes->{$name}->{source}
-	    push @$source, $src_location
-	$elif $dblcolon eq "-"
-	    # -- prepend
-	    $code_prepend=1
-	$elif $codes->{$name}->{attr} eq "optional"
-	    # -- append and finalize
-	    $codes->{$name}->{attr}=undef
-	    $source=$codes->{$name}->{source}
-	    push @$source, $src_location
-	$elif $debug>1
-	    # -- skip
-	    print STDERR "overwiritten $type code: $name\n"
-    $else
-	#---- new code or overwrite ----
-	my @params;
-	$if $t=~/\((.*)\)/
-	    $t=$1;
-	    @params=split /,\s*/, $t;
-	$global $code_index=0
-	$code_index++
-	my $t_code={'type'=>$type, 'index'=>$code_index, 'source'=>$source, 'params'=>\@params, 'name'=>$name};
-	$if $dblcolon eq "@"
-	    $t_code->{attr}="default"
-	$elif $dblcolon eq ":" or $dblcolon eq "-"
-	    $t_code->{attr}="optional"
-
-	$if $curindent == 0
-	    $codes->{$name}=$t_code;
-	$elif $stage eq 'page'
-	    $if $name eq "main" and $page->{codes}->{main}
-		$page->{codes}->{'main2'}=$t_code;
-	    $else
-		$page->{codes}->{$name}=$t_code;
-
-    # prevent starting empty line triger dedent
-    $curindent=$codeindent
-
-subcode: end_subcode
-    $if $code_prepend
-	my $orig_source=$codes->{$cur_codename}->{source}
-	push @$source, @$orig_source
-	$codes->{$cur_codename}->{source}=$source
-
-#---------------------------------------- 
-subcode: jump_to_main_code
-    my $src_location="SOURCE: $cur_file - $cur_line";
-    $source=[$src_location]
-    push @$source, $line
-    $codeindent=1
-    $lastindent=$codeindent
-    # -------------------
-    $stage='code'
-    $cur_codename="main"
-
-    my $t_code={'type'=>"sub", 'source'=>$source, 'params'=>[], 'name'=>"main"};
-
-    $if $page->{codes}->{main}
-	$page->{codes}->{'main2'}=$t_code;
-    $else
-	$page->{codes}->{"main"}=$t_code;
-
-    # prevent starting empty line triger dedent
-    $curindent=$codeindent
-
 # --------------------------------------------------------
+subcode:: import_file_init
+    my $page
+
 subcode: start_page
     my ($pagename, $maincode)
     # ---- name
@@ -330,37 +209,32 @@ subcode: add_page
     $pages->{$pagename}=$page;
     push @$pagelist, $pagename
 
-#---------------------------------------- 
-subcode:: perfile_variables
-    my @macro_names
+#---- macros ------------------------------------ 
+subcode:: import_file_init
+    my $macros
+
+subcode: macros_start
+    $if !$codeitem->{macros}
+        $codeitem->{macros}={}
+    $macros = $codeitem->{macros}
 
 subcode: process_macros
-    $if $line=~/^(\w+):(:)? (.*\S)/
+    $if $line=~/^(\w+):(:)?\s*(.*\S)/
 	my ($k,$dblcolon, $v)=($1, $2, $3)
-	$if $curindent==1
-	    $macro_names[0]=$k
-	$else
-	    $macro_names[$curindent-1]=$k
-	    splice @macro_names, $curindent
-	    $k=join('_', @macro_names)
-
 	expand_macro(\$v, $macros);
 	$if $macros->{$k}
 	    $if $dblcolon
 		$macros->{$k}.=", ", $v
-	    $else
-		print STDERR " Denied overwriting macro $k\n" if $debug>1;
+	    $elif $debug
+		$print "Denied overwriting macro $k"
 	$else
 	    $macros->{$k}=$v
 
 subcode: process_page_macros
-    $if $1 eq "source"
-	$page->{codes}->{main}={'type'=>"sub", 'source'=>["\$call $1"], 'params'=>[]};
-    $else
-	my $k=$1;
-	my $v=$2;
-	expand_macro(\$v, $macros);
-	$page->{$k}=$v;
+    my $k=$1;
+    my $v=$2;
+    expand_macro(\$v, $macros);
+    $page->{$k}=$v;
 
 #---------------------------------------- 
 fncode: expand_macro($lref, $macros)
