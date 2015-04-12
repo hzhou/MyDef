@@ -66,8 +66,7 @@ fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
     push @$plines, "END"
     my $cur_file=$f
     my $cur_line=0
-    $foreach $line in @$plines
-        $cur_line++
+    &call parse_loop
         $call get_multiline_comment
         $call get_indentation  # and skip comments, trim leading and tailing spaces
         $if $grab
@@ -96,6 +95,14 @@ fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
             $else
                 $call jump_to_main_code
 
+#---------------------------------------- 
+subcode: parse_loop
+    $while $cur_line < @$plines
+        my $line = $plines->[$cur_line]
+        $cur_line++
+        BLOCK
+
+#---------------------------------------- 
 subcode: parse_level_0
     $if $line=~/^include:? (.*)/
         $if !$include_hash->{$1}
@@ -108,16 +115,7 @@ subcode: parse_level_0
         $call start_page
         $call start_code_indent, page, 1, $page
     $elif $line=~/^resource:\s+(\w+)(.*)/
-        $grab_indent=$curindent
-        $if $def->{resource}->{$1}
-            $grab=$def->{resource}->{$1}
-        $else
-            $grab={"_list"=>[], "_name"=>$1}
-            $def->{resource}->{$1}=$grab
-        my $t=$2
-        $if $t=~/^\s*,\s*(.*)/
-            my @tlist=split /,\s*/, $1
-            $grab->{"_parents"}=\@tlist
+        $call grab_resource
 
 #---------------------------------------- 
 subcode:: import_file_init
@@ -127,20 +125,14 @@ subcode:: import_file_init
     my @grab
 
 # -----------------------------
-subcode:: import_file_init
-    my $multi_line_comment_on
-
 subcode: get_multiline_comment
     # multiline_comments, Note: we are more strict than the C comments. 
-    $if $multi_line_comment_on
-	$if $line=~/\*\/\s*$/
-	    $multi_line_comment_on=0
-	next
-    $elif $line=~/^\s*\/\*/
-	$multi_line_comment_on=1
-	$if $line=~/\*\/\s*$/
-	    $multi_line_comment_on=0
-	next
+    $if $line=~/^\s*\/\*/
+        $if $line !~ /\*\/\s*$/
+            &call parse_loop
+                $if $line=~/\*\/\s*$/
+                    last
+        next
 
 subcode: get_indentation
     $if $line=~/^\s*$/
@@ -161,6 +153,19 @@ subcode: get_indentation
 	    # Tail # need spaces before and after!
 	    $line=~s/\s+#\s.*$//
 	$curindent=$indent
+
+subcode: grab_resource
+    $grab_indent=$curindent
+    &
+    $if $def->{resource}->{$1}
+        $grab=$def->{resource}->{$1}
+    $else
+        $grab={"_list"=>[], "_name"=>$1}
+        $def->{resource}->{$1}=$grab
+    my $t=$2
+    $if $t=~/^\s*,\s*(.*)/
+        my @tlist=split /,\s*/, $1
+        $grab->{"_parents"}=\@tlist
 
 subcode: grab_block
     $if $curindent>$grab_indent
