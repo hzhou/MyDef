@@ -8,12 +8,25 @@ subcode: setup
     my $yellow="\033[33;1m";
     my $normal="\033[0m";
 
-subcode: scan_f
-    my @test_list
-    &call open_r, $f
-	$if /^#\s*TEST:\s*(.*)/
-	    push @test_list, $1
+page: make_cmp
+    output_dir: ./tests
 
+    $if !-d "cmp"
+        mkdir "cmp"
+    my @files = glob("*.def")
+    $foreach $f in @files
+	$if $f=~/(([a-z0-9]+)_.*)\.def$/
+            my $name=$1
+	    my $module=$2
+	    my $cmd= "mydef_page $f -m$module -ocmp";
+            $print $cmd
+            system $cmd
+
+            chdir "cmp"
+            my @all = glob("test*")
+            $foreach $a in @all
+                rename $a, "$name-$a"
+            chdir ".."
 
 page: test
     output_dir: ./tests
@@ -22,8 +35,9 @@ page: test
 	my $f=$ARGV[0];
 	$call scan_f
 
-	$if $f=~/([a-z0-9]+)_.*\.def$/
-	    my $module=$1
+	$if $f=~/(([a-z0-9]+)_.*)\.def$/
+	    my $name=$1
+	    my $module=$2
 	    unlink "out/Makefile";
 	    my $cmd= "perl ../MyDef/script/mydef_page $f -m$module -oout";
 	    print "$cmd \n";
@@ -32,6 +46,19 @@ page: test
 	    $map test, c, xs, win32, php, perl, www
 	    $else
 		print "test.pl phase 2: unhandled module type: [$module]\n"
+
+            my @all=glob("../cmp/$name-*")
+            $foreach $a in @all
+                $if $a=~/cmp\/$name-(.*)/
+                    $print diff $1 $a
+                    system "diff $1 $a"
+
+subcode: scan_f
+    my @test_list
+    &call open_r, $f
+	$if /^#\s*TEST:\s*(.*)/
+	    push @test_list, $1
+
 
 subcode: test(module)
     $case $module eq "$(module)"

@@ -6,7 +6,7 @@ subcode:: import_file_init
     my $codeitem = $def
 
 macros:
-    top_scope: $curindent == $codeindent
+    top_scope: $curindent == $codeindent and $codetype ne "macro"
     in_code: $codeindent>0 and $codetype eq "code"
     in_macro: $codeindent>0 and $codetype eq "macro"
     in_page: $codeindent==1 and $codetype eq "page"
@@ -34,6 +34,13 @@ subcode: check_end_indent
         my $t = pop @indent_stack
         ($codetype, $codeindent, $codeitem) = @$t
 
+subcode: check_end_automain
+    $if $curindent==1 && $codetype eq "code" && $indent_stack[-1]->[0] eq "page"
+        $call @check_subcode_end
+        my $t = pop @indent_stack
+        ($codetype, $codeindent, $codeitem) = @$t
+
+
 #---------------------------------------- 
 subcode:: import_file_init
     my $pages=$def->{pages}
@@ -44,20 +51,6 @@ subcode:: import_file_init
 #---------------------------------------- 
 subcode:: import_file_init
     my $lastindent;
-
-subcode: check_subcode_end
-    $if $codetype eq "code"
-        $call get_source_dedent, codeindent
-        $call check_subcode_prepend
-
-subcode: if_code
-    $case $codeindent>0
-        $if codetype eq "code"
-            $call get_source_indent, curindent
-            $call get_source_dedent, curindent
-            push @$source, $line;
-        $elif codetype eq "macros"
-            $call process_macros
 
 subcode: get_source_indent(curindent)
     $while $$(curindent)>$lastindent

@@ -1,8 +1,36 @@
-page: test
+macros: 
+    m1: a
+    m2: b
+
+page: test, test_sub
+    attr1: a
+    attr2: b
+
     line 1
     line 2
 
 page: test2
+    attr1: a
+    attr2: b
+
     subcode: main
         line 1
         line 2
+macros: 
+    m3: a
+    m4: b
+
+subcode: test_sub
+    test 1
+    test 2
+
+    subcode: A
+        A1
+        A2
+
+resource: root
+    name1: a
+    name2: b
+    name3:
+        a, b, c
+        d, e, f

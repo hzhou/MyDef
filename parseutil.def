@@ -53,9 +53,11 @@ fncode: import_data($file)
     post_foreachfile($def);
     post_matchblock($def);
     # $call compile_perlcode
-    debug_def($def)
+    $if $debug
+        debug_def($def)
     return $def;
 
+DEBUG: 1
 fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
     # $print import_file [$f]
     #---- import a single def file, update include_list -----
@@ -75,6 +77,7 @@ fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
 
         # -------------------------------
         $if $line=~/^\w+code:/ && $(top_scope)
+            $call check_end_automain
             $call subcode_start
             $call start_code_indent, code, $curindent+1, $t_code
         $elif $line=~/^macros:/ && $(top_scope)
@@ -91,8 +94,10 @@ fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
         $elif $(in_page)
             $if $line=~/^(\w+):\s*(.*)/
                 $call process_page_macros
+            $elif $line=~/^\s*$/
+                next
             $else
-                $print jump_to_main_code [$line]
+                # $print jump_to_main_code [$line]
                 $call jump_to_main_code
 
 #---------------------------------------- 
@@ -117,6 +122,8 @@ subcode: parse_level_0
         $call start_code_indent, page, 1, $page
     $elif $line=~/^resource:\s+(\w+)(.*)/
         $call grab_resource
+    $elif $line=~/^DEBUG/
+        $debug=1
 
 #---------------------------------------- 
 subcode: get_multiline_comment

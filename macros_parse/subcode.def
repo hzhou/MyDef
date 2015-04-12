@@ -66,9 +66,11 @@ subcode: start_subcode
         $else
             $codes->{$name}=$t_code
 
-subcode: check_subcode_prepend
-    $if $code_prepend
-        push @$source, @$code_prepend
+subcode: check_subcode_end
+    $if $codetype eq "code"
+        $call get_source_dedent, codeindent
+        $if $code_prepend
+            push @$source, @$code_prepend
 
 #---------------------------------------- 
 subcode: jump_to_main_code
