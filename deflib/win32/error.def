@@ -1,0 +1,741 @@
+fncode: get_error(s_prompt)
+    $local s=""
+    DWORD dw = GetLastError()
+    $call set_error_s
+    $print "%s error %d: %s", s_prompt, dw, s
+
+subcode: set_error_s
+    $switch dw
+        case 0:
+            s = "ERROR_SUCCESS"
+            break
+        case 1:
+            s = "ERROR_INVALID_FUNCTION"
+            break
+        case 2:
+            s = "ERROR_FILE_NOT_FOUND"
+            break
+        case 3:
+            s = "ERROR_PATH_NOT_FOUND"
+            break
+        case 4:
+            s = "ERROR_TOO_MANY_OPEN_FILES"
+            break
+        case 5:
+            s = "ERROR_ACCESS_DENIED"
+            break
+        case 6:
+            s = "ERROR_INVALID_HANDLE"
+            break
+        case 7:
+            s = "ERROR_ARENA_TRASHED"
+            break
+        case 8:
+            s = "ERROR_NOT_ENOUGH_MEMORY"
+            break
+        case 9:
+            s = "ERROR_INVALID_BLOCK"
+            break
+        case 10:
+            s = "ERROR_BAD_ENVIRONMENT" 
+            break
+        case 11:
+            s = "ERROR_BAD_FORMAT" 
+            break
+        case 12:
+            s = "ERROR_INVALID_ACCESS" 
+            break
+        case 13:
+            s = "ERROR_INVALID_DATA" 
+            break
+        case 14:
+            s = "ERROR_OUTOFMEMORY" 
+            break
+        case 15:
+            s = "ERROR_INVALID_DRIVE" 
+            break
+        case 16:
+            s = "ERROR_CURRENT_DIRECTORY" 
+            break
+        case 17:
+            s = "ERROR_NOT_SAME_DEVICE" 
+            break
+        case 18:
+            s = "ERROR_NO_MORE_FILES" 
+            break
+        case 19:
+            s = "ERROR_WRITE_PROTECT" 
+            break
+        case 20:
+            s = "ERROR_BAD_UNIT" 
+            break
+        case 21:
+            s = "ERROR_NOT_READY" 
+            break
+        case 22:
+            s = "ERROR_BAD_COMMAND" 
+            break
+        case 23:
+            s = "ERROR_CRC" 
+            break
+        case 24:
+            s = "ERROR_BAD_LENGTH" 
+            break
+        case 25:
+            s = "ERROR_SEEK" 
+            break
+        case 26:
+            s = "ERROR_NOT_DOS_DISK" 
+            break
+        case 27:
+            s = "ERROR_SECTOR_NOT_FOUND" 
+            break
+        case 28:
+            s = "ERROR_OUT_OF_PAPER" 
+            break
+        case 29:
+            s = "ERROR_WRITE_FAULT" 
+            break
+        case 30:
+            s = "ERROR_READ_FAULT" 
+            break
+        case 31:
+            s = "ERROR_GEN_FAILURE" 
+            break
+        case 32:
+            s = "ERROR_SHARING_VIOLATION" 
+            break
+        case 33:
+            s = "ERROR_LOCK_VIOLATION" 
+            break
+        case 34:
+            s = "ERROR_WRONG_DISK" 
+            break
+        case 36:
+            s = "ERROR_SHARING_BUFFER_EXCEEDED" 
+            break
+        case 38:
+            s = "ERROR_HANDLE_EOF" 
+            break
+        case 39:
+            s = "ERROR_HANDLE_DISK_FULL" 
+            break
+        case 50:
+            s = "ERROR_NOT_SUPPORTED" 
+            break
+        case 51:
+            s = "ERROR_REM_NOT_LIST" 
+            break
+        case 52:
+            s = "ERROR_DUP_NAME" 
+            break
+        case 53:
+            s = "ERROR_BAD_NETPATH" 
+            break
+        case 54:
+            s = "ERROR_NETWORK_BUSY" 
+            break
+        case 55:
+            s = "ERROR_DEV_NOT_EXIST" 
+            break
+        case 56:
+            s = "ERROR_TOO_MANY_CMDS" 
+            break
+        case 57:
+            s = "ERROR_ADAP_HDW_ERR" 
+            break
+        case 58:
+            s = "ERROR_BAD_NET_RESP" 
+            break
+        case 59:
+            s = "ERROR_UNEXP_NET_ERR" 
+            break
+        case 60:
+            s = "ERROR_BAD_REM_ADAP" 
+            break
+        case 61:
+            s = "ERROR_PRINTQ_FULL" 
+            break
+        case 62:
+            s = "ERROR_NO_SPOOL_SPACE" 
+            break
+        case 63:
+            s = "ERROR_PRINT_CANCELLED" 
+            break
+        case 64:
+            s = "ERROR_NETNAME_DELETED" 
+            break
+        case 65:
+            s = "ERROR_NETWORK_ACCESS_DENIED" 
+            break
+        case 66:
+            s = "ERROR_BAD_DEV_TYPE" 
+            break
+        case 67:
+            s = "ERROR_BAD_NET_NAME" 
+            break
+        case 68:
+            s = "ERROR_TOO_MANY_NAMES" 
+            break
+        case 69:
+            s = "ERROR_TOO_MANY_SESS" 
+            break
+        case 70:
+            s = "ERROR_SHARING_PAUSED" 
+            break
+        case 71:
+            s = "ERROR_REQ_NOT_ACCEP" 
+            break
+        case 72:
+            s = "ERROR_REDIR_PAUSED" 
+            break
+        case 80:
+            s = "ERROR_FILE_EXISTS" 
+            break
+        case 82:
+            s = "ERROR_CANNOT_MAKE" 
+            break
+        case 83:
+            s = "ERROR_FAIL_I24" 
+            break
+        case 84:
+            s = "ERROR_OUT_OF_STRUCTURES" 
+            break
+        case 85:
+            s = "ERROR_ALREADY_ASSIGNED" 
+            break
+        case 86:
+            s = "ERROR_INVALID_PASSWORD" 
+            break
+        case 87:
+            s = "ERROR_INVALID_PARAMETER" 
+            break
+        case 88:
+            s = "ERROR_NET_WRITE_FAULT" 
+            break
+        case 89:
+            s = "ERROR_NO_PROC_SLOTS" 
+            break
+        case 100:
+            s = "ERROR_TOO_MANY_SEMAPHORES" 
+            break
+        case 101:
+            s = "ERROR_EXCL_SEM_ALREADY_OWNED" 
+            break
+        case 102:
+            s = "ERROR_SEM_IS_SET" 
+            break
+        case 103:
+            s = "ERROR_TOO_MANY_SEM_REQUESTS" 
+            break
+        case 104:
+            s = "ERROR_INVALID_AT_INTERRUPT_TIME" 
+            break
+        case 105:
+            s = "ERROR_SEM_OWNER_DIED" 
+            break
+        case 106:
+            s = "ERROR_SEM_USER_LIMIT" 
+            break
+        case 107:
+            s = "ERROR_DISK_CHANGE" 
+            break
+        case 108:
+            s = "ERROR_DRIVE_LOCKED" 
+            break
+        case 109:
+            s = "ERROR_BROKEN_PIPE" 
+            break
+        case 110:
+            s = "ERROR_OPEN_FAILED" 
+            break
+        case 111:
+            s = "ERROR_BUFFER_OVERFLOW" 
+            break
+        case 112:
+            s = "ERROR_DISK_FULL" 
+            break
+        case 113:
+            s = "ERROR_NO_MORE_SEARCH_HANDLES" 
+            break
+        case 114:
+            s = "ERROR_INVALID_TARGET_HANDLE" 
+            break
+        case 117:
+            s = "ERROR_INVALID_CATEGORY" 
+            break
+        case 118:
+            s = "ERROR_INVALID_VERIFY_SWITCH" 
+            break
+        case 119:
+            s = "ERROR_BAD_DRIVER_LEVEL" 
+            break
+        case 120:
+            s = "ERROR_CALL_NOT_IMPLEMENTED" 
+            break
+        case 121:
+            s = "ERROR_SEM_TIMEOUT" 
+            break
+        case 122:
+            s = "ERROR_INSUFFICIENT_BUFFER" 
+            break
+        case 123:
+            s = "ERROR_INVALID_NAME" 
+            break
+        case 124:
+            s = "ERROR_INVALID_LEVEL" 
+            break
+        case 125:
+            s = "ERROR_NO_VOLUME_LABEL" 
+            break
+        case 126:
+            s = "ERROR_MOD_NOT_FOUND" 
+            break
+        case 127:
+            s = "ERROR_PROC_NOT_FOUND" 
+            break
+        case 128:
+            s = "ERROR_WAIT_NO_CHILDREN" 
+            break
+        case 129:
+            s = "ERROR_CHILD_NOT_COMPLETE" 
+            break
+        case 130:
+            s = "ERROR_DIRECT_ACCESS_HANDLE" 
+            break
+        case 131:
+            s = "ERROR_NEGATIVE_SEEK" 
+            break
+        case 132:
+            s = "ERROR_SEEK_ON_DEVICE" 
+            break
+        case 133:
+            s = "ERROR_IS_JOIN_TARGET" 
+            break
+        case 134:
+            s = "ERROR_IS_JOINED" 
+            break
+        case 135:
+            s = "ERROR_IS_SUBSTED" 
+            break
+        case 136:
+            s = "ERROR_NOT_JOINED" 
+            break
+        case 137:
+            s = "ERROR_NOT_SUBSTED" 
+            break
+        case 138:
+            s = "ERROR_JOIN_TO_JOIN" 
+            break
+        case 139:
+            s = "ERROR_SUBST_TO_SUBST" 
+            break
+        case 140:
+            s = "ERROR_JOIN_TO_SUBST" 
+            break
+        case 141:
+            s = "ERROR_SUBST_TO_JOIN" 
+            break
+        case 142:
+            s = "ERROR_BUSY_DRIVE" 
+            break
+        case 143:
+            s = "ERROR_SAME_DRIVE" 
+            break
+        case 144:
+            s = "ERROR_DIR_NOT_ROOT" 
+            break
+        case 145:
+            s = "ERROR_DIR_NOT_EMPTY" 
+            break
+        case 146:
+            s = "ERROR_IS_SUBST_PATH" 
+            break
+        case 147:
+            s = "ERROR_IS_JOIN_PATH" 
+            break
+        case 148:
+            s = "ERROR_PATH_BUSY" 
+            break
+        case 149:
+            s = "ERROR_IS_SUBST_TARGET" 
+            break
+        case 150:
+            s = "ERROR_SYSTEM_TRACE" 
+            break
+        case 151:
+            s = "ERROR_INVALID_EVENT_COUNT" 
+            break
+        case 152:
+            s = "ERROR_TOO_MANY_MUXWAITERS" 
+            break
+        case 153:
+            s = "ERROR_INVALID_LIST_FORMAT" 
+            break
+        case 154:
+            s = "ERROR_LABEL_TOO_LONG" 
+            break
+        case 155:
+            s = "ERROR_TOO_MANY_TCBS" 
+            break
+        case 156:
+            s = "ERROR_SIGNAL_REFUSED" 
+            break
+        case 157:
+            s = "ERROR_DISCARDED" 
+            break
+        case 158:
+            s = "ERROR_NOT_LOCKED" 
+            break
+        case 159:
+            s = "ERROR_BAD_THREADID_ADDR" 
+            break
+        case 160:
+            s = "ERROR_BAD_ARGUMENTS" 
+            break
+        case 161:
+            s = "ERROR_BAD_PATHNAME" 
+            break
+        case 162:
+            s = "ERROR_SIGNAL_PENDING" 
+            break
+        case 164:
+            s = "ERROR_MAX_THRDS_REACHED" 
+            break
+        case 167:
+            s = "ERROR_LOCK_FAILED" 
+            break
+        case 170:
+            s = "ERROR_BUSY" 
+            break
+        case 171:
+            s = "ERROR_DEVICE_SUPPORT_IN_PROGRESS" 
+            break
+        case 173:
+            s = "ERROR_CANCEL_VIOLATION" 
+            break
+        case 174:
+            s = "ERROR_ATOMIC_LOCKS_NOT_SUPPORTED" 
+            break
+        case 180:
+            s = "ERROR_INVALID_SEGMENT_NUMBER" 
+            break
+        case 182:
+            s = "ERROR_INVALID_ORDINAL" 
+            break
+        case 183:
+            s = "ERROR_ALREADY_EXISTS" 
+            break
+        case 186:
+            s = "ERROR_INVALID_FLAG_NUMBER" 
+            break
+        case 187:
+            s = "ERROR_SEM_NOT_FOUND" 
+            break
+        case 188:
+            s = "ERROR_INVALID_STARTING_CODESEG" 
+            break
+        case 189:
+            s = "ERROR_INVALID_STACKSEG" 
+            break
+        case 190:
+            s = "ERROR_INVALID_MODULETYPE" 
+            break
+        case 191:
+            s = "ERROR_INVALID_EXE_SIGNATURE" 
+            break
+        case 192:
+            s = "ERROR_EXE_MARKED_INVALID" 
+            break
+        case 193:
+            s = "ERROR_BAD_EXE_FORMAT" 
+            break
+        case 194:
+            s = "ERROR_ITERATED_DATA_EXCEEDS_64k" 
+            break
+        case 195:
+            s = "ERROR_INVALID_MINALLOCSIZE" 
+            break
+        case 196:
+            s = "ERROR_DYNLINK_FROM_INVALID_RING" 
+            break
+        case 197:
+            s = "ERROR_IOPL_NOT_ENABLED" 
+            break
+        case 198:
+            s = "ERROR_INVALID_SEGDPL" 
+            break
+        case 199:
+            s = "ERROR_AUTODATASEG_EXCEEDS_64k" 
+            break
+        case 200:
+            s = "ERROR_RING2SEG_MUST_BE_MOVABLE" 
+            break
+        case 201:
+            s = "ERROR_RELOC_CHAIN_XEEDS_SEGLIM" 
+            break
+        case 202:
+            s = "ERROR_INFLOOP_IN_RELOC_CHAIN" 
+            break
+        case 203:
+            s = "ERROR_ENVVAR_NOT_FOUND" 
+            break
+        case 205:
+            s = "ERROR_NO_SIGNAL_SENT" 
+            break
+        case 206:
+            s = "ERROR_FILENAME_EXCED_RANGE" 
+            break
+        case 207:
+            s = "ERROR_RING2_STACK_IN_USE" 
+            break
+        case 208:
+            s = "ERROR_META_EXPANSION_TOO_LONG" 
+            break
+        case 209:
+            s = "ERROR_INVALID_SIGNAL_NUMBER" 
+            break
+        case 210:
+            s = "ERROR_THREAD_1_INACTIVE" 
+            break
+        case 212:
+            s = "ERROR_LOCKED" 
+            break
+        case 214:
+            s = "ERROR_TOO_MANY_MODULES" 
+            break
+        case 215:
+            s = "ERROR_NESTING_NOT_ALLOWED" 
+            break
+        case 216:
+            s = "ERROR_EXE_MACHINE_TYPE_MISMATCH" 
+            break
+        case 217:
+            s = "ERROR_EXE_CANNOT_MODIFY_SIGNED_BINARY" 
+            break
+        case 218:
+            s = "ERROR_EXE_CANNOT_MODIFY_STRONG_SIGNED_BINARY" 
+            break
+        case 220:
+            s = "ERROR_FILE_CHECKED_OUT" 
+            break
+        case 221:
+            s = "ERROR_CHECKOUT_REQUIRED" 
+            break
+        case 222:
+            s = "ERROR_BAD_FILE_TYPE" 
+            break
+        case 223:
+            s = "ERROR_FILE_TOO_LARGE" 
+            break
+        case 224:
+            s = "ERROR_FORMS_AUTH_REQUIRED" 
+            break
+        case 225:
+            s = "ERROR_VIRUS_INFECTED" 
+            break
+        case 226:
+            s = "ERROR_VIRUS_DELETED" 
+            break
+        case 229:
+            s = "ERROR_PIPE_LOCAL" 
+            break
+        case 230:
+            s = "ERROR_BAD_PIPE" 
+            break
+        case 231:
+            s = "ERROR_PIPE_BUSY" 
+            break
+        case 232:
+            s = "ERROR_NO_DATA" 
+            break
+        case 233:
+            s = "ERROR_PIPE_NOT_CONNECTED" 
+            break
+        case 234:
+            s = "ERROR_MORE_DATA" 
+            break
+        case 240:
+            s = "ERROR_VC_DISCONNECTED" 
+            break
+        case 254:
+            s = "ERROR_INVALID_EA_NAME" 
+            break
+        case 255:
+            s = "ERROR_EA_LIST_INCONSISTENT" 
+            break
+        case 258:
+            s = "WAIT_TIMEOUT" 
+            break
+        case 259:
+            s = "ERROR_NO_MORE_ITEMS" 
+            break
+        case 266:
+            s = "ERROR_CANNOT_COPY" 
+            break
+        case 267:
+            s = "ERROR_DIRECTORY" 
+            break
+        case 275:
+            s = "ERROR_EAS_DIDNT_FIT" 
+            break
+        case 276:
+            s = "ERROR_EA_FILE_CORRUPT" 
+            break
+        case 277:
+            s = "ERROR_EA_TABLE_FULL" 
+            break
+        case 278:
+            s = "ERROR_INVALID_EA_HANDLE" 
+            break
+        case 282:
+            s = "ERROR_EAS_NOT_SUPPORTED" 
+            break
+        case 288:
+            s = "ERROR_NOT_OWNER" 
+            break
+        case 298:
+            s = "ERROR_TOO_MANY_POSTS" 
+            break
+        case 299:
+            s = "ERROR_PARTIAL_COPY" 
+            break
+        case 300:
+            s = "ERROR_OPLOCK_NOT_GRANTED" 
+            break
+        case 301:
+            s = "ERROR_INVALID_OPLOCK_PROTOCOL" 
+            break
+        case 302:
+            s = "ERROR_DISK_TOO_FRAGMENTED" 
+            break
+        case 303:
+            s = "ERROR_DELETE_PENDING" 
+            break
+        case 304:
+            s = "ERROR_INCOMPATIBLE_WITH_GLOBAL_SHORT_NAME_REGISTRY_SETTING" 
+            break
+        case 305:
+            s = "ERROR_SHORT_NAMES_NOT_ENABLED_ON_VOLUME" 
+            break
+        case 306:
+            s = "ERROR_SECURITY_STREAM_IS_INCONSISTENT" 
+            break
+        case 307:
+            s = "ERROR_INVALID_LOCK_RANGE" 
+            break
+        case 308:
+            s = "ERROR_IMAGE_SUBSYSTEM_NOT_PRESENT" 
+            break
+        case 309:
+            s = "ERROR_NOTIFICATION_GUID_ALREADY_DEFINED" 
+            break
+        case 310:
+            s = "ERROR_INVALID_EXCEPTION_HANDLER" 
+            break
+        case 311:
+            s = "ERROR_DUPLICATE_PRIVILEGES" 
+            break
+        case 312:
+            s = "ERROR_NO_RANGES_PROCESSED" 
+            break
+        case 313:
+            s = "ERROR_NOT_ALLOWED_ON_SYSTEM_FILE" 
+            break
+        case 314:
+            s = "ERROR_DISK_RESOURCES_EXHAUSTED" 
+            break
+        case 315:
+            s = "ERROR_INVALID_TOKEN" 
+            break
+        case 316:
+            s = "ERROR_DEVICE_FEATURE_NOT_SUPPORTED" 
+            break
+        case 317:
+            s = "ERROR_MR_MID_NOT_FOUND" 
+            break
+        case 318:
+            s = "ERROR_SCOPE_NOT_FOUND" 
+            break
+        case 319:
+            s = "ERROR_UNDEFINED_SCOPE" 
+            break
+        case 320:
+            s = "ERROR_INVALID_CAP" 
+            break
+        case 321:
+            s = "ERROR_DEVICE_UNREACHABLE" 
+            break
+        case 322:
+            s = "ERROR_DEVICE_NO_RESOURCES" 
+            break
+        case 323:
+            s = "ERROR_DATA_CHECKSUM_ERROR" 
+            break
+        case 324:
+            s = "ERROR_INTERMIXED_KERNEL_EA_OPERATION" 
+            break
+        case 326:
+            s = "ERROR_FILE_LEVEL_TRIM_NOT_SUPPORTED" 
+            break
+        case 327:
+            s = "ERROR_OFFSET_ALIGNMENT_VIOLATION" 
+            break
+        case 328:
+            s = "ERROR_INVALID_FIELD_IN_PARAMETER_LIST" 
+            break
+        case 329:
+            s = "ERROR_OPERATION_IN_PROGRESS" 
+            break
+        case 330:
+            s = "ERROR_BAD_DEVICE_PATH" 
+            break
+        case 331:
+            s = "ERROR_TOO_MANY_DESCRIPTORS" 
+            break
+        case 332:
+            s = "ERROR_SCRUB_DATA_DISABLED" 
+            break
+        case 333:
+            s = "ERROR_NOT_REDUNDANT_STORAGE" 
+            break
+        case 334:
+            s = "ERROR_RESIDENT_FILE_NOT_SUPPORTED" 
+            break
+        case 335:
+            s = "ERROR_COMPRESSED_FILE_NOT_SUPPORTED" 
+            break
+        case 336:
+            s = "ERROR_DIRECTORY_NOT_SUPPORTED" 
+            break
+        case 337:
+            s = "ERROR_NOT_READ_FROM_COPY" 
+            break
+        case 350:
+            s = "ERROR_FAIL_NOACTION_REBOOT" 
+            break
+        case 351:
+            s = "ERROR_FAIL_SHUTDOWN" 
+            break
+        case 352:
+            s = "ERROR_FAIL_RESTART" 
+            break
+        case 353:
+            s = "ERROR_MAX_SESSIONS_REACHED" 
+            break
+        case 400:
+            s = "ERROR_THREAD_MODE_ALREADY_BACKGROUND" 
+            break
+        case 401:
+            s = "ERROR_THREAD_MODE_NOT_BACKGROUND" 
+            break
+        case 402:
+            s = "ERROR_PROCESS_MODE_ALREADY_BACKGROUND" 
+            break
+        case 403:
+            s = "ERROR_PROCESS_MODE_NOT_BACKGROUND" 
+            break
+        case 487:
+            s = "ERROR_INVALID_ADDRESS" 
+            break
+
