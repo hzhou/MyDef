@@ -20,13 +20,26 @@ macros:
     m3: a
     m4: b
 
+subcode: A
+    outside 1
+    outside 2
+
+DEBUG code: test_sub
 subcode: test_sub
+    macros: 
+        B: A
     test 1
     test 2
+    &call $(B)
+        C1
+        C2
 
     subcode: A
         A1
         A2
+            B1
+            BLOCK
+            B2
 
 resource: root
     name1: a

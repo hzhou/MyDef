@@ -10,7 +10,7 @@ page: parseutil
     output_dir: lib/MyDef
     package: MyDef::parseutil
     subcode: main
-	$global $debug=0
+	$global $debug
 	# $call support_subs
 	$call support_eachfile
 	$call support_ogdl
@@ -54,10 +54,13 @@ fncode: import_data($file)
     post_matchblock($def);
     # $call compile_perlcode
     $if $debug
-        debug_def($def)
+        $foreach $k in keys %$debug
+            $if $k eq "def"
+                debug_def($def)
+            $elif $k=~/^code:\s*(\w+)/
+                debug_code($def->{codes}->{$1})
     return $def;
 
-DEBUG: 1
 fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
     # $print import_file [$f]
     #---- import a single def file, update include_list -----
@@ -84,8 +87,8 @@ fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
             $call macros_start
             $call start_code_indent, macro, $curindent+1, $macros
         $elif $(in_code)
-            $call get_source_indent, curindent
-            $call get_source_dedent, curindent
+            $call get_source_indent, $curindent
+            $call get_source_dedent, $curindent
             push @$source, $line
         $elif $(in_macro)
             $call process_macros
@@ -122,8 +125,11 @@ subcode: parse_level_0
         $call start_code_indent, page, 1, $page
     $elif $line=~/^resource:\s+(\w+)(.*)/
         $call grab_resource
-    $elif $line=~/^DEBUG/
-        $debug=1
+    $elif $line=~/^DEBUG\s*(.*)/
+        $if $1
+            $debug->{$1}=1
+        $else
+            $debug->{def}=1
 
 #---------------------------------------- 
 subcode: get_multiline_comment

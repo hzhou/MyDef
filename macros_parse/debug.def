@@ -23,5 +23,13 @@ fncode: print_def_node($node, $indent, $continue)
             print "    "x$indent
         print $node, "\n"
 
-
+#---------------------------------------- 
+fncode: debug_code($code)
+    print "$code->{name}:\n"
+    $foreach $l in @{$code->{source}}
+        print "    $l\n"
+    $if $code->{codes}
+        $foreach %{$code->{codes}}
+            print "---------\n"
+            debug_code($v)
 

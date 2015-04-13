@@ -204,19 +204,20 @@ subcode: list_functions
     $global $fn_block=[]
     &call replace_output, $fn_block
         &call each_subcode, fn
-            $call parse_function, $name, $code
+            # $name, $code
+            $call parse_function
 
-subcode: parse_function(name, code)
-    push @$out, "sub $(name) {"
-    push @$out, "INDENT"
-    my $params=$(code)->{params}
-    $if $#$params>=0
-	my $pline=join(", ", @$params)
-	push @$out, "my ($pline) = \@_;"
-    MyDef::compileutil::call_sub($(name), "\$list")
-    push @$out, "DEDENT"
-    push @$out, "}"
-    push @$out, "NEWLINE"
+    subcode: parse_function
+        push @$out, "sub $name {"
+        push @$out, "INDENT"
+        my $params=$code->{params}
+        $if $#$params>=0
+            my $pline=join(", ", @$params)
+            push @$out, "my ($pline) = \@_;"
+        MyDef::compileutil::list_sub($code)
+        push @$out, "DEDENT"
+        push @$out, "}"
+        push @$out, "NEWLINE"
     
 #---- for extensions ----
 fncode: inject_function($name, $params, $source)

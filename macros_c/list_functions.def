@@ -105,18 +105,22 @@ subcode: parse_function_list_item(f)
 	    $codename=$1
 	    $funcname=$2
 	$funcname=~s/^@//
-	my $params=MyDef::compileutil::get_sub_param_list($codename)
-	$if defined $params
-	    $paramline=join(",", @$params)
-	    $if $funcname eq "n_main" or $funcname eq "main2"
-		$funcname="main";
+        my $codelib=MyDef::compileutil::get_def_attr("codes", $codename)
+        $if !$codelib
+            $print function $codename not found!
+        $else
+            my $params=$codelib->{params}
+            $if defined $params
+                $paramline=join(",", @$params)
+                $if $funcname eq "n_main" or $funcname eq "main2"
+                    $funcname="main";
 
-	$if defined $paramline
-	    &call function_block
-		MyDef::compileutil::call_sub($codename, "\$list")
-		$if $out->[-1]=~/^return/
-		    $cur_function->{return}=pop @$out
-	    $call function_pop
+            $if defined $paramline
+                &call function_block
+                    MyDef::compileutil::list_sub($codelib)
+                    $if $out->[-1]=~/^return/
+                        $cur_function->{return}=pop @$out
+                $call function_pop
 
 # ---- Direct $function ------------------
 subcode: parse_function

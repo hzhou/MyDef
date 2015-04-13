@@ -30,9 +30,12 @@ subcode: start_code_indent(type, indent, item)
 subcode: check_end_indent
     $while $curindent <$codeindent
         # $print end_code_indent: $codetype, $codeindent, $codeitem
-        $call @check_subcode_end
+        $if $codetype eq "code"
+            $call @check_subcode_end
         my $t = pop @indent_stack
         ($codetype, $codeindent, $codeitem) = @$t
+        $if $codetype eq "code"
+            $lastindent = $codeindent
 
 subcode: check_end_automain
     $if $curindent==1 && $codetype eq "code" && $indent_stack[-1]->[0] eq "page"
@@ -53,12 +56,12 @@ subcode:: import_file_init
     my $lastindent;
 
 subcode: get_source_indent(curindent)
-    $while $$(curindent)>$lastindent
+    $while $(curindent)>$lastindent
 	$lastindent++;
 	push @$source, "SOURCE_INDENT";
 
 subcode: get_source_dedent(curindent)
-    $while $$(curindent)<$lastindent
+    $while $(curindent)<$lastindent
 	$lastindent--;
 	push @$source, "SOURCE_DEDENT";
 
