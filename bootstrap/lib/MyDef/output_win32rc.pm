@@ -391,7 +391,7 @@ sub parsecode {
 }
 sub dumpout {
     my ($f, $out, $pagetype)=@_;
-    my $dump={out=>$out,f=>$f};
+    my $dump={out=>$out,f=>$f, module=>"output_win32rc"};
     my $pagename=$page->{pagename};
     my $outdir=$page->{outdir};
     my $res_h="$pagename-res.h";

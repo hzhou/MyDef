@@ -16,17 +16,392 @@ our $debug;
 our $out;
 our @output_list;
 our %named_blocks;
-our @callback_block_stack;
-our %eval_sub_cache;
-our %eval_sub_error;
 our @mode_stack=("sub");
 our $cur_mode;
 our $in_autoload;
+our @callsub_stack;
+our @callback_block_stack;
+our %eval_sub_cache;
+our %eval_sub_error;
 our $cur_ogdl;
 our $block_index=0;
 our @block_stack;
 our $parse_line_count=0;
 our %index_name_hash;
+
+sub call_back {
+    my ($param, $subblock) = @_;
+    my ($codename, $attr, $codelib);
+    if($param=~/^(@)?(\w+)(.*)/){
+        ($codename, $attr, $param)=($2, $1, $3);
+        $codelib=get_def_attr("codes", $codename);
+        if(!$codelib){
+            set_current_macro("notfound", 1);
+            if($attr ne '@'){
+                print "[$cur_file:$cur_line] Code $codename not found!\n";
+            }
+        }
+        else{
+            set_current_macro("notfound", 0);
+            if($codelib->{allow_recurse} < $codelib->{recurse}){
+                die "Recursive subcode: $codename [$codelib->{recurse}]\n";
+            }
+        }
+    }
+    else{
+        warn "    call_sub [$param] parse failure\n";
+    }
+    if($codelib){
+        if($codelib->{type} eq "perl"){
+            $param=~s/^\s*,\s*//;
+            shift @$subblock;
+            my (@t, $indent);
+            foreach my $t (@$subblock){
+                if($t=~/^SOURCE_INDENT/){
+                    $indent++;
+                }
+                elsif($t=~/^SOURCE_DEDENT/){
+                    $indent--;
+                }
+                elsif($t!~/^SOURCE/){
+                    if($indent>0){
+                        push @t, ("    "x$indent) . $t;
+                    }
+                    else{
+                        push @t, $t;
+                    }
+                }
+            }
+            $named_blocks{last_grab}=\@t;
+            $f_parse->("\$eval $codename, $param");
+            $named_blocks{last_grab}=undef;
+        }
+        else{
+            my $codeparams=$codelib->{params};
+            my (@pre_plist, $pline, @plist);
+            if($param=~/^\(([^\)]*)\)/){
+                $param=$';
+                @pre_plist=MyDef::utils::proper_split($1);
+            }
+            $param=~s/^\s*,?\s*//;
+            $pline=$param;
+            @plist=MyDef::utils::proper_split($param);
+            my $n_pre=@pre_plist;
+            my $n_param = @$codeparams;
+            $codelib->{recurse}++;
+            push @callsub_stack, $codename;
+            modepush($codelib->{type});
+            push @callback_block_stack, {source=>$subblock, name=>"$codename", cur_file=>$cur_file, cur_line=>$cur_line};
+            my $macro={};
+            if(1==$n_param && $codeparams->[0] eq "\@plist"){
+                $macro->{np}=$#plist+1;
+                my $i=0;
+                foreach my $p (@plist){
+                    $i++;
+                    $macro->{"p$i"}=$p;
+                }
+            }
+            if($n_pre+@plist!=$n_param){
+                my $n2=@plist;
+                my $n3=$n_param;
+                if($codeparams->[$n3-1]=~/^\@(\w+)/ and $n2>$n3-$n_pre){
+                    my $n0=$n3-$n_pre-1;
+                    for(my $i=0; $i <$n0; $i++){
+                        $pline=~s/^[^,]*,//;
+                    }
+                    $pline=~s/^\s*//;
+                    $plist[$n0]=$pline;
+                }
+                else{
+                    warn "    [$cur_file:$cur_line] Code $codename parameter mismatch ($n_pre + $n2) != $n3. [pline:$pline]\n";
+                }
+            }
+            for(my $i=0; $i <$n_pre; $i++){
+                $macro->{$codeparams->[$i]}=$pre_plist[$i];
+            }
+            for(my $j=0; $j <$n_param-$n_pre; $j++){
+                my $p=$codeparams->[$n_pre+$j];
+                if($p=~/^\@(\w+)/){
+                    $p=$1;
+                }
+                if($plist[$j]=~/q"(.*)"/){
+                    $macro->{$p}=$1;
+                }
+                else{
+                    $macro->{$p}=$plist[$j];
+                }
+            }
+            $macro->{recurse_level}=$codelib->{recurse};
+            if($codelib->{macros}){
+                while (my ($k, $v) = each %{$codelib->{macros}}){
+                    $macro->{$k}=$v;
+                }
+            }
+            if($codelib->{codes}){
+                $macro->{"codes"}=$codelib->{codes};
+            }
+            if($debug eq "macro"){
+                print "Code $codename: ";
+                while(my ($k, $v)=each %$macro){
+                    print "$k=$v, ";
+                }
+                print "\n";
+            }
+            push @$deflist, $macro;
+            parseblock($codelib);
+            pop @$deflist;
+            pop @callback_block_stack;
+            modepop();
+            pop @callsub_stack;
+            $codelib->{recurse}--;
+        }
+    }
+}
+
+sub map_sub {
+    my ($param) = @_;
+    my ($codename, $attr, $codelib);
+    if($param=~/^(@)?(\w+)(.*)/){
+        ($codename, $attr, $param)=($2, $1, $3);
+        $codelib=get_def_attr("codes", $codename);
+        if(!$codelib){
+            set_current_macro("notfound", 1);
+            if($attr ne '@'){
+                print "[$cur_file:$cur_line] Code $codename not found!\n";
+            }
+        }
+        else{
+            set_current_macro("notfound", 0);
+            if($codelib->{allow_recurse} < $codelib->{recurse}){
+                die "Recursive subcode: $codename [$codelib->{recurse}]\n";
+            }
+        }
+    }
+    else{
+        warn "    call_sub [$param] parse failure\n";
+    }
+    if($codelib){
+        if($codelib->{type} eq "perl"){
+            $param=~s/^\s*,\s*//;
+            $f_parse->("\$eval $codename, $param");
+        }
+        else{
+            my $codeparams=$codelib->{params};
+            my (@pre_plist, $pline, @plist);
+            if($param=~/^\(([^\)]*)\)/){
+                $param=$';
+                @pre_plist=MyDef::utils::proper_split($1);
+            }
+            $param=~s/^\s*,?\s*//;
+            $pline=$param;
+            @plist=MyDef::utils::proper_split($param);
+            my $n_pre=@pre_plist;
+            my $n_param = @$codeparams;
+            $codelib->{recurse}++;
+            push @callsub_stack, $codename;
+            modepush($codelib->{type});
+            if(1+@pre_plist!=$n_param){
+                warn " Code $codename parameter mismatch.\n";
+            }
+            if($plist[0]=~/^subcode:(.*)/){
+                my $prefix=$1;
+                @plist=();
+                my $codes=$MyDef::def->{codes};
+                foreach my $k (sort(keys(%$codes))){
+                    if($k=~/^$prefix(\w+)/){
+                        push @plist, $1;
+                    }
+                }
+            }
+            foreach my $item (@plist){
+                my $macro={};
+                $macro->{$codeparams->[$n_pre]}=$item;
+                if($n_pre){
+                    for(my $i=0; $i <$n_pre; $i++){
+                        $macro->{$codeparams->[$i]}=$pre_plist[$i];
+                    }
+                }
+                push @$deflist, $macro;
+                parseblock($codelib);
+                pop @$deflist;
+            }
+            modepop();
+            pop @callsub_stack;
+            $codelib->{recurse}--;
+        }
+    }
+}
+
+sub call_sub {
+    my ($param) = @_;
+    my ($codename, $attr, $codelib);
+    if($param=~/^(@)?(\w+)(.*)/){
+        ($codename, $attr, $param)=($2, $1, $3);
+        $codelib=get_def_attr("codes", $codename);
+        if(!$codelib){
+            set_current_macro("notfound", 1);
+            if($attr ne '@'){
+                print "[$cur_file:$cur_line] Code $codename not found!\n";
+            }
+        }
+        else{
+            set_current_macro("notfound", 0);
+            if($codelib->{allow_recurse} < $codelib->{recurse}){
+                die "Recursive subcode: $codename [$codelib->{recurse}]\n";
+            }
+        }
+    }
+    else{
+        warn "    call_sub [$param] parse failure\n";
+    }
+    if($codelib){
+        if($codelib->{type} eq "perl"){
+            $param=~s/^\s*,\s*//;
+            $f_parse->("\$eval $codename, $param");
+        }
+        else{
+            my $codeparams=$codelib->{params};
+            my (@pre_plist, $pline, @plist);
+            if($param=~/^\(([^\)]*)\)/){
+                $param=$';
+                @pre_plist=MyDef::utils::proper_split($1);
+            }
+            $param=~s/^\s*,?\s*//;
+            $pline=$param;
+            @plist=MyDef::utils::proper_split($param);
+            my $n_pre=@pre_plist;
+            my $n_param = @$codeparams;
+            $codelib->{recurse}++;
+            push @callsub_stack, $codename;
+            modepush($codelib->{type});
+            my $macro={};
+            if(1==$n_param && $codeparams->[0] eq "\@plist"){
+                $macro->{np}=$#plist+1;
+                my $i=0;
+                foreach my $p (@plist){
+                    $i++;
+                    $macro->{"p$i"}=$p;
+                }
+            }
+            if($n_pre+@plist!=$n_param){
+                my $n2=@plist;
+                my $n3=$n_param;
+                if($codeparams->[$n3-1]=~/^\@(\w+)/ and $n2>$n3-$n_pre){
+                    my $n0=$n3-$n_pre-1;
+                    for(my $i=0; $i <$n0; $i++){
+                        $pline=~s/^[^,]*,//;
+                    }
+                    $pline=~s/^\s*//;
+                    $plist[$n0]=$pline;
+                }
+                else{
+                    warn "    [$cur_file:$cur_line] Code $codename parameter mismatch ($n_pre + $n2) != $n3. [pline:$pline]\n";
+                }
+            }
+            for(my $i=0; $i <$n_pre; $i++){
+                $macro->{$codeparams->[$i]}=$pre_plist[$i];
+            }
+            for(my $j=0; $j <$n_param-$n_pre; $j++){
+                my $p=$codeparams->[$n_pre+$j];
+                if($p=~/^\@(\w+)/){
+                    $p=$1;
+                }
+                if($plist[$j]=~/q"(.*)"/){
+                    $macro->{$p}=$1;
+                }
+                else{
+                    $macro->{$p}=$plist[$j];
+                }
+            }
+            $macro->{recurse_level}=$codelib->{recurse};
+            if($codelib->{macros}){
+                while (my ($k, $v) = each %{$codelib->{macros}}){
+                    $macro->{$k}=$v;
+                }
+            }
+            if($codelib->{codes}){
+                $macro->{"codes"}=$codelib->{codes};
+            }
+            if($debug eq "macro"){
+                print "Code $codename: ";
+                while(my ($k, $v)=each %$macro){
+                    print "$k=$v, ";
+                }
+                print "\n";
+            }
+            push @$deflist, $macro;
+            parseblock($codelib);
+            pop @$deflist;
+            modepop();
+            pop @callsub_stack;
+            $codelib->{recurse}--;
+        }
+    }
+}
+
+sub list_sub {
+    my ($codelib) = @_;
+    $codelib->{"scope"}="list_sub";
+    my $macro={};
+    if($codelib->{macros}){
+        while (my ($k, $v) = each %{$codelib->{macros}}){
+            $macro->{$k}=$v;
+        }
+    }
+    if($codelib->{codes}){
+        $macro->{"codes"}=$codelib->{codes};
+    }
+    push @$deflist, $macro;
+    parseblock($codelib);
+    pop @$deflist;
+}
+
+sub print_sub {
+    my ($param) = @_;
+    if($param=~/^(@)?(\w+)(.*)/){
+        my $codename=$1;
+        my $codelib=get_def_attr("codes", $codename);
+        if($codelib){
+            modepush("PRINT");
+            parseblock($codelib);
+            modepop();
+        }
+    }
+}
+
+sub eval_sub {
+    my ($codename) = @_;
+    if($eval_sub_cache{$codename}){
+        return $eval_sub_cache{$codename};
+    }
+    else{
+        my $codelib=get_def_attr("codes", $codename);
+        if(!$codelib){
+            warn "    eval_sub: Code $codename not found\n";
+        }
+        my $t= eval_sub_string($codelib);
+        $eval_sub_cache{$codename}=$t;
+        return $t;
+    }
+}
+
+sub eval_sub_string {
+    my ($codelib) = @_;
+    require MyDef::output_perl;
+    my $save_out=$out;
+    my @save_interface=get_interface();
+    set_interface(MyDef::output_perl::get_interface());
+    $out=[];
+    $f_setout->($out);
+    parse_code($codelib);
+    my @t;
+    $f_dumpout->(\@t, $out, "eval");
+    set_interface(@save_interface);
+    $out=$save_out;
+    $f_setout->($out);
+    my $t=join("", @t);
+    return $t;
+}
 
 sub parseblock {
     my ($code) = @_;
@@ -254,7 +629,10 @@ sub parseblock {
                         my $subblock=grabblock($block, \$lindex);
                         my $i=0;
                         foreach my $t (@tlist){
-                            my $macro={$vname=>$t, "i"=>$i};
+                            my $macro={$vname=>$t};
+                            if($vname ne "i"){
+                                $macro->{i}=$i;
+                            }
                             push @$deflist, $macro;
                             parseblock({source=>$subblock, name=>"\${for}"});
                             pop @$deflist;
@@ -528,10 +906,13 @@ sub parseblock {
                         my ($func, $param)=($1, $2);
                         $param=~s/\s*$//;
                         if($func eq "\$map"){
-                            call_sub($param, $func);
+                            map_sub($param, $func);
+                        }
+                        elsif($func eq "\$call-PRINT"){
+                            print_sub($param);
                         }
                         elsif($func =~ /^\$call/){
-                            call_sub($param, $func);
+                            call_sub($param);
                         }
                         elsif($func eq "\&call"){
                             my $subblock=grabblock($block, \$lindex);
@@ -691,7 +1072,9 @@ sub get_macro {
         my $t=get_macro($1);
         if($t){
             if($p=~/(\d+)-(\d+)/){
-                return substr($t, $1, $2-$1+1);
+                my $s=substr($t, $1, $2-$1+1);
+                print "$t:$1-$2 -> [$s]\n";
+                return $s;
             }
             elsif($p=~/(\d+):(\d+|word|number|strip)/){
                 my $s=substr($t, $1);
@@ -745,6 +1128,26 @@ sub get_macro {
             }
         }
     }
+    elsif($s=~/^([mg])([\|&]+):(.*)/){
+        my ($m, $sep, $t)=($1, $2, $3);
+        my @tlist;
+        if($t=~/^(.*==\s*)(.*)$/){
+            my ($pre, $t)=($1, $2);
+            my @t = split /,\s*/, $t;
+            foreach my $tt (@t){
+                push @tlist, "$pre$tt";
+            }
+        }
+        else{
+            print "failed to parse multiplex macro [$sep][$t]\n";
+        }
+        if($m eq "g"){
+            return '('.join(" $sep ", @tlist).')';
+        }
+        else{
+            return join(" $sep ", @tlist);
+        }
+    }
     elsif($s=~/^(.+)/){
         for(my $j=$#$deflist; $j >=-1; $j--){
             my $macros=$deflist->[$j];
@@ -772,7 +1175,6 @@ sub set_output {
     $f_setout->($out);
     return $old;
 }
-my @callsub_stack;
 sub init_output {
     @output_list=([]);
     set_output($output_list[0]);
@@ -941,299 +1343,6 @@ sub testcondition {
         return 0;
     }
     return 0;
-}
-sub call_back {
-    my ($param, $subblock)=@_;
-    my ($codename, $attr);
-    my $codelib;
-    if($param=~/^(@)?(\w+)(.*)/){
-        $attr=$1;
-        $codename=$2;
-        $param=$3;
-        $codelib=get_subcode($codename, $attr);
-    }
-    else{
-        print STDERR "    call_sub [$param] parse failure\n";
-    }
-    if($codelib){
-        if($codelib->{type} eq "perl"){
-            $param=~s/^\s*,\s*//;
-            shift @$subblock;
-            my (@t, $indent);
-            foreach my $t (@$subblock){
-                if($t=~/^SOURCE_INDENT/){
-                    $indent++;
-                }
-                elsif($t=~/^SOURCE_DEDENT/){
-                    $indent--;
-                }
-                elsif($t!~/^SOURCE/){
-                    if($indent>0){
-                        push @t, ("    "x$indent) . $t;
-                    }
-                    else{
-                        push @t, $t;
-                    }
-                }
-            }
-            $named_blocks{last_grab}=\@t;
-            $f_parse->("\$eval $codename, $param");
-            $named_blocks{last_grab}=undef;
-        }
-        else{
-            modepush($codelib->{type});
-            my (@pre_plist, $pline, @plist);
-            if($param=~/^\(([^\)]*)\)/){
-                $param=$';
-                @pre_plist=MyDef::utils::proper_split($1);
-            }
-            $param=~s/^\s*,?\s*//;
-            $pline=$param;
-            @plist=MyDef::utils::proper_split($param);
-            push @callback_block_stack, {source=>$subblock, name=>"$codename", cur_file=>$cur_file, cur_line=>$cur_line};
-            $codelib->{recurse}++;
-            push @callsub_stack, $codename;
-            my $params=$codelib->{params};
-            my $np=@pre_plist;
-            my $macro={};
-            if(1==@$params && $params->[0] eq "\@plist"){
-                $macro->{np}=$#plist+1;
-                my $i=0;
-                foreach my $p (@plist){
-                    $i++;
-                    $macro->{"p$i"}=$p;
-                }
-            }
-            if($np+@plist!=@$params){
-                my $n2=@plist;
-                my $n3=@$params;
-                if($params->[$n3-1]=~/^\@(\w+)/ and $n2>$n3-$np){
-                    my $n0=$n3-$np-1;
-                    for(my $i=0; $i <$n0; $i++){
-                        $pline=~s/^[^,]*,//;
-                    }
-                    $pline=~s/^\s*//;
-                    $plist[$n0]=$pline;
-                }
-                else{
-                    warn "    [$cur_file:$cur_line] Code $codename parameter mismatch ($np + $n2) != $n3. [pline:$pline]\n";
-                }
-            }
-            for(my $i=0; $i <$np; $i++){
-                $macro->{$params->[$i]}=$pre_plist[$i];
-            }
-            for(my $j=0; $j <@$params-$np; $j++){
-                my $p=$params->[$np+$j];
-                if($p=~/^\@(\w+)/){
-                    $p=$1;
-                }
-                if($plist[$j]=~/q"(.*)"/){
-                    $macro->{$p}=$1;
-                }
-                else{
-                    $macro->{$p}=$plist[$j];
-                }
-            }
-            $macro->{recurse_level}=$codelib->{recurse};
-            if($debug eq "macro"){
-                print "Code $codename: ";
-                while(my ($k, $v)=each %$macro){
-                    print "$k=$v, ";
-                }
-                print "\n";
-            }
-            push @$deflist, $macro;
-            parseblock($codelib);
-            pop @$deflist;
-            pop @callsub_stack;
-            $codelib->{recurse}--;
-            pop @callback_block_stack;
-            modepop();
-        }
-    }
-}
-sub call_sub {
-    my ($param, $calltype, $scope)=@_;
-    my ($codename, $attr);
-    my $codelib;
-    if($param=~/^(@)?(\w+)(.*)/){
-        $attr=$1;
-        $codename=$2;
-        $param=$3;
-        $codelib=get_subcode($codename, $attr);
-    }
-    else{
-        print STDERR "    call_sub [$param] parse failure\n";
-    }
-    if($codelib){
-        if($codelib->{type} eq "perl"){
-            $param=~s/^\s*,\s*//;
-            $f_parse->("\$eval $codename, $param");
-        }
-        else{
-            if($codelib){
-                $codelib->{recurse}++;
-                push @callsub_stack, $codename;
-                if($calltype=~/\$call-(\w+)/){
-                    modepush($1);
-                }
-                else{
-                    modepush($codelib->{type});
-                }
-                my $params=$codelib->{params};
-                if($scope){
-                    $codelib->{"scope"}=$scope;
-                }
-                if($calltype eq "\$list" or $calltype eq "\$call-PRINT"){
-                    parseblock($codelib);
-                }
-                else{
-                    my (@pre_plist, $pline, @plist);
-                    if($param=~/^\(([^\)]*)\)/){
-                        $param=$';
-                        @pre_plist=MyDef::utils::proper_split($1);
-                    }
-                    $param=~s/^\s*,?\s*//;
-                    $pline=$param;
-                    @plist=MyDef::utils::proper_split($param);
-                    my $np=@pre_plist;
-                    if($calltype eq "\$map"){
-                        if(1+@pre_plist!=@$params){
-                            warn " Code $codename parameter mismatch.\n";
-                        }
-                        if($plist[0]=~/^subcode:(.*)/){
-                            my $prefix=$1;
-                            @plist=();
-                            my $codes=$MyDef::def->{codes};
-                            foreach my $k (sort(keys(%$codes))){
-                                if($k=~/^$prefix(\w+)/){
-                                    push @plist, $1;
-                                }
-                            }
-                        }
-                        foreach my $item (@plist){
-                            my $macro={$params->[$np]=>$item};
-                            if($np){
-                                for(my $i=0; $i <$np; $i++){
-                                    $macro->{$params->[$i]}=$pre_plist[$i];
-                                }
-                            }
-                            push @$deflist, $macro;
-                            parseblock($codelib);
-                            pop @$deflist;
-                        }
-                    }
-                    else{
-                        my $macro={};
-                        if(1==@$params && $params->[0] eq "\@plist"){
-                            $macro->{np}=$#plist+1;
-                            my $i=0;
-                            foreach my $p (@plist){
-                                $i++;
-                                $macro->{"p$i"}=$p;
-                            }
-                        }
-                        if($np+@plist!=@$params){
-                            my $n2=@plist;
-                            my $n3=@$params;
-                            if($params->[$n3-1]=~/^\@(\w+)/ and $n2>$n3-$np){
-                                my $n0=$n3-$np-1;
-                                for(my $i=0; $i <$n0; $i++){
-                                    $pline=~s/^[^,]*,//;
-                                }
-                                $pline=~s/^\s*//;
-                                $plist[$n0]=$pline;
-                            }
-                            else{
-                                warn "    [$cur_file:$cur_line] Code $codename parameter mismatch ($np + $n2) != $n3. [pline:$pline]\n";
-                            }
-                        }
-                        for(my $i=0; $i <$np; $i++){
-                            $macro->{$params->[$i]}=$pre_plist[$i];
-                        }
-                        for(my $j=0; $j <@$params-$np; $j++){
-                            my $p=$params->[$np+$j];
-                            if($p=~/^\@(\w+)/){
-                                $p=$1;
-                            }
-                            if($plist[$j]=~/q"(.*)"/){
-                                $macro->{$p}=$1;
-                            }
-                            else{
-                                $macro->{$p}=$plist[$j];
-                            }
-                        }
-                        $macro->{recurse_level}=$codelib->{recurse};
-                        if($debug eq "macro"){
-                            print "Code $codename: ";
-                            while(my ($k, $v)=each %$macro){
-                                print "$k=$v, ";
-                            }
-                            print "\n";
-                        }
-                        push @$deflist, $macro;
-                        parseblock($codelib);
-                        pop @$deflist;
-                    }
-                }
-                modepop();
-                pop @callsub_stack;
-                $codelib->{recurse}--;
-                set_current_macro("notfound", 0);
-            }
-            else{
-                set_current_macro("notfound", 1);
-            }
-        }
-    }
-}
-sub get_subcode {
-    my ($codename, $attr)=@_;
-    my $codelib=get_def_attr("codes", $codename);
-    if(!$codelib){
-        if($attr ne '@'){
-            print STDERR "    [$cur_file:$cur_line] Code $codename not found!\n";
-        }
-        return undef;
-    }
-    else{
-        if($codelib->{allow_recurse} < $codelib->{recurse}){
-            die "Recursive subcode: $codename [$codelib->{recurse}]\n";
-        }
-        return $codelib;
-    }
-}
-sub eval_sub {
-    my ($codename)=@_;
-    if($eval_sub_cache{$codename}){
-        return $eval_sub_cache{$codename};
-    }
-    else{
-        my $codelib=get_def_attr("codes", $codename);
-        if(!$codelib){
-            warn "    eval_sub: Code $codename not found\n";
-        }
-        my $t= eval_sub_string($codelib);
-        $eval_sub_cache{$codename}=$t;
-        return $t;
-    }
-}
-sub eval_sub_string {
-    my ($codelib)=@_;
-    require MyDef::output_perl;
-    my $save_out=$out;
-    my @save_interface=get_interface();
-    set_interface(MyDef::output_perl::get_interface());
-    $out=[];
-    $f_setout->($out);
-    parse_code($codelib);
-    my @t;
-    $f_dumpout->(\@t, $out, "eval");
-    set_interface(@save_interface);
-    $out=$save_out;
-    $f_setout->($out);
-    my $t=join("", @t);
-    return $t;
 }
 sub curfile_curline {
     return "$cur_file:$cur_line";
@@ -1546,11 +1655,17 @@ sub output {
         $outname.=".$pageext";
     }
     print "  --> [$outname]\n";
-    open Out, ">$outname" or die "Can't write $outname\n";
-    foreach my $l (@$plines){
-        print Out $l;
+    my $n=@$plines;
+    if($n==0){
+        print "Strange, no output!\n";
     }
-    close Out;
+    else{
+        open Out, ">$outname" or die "Can't write $outname.\n";
+        foreach my $l (@$plines){
+            print Out $l;
+        }
+        close Out;
+    }
 }
 sub parse_code {
     my ($code)=@_;

@@ -248,7 +248,7 @@ sub parsecode {
 }
 sub dumpout {
     my ($f, $out, $pagetype)=@_;
-    my $dump={out=>$out,f=>$f};
+    my $dump={out=>$out,f=>$f, module=>"output_matlab"};
     parsecode("NOOP");
     my ($input, $return, @vararg);
     if(@func_return){

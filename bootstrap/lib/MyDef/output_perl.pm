@@ -623,7 +623,7 @@ sub parsecode {
                 return single_block("while (my ($k, $v)=each $hash){", "}", "foreach");
             }
         }
-        elsif($func eq "sumcode" or $func eq "loop"){
+        elsif($func eq "sumcode" or $func eq "loop" or $func eq "sum"){
             if($param=~/^\((.*?)\)\s+(.*)/){
                 my $dimstr=$1;
                 $param=$2;
@@ -706,7 +706,7 @@ sub parsecode {
                 MyDef::compileutil::parseblock({source=>$codelist, name=>"sumcode"});
                 return;
             }
-            else{
+            elsif($func eq "sumcode"){
                 my $h={};
                 my ($left, $right);
                 if($param=~/(.*?)\s*(?<![\+\-\*\/%&\|><=])=(?!=)\s*(.*)/){
@@ -747,6 +747,9 @@ sub parsecode {
                                 my ($dim, $inc);
                                 if($var->{"dim$i"}){
                                     $dim=$var->{"dim$i"};
+                                }
+                                elsif($var->{"dimension"} and $i==1){
+                                    $dim=$var->{"dimension"};
                                 }
                                 else{
                                     my $curfile=MyDef::compileutil::curfile_curline();
@@ -802,6 +805,9 @@ sub parsecode {
                                     if($var->{"dim$i"}){
                                         $dim=$var->{"dim$i"};
                                     }
+                                    elsif($var->{"dimension"} and $i==1){
+                                        $dim=$var->{"dimension"};
+                                    }
                                     else{
                                         my $curfile=MyDef::compileutil::curfile_curline();
                                         print "[$curfile]\x1b[33m sumcode: var $v missing dimension $i\n\x1b[0m";
@@ -851,8 +857,12 @@ sub parsecode {
         }
         elsif($func eq "print"){
             my $str=$param;
+            my $need_escape;
             if($str=~/^\s*\"(.*)\"\s*$/){
                 $str=$1;
+            }
+            else{
+                $need_escape=1;
             }
             my %colors=(red=>31,green=>32,yellow=>33,blue=>34,magenta=>35,cyan=>36);
             my @fmt_list;
@@ -875,8 +885,16 @@ sub parsecode {
                         push @fmt_list, '$';
                     }
                 }
-                elsif($str=~/\G\\\$/gc){
-                    push @fmt_list, '$';
+                elsif($str=~/\G(\\.)/gc){
+                    push @fmt_list, $1;
+                }
+                elsif($str=~/\G"/gc){
+                    if($need_escape){
+                        push @fmt_list, "\\\"";
+                    }
+                    else{
+                        push @fmt_list, "\"";
+                    }
                 }
                 elsif($str=~/\G\}/gc){
                     if(@group){
@@ -895,7 +913,7 @@ sub parsecode {
                         push @fmt_list, '}';
                     }
                 }
-                elsif($str=~/\G[^\$\}]+/gc){
+                elsif($str=~/\G[^\$\}"]+/gc){
                     push @fmt_list, $&;
                 }
             }
@@ -936,7 +954,7 @@ sub parsecode {
                     my $pline=join(", ", @$params);
                     push @$out, "my ($pline) = \@_;";
                 }
-                MyDef::compileutil::call_sub($name, "\$list");
+                MyDef::compileutil::list_sub($code);
                 push @$out, "DEDENT";
                 push @$out, "}";
                 push @$out, "NEWLINE";
@@ -974,7 +992,7 @@ sub parsecode {
 }
 sub dumpout {
     my ($f, $out, $pagetype)=@_;
-    my $dump={out=>$out,f=>$f};
+    my $dump={out=>$out,f=>$f, module=>"output_perl"};
     parsecode("NOOP");
     if(!$pagetype or $pagetype eq "pl"){
         push @$f, "#!/usr/bin/perl\n";

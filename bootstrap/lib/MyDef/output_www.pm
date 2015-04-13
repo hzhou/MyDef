@@ -6,6 +6,7 @@ our $mode;
 our $page;
 our $style;
 our @style_key_list;
+our $style_sheets;
 our %php_globals;
 our @php_globals;
 our %js_globals;
@@ -60,7 +61,6 @@ sub parse_tag_attributes {
 }
 
 use Term::ANSIColor qw(:constants);
-my $style_sheets;
 sub get_interface {
     my $interface_type="general";
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout, $interface_type);
@@ -70,12 +70,12 @@ sub init_page {
     $page=$t_page;
     MyDef::set_page_extension("html");
     my $init_mode="html";
+    $style={};
+    @style_key_list=();
     $style_sheets=[];
     if($page->{pageext} eq "js"){
         $init_mode="js";
     }
-    $style={};
-    @style_key_list=();
     %php_globals=();
     @php_globals=();
     %js_globals=();
@@ -195,13 +195,19 @@ sub parsecode {
         }
         return 0;
     }
-    if($l=~/^\s*CSS: (.*)\s*\{(.*)\}/){
-        if($style->{$1}){
-            $style->{$1}.=";$2";
+    if($l=~/^CSS:\s*(.*)/){
+        my $t=$1;
+        if($t=~/(.*?)\s*\{(.*)\}/){
+            if($style->{$1}){
+                $style->{$1}.=";$2";
+            }
+            else{
+                $style->{$1}=$2;
+                push @style_key_list, $1;
+            }
         }
-        else{
-            $style->{$1}=$2;
-            push @style_key_list, $1;
+        elsif($t=~/(\S*\.css)/){
+            push @$style_sheets, $1;
         }
         return;
     }
@@ -339,7 +345,7 @@ sub parsecode {
                         }
                         return single_block("for($stepclause){", "}");
                     }
-                    elsif($param=~/^(\w+)$/){
+                    elsif($param=~/^(\S+)$/){
                         MyDef::compileutil::set_current_macro("item", "$1\[i]");
                         return single_block("for(i=0;i<$1.length;i++){", "}");
                     }
@@ -498,23 +504,9 @@ sub parsecode {
 }
 sub dumpout {
     my ($f, $out, $pagetype)=@_;
-    my $dump={out=>$out,f=>$f};
+    my $dump={out=>$out,f=>$f, module=>"output_www"};
     $dump->{custom}=\&custom_dump;
-    my $metablock=MyDef::compileutil::get_named_block("meta");
-    my $charset=$page->{charset};
-    if(!$charset){
-        $charset="utf-8";
-    }
-    my $title=$page->{title};
-    if(!$title){
-        $title=$page->{pagename};
-    }
-    push @$metablock, "<meta charset=\"$charset\">";
-    push @$metablock, "<title>$title</title>\n";
-    if(@style_key_list){
-        if($MyDef::page->{type} ne "css"){
-            push @$metablock, "<style>\n";
-        }
+    if($MyDef::page->{type} eq "css"){
         foreach my $k (@style_key_list){
             my %attr;
             my @attr;
@@ -541,17 +533,59 @@ sub dumpout {
                     }
                 }
             }
-            push @$metablock, "    $k {". join('; ', @tlist)."}\n";
-        }
-        if($MyDef::page->{type} ne "css"){
-            push @$metablock, "</style>\n";
+            push @$out, "$k {". join('; ', @tlist)."}\n";
         }
     }
-    my %sheet_hash;
-    foreach my $s (@$style_sheets){
-        if(!$sheet_hash{$s}){
-            $sheet_hash{$s}=1;
-            push @$metablock, "<link rel=\"stylesheet\" type=\"text/css\" href=\"$s\" />\n";
+    else{
+        my $metablock=MyDef::compileutil::get_named_block("meta");
+        my $charset=$page->{charset};
+        if(!$charset){
+            $charset="utf-8";
+        }
+        my $title=$page->{title};
+        if(!$title){
+            $title=$page->{pagename};
+        }
+        push @$metablock, "<meta charset=\"$charset\">";
+        push @$metablock, "<title>$title</title>\n";
+        my %sheet_hash;
+        foreach my $s (@$style_sheets){
+            if(!$sheet_hash{$s}){
+                $sheet_hash{$s}=1;
+                push @$metablock, "<link rel=\"stylesheet\" type=\"text/css\" href=\"$s\" />\n";
+            }
+        }
+        if(@style_key_list){
+            push @$metablock, "<style>\n";
+            foreach my $k (@style_key_list){
+                my %attr;
+                my @attr;
+                my @tlist=split /;/, $style->{$k};
+                foreach my $t (@tlist){
+                    if($t=~/([^ :]+):\s*(.*)/){
+                        if(!defined $attr{$1}){
+                            push @attr, $1;
+                        }
+                        $attr{$1}=$2;
+                    }
+                }
+                @tlist=();
+                foreach my $a (@attr){
+                    push @tlist, "$a: $attr{$a}";
+                    if($a=~/(transition|user-select)/){
+                        foreach my $prefix (("moz", "webkit", "ms", "o")){
+                            push @tlist, "-$prefix-$a: $attr{$a}";
+                        }
+                    }
+                    if($attr{$a}=~/^\s*(linear-gradient)/){
+                        foreach my $prefix (("moz", "webkit", "ms", "o")){
+                            push @tlist, "$a: -$prefix-$attr{$a}";
+                        }
+                    }
+                }
+                push @$metablock, "    $k {". join('; ', @tlist)."}\n";
+            }
+            push @$metablock, "</style>\n";
         }
     }
     if(@php_globals){

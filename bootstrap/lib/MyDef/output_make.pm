@@ -101,7 +101,7 @@ sub parsecode {
 }
 sub dumpout {
     my ($f, $out, $pagetype)=@_;
-    my $dump={out=>$out,f=>$f};
+    my $dump={out=>$out,f=>$f, module=>"output_make"};
     MyDef::dumpout::dumpout($dump);
 }
 sub single_block {

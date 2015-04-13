@@ -2,7 +2,6 @@
 use strict;
 use MyDef;
 my $def_file;
-my $module;
 my %config;
 my $default_module=$MyDef::var->{module};
 foreach my $a (@ARGV){
@@ -23,27 +22,35 @@ foreach my $a (@ARGV){
             die "$a is not a regular file\n";
         }
     }
+    elsif($a eq "-pipe"){
+        $def_file="-pipe";
+    }
 }
 if(!$def_file){
     die "Please supply data definition file.";
 }
-$config{def_file}=$def_file;
-MyDef::init(%config);
-my $module=$MyDef::var->{module};
-MyDef::import_data($def_file);
-my $pages=$MyDef::def->{pages};
-my $pagelist=$MyDef::def->{pagelist};
-foreach my $t (@$pagelist){
-    my $p=$pages->{$t};
-    if($p->{subpage}){
-        next;
+if($def_file eq "-pipe"){
+    MyDef::pipe_page($config{module});
+}
+else{
+    $config{def_file}=$def_file;
+    MyDef::init(%config);
+    my $module=$MyDef::var->{module};
+    MyDef::import_data($def_file);
+    my $pages=$MyDef::def->{pages};
+    my $pagelist=$MyDef::def->{pagelist};
+    foreach my $t (@$pagelist){
+        my $p=$pages->{$t};
+        if($p->{subpage}){
+            next;
+        }
+        my $t_module=$default_module;
+        if($p->{module}){
+            $t_module=$p->{module};
+        }
+        if($t_module and ($t_module ne $module)){
+            next;
+        }
+        MyDef::createpage($t);
     }
-    my $t_module=$default_module;
-    if($p->{module}){
-        $t_module=$p->{module};
-    }
-    if($t_module and ($t_module ne $module)){
-        next;
-    }
-    MyDef::createpage($t);
 }

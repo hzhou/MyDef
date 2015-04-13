@@ -203,6 +203,9 @@ while(my $f=pop @files){
                 elsif(/^\s*depend:\s+(.*)/){
                     $page->{depend}=$1;
                 }
+                elsif(/^\s*cmd:\s+(.*)/){
+                    $page->{cmd}=$1;
+                }
                 elsif(/^\S/){
                     $inpage=0;
                 }
@@ -332,7 +335,7 @@ while(my ($f, $l) = each %h_def){
         $j++;
     }
 }
-open Out, ">Makefile" or die "Can't write Makefile\n";
+open Out, ">Makefile" or die "Can't write Makefile.\n";
 print Out "MakePage=mydef_page\n";
 print Out "\n";
 my %var_hash;
@@ -412,12 +415,16 @@ while(my ($p, $h)=each %h_page){
         my @t;
         my $l=$h_def{$def};
         foreach my $tt (@$l){
-            if(-f $tt){
+            if(!$inc->{$tt} and -f $tt){
                 push @t, $tt;
+                $inc->{$tt}=1;
             }
         }
         print Out $h->{path}, ": ", $def, " ", join(" ", @t), " $inc_dep $extra_dep\n";
-        if($h->{module} and ($h->{module}ne $module)){
+        if($h->{cmd}){
+            print Out "\t$h->{cmd}\n";
+        }
+        elsif($h->{module} and ($h->{module}ne $module)){
             print Out "\t\${MakePage} -m$h->{module} \$< \$\@\n";
         }
         else{

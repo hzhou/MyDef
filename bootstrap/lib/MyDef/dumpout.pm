@@ -122,6 +122,55 @@ sub dumpout {
                 }
             }
         }
+        elsif($l =~/^(.*)=\s*\[(strings?)_from_file:\s*(\S+)\]\s*;/){
+            my ($head, $file, $type)=($1, $3, $2);
+            if($dump->{module} eq "output_perl"){
+                push @$f, "$head = <<HERE;\n";
+                open In, "$file" or die "Can't open $file.\n";
+                while(<In>){
+                    push @$f, $_;
+                }
+                close In;
+                push @$f, "HERE\n";
+            }
+            elsif($head=~/^\$/ and $dump->{module} eq "output_www"){
+                push @$f, "$head = <<<HERE\n";
+                open In, "$file" or die "Can't open $file.\n";
+                while(<In>){
+                    push @$f, $_;
+                }
+                close In;
+                push @$f, "HERE;\n";
+            }
+            else{
+                my @t;
+                open In, "$file" or die "Can't open $file.\n";
+                while(<In>){
+                    chomp;
+                    s/\\/\\\\/g;
+                    s/"/\\"/g;
+                    push @t, $_;
+                }
+                close In;
+                push @$f, "    "x$indentation;
+                push @$f, "$head = ";
+                if($type eq "string"){
+                    push @$f, '"';
+                    foreach my $t (@t){
+                        push @$f, "$t\\\n";
+                    }
+                    push @$f, "\";\n";
+                }
+                elsif($type eq "strings"){
+                    my $indent="    " x ($indentation+1);
+                    push @$f, "[\n";
+                    foreach my $t (@t){
+                        push @$f, "$indent\"$t\",\n";
+                    }
+                    push @$f, "$indent];\n";
+                }
+            }
+        }
         else{
             if(@make_string_stack){
                 if($l=~/^\s*$/){
