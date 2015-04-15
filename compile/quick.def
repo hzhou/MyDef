@@ -1,9 +1,0 @@
-subcode:: support_subs
-    $sub get_sub_param_list($codename)
-	$codename=~s/^@//
-	my $codelib=get_def_attr("codes", $codename);
-	$if !$codelib
-	    print "get_sub_param_list: code \"$codename\" not found\n"
-	    return undef
-	return $codelib->{params}
-

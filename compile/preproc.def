@@ -7,41 +7,12 @@ subcode: parse_preproc
     $if !$flag_done
         undef $switch_context
         $if $preproc=~/^for:\s*(\S+)\s+in\s+(.*)/
-            my $vname=$1;
-            my $vparam=$2;
-            my @tlist;
-            $if $vparam=~/(\d+)\.\.(\d+)/
-                $for my $i=$1;$i<=$2;$i++
-                    push @tlist, $i
-            $else
-                @tlist=split /,\s*/, $vparam;
-
+            my ($vname, $vparam)=($1,$2)
             my $subblock=grabblock($block, \$lindex);
-            my $i=0
-            $foreach $t in @tlist
-                #-- new layer of macro context -------------
-                my $macro={$vname=>$t}
-                $if $vname ne "i"
-                    $macro->{i}=$i
-                push @$deflist, $macro;
-                parseblock({source=>$subblock, name=>"\${for}"})
-                pop @$deflist;
-                $i++
+            $call for_in
         $elsif $preproc=~/^foreach:p/
             my $subblock=grabblock($block, \$lindex);
-            my $plist=$deflist->[-1]->{plist}
-            $if $plist
-                my @plist=MyDef::utils::proper_split($plist)
-                my $i=0
-                $foreach $p in @plist
-                    #-- new layer of macro context -------------
-                    my $macro={"p"=>$p, "i"=>$i}
-                    push @$deflist, $macro;
-                    parseblock({source=>$subblock, name=>"\${foreach}"})
-                    pop @$deflist;
-                    $i++
-            $else
-                warn "[$cur_file:$cur_line]\$(foreach:p) missing \$(plist)\n"
+            $call foreach_p
         $call @preproc_elifs
         $elif $preproc=~/^index_name:(\w+)/
             $global %index_name_hash
@@ -64,6 +35,40 @@ subcode: parse_preproc
                 parseblock({source=>$subblock, name=>"block:$name"})
         $else
             goto NormalParse
+    # ---------------------------------------- 
+    subcode: for_in
+        my @tlist;
+        $if $vparam=~/(\d+)\.\.(\d+)/
+            $for my $i=$1;$i<=$2;$i++
+                push @tlist, $i
+        $else
+            @tlist=split /,\s*/, $vparam;
+
+        my $i=0
+        $foreach $t in @tlist
+            #-- new layer of macro context -------------
+            my $macro={$vname=>$t}
+            $if $vname ne "i"
+                $macro->{i}=$i
+            push @$deflist, $macro;
+            parseblock({source=>$subblock, name=>"\${for}"})
+            pop @$deflist;
+            $i++
+    # ---------------------------------------- 
+    subcode: foreach_p
+        my $plist=$deflist->[-1]->{plist}
+        $if $plist
+            my @plist=MyDef::utils::proper_split($plist)
+            my $i=0
+            $foreach $p in @plist
+                #-- new layer of macro context -------------
+                my $macro={"p"=>$p, "i"=>$i}
+                push @$deflist, $macro;
+                parseblock({source=>$subblock, name=>"\${foreach}"})
+                pop @$deflist;
+                $i++
+        $else
+            warn "[$cur_file:$cur_line]\$(foreach:p) missing \$(plist)\n"
 
 #---------------------------------------- 
 subcode:: parseblock_init

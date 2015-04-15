@@ -30,7 +30,11 @@ page: output_c, output_main
 	    $type_name{f}="double";
 	    $type_prefix{f}="double";
         $elif $page->{"use_libmydef"}
-            $call @load_autodecl
+            $call load_autodecl, c/libmydef.inc
+        $elif $page->{autodecl}
+            my @tlist=split /,\s*/, $page->{autodecl}
+            $foreach $f in @tlist
+                $call load_autodecl, $f
         $call @autolist_functions
 
     subcode: parsecode
@@ -68,6 +72,8 @@ page: output_c, output_main
 	# ----  Main Function -------------------
 	my $mainfunc=$functions{"main"};
 	$if $mainfunc
+            $global $has_main
+            $has_main=1
 	    $mainfunc->{skip_declare}=1;
 	    $mainfunc->{ret_type}="int";
 	    $mainfunc->{param_list}=["int argc", "char** argv"];
@@ -80,7 +86,7 @@ page: output_c, output_main
 	$foreach $func in @function_list
 	    $if !$func->{processed}
 		process_function_std($func)
-                $if !$mainfunc
+                $if !$has_main
                     my $name=$func->{name}
                     $if $function_autolist{$name} eq "static"
                         $func->{declare}="static ".$func->{declare}

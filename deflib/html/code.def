@@ -21,7 +21,8 @@ include: ext.def
 
 perlcode: codeprint
     my $type
-    &call grab_codelist
+    $call grab_codelist
+    $if !$codelist
         $if $param=~/(\w+),\s*(\S+),\s*(.*?)\s*$/
             $type=$1
             $call grab_file, $2, $3

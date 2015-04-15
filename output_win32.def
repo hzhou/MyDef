@@ -16,6 +16,7 @@ subcode:: on_dumpout
     # ----  Main Function -------------------
     my $winmain=$$(C)functions{"WinMain"};
     $if $winmain
+        $$(C)has_main=1
         $winmain->{skip_declare}=1;
         $winmain->{ret_type}="int APIENTRY";
         $winmain->{param_list}=["HINSTANCE hInst", "HINSTANCE hPrev", "LPSTR s_cmdline", "int n_cmdshow"];

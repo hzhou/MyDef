@@ -89,22 +89,7 @@ subcode: call_sub_frame(type)
     # -----------------------
     subcode: perl_block_call
         #---- e.g. html/code.def --
-        #-- remove SOURCE line ---
-        shift @$subblock
-        my (@t, $indent)
-        $foreach $t in @$subblock
-            $if $t=~/^SOURCE_INDENT/
-                $indent++
-            $elif $t=~/^SOURCE_DEDENT/
-                $indent--
-            $elif $t!~/^SOURCE/
-                $if $indent>0
-                    push @t, ("    "x$indent) . $t
-                $else
-                    push @t, $t
-
-        #-- make available for & eval calls ----
-        $named_blocks{last_grab}=\@t
+        $named_blocks{last_grab}=$subblock
         BLOCK
         $named_blocks{last_grab}=undef
     # ---------------------------------

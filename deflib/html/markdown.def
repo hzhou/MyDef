@@ -1,7 +1,8 @@
 include: ext.def
 
 perlcode: markdown
-    &call grab_codelist
+    $call grab_codelist
+    $if !$codelist
         $if $param=~/(\S+)/
             open In, $1
             my @t=<In>

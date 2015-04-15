@@ -13,14 +13,17 @@ subcode:: package_globals
     $global %fntype
     %type_name=(
 	c=>"unsigned char",
+	d=>"double",
+	f=>"float",
 	i=>"int",
 	j=>"int",
 	k=>"int",
+	l=>"long",
 	m=>"int",
 	n=>"int",
-	l=>"long",
-	f=>"float",
-	d=>"double",
+        s=>"char *",
+        buf=>"unsigned char *",
+        buffer=>"unsigned char *",
 	count=>"int",
     );
     %type_prefix=(

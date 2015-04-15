@@ -1,0 +1,49 @@
+page: mydef_decl
+    type:
+    output_dir: script
+    
+    my @c_list
+    my $inc
+    $foreach $a in @ARGV
+        $if $a=~/\.c$/
+            push @c_list, $a
+        $elif $a=~/\.inc/
+            $inc = $a
+
+    $if $inc and @c_list
+        $foreach $f in @c_list
+            load_declare($f)
+        &call open_w, $inc
+            $if @auto_struct_list
+                print Out "S ", join(", ", @auto_struct_list), "\n"
+            $foreach $name in @struct_list
+                print Out "struct $name\{\n"
+                $foreach $l in @{$struct_list{$name}}
+                    print Out $l
+                print Out "};\n"
+            $foreach $name in @decl_list
+                print Out "F $decl_list{$name}\n"
+
+fncode: load_declare($f)
+    $global %decl_list, @decl_list
+    $global %struct_list, @struct_list, @auto_struct_list
+    &call open_r, $f
+        $if /^(\S.+)\s+(\w+)\((.*)\);/
+            my ($type, $name, $param)=($1, $2, $3)
+            $if $type !~/^static/
+                $decl_list{$name}="$type $name($param)"
+                push @decl_list, $name
+        $elif /^struct\s+(\w+)\s*{\s*(.*)$/
+            my ($name, $comment) = ($1, $2)
+            my @t
+            $while <In>
+                $if /^}/
+                    last
+                $else
+                    push @t, $_
+            $if $comment=~/public/
+                $struct_list{$name}=\@t
+                push @struct_list, $name
+            $else
+                push @auto_struct_list, $name
+

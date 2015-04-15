@@ -6,7 +6,6 @@ include: compile/macro.def
 include: compile/ogdl.def
 include: compile/list.def
 include: compile/util.def
-include: compile/quick.def
 
 page: compileutil
     type: pm

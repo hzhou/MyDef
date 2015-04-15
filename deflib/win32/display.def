@@ -68,6 +68,27 @@ fncode: f_disp_resize(p_disp, tn_w, tn_h)
     memset($(D)buffer, 255, tn_size)
 
 #---------------------------------------- 
+fncode: f_disp_copy_gray(p_disp, tn_x, tn_y, pc_buf, tn_w, tn_h)
+    tn_width=0
+    $(set:D=p_disp->)
+    $if tn_y+tn_h>$(D)height
+        tn_h = $(D)height - tn_y
+    $if tn_x+tn_w>$(D)width
+        tn_w = $(D)width - tn_x
+        tn_width = tn_w
+    n = 0
+    $for i=0:tn_h
+        m = ((tn_y+i)*$(D)width+tn_x)*4
+        $if tn_width
+            n=i*tn_width
+        $for j=0:tn_w
+            $(D)buffer[m]=pc_buf[n]
+            $(D)buffer[m+1]=pc_buf[n]
+            $(D)buffer[m+2]=pc_buf[n]
+            m+=4
+            n++
+
+#---------------------------------------- 
 #-  drawing routines
 #---------------------------------------- 
 subcode: display_buffer_set_rect(var, margin, thick, color)

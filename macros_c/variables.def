@@ -160,92 +160,107 @@ subcode: add_var(hash, list)
 #---- array, let's restrict to one dimensional arrays
 #-        multi-layer is a comprehension hazard
 #-        deal with it in mydef macros
-subcode:: c_support_subs
-    $sub parse_var($name, $type, $value)
-	my $type_given=$type
-	my ($init, $array, $constructor);
-	my @attrs
-	my $explicit_type;
-	# omit ;
-	$name=~s/;\s*$//
-	# NOTE: space sensitive!
-	$if !$type
-	    $if $name=~/^\s*(\S[^=]*)\s+([^= \t].*)/
-		($type, $name)=($1, $2)
-		$explicit_type=1
-		$call check_pointer_type_name
-	$if $type
-	    $call check_type_attributes
-	$if $name=~/(\S+?)\s*=\s*(.*)/
-	    ($name, $init)=($1, $2)
-	    $if $debug eq "type"
-		print "    parse_var: name $1, init $2\n"
-	    $call value_from_file
-	    $if !$value
-		$value=$init
-	$if $name=~/(\w+)\[(.*)\]/
-	    $name=$1;
-	    $array=$2;
-	$elif $name=~/(\w+)\((.*)\)/
-	    $name=$1;
-	    $constructor=$2;
-	$if !$type
-	    $call infer_type
+fncode: parse_var($name, $type, $value)
+    my $type_given=$type
+    my ($init, $array, $constructor);
+    my @attrs
+    my $explicit_type;
+    # omit ;
+    $name=~s/;\s*$//
+    # NOTE: space sensitive!
+    $if !$type
+        $if $name=~/^\s*(\S[^=]*)\s+([^= \t].*)/
+            ($type, $name)=($1, $2)
+            $explicit_type=1
+            $call check_pointer_type_name
+    $if $type
+        $call check_type_attributes
+    $if $name=~/(\S+?)\s*=\s*(.*)/
+        ($name, $init)=($1, $2)
+        $if $debug eq "type"
+            print "    parse_var: name $1, init $2\n"
+        $call value_from_file
+        $if !$value
+            $value=$init
+    $if $name=~/(\w+)\[(.*)\]/
+        $name=$1;
+        $array=$2;
+    $elif $name=~/(\w+)\((.*)\)/
+        $name=$1;
+        $constructor=$2;
+    $if !$type
+        $call infer_type
 
-	#---- put it together ----
-	my $var={}
-	$var->{name}=$name
-	$var->{type}=$type
-	$var->{init}=$init
-	$if @attrs
-	    $var->{attr}=join(" ", @attrs)
-	$if defined $array
-	    $var->{array}=$array
-	    $var->{dimension}=$array
-	    #- $local pn_test[10]: int* --> same
-	    $if $type!~/\*$/
-		#- $local n_test[10]:  int  --> int *
-		$var->{type}.=" *"
-	    $elif $type_given or $explicit_type
-		#- $local int * P[10]: int * --> int **
-		$var->{type}.="*"
-	$elif defined $constructor
-	    $var->{constructor}=$constructor
-	$call debug_add_var
-	return $var
+    #----------------------
+    $if $type=~/struct\s+(\w+)/ and !$structs{$1}
+        $if $structure_autolist{$1}
+            my $s_list=[]
+            my $s_hash={}
+            $structs{$1}={list=>$s_list, hash=>$s_hash}
+            push @struct_list, $1
+            $if ref($structure_autolist{$1}) eq "ARRAY"
+                $foreach $t in @{$structure_autolist{$1}}
+                    $if $t=~/^\s*(.*\S)\s+(\w+)$/
+                        push @$s_list, $2
+                        $s_hash->{$2}=$1
+            $else
+                $s_hash->{"-opaque"}=1
+
+    #---- put it together ----
+    my $var={}
+    $var->{name}=$name
+    $var->{type}=$type
+    $var->{init}=$init
+    $if @attrs
+        $var->{attr}=join(" ", @attrs)
+    $if defined $array
+        $var->{array}=$array
+        $var->{dimension}=$array
+        #- $local pn_test[10]: int* --> same
+        $if $type!~/\*$/
+            #- $local n_test[10]:  int  --> int *
+            $var->{type}.=" *"
+        $elif $type_given or $explicit_type
+            #- $local int * P[10]: int * --> int **
+            $var->{type}.="*"
+    $elif defined $constructor
+        $var->{constructor}=$constructor
+    $call @debug
+    return $var
+
+    # --------------------
+    subcode: check_type_attributes
+        $while $type=~/^\s*(extern|static|const|register)\s*(.*)/
+            push @attrs, $1
+            $type=$2
+
+    subcode: infer_type
+        $type=get_c_type($name)
+        $if $fntype{$name}
+            $type="function"
+        $if !($type and $type ne "void" and name_with_prefix($name))
+            $if defined $value
+                my $val_type=infer_c_type($value)
+                $if $debug eq "type"
+                    print "    infer_c_type: [$value] -> $val_type\n"
+                $if $val_type and $val_type ne "void"
+                    $type = $val_type
+
+    subcode: debug
+        $if $debug eq "type"
+            $call warn, add_var: type:[$type] - $name ($array) - $init ($value)
+
+
 
 #---------------------------------------- 
-subcode: debug_add_var
-    $if $debug eq "type"
-	$call warn, add_var: type:[$type] - $name ($array) - $init ($value)
-
-
-# ----
 subcode: check_pointer_type_name
     $if $name=~/^(\*+)(.+)/
-	$type.=" $1"
-	$name=$2
+        $type.=" $1"
+        $name=$2
     #- c++ specific, is it worthwhile?
     $elif $name=~/^(&)(.+)/
-	$type.=" $1"
-	$name=$2
-
-subcode: check_type_attributes
-    $while $type=~/^\s*(extern|static|const|register)\s*(.*)/
-	push @attrs, $1
-	$type=$2
-
-subcode: infer_type
-    $type=get_c_type($name)
-    $if $fntype{$name}
-	$type="function"
-    $if !($type and $type ne "void" and name_with_prefix($name))
-	$if defined $value
-	    my $val_type=infer_c_type($value)
-	    $if $debug eq "type"
-		print "    infer_c_type: [$value] -> $val_type\n"
-	    $if $val_type and $val_type ne "void"
-		$type = $val_type
+        $type.=" $1"
+        $name=$2
 
 #---------------------------------------- 
 subcode:: c_support_subs

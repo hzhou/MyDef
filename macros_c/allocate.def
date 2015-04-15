@@ -1,80 +1,85 @@
 subcode:: parsecode_func_param_other
     $elif $func eq "allocate"
-	allocate($param1, $param2);
+	allocate($param1, $param2, "malloc")
+	return
+    $elif $func eq "realloc"
+	allocate($param1, $param2, "realloc")
 	return
     $elif $func eq "local_allocate"
-	local_allocate($param1, $param2);
+	local_allocate($param1, $param2, "auto")
 	return
 
 subcode:: parsecode_func_other
     $elif $func eq "allocate"
-	allocate("1", $param);
+	allocate("1", $param, "malloc")
 	return
 
-subcode:: c_support_subs
-    $sub allocate($dim, $param2)
-	$call allocate_block, none
-
-    $sub local_allocate($dim, $param2)
-	my $post=MyDef::compileutil::get_named_block("_post")
-	$call allocate_block, auto
-
-#------------------------------------------ 
-subcode: allocate_block(auto)
+#---------------------------------------- 
+fncode: allocate($dim, $param2, $type)
     add_include("stdlib, string")
-    $call allocate_dimension
+    $call get_dimension
+    $call auto_post
     my @plist=split /,\s+/, $param2;
     $foreach $p in @plist
 	$if $p
-	    $if $p=~/^(\w+)$/
-		my $var=find_var($p)
-		$if !$var
-		    func_add_var($p)
-		    $var=find_var($p)
-		$var->{dimension}=$dim
-		$if $dim=~/\*/
-		    my @parts=split /\s*\*\s*/, $dim
-		    my $i=0
-		    $foreach $d in @parts
-			$i++
-			$var->{"dim$i"}=$d
-		    $if $i==2
-			$var->{"class"}="matrix"
+            $call @get_var
 	    my $type=pointer_type(get_var_type($p))
-	    $if $dim eq "1"
-		$call allocate_one, $out
-	    $else 
-		$call allocate_array, $out
-	    $(if:auto=auto)
-		push @$post, "free($p);"
 
+            my $size="sizeof($type)"
+	    $if $dim ne "1"
+		$size = "$dim*$size"
+
+            $if $type eq "realloc"
+                push @$out, "$p=($type*)realloc($p, $size);";
+            $else
+                push @$out, "$p=($type*)malloc($size);";
+
+            $call @auto_post_p
             $call allocate_init
 
-#------------------------------------------ 
-subcode: allocate_dimension
-    my $init_value;
-    $if $dim=~/(.*),\s*(.*)/
-	$dim=$1;
-	$init_value=$2;
-    $if $dim=~/[+-]/
-	$dim="($dim)";
+    # ----------------------------------
+    subcode: auto_post
+        my $post
+        $if $type eq "auto"
+            $post=MyDef::compileutil::get_named_block("_post")
+    subcode: auto_post_p
+        $if $type eq "auto"
+            push @$post, "free($p);"
 
-subcode: allocate_one(out)
-    push @$(out), "$p=($type*)malloc(sizeof($type));";
+    subcode: get_dimension
+        my $init_value;
+        $if $dim=~/(.*),\s*(.*)/
+            $dim=$1;
+            $init_value=$2;
+        $if $dim=~/[+-]/
+            $dim="($dim)";
 
-subcode: allocate_array(out)
-    push @$(out), "$p=($type*)malloc($dim*sizeof($type));";
-
-subcode: allocate_init
-    $if defined $init_value and $init_value ne ""
-        $if $init_value eq "0"
-            $if $type eq "void"
-                push @$out, "memset($p, 0, $dim);"
+    subcode: get_var
+        $if $p=~/^(\w+)$/
+            my $var=find_var($p)
+            $if !$var
+                func_add_var($p)
+                $var=find_var($p)
+            $var->{dimension}=$dim
+            $if $dim=~/\*/
+                my @parts=split /\s*\*\s*/, $dim
+                my $i=0
+                $foreach $d in @parts
+                    $i++
+                    $var->{"dim$i"}=$d
+                $if $i==2
+                    $var->{"class"}="matrix"
+    # ------------------------------------------ 
+    subcode: allocate_init
+        $if defined $init_value and $init_value ne ""
+            $if $init_value eq "0"
+                $if $type eq "void"
+                    push @$out, "memset($p, 0, $dim);"
+                $else
+                    push @$out, "memset($p, 0, $dim*sizeof($type));"
             $else
-                push @$out, "memset($p, 0, $dim*sizeof($type));"
-        $else
-            func_add_var("i", "int");
-            push @$out, "for(i=0;i<$dim;i++){";
-            push @$out, "    $p\[i]=$init_value;";
-            push @$out, "}";
+                func_add_var("i", "int");
+                push @$out, "for(i=0;i<$dim;i++){";
+                push @$out, "    $p\[i]=$init_value;";
+                push @$out, "}";
 

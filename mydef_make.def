@@ -130,6 +130,9 @@ subcode: read_config
             $global @include_default
 	    my $t=$1;
 	    @include_default=split /[:,]\s*/, $t;
+        $elif /^make-(\w+):\s*(.*\S)/
+            $global %make_targets
+            $make_targets{$1}=$2
 	$elif /^macro_(\w+):\s*(.*\S)/
 	    $macros{$1}=$2;
     $if $ENV{MYDEFLIB}
@@ -379,6 +382,13 @@ subcode: write_makefile
         $call write_rule_copylist
         $call write_rule_pages
         $call write_rule_submake
+        $call write_rule_targets
+    # ----------------
+    subcode: write_rule_targets
+        $foreach %make_targets
+            print Out "$k:\n"
+            print Out "\t$v\n"
+            print Out "\n"
 
 subcode: write_var_folder
     my %var_hash;

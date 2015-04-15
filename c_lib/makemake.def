@@ -26,15 +26,6 @@ page: makemake
         print Out "\tinstall -m 0644 libmydef.a $libdir/\n";
         print Out "\tinstall -m 0644 libmydef.inc $libdir/MyDef/c/\n";
 
-    &call open_w, out/libmydef.inc
-        $foreach $name in @decl_list
-            print Out "F $name: $decl_list{$name}\n"
+    my $cmd = "mydef_decl out/libmydef.inc ". join(' ', @cfiles)
+    system $cmd
 
-fncode: load_declare($f)
-    $global %decl_list, @decl_list
-    &call open_r, $f
-        $if /^(\S.+)\s+(\w+)\(.*\);/
-            chomp;
-            my ($type, $name)=($1, $2)
-            $decl_list{$name}=$_
-            push @decl_list, $name
