@@ -5,7 +5,7 @@ fncode: parse_regex($re)
     my $has_Any=0
 
     &call regex_parse_loop, normal
-	$elif $c eq '('
+        $elif $c eq '('
             $call push_paren
             $if substr($re, $i, 2) eq "?:"
                 $paren_stack[-1]->{type}="seq"
@@ -18,36 +18,36 @@ fncode: parse_regex($re)
                 # negative lookahead
                 $paren_stack[-1]->{type}="?!"
                 $i+=2
-	$elif $c eq ')'
-	    $call concat_atoms, group
-	    $call concat_alts
+        $elif $c eq ')'
+            $call concat_atoms, group
+            $call concat_alts
             $call pop_paren
             $call push_atom
-	$elif $c eq '|'
-	    $call concat_atoms, alt
-	$elif $c eq '*' or $c eq '+' or $c eq '?'
-	    $if !@$atoms
-		die "REGEX $re: Empty '$c'\n";
-	    $if substr($re, $i, 1) eq "?"
+        $elif $c eq '|'
+            $call concat_atoms, alt
+        $elif $c eq '*' or $c eq '+' or $c eq '?'
+            $if !@$atoms
+                die "REGEX $re: Empty '$c'\n";
+            $if substr($re, $i, 1) eq "?"
                 $call warn, Non-Greedy quantifier not supported!
-		# non-greedy
-		$c.='?'
-		$i++
+                # non-greedy
+                $c.='?'
+                $i++
             my $t=pop @$atoms
             push @$atoms, {type=>$c, atom=>$t}
-	$elif $c eq '['
+        $elif $c eq '['
             $call parse_regex_inclass
             $call push_atom
-	$elif $c eq '.'
+        $elif $c eq '.'
             my $atom={type=>"AnyChar"}
-	    $if substr($re, $i, 1) eq "*"
+            $if substr($re, $i, 1) eq "*"
                 $atom->{type}="Any"
                 $has_Any++
                 $i++
             $call push_atom
-	$else
+        $else
             my $atom={type=>"char", char=>$c}
-	    $call push_atom
+            $call push_atom
     # -----
     $call check_paren_stack
     $call concat_atoms, final
@@ -122,14 +122,14 @@ subcode: parse_escape_normal
         $call escape_char
         $atom={type=>"char", char=>$c}
     $elif $c=~/[sSdDwW]/
-	$atom={type=>"class", char=>$c}
+        $atom={type=>"class", char=>$c}
     $else
         $atom={type=>"char", char=>$c}
     $call push_atom
 
 subcode: parse_escape_inclass
     $if $c=~/[0aefnrt]/
-	$call escape_char
+        $call escape_char
     push @class, $c
 
 # ----
@@ -138,7 +138,7 @@ subcode: escape_char
 
 subcode: esc_char(c)
     $case $c eq "$(c)"
-	$c= "\$(c)"
+        $c= "\$(c)"
 
 #---------------------------------------- 
 subcode:: parse_regex_vars

@@ -14,13 +14,13 @@ subcode: export(list)
 
 subcode: block
     {
-	BLOCK
+        BLOCK
     }
 
 # -- IO -------------------------
 subcode: open_r(name)
     $(if:name~")
-	$(set:name=$(name:strip))
+        $(set:name=$(name:strip))
     open In, "$(name)" or die "Can't open $(name).\n"
     $while <In>
         BLOCK
@@ -28,7 +28,7 @@ subcode: open_r(name)
 
 subcode: open_w(name)
     $(if:name~")
-	$(set:name=$(name:strip))
+        $(set:name=$(name:strip))
     open Out, ">$(name)" or die "Can't write $(name).\n"
     BLOCK
     close Out
@@ -39,22 +39,22 @@ subcode: assert(cond)
 
 subcode: get_file_in_t(name)
     $(if:name~")
-	$(set:name=$(name:strip))
+        $(set:name=$(name:strip))
     my $t
     &call block
-	open In, "$(name)" or die "Can't open $(name).\n"
-	local $/
-	$t=<In>
-	close In
+        open In, "$(name)" or die "Can't open $(name).\n"
+        local $/
+        $t=<In>
+        close In
 
 subcode: get_file_lines(name)
     $(if:name~")
-	$(set:name=$(name:strip))
+        $(set:name=$(name:strip))
     my @lines
     &call block
-	open In, "$(name)" or die "Can't open $(name).\n"
-	@lines=<In>
-	close In
+        open In, "$(name)" or die "Can't open $(name).\n"
+        @lines=<In>
+        close In
 
 #---------------------------------------- 
 #-- similar to HERE document -----------
@@ -73,19 +73,19 @@ subcode: topdown_loop(name, top)
     @topdown_list = ($(top))
 
     $while my $$(name)=pop @topdown_list
-	$if !$$(name)_hash{$$(name)}
-	    $$(name)_hash{$$(name)}=1
-	    BLOCK
+        $if !$$(name)_hash{$$(name)}
+            $$(name)_hash{$$(name)}=1
+            BLOCK
 
 # -- Parser -------------------
 subcode: parse_loop(l)
     $while 1
-	$if $(l)=~/\G$/gc
-	    last
-	BLOCK
+        $if $(l)=~/\G$/gc
+            last
+        BLOCK
 
 subcode: if_lex(@pattern)
     $(allow_recurse:10)
     $case $(l)=~/\G$(pattern)/gc
-	BLOCK
+        BLOCK
 

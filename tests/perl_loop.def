@@ -46,19 +46,19 @@ subcode: test_1
 
 subcode: test_for(param, var)
     $(if:param~\$)
-	print "\nTest \$for \$(param) ...\n    "
+        print "\nTest \$for \$(param) ...\n    "
     $(else)
-	print "\nTest \$for $(param) ...\n    "
+        print "\nTest \$for $(param) ...\n    "
     $for $(param)
-	print "$(var) "
+        print "$(var) "
     print "\n"
 
 subcode: test_foreach(param, var)
     $(if:param~\$)
-	print "\nTest \$foreach \$(param) ...\n    "
+        print "\nTest \$foreach \$(param) ...\n    "
     $(else)
-	print "\nTest \$foreach $(param) ... ...\n    "
+        print "\nTest \$foreach $(param) ... ...\n    "
     $foreach $(param)
-	print "$(var) "
+        print "$(var) "
     print "\n"
 

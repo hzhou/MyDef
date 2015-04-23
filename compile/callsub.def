@@ -1,14 +1,14 @@
 subcode: parse_call_sub
     $param=~s/\s*$//;
     $if $func eq "\$map"
-	map_sub($param, $func);
+        map_sub($param, $func);
     $elif $func eq "\$call-PRINT"
         print_sub($param)
     $elif $func =~ /^\$call/
-	call_sub($param)
+        call_sub($param)
     $elif $func eq "\&call"
-	my $subblock=grabblock($block, \$lindex)
-	call_back($param, $subblock)
+        my $subblock=grabblock($block, \$lindex)
+        call_back($param, $subblock)
 
 #---------------------------------------- 
 fncode: call_back($param, $subblock)
@@ -28,12 +28,13 @@ fncode: list_sub($codelib)
 fncode: print_sub($param)
     $if $param=~/^(@)?(\w+)(.*)/
         my $codename=$1
-	my $codelib=get_def_attr("codes", $codename)
+        my $codelib=get_def_attr("codes", $codename)
         $if $codelib
             modepush("PRINT")
             parseblock($codelib)
             modepop()
 
+#---------------------------------------- 
 subcode: call_sub_frame(type)
     $call load_codelib
     $if $codelib
@@ -110,8 +111,9 @@ subcode: call_sub_frame(type)
                     $print [$cur_file:$cur_line] Code $codename not found!
             $else
                 set_current_macro("notfound", 0)
-                $if $codelib->{allow_recurse} < $codelib->{recurse}
-                    die "Recursive subcode: $codename [$codelib->{recurse}]\n"
+                $if $codelib->{recurse}>5
+                    $if $codelib->{allow_recurse} < $codelib->{recurse}
+                        die "Recursive subcode: $codename [$codelib->{recurse}]\n"
     # ----------------------
     subcode: split_param
         my $codeparams=$codelib->{params};
@@ -240,7 +242,8 @@ fncode: eval_sub_string($codelib)
     $out=[]
     $f_setout->($out)
 
-    parse_code($codelib)
+    list_sub($codelib)
+    # parse_code($codelib)
     my @t
     $f_dumpout->(\@t, $out, "eval")
 

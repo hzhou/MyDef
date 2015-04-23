@@ -6,39 +6,39 @@ page: output_win32rc, output_main
     ext: rc
     init_mode: sub
     subcode: package_subs
-	$call package_globals
-	$call support_subs
+        $call package_globals
+        $call support_subs
     subcode: parsecode
-	$elif $l=~/^\$write\s+(.*)/i
-	    $call rc_write, $1
-	    return 1
-	$elif $l=~/^\$define\s+(.*)/i
-	    resource_define($1)
-	    return 1
-	$elif $l=~/^\$icon\s+(\w+),?\s+(.+)/i
-	    my ($name, $file)=($1, $2)
-	    $call write_res_icon
-	    return 1
-	$elif $l=~/^\$menu\s+(\w+)/i
-	    my $name=$1
-	    $call write_res_menu
-	    return 1
-	$elif $l=~/^\$dialog\s+(\w+)/i
-	    my $name=$1
-	    $call write_res_dialog
-	    return 1
+        $elif $l=~/^\$write\s+(.*)/i
+            $call rc_write, $1
+            return 1
+        $elif $l=~/^\$define\s+(.*)/i
+            resource_define($1)
+            return 1
+        $elif $l=~/^\$icon\s+(\w+),?\s+(.+)/i
+            my ($name, $file)=($1, $2)
+            $call write_res_icon
+            return 1
+        $elif $l=~/^\$menu\s+(\w+)/i
+            my $name=$1
+            $call write_res_menu
+            return 1
+        $elif $l=~/^\$dialog\s+(\w+)/i
+            my $name=$1
+            $call write_res_dialog
+            return 1
     subcode: dumpout
-	my $pagename=$page->{pagename}
-	my $outdir=$page->{outdir}
-	my $res_h="$pagename-res.h"
-	print "  --> [$outdir/$res_h]\n"
-	open Out, ">$outdir/$res_h"
-	$foreach $id in @res_id_list
-	    print Out "#define $id $res_id_hash{$id}\n"
-	close Out
+        my $pagename=$page->{pagename}
+        my $outdir=$page->{outdir}
+        my $res_h="$pagename-res.h"
+        print "  --> [$outdir/$res_h]\n"
+        open Out, ">$outdir/$res_h"
+        $foreach $id in @res_id_list
+            print Out "#define $id $res_id_hash{$id}\n"
+        close Out
 
-	unshift @$out, "#include \"$res_h\"\n"
-	unshift @$out, "\n"
+        unshift @$out, "#include \"$res_h\"\n"
+        unshift @$out, "\n"
 
 # =========================================================
 subcode:: package_globals
@@ -52,62 +52,62 @@ subcode:: support_subs
     my %type_hash=(IDM=>"menu", IDC=>"ctrl", IDA=>"accl")
 
     $sub resource_define($param, $type)
-	my ($name, $val, $step)=split /,\s*/, $param
-	$if $val=~/(0x.+)/
-	    $val=hex($1)
-	$if $step=~/(0x.+)/
-	    $step=hex($1)
+        my ($name, $val, $step)=split /,\s*/, $param
+        $if $val=~/(0x.+)/
+            $val=hex($1)
+        $if $step=~/(0x.+)/
+            $step=hex($1)
 
-	$if !$type
-	    $if $name=~/^(IDM|IDA|IDC)_/
-		$type=$type_hash{$1}
-	    $else
-		$type="other"
+        $if !$type
+            $if $name=~/^(IDM|IDA|IDC)_/
+                $type=$type_hash{$1}
+            $else
+                $type="other"
 
-	$if !$id_base{$type}
-	    $id_base{$type}=0x100
-	    $id_step{$type}=1
+        $if !$id_base{$type}
+            $id_base{$type}=0x100
+            $id_step{$type}=1
 
-	$if $val
-	    $id_base{$type}=$val
-	$if $step
-	    $id_step{$type}=$step
+        $if $val
+            $id_base{$type}=$val
+        $if $step
+            $id_step{$type}=$step
 
-	$val=sprintf("0x%x", $id_base{$type})
+        $val=sprintf("0x%x", $id_base{$type})
 
-	$if $name=~/_DUMMY$/i
-	    MyDef::compileutil::set_current_macro($name, $val)
-	$elif !$res_id_hash{$name}
-	    $res_id_hash{$name}=$val
-	    push @res_id_list, $name
+        $if $name=~/_DUMMY$/i
+            MyDef::compileutil::set_current_macro($name, $val)
+        $elif !$res_id_hash{$name}
+            $res_id_hash{$name}=$val
+            push @res_id_list, $name
 
-	$id_base{$type}+=$id_step{$type}
+        $id_base{$type}+=$id_step{$type}
 
 
     $sub resource_define_range($param, $type)
-	$if !$type
-	    $type="other"
-	$if $param=~/(\w+)\s+-+\s*(\d+)/
-	    my ($name, $cnt)=($1, $2)
-	    $if !$res_id_hash{$name}
-		$res_id_hash{$name}=1
-		$res_id_hash{$name}=sprintf("0x%x", $id_base{$type})
-		$res_id_hash{"$name\_COUNT"}=$cnt
-		$res_id_hash{"$name\_STEP"}=sprintf("0x%x", $id_step{$type})
-		push @res_id_list, $name, "$name\_COUNT", "$name\_STEP"
+        $if !$type
+            $type="other"
+        $if $param=~/(\w+)\s+-+\s*(\d+)/
+            my ($name, $cnt)=($1, $2)
+            $if !$res_id_hash{$name}
+                $res_id_hash{$name}=1
+                $res_id_hash{$name}=sprintf("0x%x", $id_base{$type})
+                $res_id_hash{"$name\_COUNT"}=$cnt
+                $res_id_hash{"$name\_STEP"}=sprintf("0x%x", $id_step{$type})
+                push @res_id_list, $name, "$name\_COUNT", "$name\_STEP"
 
-		$id_base{$type}+=$id_step{$type}*$cnt
+                $id_base{$type}+=$id_step{$type}*$cnt
 
 # ===============================================================
 subcode: rc_write(t)
     my @plist=split /,\s*/, $(t)
     $foreach $name in @plist
-	$if $name=~/^IDI_/
-	    $call write_res_icon
-	$elif $name=~/^menu_/
-	    $call write_res_menu
-	$elif $name=~/^dialog_/
-	    $call write_res_dialog
+        $if $name=~/^IDI_/
+            $call write_res_icon
+        $elif $name=~/^menu_/
+            $call write_res_menu
+        $elif $name=~/^dialog_/
+            $call write_res_dialog
 
 # ---- ICON ---------------------------------------------
 subcode: write_res_icon
@@ -135,25 +135,25 @@ subcode: menu_sublist_rc
 
 subcode:: support_subs
     $sub ogdl_menu_rc($ogdl, $level)
-	$level++
-	my $ogdl_list=$ogdl->{_list}
-	#print "ogdl_menu_rc($ogdl, $level) - $ogdl_list\n"
-	$foreach $item in @$ogdl_list
-	    # print "    -$item \n"
-	    $if ref($item) eq "HASH"
-		my $name=$item->{_name}
-		my $sub_list=$item->{_list}
-		$if @$sub_list
-		    $call menu_sublist_rc
-		$elif $name =~/^menu/i
-		    my $reserve=$item->{reserve}
-		    $if $reserve
-			resource_define_range($reserve, "menu")
-		$else
-		    resource_define($name, "menu")
-		    $if !$item->{disable}
-			my $text=$item->{text}
-			push @$out, "    " x $level . "MENUITEM \"$text\" $name"
+        $level++
+        my $ogdl_list=$ogdl->{_list}
+        #print "ogdl_menu_rc($ogdl, $level) - $ogdl_list\n"
+        $foreach $item in @$ogdl_list
+            # print "    -$item \n"
+            $if ref($item) eq "HASH"
+                my $name=$item->{_name}
+                my $sub_list=$item->{_list}
+                $if @$sub_list
+                    $call menu_sublist_rc
+                $elif $name =~/^menu/i
+                    my $reserve=$item->{reserve}
+                    $if $reserve
+                        resource_define_range($reserve, "menu")
+                $else
+                    resource_define($name, "menu")
+                    $if !$item->{disable}
+                        my $text=$item->{text}
+                        push @$out, "    " x $level . "MENUITEM \"$text\" $name"
 
 # ---- DIALOG ---------------------------------------------------------
 subcode: write_res_dialog
@@ -164,20 +164,20 @@ subcode: write_res_dialog
     $call ogdl_size, $ogdl, $sizestr
     my $attr
     $if $ogdl->{discardable}
-	$attr="DISCARDABLE "
+        $attr="DISCARDABLE "
     push @$out, ""
     push @$out, "$name DIALOG $attr$sizestr"
     $if $ogdl->{style}
-	push @$out, "STYLE $ogdl->{style}"
+        push @$out, "STYLE $ogdl->{style}"
     $else
-	push @$out, "STYLE WS_POPUP | WS_BORDER"
+        push @$out, "STYLE WS_POPUP | WS_BORDER"
     $if $ogdl->{caption}
-	push @$out, "CAPTION \"$ogdl->{caption}\""
+        push @$out, "CAPTION \"$ogdl->{caption}\""
     $if $ogdl->{font}
-	$call ogdl_font, $ogdl, $fontstr
-	push @$out, "FONT $fontstr"
+        $call ogdl_font, $ogdl, $fontstr
+        push @$out, "FONT $fontstr"
     $if $ogdl->{class}
-	push @$out, "CLASS \"$ogdl->{class}\""
+        push @$out, "CLASS \"$ogdl->{class}\""
     push @$out, "BEGIN"
     $call ogdl_dialog_loop
     push @$out, "END"
@@ -187,17 +187,17 @@ subcode: ogdl_dialog_loop
     my $level=1
     my $indent="    " x $level
     $foreach $c_ogdl in @$ogdl_list
-	$if ref($c_ogdl) eq "HASH"
-	    $if (defined($c_ogdl->{disable}) && !$c_ogdl->{disable}) or (!defined($c_ogdl->{disable}) && !$ogdl->{disable})
-		my $name=$c_ogdl->{_name}
-		$if $name=~/^button_/
-		    $call write_res_button
-		$elif $name=~/^text_/
-		    $call write_res_text
-		$elif $name=~/^list_/
-		    $call write_res_listbox
-		$elif $name=~/^control_/
-		    $call write_res_control
+        $if ref($c_ogdl) eq "HASH"
+            $if (defined($c_ogdl->{disable}) && !$c_ogdl->{disable}) or (!defined($c_ogdl->{disable}) && !$ogdl->{disable})
+                my $name=$c_ogdl->{_name}
+                $if $name=~/^button_/
+                    $call write_res_button
+                $elif $name=~/^text_/
+                    $call write_res_text
+                $elif $name=~/^list_/
+                    $call write_res_listbox
+                $elif $name=~/^control_/
+                    $call write_res_control
 
 # ---- Button -----
 subcode: write_res_button
@@ -206,7 +206,7 @@ subcode: write_res_button
     $call ogdl_size, $c_ogdl, $sizestr
     my $cname="PUSHBUTTON"
     $if $c_ogdl->{default}
-	$cname="DEFPUSHBUTTON"
+        $cname="DEFPUSHBUTTON"
     push @$out, "$indent$cname \"$title\", $name, $sizestr"
 
 # ---- Text -----
@@ -217,9 +217,9 @@ subcode: write_res_text
     $call ogdl_attr, align, text
     my $cname
     $if $c_ogdl->{align}=~/center/
-	$cname="CTEXT"
+        $cname="CTEXT"
     $else
-	$cname="LTEXT"
+        $cname="LTEXT"
     push @$out, "$indent$cname \"$title\", $name, $sizestr"
 
 # ---- ListBox -----
@@ -244,35 +244,35 @@ subcode: write_res_control
 # ---- attr routines ---
 subcode: ogdl_attr(attr, type)
     $if !$c_ogdl->{$(attr)}
-	$c_ogdl->{$(attr)}=$ogdl->{$(type)_$(attr)}
+        $c_ogdl->{$(attr)}=$ogdl->{$(type)_$(attr)}
 
 subcode: ogdl_size(ogdl, sizestr)
     my $sizestr
     $if $(ogdl)->{size}=~/(\d+),\s*(\d+),\s*(\d+),\s*(\d+)/
-	my ($x, $y, $w, $h)=($1, $2, $3, $4)
-	$(sizestr)="$x, $y, $w, $h"
+        my ($x, $y, $w, $h)=($1, $2, $3, $4)
+        $(sizestr)="$x, $y, $w, $h"
 
 subcode: ogdl_style
     my $style=$c_ogdl->{style}
     $if $style
-	$style=", $style"
+        $style=", $style"
 
 subcode: ogdl_title(ogdl, title)
     my $(title)=$name
     $if $(ogdl)->{title}
-	$(title)=$(ogdl)->{title}
+        $(title)=$(ogdl)->{title}
     $elif $(ogdl)->{text}
-	$(title)=$(ogdl)->{text}
+        $(title)=$(ogdl)->{text}
 
 subcode: ogdl_font(ogdl, fontstr)
     my $tstr=$(ogdl)->{font}
     my $font_name="Times New Roman"
     my $font_size=10
     $foreach $t in split(/,\s*/, $tstr)
-	$if $t=~/^\s*(\d+)/
-	    $font_size=$1
-	$else
-	    $t=~s/^\s+//
-	    $t=~s/\s+$//
-	    $font_name=$t
+        $if $t=~/^\s*(\d+)/
+            $font_size=$1
+        $else
+            $t=~s/^\s+//
+            $t=~s/\s+$//
+            $font_name=$t
     my $(fontstr)="$font_size, \"$font_name\""

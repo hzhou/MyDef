@@ -17,17 +17,17 @@ subcode: pcre_plugin_match(condition)
     my ($str, $pattern, $option, $replace)
     $(set:pat=(?:[^\/\\]|\\.)*)
     $if $param=~/^(\S+)\s*=~\s*\/(.*)\/(.*)/
-	($str, $pattern, $option)=($1, $2, $3)
+        ($str, $pattern, $option)=($1, $2, $3)
     $elif $pattern=~/^(\S+)\s*=~\s*s\/($(pat))\/(.*)\/(.*)/
-	($str, $pattern, $replace, $option)=($1, $2, $3, $4)
+        ($str, $pattern, $replace, $option)=($1, $2, $3, $4)
     #---------------------------------------- 
     $if $pattern
-	$pattern=~s/\\/\\\\/g
+        $pattern=~s/\\/\\\\/g
         $pattern=~s/"/\\"/g
-	$cur_function->{regex_idx}++
-	my $idx=$cur_function->{regex_idx}
-	MyDef::compileutil::set_current_macro("re_var", $str)
-	MyDef::compileutil::set_current_macro("re_pat", $pattern)
+        $cur_function->{regex_idx}++
+        my $idx=$cur_function->{regex_idx}
+        MyDef::compileutil::set_current_macro("re_var", $str)
+        MyDef::compileutil::set_current_macro("re_pat", $pattern)
 
         #-- process options
         my $pos=0
@@ -38,29 +38,29 @@ subcode: pcre_plugin_match(condition)
             $option='PCRE_CASELESS'
         $else
             $option="0"
-	MyDef::compileutil::set_current_macro("re_opt", $option)
+        MyDef::compileutil::set_current_macro("re_opt", $option)
 
-	MyDef::compileutil::call_sub("pcre_match_compile, re$idx")
-	my $var=find_var($str)
-	my $strlen="strlen($str)"
-	$if $var and $var->{strlen}
-	    $strlen=$var->{strlen}
-	my $capsize=60
-	func_add_var("int pn_pcre_off[$capsize]")
+        MyDef::compileutil::call_sub("pcre_match_compile, re$idx")
+        my $var=find_var($str)
+        my $strlen="strlen($str)"
+        $if $var and $var->{strlen}
+            $strlen=$var->{strlen}
+        my $capsize=60
+        func_add_var("int pn_pcre_off[$capsize]")
 
-	$(if:condition=condition)
-	    $condition="pcre_exec(re$idx, NULL, $str, $strlen, $pos, 0, pn_pcre_off, $capsize)>0"
+        $(if:condition=condition)
+            $condition="pcre_exec(re$idx, NULL, $str, $strlen, $pos, 0, pn_pcre_off, $capsize)>0"
             $if $pos
                 $condition.=" && ($pos=pn_pcre_off[1])"
-	$(else)
-	    push @$out, "pcre_exec(re$idx, NULL, $str, $strlen, $pos, 0, pn_pcre_off, $capsize);"
-	#---------------------------------------- 
-	$if defined $replace
-	    $if $var->{class} eq "string"
-		my $call_line="string_replace, $str, pn_pcre_off[0], pn_pcre_off[1], $replace"
-		MyDef::compileutil::call_sub($call_line)
-	    $else
-		print "regex replacement not supported for non-strings\n"
+        $(else)
+            push @$out, "pcre_exec(re$idx, NULL, $str, $strlen, $pos, 0, pn_pcre_off, $capsize);"
+        #---------------------------------------- 
+        $if defined $replace
+            $if $var->{class} eq "string"
+                my $call_line="string_replace, $str, pn_pcre_off[0], pn_pcre_off[1], $replace"
+                MyDef::compileutil::call_sub($call_line)
+            $else
+                print "regex replacement not supported for non-strings\n"
 
 #--------------------------------------------
 #-- compile $(re_pat)
@@ -68,32 +68,32 @@ subcode: pcre_match_compile(re)
     $include pcre
     $uselib pcre
     $(block:fn_init)
-	$local pcre * $(re)
-	$set_var_attr $(re), exit=free
-	$local const char * pcre_err_msg, int pcre_err_pos
-	$(re)=pcre_compile("$(re_pat)", $(re_opt), &pcre_err_msg, &pcre_err_pos, NULL) 
-	$if !$(re)
-	    $print pcre_compile error: $(re_pat)
+        $local pcre * $(re)
+        $set_var_attr $(re), exit=free
+        $local const char * pcre_err_msg, int pcre_err_pos
+        $(re)=pcre_compile("$(re_pat)", $(re_opt), &pcre_err_msg, &pcre_err_pos, NULL) 
+        $if !$(re)
+            $print pcre_compile error: $(re_pat)
             exit(0)
 
 #=========================================================
 perlcode: pcre_plugin_capture
     $if $param=~/(.*?)\s*=>\s*(.*\d)/
-	my ($g1, $g2)=($1, $2)
-	my @names=split /,\s*/, $g1
-	my @indexes=split /,\s*/, $g2
-	$for $i=0:@names
-	    my $name=$names[$i]
+        my ($g1, $g2)=($1, $2)
+        my @names=split /,\s*/, $g1
+        my @indexes=split /,\s*/, $g2
+        $for $i=0:@names
+            my $name=$names[$i]
             my $i0=$indexes[$i]*2
             my $i1=$i0+1
-	    MyDef::compileutil::call_sub("pcre_capture, $name, $i0, $i1")
+            MyDef::compileutil::call_sub("pcre_capture, $name, $i0, $i1")
     $else
-	my @names=split /,\s*/, $param
-	$for $i=0:@names
-	    my $name=$names[$i]
+        my @names=split /,\s*/, $param
+        $for $i=0:@names
+            my $name=$names[$i]
             my $i0=($i+1)*2
             my $i1=$i0+1
-	    MyDef::compileutil::call_sub("pcre_capture, $name, $i0, $i1")
+            MyDef::compileutil::call_sub("pcre_capture, $name, $i0, $i1")
 
 # --------------------------------------------
 subcode: pcre_capture(name, i0, i1)

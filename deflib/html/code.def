@@ -81,14 +81,14 @@ subcode: grab_file_all(f)
 #---------------------------------------- 
 subcode: global_pattern(name, p)
     $if $t=~/$(p)/
-	my @plist=split /($(p))/, $t
-	my @tlist
-	$foreach $p in @plist
-	    $if $p=~/^$(p)$/
-		push @tlist, "<span class=\"mydef-$(name)\">$p</span>" 
-	    $else
-		push @tlist, $p
-	$t=join('', @tlist)
+        my @plist=split /($(p))/, $t
+        my @tlist
+        $foreach $p in @plist
+            $if $p=~/^$(p)$/
+                push @tlist, "<span class=\"mydef-$(name)\">$p</span>" 
+            $else
+                push @tlist, $p
+        $t=join('', @tlist)
 
 #---------------------------------------- 
 subcode: code_filter
@@ -102,26 +102,26 @@ subcode: code_filter
 subcode: mydef_filter
     #print "mydef_filter [$t]\n"
     $if $t!~/</ 
-	$call global_pattern, quote, ".*?"
-	$call global_pattern, macro, \$\(.*?\) 
+        $call global_pattern, quote, ".*?"
+        $call global_pattern, macro, \$\(.*?\) 
 
     $(set:span=<span class=\"mydef-$1\">$2</span>)
     $if $t=~/^(\s*)((#|&#35;).*)/
-	$t="$1$(span:comment, $2)"
+        $t="$1$(span:comment, $2)"
     $elif $t=~/(.*)(\s(#|&#35;)\s.*)/
-	$t="$1$(span:comment, $2)"
+        $t="$1$(span:comment, $2)"
     $elif $t=~/^(\s*)(page|\w+code)(:.?\s*)(\w+)(.*)/
-	$t="$1$(span:label, $2)$3$(span:label, $4)$5"
+        $t="$1$(span:label, $2)$3$(span:label, $4)$5"
     $elif $t=~/^(\s*)(\$call|\$map|\&call)\s*(\S+)(.*)/
-	$t="$1$(span:keyword, $2) <strong>$3</strong>$4"
+        $t="$1$(span:keyword, $2) <strong>$3</strong>$4"
     $elif $t=~/^(\s*)(CSS|include):\s*(.*)/
-	$t="$1$(span:preproc, $2): $(span:preproc, $3)"
+        $t="$1$(span:preproc, $2): $(span:preproc, $3)"
     $elif $t=~/^(\s*)\$(if|while|switch|for|elif|elsif|else|function)\b(.*)/
         $t="$1$(span:keyword,\$$2)$3"
 
 subcode: sh_filter
     $(set:span=<span class=\"mydef-$1\">$2</span>)
     $if $t=~/^(\s*)((#|&#35;).*)/
-	$t="$1$(span:comment, $2)"
+        $t="$1$(span:comment, $2)"
     $elif $t=~/^\$ (.*)/
         $t="<span class=\"mydef-keyword\">\$ </span><b>$1</b>"

@@ -5,17 +5,17 @@ page: dumpout
     output_dir: lib/MyDef
     package: MyDef::dumpout
     subcode: main
-	$call dump_main
+        $call dump_main
 
 subcode: dump_main
     $sub dumpout
-	my $dump=shift;
-	my $f=$dump->{f};
-	my $out=$dump->{out};
-	my $custom=$dump->{custom};
-	$if !$out
-	    die "missing \$out\n";
-	$call dumpout
+        my $dump=shift;
+        my $f=$dump->{f};
+        my $out=$dump->{out};
+        my $custom=$dump->{custom};
+        $if !$out
+            die "missing \$out\n";
+        $call dumpout
     # ---------------
 
     1;
@@ -33,93 +33,93 @@ subcode: dumpout
     my $string_list=undef
 
     $while 1
-	my $l;
-	$if @$out
-	    $l=shift @$out;
-	$else
-	    $out=pop @source_stack;
-	    $if !$out
-		last;
-	    $else
-		next;
-	$if $custom and $custom->($f, \$l)
-	    # custom dump -- used in output_www.def
-	$elif $l =~/^INCLUDE_BLOCK (\S+)/
-	    push @source_stack, $out
-	    $out=$dump->{$1}
-	$elif $l =~ /^DUMP_STUB\s+(\w+)/
-	    my $source=$MyDef::compileutil::named_blocks{$1};
-	    # $print "DUMP_STUB $1 : $source"
-	    $if $source
-		push @source_stack, $out;
-		$out=$source;
-	$elif $l=~/^\s*(INDENT|DEDENT|PUSHDENT|POPDENT)\b(.*)/
-	    $if $1 eq "INDENT"
-		$indentation++;
-	    $elif $1 eq "DEDENT"
-		$indentation-- if $indentation;
-	    $elif $1 eq "PUSHDENT"
-		push @indentation_stack, $indentation
-		$indentation=0
-	    $elif $1 eq "POPDENT"
-		$indentation=pop @indentation_stack
+        my $l;
+        $if @$out
+            $l=shift @$out;
+        $else
+            $out=pop @source_stack;
+            $if !$out
+                last;
+            $else
+                next;
+        $if $custom and $custom->($f, \$l)
+            # custom dump -- used in output_www.def
+        $elif $l =~/^INCLUDE_BLOCK (\S+)/
+            push @source_stack, $out
+            $out=$dump->{$1}
+        $elif $l =~ /^DUMP_STUB\s+(\w+)/
+            my $source=$MyDef::compileutil::named_blocks{$1};
+            # $print "DUMP_STUB $1 : $source"
+            $if $source
+                push @source_stack, $out;
+                $out=$source;
+        $elif $l=~/^\s*(INDENT|DEDENT|PUSHDENT|POPDENT)\b(.*)/
+            $if $1 eq "INDENT"
+                $indentation++;
+            $elif $1 eq "DEDENT"
+                $indentation-- if $indentation;
+            $elif $1 eq "PUSHDENT"
+                push @indentation_stack, $indentation
+                $indentation=0
+            $elif $1 eq "POPDENT"
+                $indentation=pop @indentation_stack
 
-	    $l=$2;
-	    $if $l=~/^\s*;?$/
-		next;
-	    $else
-		unshift @$out, $l;
-		next;
-	$elif $l=~/^\s*SOURCE_INDENT/
-	    $indentation++;
-	$elif $l=~/^\s*SOURCE_DEDENT/
-	    $indentation-- if $indentation;
-	$elif $l=~/^\s*BLOCK_(\d+)/
-	    push @source_stack, $out;
-	    $out=MyDef::compileutil::fetch_output($1);
-	#$elif $l=~/^SCOPE:/
-	$elif $l=~/^SUBBLOCK (BEGIN|END)/
-	    # messages from compileutil.pm
-	$elif $l=~/^NOOP/
-	    # messages from compileutil.pm
-	$elif $l=~/^MAKE_STRING:(.*)/
-	    my $t=$1
+            $l=$2;
+            $if $l=~/^\s*;?$/
+                next;
+            $else
+                unshift @$out, $l;
+                next;
+        $elif $l=~/^\s*SOURCE_INDENT/
+            $indentation++;
+        $elif $l=~/^\s*SOURCE_DEDENT/
+            $indentation-- if $indentation;
+        $elif $l=~/^\s*BLOCK_(\d+)/
+            push @source_stack, $out;
+            $out=MyDef::compileutil::fetch_output($1);
+        #$elif $l=~/^SCOPE:/
+        $elif $l=~/^SUBBLOCK (BEGIN|END)/
+            # messages from compileutil.pm
+        $elif $l=~/^NOOP/
+            # messages from compileutil.pm
+        $elif $l=~/^MAKE_STRING:(.*)/
+            my $t=$1
             $call start_make_string
-	$elif $l =~/^POP_STRING/
+        $elif $l =~/^POP_STRING/
             $call pop_make_string
         $elif $l =~/^(.*)=\s*\[(strings?)_from_file:\s*(\S+)\]\s*;/
             my ($head, $file, $type)=($1, $3, $2)
             $call string_from_file
-	$else
-	    $if @make_string_stack
-		$call print_line_string
-	    $else
-		$call print_line
+        $else
+            $if @make_string_stack
+                $call print_line_string
+            $else
+                $call print_line
 
 subcode: print_line
     $if $l=~/^\s*$/
-	push @$f, "\n"
+        push @$f, "\n"
     $elif $l=~/^\s*NEWLINE\b/
-	push @$f, "\n"
+        push @$f, "\n"
     $elif $l =~/^PRINT (.*)/
-	push @$f, "    "x$indentation;
-	push @$f, "$1\n"
+        push @$f, "    "x$indentation;
+        push @$f, "$1\n"
     $else
-	push @$f, "    "x$indentation;
-	push @$f, $l
-	$if $l!~ /\n$/
-	    push @$f, "\n";
+        push @$f, "    "x$indentation;
+        push @$f, $l
+        $if $l!~ /\n$/
+            push @$f, "\n";
 
 subcode: print_line_string
     $(set:indent=($indentation-$make_string_stack[-1]->{indent}-1))
     $if $l=~/^\s*$/
-	# push @$f, "\n"
+        # push @$f, "\n"
     $elif $l=~/^\s*NEWLINE\b/
-	push @$string_list, ""
+        push @$string_list, ""
     $elif $l =~/^PRINT (.*)/
-	push @$string_list, "    "x$(indent) . $1
+        push @$string_list, "    "x$(indent) . $1
     $else
-	push @$string_list, "    "x$(indent) . $l
+        push @$string_list, "    "x$(indent) . $l
 
 #---------------------------------------- 
 subcode: start_make_string

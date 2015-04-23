@@ -40,10 +40,10 @@ subcode: win_show(hwnd)
 
 subcode: win_loop
     NEWLINE
-    $my MSG msg
+    $local MSG msg
     $while GetMessage(&msg, NULL, 0, 0)>0
-	TranslateMessage(&msg)
-	DispatchMessage(&msg)
+        TranslateMessage(&msg)
+        DispatchMessage(&msg)
 
 # ---------
 subcode: on_paint
@@ -80,8 +80,8 @@ subcode: sprint(@fmt)
     $eval parse_fmt, $(fmt)
     n_printf_length=_snprintf(s_printf_buffer, 100, $(fmt))
     $if n_printf_length<0
-	s_printf_buffer[99]='\0'
-	n_printf_length=99
+        s_printf_buffer[99]='\0'
+        n_printf_length=99
     $(mexport:s=s_printf_buffer,n=n_printf_length)
 
 # ----------------------------------------------------------------
@@ -152,17 +152,17 @@ subcode: openfilename
 # ---------------------------------------------------------------
 subcode: dialog(name)
     $(block:global_init)
-	$eval wndproc, DlgProc_$(name)
+        $eval wndproc, DlgProc_$(name)
     DialogBox(cur_instance, MAKEINTRESOURCE(dialog_$(name)), hwnd, DlgProc_$(name))
 
 subcode: create_dialog(name, var)
     $(block:global_init)
-	$eval wndproc, DlgProc_$(name)
+        $eval wndproc, DlgProc_$(name)
     $(var)=CreateDialog(cur_instance, MAKEINTRESOURCE(dialog_$(name)), hwnd, DlgProc_$(name))
 
 # ---------------------------------------------------------------
 subcode: SetClassLong(val)
     $(if:val:4=IDC_)
-	SetClassLongPtr(hwnd, GCL_HCURSOR, (LONG_PTR)LoadCursor(NULL, MAKEINTRESOURCE($(val))))
+        SetClassLongPtr(hwnd, GCL_HCURSOR, (LONG_PTR)LoadCursor(NULL, MAKEINTRESOURCE($(val))))
 
 # ---------------------------------------------------------------

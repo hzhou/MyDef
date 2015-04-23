@@ -2,7 +2,7 @@ include: c/string.def
 
 page: test, basic_frame
     subcode: main
-	$call test_string
+        $call test_string
 
 subcode: test_string
     $my string b: "Hello World!"

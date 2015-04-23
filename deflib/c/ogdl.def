@@ -15,22 +15,22 @@ fncode: load_ogdl(ts_ogdl)
     $call get_line
 
     $while *ts_head
-	$call get_indent
-	$if *ts_head=='#'
-	    goto load_ogdl_nextline
+        $call get_indent
+        $if *ts_head=='#'
+            goto load_ogdl_nextline
 
-	$if $regex ts_head=~/^(\w+):\s*$/
-	    $regex zero: key => 1
-	    $call hash_set, tp_cur_hash, ts_key, NULL
-	$elif $regex ts_head=~/^(\w+):\s*(.*)/
-	    $regex zero: key, val => 1, 2
-	    $call hash_set, tp_cur_hash, ts_key, ts_val
-	$else
-	    tn_cur_idx++
-	    $call hash_set, tp_cur_hash, "_$tn_cur_idx", ts_head
+        $if $regex ts_head=~/^(\w+):\s*$/
+            $regex zero: key => 1
+            $call hash_set, tp_cur_hash, ts_key, NULL
+        $elif $regex ts_head=~/^(\w+):\s*(.*)/
+            $regex zero: key, val => 1, 2
+            $call hash_set, tp_cur_hash, ts_key, ts_val
+        $else
+            tn_cur_idx++
+            $call hash_set, tp_cur_hash, "_$tn_cur_idx", ts_head
 
-	load_ogdl_nextline:
-	$call get_nextline
+        load_ogdl_nextline:
+        $call get_nextline
     return hash_stack[0]
 
 # ---------------------------
@@ -47,29 +47,29 @@ subcode: ogdl_pop_hash
 
 subcode: ogdl_new_level
     $if tp_last_hash_entry
-	ts_ptr=strpool_add_ptr(tp_cur_hash)
-	ts_val=tp_last_hash_entry->s_val
-	tp_last_hash_entry->s_val=ts_ptr
-	$if ts_val
-	    $call hash_set_direct, tp_cur_hash, "_name", ts_val
+        ts_ptr=strpool_add_ptr(tp_cur_hash)
+        ts_val=tp_last_hash_entry->s_val
+        tp_last_hash_entry->s_val=ts_ptr
+        $if ts_val
+            $call hash_set_direct, tp_cur_hash, "_name", ts_val
 
 # ------------------------------------------
 subcode: get_line
     ts_end=ts_head
     $while *ts_end && *ts_end != '\n'
-	ts_end++
+        ts_end++
     $if *ts_end
-	# '\n'
-	*ts_end='\0'
+        # '\n'
+        *ts_end='\0'
     tn_len=ts_end-ts_head
 
 subcode: get_nextline
     $if !*ts_end
-	ts_head=ts_end
-	tn_len=0
+        ts_head=ts_end
+        tn_len=0
     $else
-	ts_head=ts_end+1
-	$call get_line
+        ts_head=ts_end+1
+        $call get_line
 
 # ----------------
 subcode: indent_init(n)
@@ -85,23 +85,23 @@ subcode: indent_init(n)
 subcode: get_indent
     tn_space=0
     $while *ts_head==' ' || *ts_head=='\t'
-	$if *ts_head==' '
-	    tn_space++
-	    ts_head++
-	    tn_len--
-	$else
-	    tn_space+= 8 - tn_space % 8
-	    ts_head++
-	    tn_len--
+        $if *ts_head==' '
+            tn_space++
+            ts_head++
+            tn_len--
+        $else
+            tn_space+= 8 - tn_space % 8
+            ts_head++
+            tn_len--
 
     $if tn_space>tp_indent[tn_cur_indent]
-	$if tn_cur_indent>=max_indent-2
-	    tn_cur_indent++
-	    tp_indent[tn_cur_indent]=tn_space
-	    $call ogdl_new_hash
-	    $call ogdl_new_level
+        $if tn_cur_indent>=max_indent-2
+            tn_cur_indent++
+            tp_indent[tn_cur_indent]=tn_space
+            $call ogdl_new_hash
+            $call ogdl_new_level
     $elif tn_space<tp_indent[tn_cur_indent]
-	$while  tp_indent[tn_cur_indent]>tn_space
-	    tn_cur_indent--
-	    $call ogdl_pop_hash
+        $while  tp_indent[tn_cur_indent]>tn_space
+            tn_cur_indent--
+            $call ogdl_pop_hash
 

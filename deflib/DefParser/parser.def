@@ -32,14 +32,14 @@ subcode: push_empty_token(id)
 
 subcode: if_last_token(id)
     $if p_parse_stack[-1]->id==$(id)
-	BLOCK
+        BLOCK
 
 # -------------------------------------------
 subcode: quick_input_loop
     $(allow_recurse:10)
     $while 1
-	$call input_start
-	BLOCK
+        $call input_start
+        BLOCK
 
 # -------
 subcode: parse_push
@@ -50,23 +50,23 @@ subcode: parse_push_n(n)
 
 subcode: parse_pop(id)
     $(if:id~g_)
-	$eval ast_id_define, $(id)
+        $eval ast_id_define, $(id)
     n_token_count=n_token_count-tn_save_token_count
     concat_ast_group($(id))
     n_token_count=tn_save_token_count+1
 
 subcode: if_parsed
     $if n_token_count>tn_save_token_count
-	BLOCK
+        BLOCK
 
 subcode: if_parsed_gt(n)
     $if n_token_count>tn_save_token_count+$(n)
-	BLOCK
+        BLOCK
 
 # -------
 subcode: parse_pop_n(n, id)
     $(if:id~g_)
-	$eval ast_id_define, $(id)
+        $eval ast_id_define, $(id)
     tn_save_token_count=n_token_count-$(n)
     n_token_count=$(n)
     concat_ast_group($(id))
@@ -79,11 +79,11 @@ subcode: ast_string_merge
     tn_len=strlen(ts_a)+strlen(ts_token)+1
     ts_b=malloc(tn_len)
     $if ts_b
-	strcpy(ts_b, ts_a)
-	strcat(ts_b, " ") 
-	strcat(ts_b, ts_token)
-	$(v)=ts_b
-	free(ts_a)
+        strcpy(ts_b, ts_a)
+        strcat(ts_b, " ") 
+        strcat(ts_b, ts_token)
+        $(v)=ts_b
+        free(ts_a)
 
 # -------------------------------------------
 subcode:: _autoload
@@ -93,44 +93,44 @@ fncode: concat_ast_group(tn_id)
     #print concat_ast_group: [$n_token_count] $tn_id
     $call new_ast_group, tn_id, n_token_count
     $if n_token_count>0
-	$(ast)->list=(struct ast**)malloc(n_token_count*sizeof(struct ast *))
-	j=p_parse_stack_len-n_token_count
-	$for i=0:n_token_count
-	    $(ast)->list[i]=p_parse_stack[j+i]
-	p_parse_stack_len=j
+        $(ast)->list=(struct ast**)malloc(n_token_count*sizeof(struct ast *))
+        j=p_parse_stack_len-n_token_count
+        $for i=0:n_token_count
+            $(ast)->list[i]=p_parse_stack[j+i]
+        p_parse_stack_len=j
     $call push_ast
 
 
 # ---- Debug Routines ------------------------------------
 subcode: print_stack
     $for i=0:p_parse_stack_len
-	print_ast(p_parse_stack[i], 0)
+        print_ast(p_parse_stack[i], 0)
 
 # ---- legacy ------------------------------------
 subcode: on_parse_tail
     $if n_token_count>1
-	concat_ast_group(G_group)
+        concat_ast_group(G_group)
 
 subcode: on_parse_finish(name)
     $(if:hascode:on_$(name))
-	$call @on_$(name)
+        $call @on_$(name)
     $(else)
-	$if n_token_count!=1
-	    concat_ast_group(G_$(name))
+        $if n_token_count!=1
+            concat_ast_group(G_$(name))
 
 # used in %left etc.
 subcode: while_lookahead(depth, LA)
     tn_loop_cnt=0
     $while 1
-	$call look_ahead, $(depth)
-	$if !($(LA))
-	    break
-	BLOCK
-	tn_loop_cnt++
+        $call look_ahead, $(depth)
+        $if !($(LA))
+            break
+        BLOCK
+        tn_loop_cnt++
 
 # needed in %right etc.
 subcode: each_while_lookahead
     $for i=0:tn_loop_cnt
-	BLOCK
+        BLOCK
 
 # ------------------------

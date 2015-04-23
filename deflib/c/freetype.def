@@ -16,9 +16,9 @@ subcode: setfont(fontname, size)
     $call get_font_file, $(fontname)
     $global FT_Face $(font)=NULL
     $if !$(font)
-	tn_err=FT_New_Face(ftlib, $(fontfile), 0, &$(font))
+        tn_err=FT_New_Face(ftlib, $(fontfile), 0, &$(font))
     $if $(font)->size != $(size)
-	FT_Set_Pixel_Sizes($(font), 0, $(size))
+        FT_Set_Pixel_Sizes($(font), 0, $(size))
     $(export:font)
     
 #---------------------------------------- 
@@ -32,27 +32,27 @@ perlcode: parse_font_name
     my $font=$param
     my $attr
     $if $font=~/(.*?)\s+Italic$/
-	$font=$1
-	$attr="i"
+        $font=$1
+        $attr="i"
     $elif $font=~/(.*?)\s+Bold$/
-	$font=$1
-	$attr="bd"
+        $font=$1
+        $attr="bd"
     $elif $font=~/(.*?)\s+Bold Italic$/
-	$font=$1
-	$attr="bi"
+        $font=$1
+        $attr="bi"
 
     $if $font=~/^(Helvetica|Arial)/
-	$ttf="arial$attr.ttf"
-	$name="arial$attr"
+        $ttf="arial$attr.ttf"
+        $name="arial$attr"
     $elif $font=~/^(Times)/
-	$ttf="times$attr.ttf"
-	$name="times$attr"
+        $ttf="times$attr.ttf"
+        $name="times$attr"
     $elif $font=~/^(Courier)/
-	$ttf="cour$attr.ttf"
-	$name="cour$attr"
+        $ttf="cour$attr.ttf"
+        $name="cour$attr"
     $elif $font=~/^Symbol/
-	$ttf="symbol.ttf"
-	$name="symbol$attr"
+        $ttf="symbol.ttf"
+        $name="symbol$attr"
 
     MyDef::compileutil::set_current_macro("ttf", $ttf)
     MyDef::compileutil::set_current_macro("name", $name)

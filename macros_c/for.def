@@ -2,39 +2,39 @@ include: macros_output/for.def
 
 subcode:: parsecode_func_other
     $elif $func eq "for"
-	$call parsecode_for_support, c_style_protect
-	return
+        $call parsecode_for_support, c_style_protect
+        return
     $elif $func eq "foreach"
-	$if $param=~/(\w+)\s+in\s+(\w+)/
-	    my ($t, $v)=($1, $2)
-	    $call foreach_array
-	$elif $param=~/^(\S+)\s*$/
-	    my ($t, $v)=("t", $1)
-	    $call foreach_array
+        $if $param=~/(\w+)\s+in\s+(\w+)/
+            my ($t, $v)=($1, $2)
+            $call foreach_array
+        $elif $param=~/^(\S+)\s*$/
+            my ($t, $v)=("t", $1)
+            $call foreach_array
 
 #---------------------------------------- 
 subcode: for_i0_i1_step
     $if $step eq "1"
-	$step="++"
+        $step="++"
     $elif $step eq "-1"
-	$step="--"
+        $step="--"
     $else
-	$step= "+=$step"
+        $step= "+=$step"
 
     $if !$var
-	$var=temp_add_var("i", "int")
+        $var=temp_add_var("i", "int")
     $else
-	$var=my_add_var($var, "int")
+        $var=my_add_var($var, "int")
     protect_var($var)
 
     $param="$var=$i0; $var$i1; $var$step"
 
 subcode: for_c_style_protect
     $(if:type=asis)
-	return single_block("for($param){", "}", "for")
+        return single_block("for($param){", "}", "for")
     $(else)
-	my $end="PARSE:\$unprotect_var $var"
-	return single_block_pre_post(["for($param){", "INDENT"], ["DEDENT", "}",$end], "for")
+        my $end="PARSE:\$unprotect_var $var"
+        return single_block_pre_post(["for($param){", "INDENT"], ["DEDENT", "}",$end], "for")
 
 #---------------------------------------- 
 subcode: foreach_array
@@ -42,12 +42,12 @@ subcode: foreach_array
     my $dim
 
     $if defined $var->{dimension}
-	$dim=$var->{dimension}
+        $dim=$var->{dimension}
 
     # print "foreach_array, $v, $var->{name}, $dim ...\n"
 
     $if defined $dim
-	$call foreach_single, $dim
+        $call foreach_single, $dim
    
 subcode: foreach_single(range)
     my $type=pointer_type($var->{type})

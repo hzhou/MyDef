@@ -2,38 +2,38 @@
 phpcode: echobig(string)
     $splitString = str_split($(string), 8192)
     $foreach $splitString as $chunk
-	echo $chunk;
+        echo $chunk;
 
 ## ---------------------------------------------------------------------
 phpcode: getparam(var)
     $if array_key_exists('$(var)', $_POST)
-	$$(var)=$_POST['$(var)'];
+        $$(var)=$_POST['$(var)'];
     $elif array_key_exists('$(var)', $_GET)
-	$$(var)=$_GET['$(var)'];
+        $$(var)=$_GET['$(var)'];
 
 phpcode: loadget(var)
     $if array_key_exists('$(var)', $_GET)
-	$$(var)=$_GET['$(var)'];
+        $$(var)=$_GET['$(var)'];
 
 phpcode: loadpost(var)
     $if array_key_exists('$(var)', $_POST)
-	$$(var)=$_POST['$(var)'];
+        $$(var)=$_POST['$(var)'];
 
 phpcode: reqparam(var)
     $if array_key_exists('$(var)', $_POST)
-	$$(var)=$_POST['$(var)'];
+        $$(var)=$_POST['$(var)'];
     $elif array_key_exists('$(var)', $_GET)
-	$$(var)=$_GET['$(var)'];
+        $$(var)=$_GET['$(var)'];
     $else
-	$errors[]="Missing $(var)"
-	exit()
+        $errors[]="Missing $(var)"
+        exit()
 ## ---------------------------------------------------------------------
 phpcode: redirect(url)
     if($siteroot){
-	header("Location: $siteroot/$(url)");
+        header("Location: $siteroot/$(url)");
     }
     else{
-	header("Location: $(url)");
+        header("Location: $(url)");
     }
     exit;
 
@@ -44,27 +44,27 @@ phpcode: session_start
 
 phpcode: setinfo
     $if !$_SESSION['infos']
-	$_SESSION['infos']=array()
+        $_SESSION['infos']=array()
     $foreach  $infos as $i
-	$_SESSION['infos'][]=$i;
+        $_SESSION['infos'][]=$i;
 
 phpcode: seterror
     $if !$_SESSION['errors']
-	$_SESSION['errors']=array()
+        $_SESSION['errors']=array()
     $foreach  $errors as $i
-	$_SESSION['errors'][]=$i;
+        $_SESSION['errors'][]=$i;
 
 phpcode: errorpage(errormsg)
     $h3 error
-	PRINT $(errormsg)
+        PRINT $(errormsg)
     $if $_SESSION['infos']
-	$foreach  $_SESSION['infos'] as $i
-	    $infos[]=$i;
-	unset($_SESSION['infos']);
+        $foreach  $_SESSION['infos'] as $i
+            $infos[]=$i;
+        unset($_SESSION['infos']);
     $if $_SESSION['errors']
-	$foreach  $_SESSION['errors'] as $i
-	    $errors[]=$i;
-	unset($_SESSION['errors']);
+        $foreach  $_SESSION['errors'] as $i
+            $errors[]=$i;
+        unset($_SESSION['errors']);
     $call showerror
     exit();
 
@@ -141,30 +141,30 @@ phpcode: textarea(name, cols, rows)
 
 htmlcode: menuheading(title)
     <div class="menuheading">$(title)</div>
-	
+        
 phpcode: logininfo
     if($_SESSION['user']['username']){
-	PRINT <div id="logininfo">
-	print "[".$_SESSION['user']['username']."]";
-	print '&nbsp;&nbsp;&nbsp;<a href="logout.php">logout</a>';
-	PRINT </div>
+        PRINT <div id="logininfo">
+        print "[".$_SESSION['user']['username']."]";
+        print '&nbsp;&nbsp;&nbsp;<a href="logout.php">logout</a>';
+        PRINT </div>
     }
 
 phpcode: showinfo
     CSS: li.info {font-size: 12px; color: green; margin: 10px; }
     CSS: li.error {font-size: 12px; color: red; font-weight: 700; margin: 10px; }
     $if $infos
-	$ul infobox
-	    $foreach $infos as $i
-		print "<li class=\"info\">$i</li>";
+        $ul infobox
+            $foreach $infos as $i
+                print "<li class=\"info\">$i</li>";
 
 phpcode: showerror
     CSS: li.error {font-size: 12px; color: red; font-weight: 700; margin: 10px; }
     if($errors){
-	$ul infobox
-	    foreach ($errors as $i){
-		print "<li class=\"error\">$i</li>";
-	    }
+        $ul infobox
+            foreach ($errors as $i){
+                print "<li class=\"error\">$i</li>";
+            }
     }
 
 htmlcode: std_tab_css(name)
@@ -180,21 +180,21 @@ phpcode: list_item(item)
 ## Forms -------------------------------------------------------
 htmlcode: form_input(label, name)
     $tr
-	$td form_label
-	    $(label):
-	$td
-	    $(if:name=password or name=pass)
-		$input name:$(name), value:<?=$$(name)?>, type:password
-	    $(else)
-		$input name:$(name), value:<?=$$(name)?>
+        $td form_label
+            $(label):
+        $td
+            $(if:name=password or name=pass)
+                $input name:$(name), value:<?=$$(name)?>, type:password
+            $(else)
+                $input name:$(name), value:<?=$$(name)?>
 
 htmlcode: form_select(label, name, @options)
     $tr
-	$td form_label
-	    $(label):
-	$td
-	    $select name:$(name)
-		$map form_option, $(options)
+        $td form_label
+            $(label):
+        $td
+            $select name:$(name)
+                $map form_option, $(options)
 
 htmlcode: form_option(value)
     <option value="$(value)">$(value)</option>
@@ -206,23 +206,23 @@ htmlcode: hidden(name, value)
 phpcode: form_show(field)
     $tr
         $td label
-	    $div formlabel
-		PRINT $(field.title):
-	    $(if: field.help)
-		$div formhelp
-		    PRINT $(field.help)
+            $div formlabel
+                PRINT $(field.title):
+            $(if: field.help)
+                $div formhelp
+                    PRINT $(field.help)
         $td input
             PRINT $$(field)
 
 phpcode: view_input(field)
     $tr
-	$td label
-	    PRINT $(field.title):
-	$td value
-	    $(if:field.display)
-		PRINT $(field.display)
-	    $(else)
-		print $$(field)
+        $td label
+            PRINT $(field.title):
+        $td value
+            $(if:field.display)
+                PRINT $(field.display)
+            $(else)
+                print $$(field)
 
 phpcode: submit(label)
     PRINT <input class="formbutton" type="submit" value="$(label)" onmouseover="this.style.borderColor='silver'" onmouseout="this.style.borderColor='gray'">

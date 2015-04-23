@@ -13,27 +13,27 @@ htmlcode: basic_frame
     $call @process
     <!doctype html>
     $html
-	$head
-	    DUMP_STUB meta
-	    $call @meta
-	    $call @script
-	$body
-	    $call @content
+        $head
+            DUMP_STUB meta
+            $call @meta
+            $call @script
+        $body
+            $call @content
 
 htmlcode: js_frame
     $call @css_global
     <!doctype html>
     $html
-	$head
-	    DUMP_STUB meta
-	    $call @meta
-	    $script
-		DUMP_STUB js_init
-		$call @js_global
-		&call setf, window.onload
-		    $call @js_onload
-	$body
-	    $call @content
+        $head
+            DUMP_STUB meta
+            $call @meta
+            $script
+                DUMP_STUB js_init
+                $call @js_global
+                &call setf, window.onload
+                    $call @js_onload
+        $body
+            $call @content
 
 ## HTML ------------------------------------------------------
 subcode: meta_refresh(time, url)
@@ -48,10 +48,10 @@ htmlcode: form_input(prompt, varname)
         $td label
             PRINT $(prompt)
         $td input
-	    $(if:varname~pass)
-		$call input_pass, $(varname)
-	    $(else)
-		$call input_text, $(varname)
+            $(if:varname~pass)
+                $call input_pass, $(varname)
+            $(else)
+                $call input_text, $(varname)
 
 htmlcode: input_hidden(name, value)
     <input type="hidden" name="$(name)" value="$(value)">
@@ -85,18 +85,18 @@ macros:
 jscode: setf(target)
     $(allow_recurse:10)
     $(target) = function(){
-	BLOCK
+        BLOCK
     };
 
 jscode: setfa(target, @arg)
     $(allow_recurse:10)
     $(target) = function($(arg)){
-	BLOCK
+        BLOCK
     };
 
 jscode: auto
     (function() {
-	BLOCK
+        BLOCK
     }());
 
 jscode: load_element(name)
@@ -109,34 +109,34 @@ jscode: set_html(name, html)
 #---------------------------------------- 
 jscode: listen(obj, event)
     $(obj).addEventListener("$(event)", function(event){
-	BLOCK
+        BLOCK
     }, false);
 
 jscode: on_click(name)
     document.getElementById("$(name)").addEventListener("click", function(event){
-	BLOCK
+        BLOCK
     }, false);
 
 jscode: on_change(name)
     document.getElementById("$(name)").addEventListener("change", function(event){
-	BLOCK
+        BLOCK
     }, false);
 
 #---------------------------------------- 
 jscode: setInterval(name, time)
     $global $(name)
     $(name)=window.setInterval(function(){
-	BLOCK
+        BLOCK
     }, $(time));
 
 jscode: animate
     $global time_old=0
     $function animate_update(time)
-	var dt=time-time_old
-	$if dt>30
-	    BLOCK
-	    time_old=time
-	window.requestAnimationFrame(animate_update)
+        var dt=time-time_old
+        $if dt>30
+            BLOCK
+            time_old=time
+        window.requestAnimationFrame(animate_update)
     animate_update(0)
 
 #-- 
@@ -220,37 +220,37 @@ phpcode: php_main
 phpcode: echobig(string)
     $splitString = str_split($(string), 8192)
     $foreach $splitString as $chunk
-	echo $chunk;
+        echo $chunk;
 
 ## ---------------------------------------------------------------------
 phpcode: getparam(var)
     $if array_key_exists('$(var)', $_POST)
-	$$(var)=$_POST['$(var)'];
+        $$(var)=$_POST['$(var)'];
     $elif array_key_exists('$(var)', $_GET)
-	$$(var)=$_GET['$(var)'];
+        $$(var)=$_GET['$(var)'];
 
 phpcode: loadget(var)
     $if array_key_exists('$(var)', $_GET)
-	$$(var)=$_GET['$(var)'];
+        $$(var)=$_GET['$(var)'];
 
 phpcode: loadpost(var)
     $if array_key_exists('$(var)', $_POST)
-	$$(var)=$_POST['$(var)'];
+        $$(var)=$_POST['$(var)'];
 
 phpcode: reqparam(var)
     $if array_key_exists('$(var)', $_POST)
-	$$(var)=$_POST['$(var)'];
+        $$(var)=$_POST['$(var)'];
     $elif array_key_exists('$(var)', $_GET)
-	$$(var)=$_GET['$(var)'];
+        $$(var)=$_GET['$(var)'];
     $else
-	$errors[]="Missing $(var)"
-	exit()
+        $errors[]="Missing $(var)"
+        exit()
 ## ---------------------------------------------------------------------
 phpcode: redirect(url)
     $if $siteroot
-	header("Location: $siteroot/$(url)");
+        header("Location: $siteroot/$(url)");
     $else
-	header("Location: $(url)");
+        header("Location: $(url)");
     exit;
 
 phpcode: session_start
@@ -260,27 +260,27 @@ phpcode: session_start
 
 phpcode: setinfo
     $if !$_SESSION['infos']
-	$_SESSION['infos']=array()
+        $_SESSION['infos']=array()
     $foreach  $infos as $i
-	$_SESSION['infos'][]=$i;
+        $_SESSION['infos'][]=$i;
 
 phpcode: seterror
     $if !$_SESSION['errors']
-	$_SESSION['errors']=array()
+        $_SESSION['errors']=array()
     $foreach  $errors as $i
-	$_SESSION['errors'][]=$i;
+        $_SESSION['errors'][]=$i;
 
 phpcode: errorpage(errormsg)
     $h3 error
-	PRINT $(errormsg)
+        PRINT $(errormsg)
     $if $_SESSION['infos']
-	$foreach  $_SESSION['infos'] as $i
-	    $infos[]=$i;
-	unset($_SESSION['infos']);
+        $foreach  $_SESSION['infos'] as $i
+            $infos[]=$i;
+        unset($_SESSION['infos']);
     $if $_SESSION['errors']
-	$foreach  $_SESSION['errors'] as $i
-	    $errors[]=$i;
-	unset($_SESSION['errors']);
+        $foreach  $_SESSION['errors'] as $i
+            $errors[]=$i;
+        unset($_SESSION['errors']);
     $call showerror
     exit();
 
@@ -288,16 +288,16 @@ phpcode: showinfo
     CSS: li.info {font-size: 12px; color: green; margin: 10px; }
     CSS: li.error {font-size: 12px; color: red; font-weight: 700; margin: 10px; }
     $if $infos
-	$ul infobox
-	    $foreach $infos as $i
-		print "<li class=\"info\">$i</li>";
+        $ul infobox
+            $foreach $infos as $i
+                print "<li class=\"info\">$i</li>";
 
 phpcode: showerror
     CSS: li.error {font-size: 12px; color: red; font-weight: 700; margin: 10px; }
     if($errors){
-	$ul infobox
-	    foreach ($errors as $i){
-		print "<li class=\"error\">$i</li>";
-	    }
+        $ul infobox
+            foreach ($errors as $i){
+                print "<li class=\"error\">$i</li>";
+            }
     }
 

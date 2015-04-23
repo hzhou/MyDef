@@ -1,15 +1,15 @@
 subcode:: parsecode_func_other
     $elif $func eq "tuple"
-	declare_tuple($param)
-	return
+        declare_tuple($param)
+        return
     $elif $func eq "union"
         declare_union($param)
         return
 
 subcode:: parsecode_func_param_other
     $elif $func eq "struct"
-	declare_struct($param1, $param2)
-	return
+        declare_struct($param1, $param2)
+        return
 
 #-----------------------------------------
 #-- $tuple declares anonymous struct with a1, a2, ...
@@ -54,14 +54,14 @@ fncode: declare_union($param)
     my @plist=split /,\s+/, $param;
     $foreach $p in @plist
         my ($type, $name)
-	$if $p=~/(.*\S)\s+(\S+)\s*$/
-	    ($type, $name)=($1, $2)
-	    $if $name=~/^(\*+)(.*)/
-		$type.=" $1"
-		$name=$2
-	    $p=$name
-	$else
-	    $name=$p;
+        $if $p=~/(.*\S)\s+(\S+)\s*$/
+            ($type, $name)=($1, $2)
+            $if $name=~/^(\*+)(.*)/
+                $type.=" $1"
+                $name=$2
+            $p=$name
+        $else
+            $name=$p;
             $type=get_c_type($p)
 
         $union_hash->{$name}=$type
@@ -158,53 +158,53 @@ fncode: declare_struct($name, $param)
 
 subcode:: c_support_subs
     $sub get_struct_element_type 
-	my ($stype, $evar)=@_;
-	$if $stype=~/(\w+)(.*)/
-	    $if $typedef_hash{$1}
-		$stype=$typedef_hash{$1}.$2
-	$if $stype=~/struct\s+(\w+)/
-	    my $struc=$structs{$1};
-	    my $h=$struc->{hash}
-	    $if $h->{$evar}
-		return $h->{$evar}
-	    $else
-		$foreach $k in keys(%$h)
-		    $if $k=~/^$evar\[/
-			return "$h->{$k} *"
-	    $if $debug eq "type"
-		$while my ($k, $v)=each %$h
-		    print "  :|$k: $v\n"
-		print "$evar not defined in struct $1\n"
-	return "void"
+        my ($stype, $evar)=@_;
+        $if $stype=~/(\w+)(.*)/
+            $if $typedef_hash{$1}
+                $stype=$typedef_hash{$1}.$2
+        $if $stype=~/struct\s+(\w+)/
+            my $struc=$structs{$1};
+            my $h=$struc->{hash}
+            $if $h->{$evar}
+                return $h->{$evar}
+            $else
+                $foreach $k in keys(%$h)
+                    $if $k=~/^$evar\[/
+                        return "$h->{$k} *"
+            $if $debug eq "type"
+                $while my ($k, $v)=each %$h
+                    print "  :|$k: $v\n"
+                print "$evar not defined in struct $1\n"
+        return "void"
 
     $sub struct_free
-	my ($out, $ptype, $name)=@_;
-	my $type=pointer_type($ptype);
-	$if $type=~/struct\s+(\w+)/ and $structs{$1}
-	    my $s_list=$structs{$1}->{list}
-	    my $s_hash=$structs{$1}->{hash}
-	    $foreach my $p in @$s_list
-		$if $s_hash->{"$p-needfree"}
-		    struct_free($out, $s_hash->{$p}, "$name->$p")
-	push @$out, "free($name);";
+        my ($out, $ptype, $name)=@_;
+        my $type=pointer_type($ptype);
+        $if $type=~/struct\s+(\w+)/ and $structs{$1}
+            my $s_list=$structs{$1}->{list}
+            my $s_hash=$structs{$1}->{hash}
+            $foreach my $p in @$s_list
+                $if $s_hash->{"$p-needfree"}
+                    struct_free($out, $s_hash->{$p}, "$name->$p")
+        push @$out, "free($name);";
 
     $sub struct_set
-	my ($struct_type, $struct_var, $val, $out)=@_;
-	my $struct=$structs{$struct_type}->{list}
-	my @vals=split /,\s*/, $val;
-	for(my $i=0; $i<=$#vals; $i++){
-	    my $sname=$struct->[$i];
-	    do_assignment("$struct_var\->$sname", $vals[$i], $out);
-	}
+        my ($struct_type, $struct_var, $val, $out)=@_;
+        my $struct=$structs{$struct_type}->{list}
+        my @vals=split /,\s*/, $val;
+        for(my $i=0; $i<=$#vals; $i++){
+            my $sname=$struct->[$i];
+            do_assignment("$struct_var\->$sname", $vals[$i], $out);
+        }
 
     $sub struct_get
-	my ($struct_type, $struct_var, $var, $out)=@_;
-	my $struct=$structs{$struct_type}->{list}
-	my @vars=split /,\s*/, $var;
-	for(my $i=0; $i<=$#vars; $i++){
-	    my $sname=$struct->[$i];
-	    do_assignment( $vars[$i],"$struct_var\->$sname", $out);
-	}
+        my ($struct_type, $struct_var, $var, $out)=@_;
+        my $struct=$structs{$struct_type}->{list}
+        my @vars=split /,\s*/, $var;
+        for(my $i=0; $i<=$#vars; $i++){
+            my $sname=$struct->[$i];
+            do_assignment( $vars[$i],"$struct_var\->$sname", $out);
+        }
 
 #---------------------------------------- 
 #--- ... for c++ constructor ----

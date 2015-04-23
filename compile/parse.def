@@ -40,53 +40,53 @@ subcode: compile_line
     $if !$l
         # skip
     $elif $l=~/^\$\((.*)\)/
-	my $preproc=$1
+        my $preproc=$1
         my $tail=$';
-	$call parse_preproc
+        $call parse_preproc
     $elif $l=~/^\$:\s+(.*)/
-	# Literal by-pass
-	push @$out, $1
+        # Literal by-pass
+        push @$out, $1
     $elif $l=~/^BLOCK\s*$/
-	$if $#callback_block_stack <0
-	    $print "$yellow{BLOCK called out of context!}"
-	    push @$out, $1
-	$else
-	    my $block=pop @callback_block_stack
-	    my $depth=$#callback_block_stack+1
-	    $if $debug
-		print "BLOCK [$cur_file:$cur_line] -> [$block->{cur_file}: $block->{cur_line}] depth=$depth: "
-		$foreach $b in @callback_block_stack
-		    print "$b->{name}, "
-		print $block->{name}, "\n"
-	    parseblock($block)
-	    push @callback_block_stack, $block
+        $if $#callback_block_stack <0
+            $print "$yellow{BLOCK called out of context!}"
+            push @$out, $1
+        $else
+            my $block=pop @callback_block_stack
+            my $depth=$#callback_block_stack+1
+            $if $debug
+                print "BLOCK [$cur_file:$cur_line] -> [$block->{cur_file}: $block->{cur_line}] depth=$depth: "
+                $foreach $b in @callback_block_stack
+                    print "$b->{name}, "
+                print $block->{name}, "\n"
+            parseblock($block)
+            push @callback_block_stack, $block
     $else
-	NormalParse:
-	expand_macro(\$l);
-	$while 1
-	    # -- parse_line could return a new $l
-	    # -- otherwise, last in the end breaks the loop
-	    $if $l=~/^(&call|\$call|\$map|\$call-PRINT)\s+(.*)$/
-		my ($func, $param)=($1, $2);
-		$call parse_call_sub
-	    $elif $l=~/^\$-:\s*(.*)/
-		push @$out, "MAKE_STRING:$1"
-		my $subblock=grabblock($block, \$lindex)
-		parseblock({source=>$subblock, name=>"MAKE_STRING"})
-		push @$out, "POP_STRING"
-	    $else
-		$call parse_line
-	    last
+        NormalParse:
+        expand_macro(\$l);
+        $while 1
+            # -- parse_line could return a new $l
+            # -- otherwise, last in the end breaks the loop
+            $if $l=~/^(&call|\$call|\$map|\$call-PRINT)\s+(.*)$/
+                my ($func, $param)=($1, $2);
+                $call parse_call_sub
+            $elif $l=~/^\$-:\s*(.*)/
+                push @$out, "MAKE_STRING:$1"
+                my $subblock=grabblock($block, \$lindex)
+                parseblock({source=>$subblock, name=>"MAKE_STRING"})
+                push @$out, "POP_STRING"
+            $else
+                $call parse_line
+            last
 
 subcode:: support_subs
     $sub curfile_curline
-	return "$cur_file:$cur_line"
+        return "$cur_file:$cur_line"
 
     $sub protect_key($key)
-	$foreach $blk in @block_stack
-	    $if $blk->{$key}
-		die "[$cur_file:$cur_line] Block Key Collision: [$key]\n"
-	$block_stack[-1]->{$key}=1
+        $foreach $blk in @block_stack
+            $if $blk->{$key}
+                die "[$cur_file:$cur_line] Block Key Collision: [$key]\n"
+        $block_stack[-1]->{$key}=1
 
 ######## Parse Output Stacks ######################################
 subcode: parse_stack_push
@@ -97,41 +97,41 @@ subcode: parse_stack_push
     my $blk= {out=>$out, index=>$block_index, eindex=>$block_index, file=>$cur_file, line=>$cur_line, code=>$code}
     push @block_stack, $blk
     $if $code->{"scope"}
-	my $idx=$block_index
-	my $scope=$code->{scope}
-	# SUBBLOCK messages to enable block scopes ------
-	$blk->{scope}=$scope
-	$f_parse->("SUBBLOCK BEGIN $idx $scope")
-	push @$out, "DUMP_STUB block$idx\_pre"
+        my $idx=$block_index
+        my $scope=$code->{scope}
+        # SUBBLOCK messages to enable block scopes ------
+        $blk->{scope}=$scope
+        $f_parse->("SUBBLOCK BEGIN $idx $scope")
+        push @$out, "DUMP_STUB block$idx\_pre"
 
 subcode: parse_stack_pop
     my $blk=$block_stack[-1]
     my $idx=$blk->{index}
     $if $blk->{scope}
-	# SUBBLOCK messages to enable block scopes ------
-	$f_parse->("SUBBLOCK END $blk->{index} $blk->{scopes}")
+        # SUBBLOCK messages to enable block scopes ------
+        $f_parse->("SUBBLOCK END $blk->{index} $blk->{scopes}")
     pop @block_stack
 
     $cur_file=$blk->{file}
     $cur_line=$blk->{line}
     $if $named_blocks{"block$idx\_post"}
-	push @$out, "DUMP_STUB block$idx\_post"
+        push @$out, "DUMP_STUB block$idx\_post"
 
     $if $blk->{debug}
-	$debug=0
-	$f_parse->("DEBUG OFF");
+        $debug=0
+        $f_parse->("DEBUG OFF");
     $elif $blk->{debug_off}
-	$debug=$blk->{debug_off}
-	$f_parse->("DEBUG $debug");
+        $debug=$blk->{debug_off}
+        $f_parse->("DEBUG $debug");
 
 subcode: debug_block(name, idx)
     $if $debug eq "block"
-	print "$(name): \n";
-	$foreach $i in $(idx),$(idx)+1,$(idx)+2,$(idx)+3
-	    print "  $i: $$(name)->[$i]\n"
-	print "      ...\n"
-	my $i= $#$$(name)
-	print "  $i: $$(name)->[$i]\n"
+        print "$(name): \n";
+        $foreach $i in $(idx),$(idx)+1,$(idx)+2,$(idx)+3
+            print "  $i: $$(name)->[$i]\n"
+        print "      ...\n"
+        my $i= $#$$(name)
+        print "  $i: $$(name)->[$i]\n"
 
 # ---- 
 subcode: debug_on(name)
@@ -141,39 +141,39 @@ subcode: debug_on(name)
 
 subcode: debug_off
     $if $debug
-	$if !$block_stack[-1]->{debug}
-	    $block_stack[-1]->{debug_off}=$debug
-	$debug=0
-	$f_parse->("DEBUG OFF");
+        $if !$block_stack[-1]->{debug}
+            $block_stack[-1]->{debug_off}=$debug
+        $debug=0
+        $f_parse->("DEBUG OFF");
 
 ######## Parsing routines  ######################################
 subcode: parse_filter_meta
     # -- maintain indent level
     $if $l eq "SOURCE_INDENT" 
-	$indent++; 
+        $indent++; 
     $elif $l eq "SOURCE_DEDENT" 
-	$indent-- if $indent>0; 
+        $indent-- if $indent>0; 
 
 subcode: parse_catch_meta
     $if $l =~ /^DEBUG (\w+)/
-	$if $1 eq "OFF"
-	    $call debug_off
-	$elif $1 eq "MACRO"
-	    $call dump_deflist
-	$else
-	    $call debug_on, $1
-	next
+        $if $1 eq "OFF"
+            $call debug_off
+        $elif $1 eq "MACRO"
+            $call dump_deflist
+        $else
+            $call debug_on, $1
+        next
     $elif $l =~ /^BLOCK RELEASE/i
-	$block_stack[-1]->{eindex}=$block_stack[-2]->{eindex}
-	next
+        $block_stack[-1]->{eindex}=$block_stack[-2]->{eindex}
+        next
     $elif $l =~/^SOURCE: (.*) - (\d+)$/
-	$cur_file=$1
-	$cur_line=$2
-	next
+        $cur_file=$1
+        $cur_line=$2
+        next
 
 subcode: parse_line_progress
     $if $parse_line_count % 100 == 0
-	print "\tcompiling $parse_line_count ...\n"
+        print "\tcompiling $parse_line_count ...\n"
 
 subcode: parse_line
     undef $callback_output
@@ -184,34 +184,34 @@ subcode: parse_line
     $parse_line_count++
     my $msg=$f_parse->($l);
     $if $msg
-	$if ref($msg) eq "ARRAY"
-	    # output is held until post processing
-	    #     eg. output_apple.pm $method
-	    $callback_output=$msg;
-	    $idx=0;
-	$elsif $msg=~/^NEWBLOCK(.*)/
-	    # check the new output for blocks
-	    #     eg. cfunctions.pm single_block
-	    $callback_output=$out;
-	    $if $1=~/^-(.*)/
-		$callback_scope=$1
-	$elsif $msg=~/^SKIPBLOCK(.*)/
-	    my $blk=grabblock($block, \$lindex)
+        $if ref($msg) eq "ARRAY"
+            # output is held until post processing
+            #     eg. output_apple.pm $method
+            $callback_output=$msg;
+            $idx=0;
+        $elsif $msg=~/^NEWBLOCK(.*)/
+            # check the new output for blocks
+            #     eg. cfunctions.pm single_block
+            $callback_output=$out;
+            $if $1=~/^-(.*)/
+                $callback_scope=$1
+        $elsif $msg=~/^SKIPBLOCK(.*)/
+            my $blk=grabblock($block, \$lindex)
             $if $1=~/^-(\w+)/
                 $named_blocks{$1}=$blk
-	    last
-	$elsif $msg=~/^SET:(\w+)=(.*)/
-	    # set/reset definitions
-	    #     eg. cfunctions.pm get_pointer_type
-	    $deflist->[-1]->{$1}=$2;
-	    last
-	$elsif $msg=~/^PARSE:(.*)/
-	    $l=$1
-	    next
-	# ---------------------------------
-	# single_block and $method
-	$if $callback_output
-	    $call check_callback
+            last
+        $elsif $msg=~/^SET:(\w+)=(.*)/
+            # set/reset definitions
+            #     eg. cfunctions.pm get_pointer_type
+            $deflist->[-1]->{$1}=$2;
+            last
+        $elsif $msg=~/^PARSE:(.*)/
+            $l=$1
+            next
+        # ---------------------------------
+        # single_block and $method
+        $if $callback_output
+            $call check_callback
 
 subcode: check_callback
     my $n=new_output()
@@ -220,15 +220,15 @@ subcode: check_callback
 
     my $n_end_parse=0
     $for $i=$idx:$#$callback_output+1
-	$if $callback_output->[$i]=~/^BLOCK$/
-	    $callback_output->[$i]="BLOCK_$n"
-	$elif $callback_output->[$i]=~/^PARSE:(.*)/
-	    $n_end_parse++
-	    $f_parse->($1)
-	    $callback_output->[$i]="NOOP"
+        $if $callback_output->[$i]=~/^BLOCK$/
+            $callback_output->[$i]="BLOCK_$n"
+        $elif $callback_output->[$i]=~/^PARSE:(.*)/
+            $n_end_parse++
+            $f_parse->($1)
+            $callback_output->[$i]="NOOP"
 
     $if $n_end_parse==0
-	$call hack_case_wrap
+        $call hack_case_wrap
 
 subcode: parse_callback_block(n, subblock)
     my $temp=$out;

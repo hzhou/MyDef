@@ -6,58 +6,58 @@ subcode: AppendMenu(var, name)
 subcode: AppendMenu_ogdl(var)
     $(allow_recurse:10)
     $(ogdl_each)
-	$(if:ogdl_text)
-	    $(if:ogdl_attr:_text=----)
-		AppendMenu($(var), MF_SEPARATOR, 0, NULL)
-	$(elif:ogdl_list)
-	    $local HMENU hmenu_sub$(recurse)
-	    hmenu_sub$(recurse)=CreatePopupMenu()
-	    $call AppendMenu_ogdl, hmenu_sub$(recurse)
-	    $(ogdl_get:title=_name,text)
-	    $eval tempstr, $(title)
-	    AppendMenu($(var), MF_POPUP, (UINT_PTR)hmenu_sub$(recurse), $(tempstr))
-	    DestroyMenu(hmenu_sub$(recurse))
-	$(else)
-	    $(if:ogdl_attr:_name=MENU)
-		$call AppendMenu_ogdl_menu_var
-	    $(else)
-		$call AppendMenu_ogdl_item
+        $(if:ogdl_text)
+            $(if:ogdl_attr:_text=----)
+                AppendMenu($(var), MF_SEPARATOR, 0, NULL)
+        $(elif:ogdl_list)
+            $local HMENU hmenu_sub$(recurse)
+            hmenu_sub$(recurse)=CreatePopupMenu()
+            $call AppendMenu_ogdl, hmenu_sub$(recurse)
+            $(ogdl_get:title=_name,text)
+            $eval tempstr, $(title)
+            AppendMenu($(var), MF_POPUP, (UINT_PTR)hmenu_sub$(recurse), $(tempstr))
+            DestroyMenu(hmenu_sub$(recurse))
+        $(else)
+            $(if:ogdl_attr:_name=MENU)
+                $call AppendMenu_ogdl_menu_var
+            $(else)
+                $call AppendMenu_ogdl_item
 
 subcode: AppendMenu_ogdl_menu_var
     $(if:ogdl_attr:disable!=1)
-	$(if:ogdl_attr:var)
-	    $(ogdl_get:subvar=var)
-	    $(ogdl_get:title=_name,text)
-	    $eval tempstr, $(title)
-	    AppendMenu($(var), MF_POPUP, (UINT_PTR)$(subvar), $(tempstr))
+        $(if:ogdl_attr:var)
+            $(ogdl_get:subvar=var)
+            $(ogdl_get:title=_name,text)
+            $eval tempstr, $(title)
+            AppendMenu($(var), MF_POPUP, (UINT_PTR)$(subvar), $(tempstr))
     $(if:IDM_step)
-	$(if:ogdl_attr:reserve)
-	    $(ogdl_get:reserve=reserve)
-	    $eval split_reserve
-	    $define($(name)) $(IDM_base)
-	    $(reset:IDM_base+=$(IDM_skip))
+        $(if:ogdl_attr:reserve)
+            $(ogdl_get:reserve=reserve)
+            $eval split_reserve
+            $define($(name)) $(IDM_base)
+            $(reset:IDM_base+=$(IDM_skip))
 subcode: AppendMenu_ogdl_item
     $(ogdl_get:name=_name)
     $(if:name:2!=ID)
-	$(set:name=ID_MENU_$(name))
+        $(set:name=ID_MENU_$(name))
     $(if:ogdl_attr:disable!=1)
-	$(ogdl_get:title=_name,text)
-	$eval tempstr, $(title)
-	AppendMenu($(var), MF_STRING, $(name), $(tempstr))
+        $(ogdl_get:title=_name,text)
+        $eval tempstr, $(title)
+        AppendMenu($(var), MF_STRING, $(name), $(tempstr))
     $(if:IDM_step)
-	$define($(name)) $(IDM_base)
-	$(reset:IDM_base+=$(IDM_step))
+        $define($(name)) $(IDM_base)
+        $(reset:IDM_base+=$(IDM_step))
 
 perlcode: split_reserve
     my $reserve=MyDef::compileutil::get_current_macro("reserve")
     $if $reserve=~/(\w+)\s*--\s*(\d+)/
-	MyDef::compileutil::set_current_macro("name", $1)
-	my $count=$2
-	my $skip="$(IDM_step)"
-	MyDef::compileutil::expand_macro_recurse(\$skip)
-	$skip=MyDef::compileutil::get_numeric($skip)
-	$skip*=$count
-	MyDef::compileutil::set_current_macro("IDM_skip", $skip)
-	
+        MyDef::compileutil::set_current_macro("name", $1)
+        my $count=$2
+        my $skip="$(IDM_step)"
+        MyDef::compileutil::expand_macro_recurse(\$skip)
+        $skip=MyDef::compileutil::get_numeric($skip)
+        $skip*=$count
+        MyDef::compileutil::set_current_macro("IDM_skip", $skip)
+        
 # -------------------------------------------------------------
 

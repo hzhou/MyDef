@@ -3,30 +3,30 @@ subcode: write_clipboard(data, size, format)
     $local HGLOBAL clipdata=NULL
     clipdata = GlobalAlloc(GMEM_DDESHARE | GMEM_MOVEABLE, $(size))
     $if clipdata
-	$local void * cliplock
-	cliplock = GlobalLock(clipdata)
-	$if cliplock
-	    memcpy(cliplock, $(data), $(size))
-	    $if OpenClipboard(hwnd_main)   
-		EmptyClipboard();     
-		SetClipboardData($(format), clipdata)
-		CloseClipboard();     
-	    GlobalUnlock(clipdata)
-	$else
-	    GlobalFree(clipdata)
+        $local void * cliplock
+        cliplock = GlobalLock(clipdata)
+        $if cliplock
+            memcpy(cliplock, $(data), $(size))
+            $if OpenClipboard(hwnd_main)   
+                EmptyClipboard();     
+                SetClipboardData($(format), clipdata)
+                CloseClipboard();     
+            GlobalUnlock(clipdata)
+        $else
+            GlobalFree(clipdata)
 
 
 subcode: read_clipboard_text(s)
     $local HGLOBAL clipdata=NULL
     $if OpenClipboard(NULL)   
-	clipdata=GetClipboardData(CF_UNICODETEXT)
-	$if clipdata
-	    $local LPCWSTR tp_wide, $(s)
-	    tp_wide=GlobalLock(clipdata)
-	    $if tp_wide
-		tn_strlen=WideCharToMultiByte(CP_UTF8,0,tp_wide,-1,NULL,0,NULL,NULL)
-		$local_allocate(tn_strlen) $(s)
-		WideCharToMultiByte(CP_UTF8,0,tp_wide,-1,$(s),tn_strlen,NULL,NULL)
-		BLOCK
-		GlobalUnlock(clipdata)
-	CloseClipboard()
+        clipdata=GetClipboardData(CF_UNICODETEXT)
+        $if clipdata
+            $local LPCWSTR tp_wide, $(s)
+            tp_wide=GlobalLock(clipdata)
+            $if tp_wide
+                tn_strlen=WideCharToMultiByte(CP_UTF8,0,tp_wide,-1,NULL,0,NULL,NULL)
+                $local_allocate(tn_strlen) $(s)
+                WideCharToMultiByte(CP_UTF8,0,tp_wide,-1,$(s),tn_strlen,NULL,NULL)
+                BLOCK
+                GlobalUnlock(clipdata)
+        CloseClipboard()

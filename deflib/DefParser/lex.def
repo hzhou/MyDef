@@ -17,7 +17,7 @@ subcode: local_input(s)
     $local input
     $get_var_attr $(s), strlen
     $(if:!strlen)
-	$(set:strlen=strlen($(s)))
+        $(set:strlen=strlen($(s)))
     $call local_input_buffer, input, $(s), $(strlen)
 
 #--------------
@@ -33,11 +33,11 @@ subcode: input_debug
     tn_c=input->buffer[input->n_pos]
     $print "input_debug: %d - %d - %d [%c][%d]", input->n_start, input->n_pos, input->n_end, tn_c, tn_c
     $for i=0:40
-	$if input->n_pos+i<input->n_end
-	    $if input->buffer[input->n_pos+i]=='\n'
-		break
-	    $else
-		printf "%c", input->buffer[input->n_pos+i]
+        $if input->n_pos+i<input->n_end
+            $if input->buffer[input->n_pos+i]=='\n'
+                break
+            $else
+                printf "%c", input->buffer[input->n_pos+i]
     $print "\n"
 
 # ---- overload to customize -----------------------------
@@ -47,12 +47,12 @@ subcode: input_skip
 # ---------------------------------
 subcode: match_until(cond)
     $while 1
-	$call input_get_c, tn_c
-	$if tn_c<=0
-	    return 1
-	$if $(cond)
-	    $call input_back_c
-	    return 1
+        $call input_get_c, tn_c
+        $if tn_c<=0
+            return 1
+        $if $(cond)
+            $call input_back_c
+            return 1
 
 # -----------------------------
 fncode: skip_space
@@ -68,11 +68,11 @@ fncode: match_non_space
 subcode: match_char_class_sub(cond)
     $call input_get_c, tn_c
     $while *s_class
-	$if $(cond)
-	    return 1
-	s_class++
+        $if $(cond)
+            return 1
+        s_class++
     $if tn_c>0
-	$call input_back_c
+        $call input_back_c
     return 0
 
 #---------------------------------------- 
@@ -91,25 +91,25 @@ fncode: match_char_unless(tn_c1, s_tail)
     lexical: input
     $call input_start
     $if match_char(tn_c1)
-	$if match_char_class(s_tail)
-	    $call input_restart
-	    return 0
-	$else
-	    return 1
+        $if match_char_class(s_tail)
+            $call input_restart
+            return 0
+        $else
+            return 1
     $else
-	return 0
+        return 0
 
 fncode: match_keyword_unless(s_key, s_tail)
     lexical: input
     $call input_start
     $if match_keyword(s_key)
-	$if match_char_class(s_tail)
-	    $call input_restart
-	    return 0
-	$else
-	    return 1
+        $if match_char_class(s_tail)
+            $call input_restart
+            return 0
+        $else
+            return 1
     $else
-	return 0
+        return 0
 
 # ---------------------------------
 fncode: match_identifier
@@ -117,53 +117,53 @@ fncode: match_identifier
     $call input_start
     $call input_get_c, tn_c
     $if isalpha(tn_c) || tn_c=='_'
-	$call match_until, !(isalnum(tn_c) || tn_c=='_')
+        $call match_until, !(isalnum(tn_c) || tn_c=='_')
     $else
-	$call input_restart
-	return 0
+        $call input_restart
+        return 0
 
 # ---------------------------------
 fncode: match_bracket(tn_c1)
     lexical: input
     tn_escape='\\'
     $if tn_c1=='{'
-	tn_c2='}'
+        tn_c2='}'
     $elif tn_c1=='['
-	tn_c2=']'
+        tn_c2=']'
     $elif tn_c1=='('
-	tn_c2=')'
+        tn_c2=')'
     $elif tn_c1=='\'' || tn_c1=='"'
-	$call match_quote, tn_c1
-	return 1
+        $call match_quote, tn_c1
+        return 1
     $else
-	# error
-	return 0
+        # error
+        return 0
 
     tb_flag_escape=0
     $while 1
-	$call input_get_c, tn_c
-	$if tb_flag_escape
-	    tb_flag_escape=0
-	$elif tn_c=='\'' || tn_c=='"'
-	    tn_quote=tn_c
-	    $call match_quote, tn_quote
-	$elif tn_c==tn_c1
-	    match_bracket(tn_c)
-	$elif tn_c==tn_c2
-	    return 1
-	$elif tn_c<=0
-	    return 1
+        $call input_get_c, tn_c
+        $if tb_flag_escape
+            tb_flag_escape=0
+        $elif tn_c=='\'' || tn_c=='"'
+            tn_quote=tn_c
+            $call match_quote, tn_quote
+        $elif tn_c==tn_c1
+            match_bracket(tn_c)
+        $elif tn_c==tn_c2
+            return 1
+        $elif tn_c<=0
+            return 1
 
 subcode: match_quote(c)
     tn_escape='\\'
     tb_flag_escape=0
     $while 1
-	$call input_get_c, tn_c
-	$if tb_flag_escape
-	    tb_flag_escape=0
-	$elif tn_c==tn_escape
-	    tb_flag_escape=1
-	$elif tn_c==$(c)
-	    break
+        $call input_get_c, tn_c
+        $if tb_flag_escape
+            tb_flag_escape=0
+        $elif tn_c==tn_escape
+            tb_flag_escape=1
+        $elif tn_c==$(c)
+            break
 
 

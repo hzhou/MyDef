@@ -8,50 +8,50 @@ page: mydef_make
     output_dir: script
     type:
     subcode: main
-	$call package_global
-	my $script=$0;
-	my $nosub=0;
-	$if $ARGV[0] eq 'nosub'
-	    shift @ARGV;
-	    $nosub=1;
+        $call package_global
+        my $script=$0;
+        my $nosub=0;
+        $if $ARGV[0] eq 'nosub'
+            shift @ARGV;
+            $nosub=1;
 
-	my @master_config;
-	$if -d $ARGV[0]
-	    my $d=$ARGV[0];
-	    open In, "config";
-	    @master_config=<In>;
-	    close In;
-	    chdir $d or die "can't chdir $d\n";
+        my @master_config;
+        $if -d $ARGV[0]
+            my $d=$ARGV[0];
+            open In, "config";
+            @master_config=<In>;
+            close In;
+            chdir $d or die "can't chdir $d\n";
 
-	# ---- in current directory ------------------------
-	$if !-f "config"
-	    $call create_config
-	$call read_config
+        # ---- in current directory ------------------------
+        $if !-f "config"
+            $call create_config
+        $call read_config
 
-	print STDERR "    output_dir: $config_outputdir\n";
+        print STDERR "    output_dir: $config_outputdir\n";
 
-	# -- recursive make folders, copylist
-	my @make_folders;
-	my %h_copylist;
-	$call read_copylist
-	$call collect_files
+        # -- recursive make folders, copylist
+        my @make_folders;
+        my %h_copylist;
+        $call read_copylist
+        $call collect_files
 
-	# -- dependency list, individual pages, output folders
-	my %h_def;
-	my %h_page;
-	my %folder;
+        # -- dependency list, individual pages, output folders
+        my %h_def;
+        my %h_page;
+        my %folder;
 
-	# ---- Build dependency, Group pages into folders, default to "toproot"
-	my @extrafiles
-	$call check_eachfile
-	$call check_eachpage
-	$call expand_dependency
+        # ---- Build dependency, Group pages into folders, default to "toproot"
+        my @extrafiles
+        $call check_eachfile
+        $call check_eachpage
+        $call expand_dependency
         # ----
-	$call write_makefile
-	$call module_specific
-	$call create_outputdir
-	# ----
-	$call support_subs
+        $call write_makefile
+        $call module_specific
+        $call create_outputdir
+        # ----
+        $call support_subs
 
 subcode:: package_global
     my @master_config;
@@ -63,48 +63,48 @@ subcode:: package_global
 
 subcode: support_subs
     $sub prompt
-	my $msg=shift;
-	$while 1
-	    print "$msg\n";
-	    my $t=<STDIN>;
-	    chomp $t;
-	    $if $t
-		return $t
-	    $elif $msg=~/\[(.*)\]: $/
-		return $1
+        my $msg=shift;
+        $while 1
+            print "$msg\n";
+            my $t=<STDIN>;
+            chomp $t;
+            $if $t
+                return $t
+            $elif $msg=~/\[(.*)\]: $/
+                return $1
 
     $sub expand_macros
-	my $t=shift;
-	$if $t=~/\$\((\w+)\)/
-	    $if $macros{$1}
-		$t=$`.$macros{$1}.$';
-	    $else
-		die "Unknown Macro in $t\n";
-	return $t
+        my $t=shift;
+        $if $t=~/\$\((\w+)\)/
+            $if $macros{$1}
+                $t=$`.$macros{$1}.$';
+            $else
+                die "Unknown Macro in $t\n";
+        return $t
 
 ## ------------------- config -----------------------------------
 subcode: create_config
     open Out, ">config" or die "Can't write config\n";
     $if @master_config
-	$call copy_master_config
+        $call copy_master_config
     $else
-	$call create_new_config
+        $call create_new_config
     close Out;
 subcode: copy_master_config
     $foreach my $l in @master_config
-	$if $l=~/^include_path:\s*(\S+)/
-	    my $t=$1;
-	    my @t=split /:/, $t;
-	    my @tt;
-	    push @tt, "..";
-	    $foreach $s in @t
-		$if $s!~/^\// or -d $s
-		    push @tt, "../$s";
-		$else
-		    push @tt, $s;
-	    print Out "include_path: ", join(":", @tt), "\n";
-	$else
-	    print Out $l
+        $if $l=~/^include_path:\s*(\S+)/
+            my $t=$1;
+            my @t=split /:/, $t;
+            my @tt;
+            push @tt, "..";
+            $foreach $s in @t
+                $if $s!~/^\// or -d $s
+                    push @tt, "../$s";
+                $else
+                    push @tt, $s;
+            print Out "include_path: ", join(":", @tt), "\n";
+        $else
+            print Out $l
 
 subcode: create_new_config
     $config_outputdir=prompt("Please enter the path to compile into [out]: ");
@@ -117,153 +117,153 @@ subcode: read_config
     $global $config_outputdir_make=0
     $global $config_filetype
     &call open_r, config
-	$if /module:\s+(\w+)/
-	    $module=$1;
-	$elif /output_(dir|path): (\S+)/
-	    $config_outputdir=$2;
-	$elif /filetype:\s*(\S+)/
-	    $config_filetype=$1
-	$elif /^include_path:\s*(\S+)/
-	    my $t=$1;
-	    @include_folders=split /:/, $t;
-	$elif /^include:\s*(\S+)/
+        $if /module:\s+(\w+)/
+            $module=$1;
+        $elif /output_(dir|path): (\S+)/
+            $config_outputdir=$2;
+        $elif /filetype:\s*(\S+)/
+            $config_filetype=$1
+        $elif /^include_path:\s*(\S+)/
+            my $t=$1;
+            @include_folders=split /:/, $t;
+        $elif /^include:\s*(\S+)/
             $global @include_default
-	    my $t=$1;
-	    @include_default=split /[:,]\s*/, $t;
+            my $t=$1;
+            @include_default=split /[:,]\s*/, $t;
         $elif /^make-(\w+):\s*(.*\S)/
             $global %make_targets
             $make_targets{$1}=$2
-	$elif /^macro_(\w+):\s*(.*\S)/
-	    $macros{$1}=$2;
+        $elif /^macro_(\w+):\s*(.*\S)/
+            $macros{$1}=$2;
     $if $ENV{MYDEFLIB}
-	my @t
-	my $lib=$ENV{MYDEFLIB}
-	$foreach $d in @include_folders
-	    $if $d=~/^\w+/ and -d "$lib/$d"
-		push @t, "$lib/$d"
-	push @include_folders, $ENV{MYDEFLIB}
-	$if @t
-	    push @include_folders, @t
+        my @t
+        my $lib=$ENV{MYDEFLIB}
+        $foreach $d in @include_folders
+            $if $d=~/^\w+/ and -d "$lib/$d"
+                push @t, "$lib/$d"
+        push @include_folders, $ENV{MYDEFLIB}
+        $if @t
+            push @include_folders, @t
 ## ----------------------------------------------------------------------
 subcode: read_copylist
     $if -f "copylist"
-	my $location;
+        my $location;
         &call open_r, copylist
             my $l=$_
-	    $if /^(\S+):\s*(.*)/
-		$location=$1
-		$l=$2;
+            $if /^(\S+):\s*(.*)/
+                $location=$1
+                $l=$2;
                 my $t="$config_outputdir/$location"
                 $if !-d $t
                     mkdir $t
-	    $if $l
-		my @tlist=split /\s+/, $l;
-		$foreach $t in @tlist
-		    $t=~s/^\s+//
-		    $t=~s/\s+$//
+            $if $l
+                my @tlist=split /\s+/, $l;
+                $foreach $t in @tlist
+                    $t=~s/^\s+//
+                    $t=~s/\s+$//
                     $if $t=~/\*/
                         my @all=glob($t)
                         $foreach $a in @all
                             $h_copylist{$a}=$location
-		    $elif -f $t
-			$h_copylist{$t}=$location
+                    $elif -f $t
+                        $h_copylist{$t}=$location
         my $count=keys %h_copylist
         $print "    copylist: loaded $count entries"
 
 subcode: write_var_copylist
     $if %h_copylist
-	print Out "COPY=";
-	$while  my ($f, $l) = each %h_copylist
-	    my $sep="/";
-	    if($l){$sep="/$l/"};
-	    $if $f=~/(.+)\/(.+)/
-		print Out $config_outputdir, $sep, $2, " ";
-	    $else
-		print Out $config_outputdir, $sep, $f, " ";
-	print Out "\n";
-	push @tlist, "\${COPY}";
+        print Out "COPY=";
+        $while  my ($f, $l) = each %h_copylist
+            my $sep="/";
+            if($l){$sep="/$l/"};
+            $if $f=~/(.+)\/(.+)/
+                print Out $config_outputdir, $sep, $2, " ";
+            $else
+                print Out $config_outputdir, $sep, $f, " ";
+        print Out "\n";
+        push @tlist, "\${COPY}";
     print Out "\n";
 
 subcode: write_rule_copylist
     # copylist
     if(%h_copylist){
-	while( my ($f, $l) = each %h_copylist){
-	    my $sep="/";
-	    if($l){$sep="/$l/"};
-	    if($f=~/(.+)\/(.+)/){
-		print Out $config_outputdir, "$sep$2: $f\n";
-		print Out "\t cp $f $config_outputdir$sep$2\n";
-	    }
-	    else{
-		print Out $config_outputdir, "/$l/$f: templates/$f\n";
-		print Out "\t cp templates/$f $config_outputdir/$l/$f\n";
-	    }
-	}
-	print Out "\n";
+        while( my ($f, $l) = each %h_copylist){
+            my $sep="/";
+            if($l){$sep="/$l/"};
+            if($f=~/(.+)\/(.+)/){
+                print Out $config_outputdir, "$sep$2: $f\n";
+                print Out "\t cp $f $config_outputdir$sep$2\n";
+            }
+            else{
+                print Out $config_outputdir, "/$l/$f: templates/$f\n";
+                print Out "\t cp templates/$f $config_outputdir/$l/$f\n";
+            }
+        }
+        print Out "\n";
     }
 ## ----------------------------------------------------------------------
 subcode: collect_files
     my @files;
     my @allfiles=glob("*");
     $foreach my $f in @allfiles
-	$if $f=~/.def$/
-	    # ---- file ----
-	    push @files, $f;
-	$elif -d $f
-	    # ---- folder ----
-	    $if -e "$f/skipmake"
-		print "    Skip folder $f\n"
-	    $elif $f =~ /^(cmp|bootstrap|old|tests|macros|macros_.*)$/
-		print "    Skip folder $f\n"
-	    $elif $f eq $config_outputdir and -f "$f/Makefile"
-		$config_outputdir_make = 1
-	    $else
-		my @t=glob("$f/*.def");
-		$if @t 
-		    print "$script $f ... \n";
-		    system("$script $f")==0 or die "Failed to spawn sub make: $?\n";
-		$if -f "$f/Makefile"
-		    push @make_folders, $f;
+        $if $f=~/.def$/
+            # ---- file ----
+            push @files, $f;
+        $elif -d $f
+            # ---- folder ----
+            $if -e "$f/skipmake"
+                print "    Skip folder $f\n"
+            $elif $f =~ /^(cmp|bootstrap|old|tests|macros|macros_.*)$/
+                print "    Skip folder $f\n"
+            $elif $f eq $config_outputdir and -f "$f/Makefile"
+                $config_outputdir_make = 1
+            $else
+                my @t=glob("$f/*.def");
+                $if @t 
+                    print "$script $f ... \n";
+                    system("$script $f")==0 or die "Failed to spawn sub make: $?\n";
+                $if -f "$f/Makefile"
+                    push @make_folders, $f;
 
 subcode: check_eachfile
     $while my $f=pop @files
-	my @page_list;
-	my $page;
-	my $output_dir
-	$if !$h_def{$f} or $h_def{$f} == 1
-	    my $deplist=[];
-	    $h_def{$f}=$deplist;
-	    # ---- read the file ----
-	    my $inpage=0;
-	    open In, $f or warn "Can't open $f\n";
-	    $while <In>
-		$if $inpage
-		    $call check_file_inpage
-		$if !$inpage
-		    $call check_file_notinpage
-	    close In;
-	    $if $output_dir
-		$foreach $page in @page_list
-		    $if !$page->{output_dir}
-			$page->{output_dir}=$output_dir
+        my @page_list;
+        my $page;
+        my $output_dir
+        $if !$h_def{$f} or $h_def{$f} == 1
+            my $deplist=[];
+            $h_def{$f}=$deplist;
+            # ---- read the file ----
+            my $inpage=0;
+            open In, $f or warn "Can't open $f\n";
+            $while <In>
+                $if $inpage
+                    $call check_file_inpage
+                $if !$inpage
+                    $call check_file_notinpage
+            close In;
+            $if $output_dir
+                $foreach $page in @page_list
+                    $if !$page->{output_dir}
+                        $page->{output_dir}=$output_dir
 
 subcode: check_file_inpage
     $if /^\s*output_dir: (\S+)/
-	$call outputdir_inpage
+        $call outputdir_inpage
     $elif /^\s*\$include\s+(\S*) and $module ne "c"/
-	$page->{include}->{$1}=1;
+        $page->{include}->{$1}=1;
     $elif /^\s*type: (\w+)/
-	$page->{type}=$1;
+        $page->{type}=$1;
     $elif /^\s*type:\s*$/
-	$page->{type}="none"
+        $page->{type}="none"
     $elif /^\s*module:\s*(\w+)/
-	$page->{module}=$1;
+        $page->{module}=$1;
     $elif /^\s*depend:\s+(.*)/
-	$page->{depend}=$1
+        $page->{depend}=$1
     $elif /^\s*cmd:\s+(.*)/
-	$page->{cmd}=$1
+        $page->{cmd}=$1
     $elif /^\S/
-	$inpage=0;
+        $inpage=0;
 
 subcode: check_file_notinpage
     $if @include_default
@@ -272,22 +272,22 @@ subcode: check_file_notinpage
     $if /^include:?\s*(\S+\.def)/
         $call include_file, $1
     $elif /^page: .*\$\d.*/
-	$inpage=1;
-	$page={};
-	push @page_list, $page;
+        $inpage=1;
+        $page={};
+        push @page_list, $page;
     $elif /^page: ([a-zA-Z0-9_\.-]+)/
-	$inpage=1;
-	$page={};
-	push @page_list, $page;
-	$page->{page}=$1;
-	$page->{def}=$f;
-	$page->{include}={};
-	my $key="$f-$1";
-	$while $h_page{$key}
-	    $key.='1';
-	$h_page{$key}=$page;
+        $inpage=1;
+        $page={};
+        push @page_list, $page;
+        $page->{page}=$1;
+        $page->{def}=$f;
+        $page->{include}={};
+        my $key="$f-$1";
+        $while $h_page{$key}
+            $key.='1';
+        $h_page{$key}=$page;
     $elif /^output_(dir|path): (\S+)/
-	$output_dir=$1
+        $output_dir=$1
 
 subcode: include_file(f)
     my $f=$(f)
@@ -305,59 +305,59 @@ subcode: outputdir_inpage
     my $dir=expand_macros($1);
 
     $if $dir !~/^[\/\.]/ and $output_dir
-	$dir=$output_dir."/".$dir
+        $dir=$output_dir."/".$dir
     $page->{output_dir}=$dir;
     my $tlist=$folder{$dir};
     $if $tlist
-	push @$tlist, "$f-$page->{page}";
+        push @$tlist, "$f-$page->{page}";
     $else
-	$folder{$dir}=["$f-$page->{page}"];
+        $folder{$dir}=["$f-$page->{page}"];
     # Assign to Makefile Variable $dir 
     #     (which is grouped by output folder)
     $page->{in_var}=$dir;
 
 subcode: check_eachpage
     $while my ($p, $h) = each %h_page
-	$if !$h->{type}
-	    $if $config_filetype
-		$h->{type}=$config_filetype
-	    $else
-		my $t_module=$module
-		$if $h->{module}
-		    $t_module=$h->{module}
-		$if $module_type{$t_module}
-		    $h->{type}=$module_type{$t_module}
-		$else
-		    $h->{type}=$t_module
-	$if !$h->{in_var}
-	    $h->{in_var}="toproot";
-	    $if $folder{toproot}
-		my $tlist=$folder{toproot};
-		push @$tlist, $p;
-	    $else
-		$folder{toproot}=[$p];
-	$h->{path}=$h->{page};
-	$if $h->{output_dir}
-	    $h->{path}=$h->{output_dir}."/".$h->{path};
-	$if $config_outputdir and $h->{path}!~/^[\/\.]/
-	    $h->{path}=$config_outputdir."/".$h->{path};
-	$if $h->{type} and $h->{type} ne "none"
-	    $h->{path}.=".$h->{type}"
+        $if !$h->{type}
+            $if $config_filetype
+                $h->{type}=$config_filetype
+            $else
+                my $t_module=$module
+                $if $h->{module}
+                    $t_module=$h->{module}
+                $if $module_type{$t_module}
+                    $h->{type}=$module_type{$t_module}
+                $else
+                    $h->{type}=$t_module
+        $if !$h->{in_var}
+            $h->{in_var}="toproot";
+            $if $folder{toproot}
+                my $tlist=$folder{toproot};
+                push @$tlist, $p;
+            $else
+                $folder{toproot}=[$p];
+        $h->{path}=$h->{page};
+        $if $h->{output_dir}
+            $h->{path}=$h->{output_dir}."/".$h->{path};
+        $if $config_outputdir and $h->{path}!~/^[\/\.]/
+            $h->{path}=$config_outputdir."/".$h->{path};
+        $if $h->{type} and $h->{type} ne "none"
+            $h->{path}.=".$h->{type}"
 
 subcode: expand_dependency
     $while my ($f, $l) = each %h_def
-	my %track;
-	$foreach my $t in @$l
-	    $track{$t}=1
-	my $j=0;
-	$while $j<@$l
-	    my $t=$l->[$j];
-	    my $ll=$h_def{$t};
-	    $foreach $tt in @$ll
-		$if !$track{$tt}
-		    $track{$tt}=1;
-		    push @$l, $tt;
-	    $j++;
+        my %track;
+        $foreach my $t in @$l
+            $track{$t}=1
+        my $j=0;
+        $while $j<@$l
+            my $t=$l->[$j];
+            my $ll=$h_def{$t};
+            $foreach $tt in @$ll
+                $if !$track{$tt}
+                    $track{$tt}=1;
+                    push @$l, $tt;
+            $j++;
 
 subcode: write_makefile
     &call open_w, Makefile
@@ -394,103 +394,103 @@ subcode: write_var_folder
     my %var_hash;
     my @tlist;
     $while my ($f, $l) = each %folder
-	my $name;
-	$if $f=~/.*\/(.*)/
-	    $name=uc($1);
-	$else
-	    $name=uc($f);
-	$if !$name
-	    $name="ROOT"
-	$if $var_hash{$name}
-	    my $j=2;
-	    while($var_hash{"$name$j"}){$j++;}
-	    $name="$name$j";
-	$var_hash{$name}=1;
-	push @tlist, "\${$name}";
-	print Out "$name=";
-	$foreach my $p in @$l
-	    print Out $h_page{$p}->{path}, " ";
-	print Out "\n";
+        my $name;
+        $if $f=~/.*\/(.*)/
+            $name=uc($1);
+        $else
+            $name=uc($f);
+        $if !$name
+            $name="ROOT"
+        $if $var_hash{$name}
+            my $j=2;
+            while($var_hash{"$name$j"}){$j++;}
+            $name="$name$j";
+        $var_hash{$name}=1;
+        push @tlist, "\${$name}";
+        print Out "$name=";
+        $foreach my $p in @$l
+            print Out $h_page{$p}->{path}, " ";
+        print Out "\n";
 
 subcode: write_rule_pages
     $while my ($p, $h)=each %h_page
-	my $def=$h->{def};
-	my $inc=$h->{include};
-	my $inc_dep=join(" ", keys %$inc);
-	my $extra_dep=$h->{depend}
-	$if $h->{path}
-	    my @t;
-	    my $l=$h_def{$def};
-	    $foreach $tt in @$l
-		$if !$inc->{$tt} and -f $tt
-		    push @t, $tt;
+        my $def=$h->{def};
+        my $inc=$h->{include};
+        my $inc_dep=join(" ", keys %$inc);
+        my $extra_dep=$h->{depend}
+        $if $h->{path}
+            my @t;
+            my $l=$h_def{$def};
+            $foreach $tt in @$l
+                $if !$inc->{$tt} and -f $tt
+                    push @t, $tt;
                     $inc->{$tt}=1
-	    print Out $h->{path}, ": ", $def, " ", join(" ", @t), " $inc_dep $extra_dep\n";
+            print Out $h->{path}, ": ", $def, " ", join(" ", @t), " $inc_dep $extra_dep\n";
             $if $h->{cmd}
                 print Out "\t$h->{cmd}\n"
-	    $elif $h->{module} and ($h->{module}ne $module)
-		print Out "\t\${MakePage} -m$h->{module} \$< \$\@\n";
-	    $else
-		print Out "\t\${MakePage} \$< \$\@\n";
-	    print Out "\n";
+            $elif $h->{module} and ($h->{module}ne $module)
+                print Out "\t\${MakePage} -m$h->{module} \$< \$\@\n";
+            $else
+                print Out "\t\${MakePage} \$< \$\@\n";
+            print Out "\n";
 
 subcode: write_rule_submake
     # ---- recursive make rule
     $if @make_folders
-	$foreach  $f in @make_folders
-	    $if !$nosub
-		print Out "$f: force_look\n";
-		print Out "\t cd $f; make\n";
-		print Out "\n";
+        $foreach  $f in @make_folders
+            $if !$nosub
+                print Out "$f: force_look\n";
+                print Out "\t cd $f; make\n";
+                print Out "\n";
 
-	print Out "force_look:\n\ttrue\n";
+        print Out "force_look:\n\ttrue\n";
 
 subcode: module_specific
     $if $config_outputdir
-	$if $module eq "win32"
-	    $if !-d $config_outputdir
-		mkdir $config_outputdir;
-	    $if (-d $config_outputdir) and (!-f "$config_outputdir/make.bat")
-		print "Create win32 $config_outputdir/make.bat\n"
-		open Out, ">$config_outputdir/make.bat";
-		$if $folder{toproot}
-		    my $tlist=$folder{toproot};
-		    my $page=$h_page{$tlist->[0]};
-		    my $name=$page->{path}
-		    $if $page->{path}=~/.*\/(.*)\.c/
-			$name=$1;
-		    #print Out "gcc -Wl,-subsystem,windows -o $name.exe $name.c\r\n";
-		    print Out "cl /W3 $name.c user32.lib\r\n";
-		close Out;
-	$if ($module eq "perl" or $module eq "xs") and !-d $config_outputdir
-	    $if $config_outputdir=~/^\w[0-9a-zA-Z_\-]*$/
-		my $name=$config_outputdir;
-		$name=~s/-/::/g;
-		$if $module eq "perl"
-		    my $pm_count=0
-		    $while my ($p, $h) = each %h_page
-			$if $h->{type} eq "pm"
-			    $pm_count++
-		    $if $pm_count>0
-			print "Running h2xs -X $config_outputdir... ...\n";
-			system "h2xs -X $config_outputdir";
-		$else
-		    print "Running h2xs -n $config_outputdir... ...\n";
-		    system "h2xs -n $config_outputdir";
+        $if $module eq "win32"
+            $if !-d $config_outputdir
+                mkdir $config_outputdir;
+            $if (-d $config_outputdir) and (!-f "$config_outputdir/make.bat")
+                print "Create win32 $config_outputdir/make.bat\n"
+                open Out, ">$config_outputdir/make.bat";
+                $if $folder{toproot}
+                    my $tlist=$folder{toproot};
+                    my $page=$h_page{$tlist->[0]};
+                    my $name=$page->{path}
+                    $if $page->{path}=~/.*\/(.*)\.c/
+                        $name=$1;
+                    #print Out "gcc -Wl,-subsystem,windows -o $name.exe $name.c\r\n";
+                    print Out "cl /W3 $name.c user32.lib\r\n";
+                close Out;
+        $if ($module eq "perl" or $module eq "xs") and !-d $config_outputdir
+            $if $config_outputdir=~/^\w[0-9a-zA-Z_\-]*$/
+                my $name=$config_outputdir;
+                $name=~s/-/::/g;
+                $if $module eq "perl"
+                    my $pm_count=0
+                    $while my ($p, $h) = each %h_page
+                        $if $h->{type} eq "pm"
+                            $pm_count++
+                    $if $pm_count>0
+                        print "Running h2xs -X $config_outputdir... ...\n";
+                        system "h2xs -X $config_outputdir";
+                $else
+                    print "Running h2xs -n $config_outputdir... ...\n";
+                    system "h2xs -n $config_outputdir";
 
 subcode: create_outputdir
     $if $config_outputdir
-	$if !-d $config_outputdir
-	    print "Create output folder $config_outputdir ...\n";
-	    mkdir $config_outputdir;
+        $if !-d $config_outputdir
+            print "Create output folder $config_outputdir ...\n";
+            mkdir $config_outputdir;
     $else
-	$config_outputdir="."
+        $config_outputdir="."
 
     $foreach $f in keys(%folder)
-	$if $f=~/toproot|ROOT/
-	    next
-	$if $f !~/^[\/\.]/
-	    $f=$config_outputdir."/".$f
-	$if !-d $f
-	    print "Create output folder $f ...\n";
-	    system "mkdir -p $f"
+        $if $f=~/toproot|ROOT/
+            next
+        $if $f !~/^[\/\.]/
+            $f=$config_outputdir."/".$f
+        $if !-d $f
+            print "Create output folder $f ...\n";
+            system "mkdir -p $f"

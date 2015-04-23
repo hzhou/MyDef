@@ -77,129 +77,129 @@ subcode:: parseblock_init
 subcode: parse_preproc_switch
     $flag_done=1
     $if $preproc=~/^if:\s*(.*)/
-	my $subblock=grabblock($block, \$lindex);
-	$call parse_preproc_if
+        my $subblock=grabblock($block, \$lindex);
+        $call parse_preproc_if
     $elif $preproc=~/^els?e?if:\s*(.*)/
-	my $subblock=grabblock($block, \$lindex);
-	$if $switch_context eq "on"
-	    $call parse_preproc_if
+        my $subblock=grabblock($block, \$lindex);
+        $if $switch_context eq "on"
+            $call parse_preproc_if
     $elif $preproc=~/^else/
-	my $subblock=grabblock($block, \$lindex);
-	$if $switch_context eq "on"
-	    parseblock({source=>$subblock, name=>"\${else}"})
-	    undef $switch_context;
+        my $subblock=grabblock($block, \$lindex);
+        $if $switch_context eq "on"
+            parseblock({source=>$subblock, name=>"\${else}"})
+            undef $switch_context;
     $elif $preproc=~/^ifeach:\s*(.*)/
-	my $subblock=grabblock($block, \$lindex);
-	my $cond=$1
-	my $plist=$deflist->[-1]->{plist}
-	undef $switch_context
-	my $cond_var="p"
-	$if $cond=~/^(\w+)/
-	    $cond_var=$1
-	$if $plist
-	    my @plist=split /,\s*/, $plist
-	    $foreach $p in @plist
-		my $macro={$cond_var=>$p};
-		push @$deflist, $macro;
-		$if testcondition($cond)
-		    parseblock({source=>$subblock, name=>"\${ifeach:}"})
-		    $switch_context="off";
-		pop @$deflist;
-	$if !$switch_context
-	    $switch_context="on";
+        my $subblock=grabblock($block, \$lindex);
+        my $cond=$1
+        my $plist=$deflist->[-1]->{plist}
+        undef $switch_context
+        my $cond_var="p"
+        $if $cond=~/^(\w+)/
+            $cond_var=$1
+        $if $plist
+            my @plist=split /,\s*/, $plist
+            $foreach $p in @plist
+                my $macro={$cond_var=>$p};
+                push @$deflist, $macro;
+                $if testcondition($cond)
+                    parseblock({source=>$subblock, name=>"\${ifeach:}"})
+                    $switch_context="off";
+                pop @$deflist;
+        $if !$switch_context
+            $switch_context="on";
     $else
         $flag_done=0
         undef $switch_context
 
 subcode: parse_preproc_if
     $if testcondition($1)
-	parseblock({source=>$subblock, name=>"\${if:}"})
-	$switch_context="off";
+        parseblock({source=>$subblock, name=>"\${if:}"})
+        $switch_context="off";
     $else
-	$switch_context="on";
+        $switch_context="on";
     $if $debug eq "preproc"
-	$print parse_preproc_if: ($1) -> $switch_context
+        $print parse_preproc_if: ($1) -> $switch_context
 
 #---------------------------------------- 
 subcode:: support_subs
     $sub test_op($a, $test)
-	$if $debug eq "preproc"
-	    $print "preproc test_op: $a: $test"
-	$if $test=~/^:(\d+)/
-	    $test=$'
-	    $a=substr($a, 0, $1);
+        $if $debug eq "preproc"
+            $print "preproc test_op: $a: $test"
+        $if $test=~/^:(\d+)/
+            $test=$'
+            $a=substr($a, 0, $1);
 
-	$if $test=~/\s*(~|=|!=|<|>)(.*)/
-	    my ($op, $b)=($1, $2)
-	    $if $op eq "="
-		if($a eq $b){ return 1;}
-	    $elsif $op eq "!="
-		if($a ne $b){ return 1;}
-	    $elsif $op eq ">"
-		if($a > $b){ return 1;}
-	    $elsif $op eq "<"
-		if($a < $b){ return 1;}
-	    $elsif $op eq "~"
-		if($a=~/^$b/){ return 1;}
-	    $else
-		return 0
-	$elif $test=~/\s*in\s+(.*)/
-	    return test_in($a, $1)
-	$else
-	    return defined $a
+        $if $test=~/\s*(~|=|!=|<|>)(.*)/
+            my ($op, $b)=($1, $2)
+            $if $op eq "="
+                if($a eq $b){ return 1;}
+            $elsif $op eq "!="
+                if($a ne $b){ return 1;}
+            $elsif $op eq ">"
+                if($a > $b){ return 1;}
+            $elsif $op eq "<"
+                if($a < $b){ return 1;}
+            $elsif $op eq "~"
+                if($a=~/^$b/){ return 1;}
+            $else
+                return 0
+        $elif $test=~/\s*in\s+(.*)/
+            return test_in($a, $1)
+        $else
+            return defined $a
 
     $sub test_in($a, $test)
-	my @tlist=split /,\s*/, $test
-	$foreach $t in @tlist
-	    $if $t=~/(\S)-(\S)/
-		$if ord($a)>=ord($1) and ord($a)<=ord($2)
-		    return 1
-	    $elif $a eq $t
-		return 1
-	return 0
+        my @tlist=split /,\s*/, $test
+        $foreach $t in @tlist
+            $if $t=~/(\S)-(\S)/
+                $if ord($a)>=ord($1) and ord($a)<=ord($2)
+                    return 1
+            $elif $a eq $t
+                return 1
+        return 0
 
     $sub testcondition($cond)
-	$if $debug eq "preproc"
-	    $print "preproc testcondition: $cond"
-	$if !$cond
-	    return 0;
-	$call @testcondition_elifs
-	$elif $cond=~/^\s*!(.*)/
-	    return !testcondition($1)
-	$elsif $cond=~/ or /
-	    my @nlist=split / or /, $cond
-	    $foreach $n in @nlist
-		$if testcondition($n)
-		    return 1;
-	    return 0;
-	$elsif $cond=~/^([01])$/
-	    return $1
-	$elsif $cond=~/^hascode:(.*)/
-	    $if $MyDef::def->{codes}->{$1} or $MyDef::page->{codes}->{$1}
-		return 1
-	$elsif $cond=~/^(string|number):(.*)/
-	    my $test=$1
-	    my $t=get_def($2)
-	    $if $test eq "string" and $t=~/^['"]/
-		return 1
-	    $elif $test eq "number" and $t=~/^\d+/
-		return 1
-	$elsif $cond=~/,/
-	    my @nlist=split /,/, $cond;
-	    $foreach $n in @nlist
-		$if !testcondition($n)
-		    return 0;
-	    return 1;
-	$elsif $cond=~/^\s*(\w+)(.*)/
-	    my $t=get_def($1);
-	    $if !$2
-		return defined $t
-	    $else
-		$if !defined $t
-		    return test_op($1, $2)
-		$else
-		    return test_op($t, $2)
-	$else
-	    return 0
-	return 0
+        $if $debug eq "preproc"
+            $print "preproc testcondition: $cond"
+        $if !$cond
+            return 0;
+        $call @testcondition_elifs
+        $elif $cond=~/^\s*!(.*)/
+            return !testcondition($1)
+        $elsif $cond=~/ or /
+            my @nlist=split / or /, $cond
+            $foreach $n in @nlist
+                $if testcondition($n)
+                    return 1;
+            return 0;
+        $elsif $cond=~/^([01])$/
+            return $1
+        $elsif $cond=~/^hascode:(.*)/
+            $if $MyDef::def->{codes}->{$1} or $MyDef::page->{codes}->{$1}
+                return 1
+        $elsif $cond=~/^(string|number):(.*)/
+            my $test=$1
+            my $t=get_def($2)
+            $if $test eq "string" and $t=~/^['"]/
+                return 1
+            $elif $test eq "number" and $t=~/^\d+/
+                return 1
+        $elsif $cond=~/,/
+            my @nlist=split /,/, $cond;
+            $foreach $n in @nlist
+                $if !testcondition($n)
+                    return 0;
+            return 1;
+        $elsif $cond=~/^\s*(\w+)(.*)/
+            my $t=get_def($1);
+            $if !$2
+                return defined $t
+            $else
+                $if !defined $t
+                    return test_op($1, $2)
+                $else
+                    return test_op($t, $2)
+        $else
+            return 0
+        return 0
 

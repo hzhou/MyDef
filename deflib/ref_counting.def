@@ -3,13 +3,13 @@
 
 subcode: mu_debug(name)
     $(if:mu_debug)
-	printf("$(name): %x count=%d\n", (unsigned int)tp->value, tp->count)
+        printf("$(name): %x count=%d\n", (unsigned int)tp->value, tp->count)
 
 subcode: mu_free
     int i
     $for i=0:tp->size
-	$if tp->destroy
-	    tp->destroy(tp->value+tp->unitsize*i)
+        $if tp->destroy
+            tp->destroy(tp->value+tp->unitsize*i)
     free(tp->value)
 
 subcode: ref_counting(nbuckets, prefix, type)
@@ -17,90 +17,90 @@ subcode: ref_counting(nbuckets, prefix, type)
     $declare void $(prefix)_retain(void* p);
     $declare void $(prefix)_release(void* p);
     struct $(prefix)node {
-	$(type) value
-	int count
-	struct $(prefix)node * next
-	$(if:prefix=mu)
-	    int unitsize
-	    int size
-	    void(*destroy)(void* p)
+        $(type) value
+        int count
+        struct $(prefix)node * next
+        $(if:prefix=mu)
+            int unitsize
+            int size
+            void(*destroy)(void* p)
     };
     struct $(prefix)node * $(prefix)_count_list[$(nbuckets)]
     $(block:main_init)
-	$(prefix)_init()
+        $(prefix)_init()
     $(block:main_exit)
-	$(prefix)_final_release()
+        $(prefix)_final_release()
     # ---- mu_init
     void $(prefix)_init(){
-	int i
-	$for i=0:$(nbuckets)
-	    $(prefix)_count_list[i]=NULL
+        int i
+        $for i=0:$(nbuckets)
+            $(prefix)_count_list[i]=NULL
     }
     # ---- mu_add
     $(if:prefix=mu)
-	void $(prefix)_add($(type) p, int unitsize, int size, void(*destroy)(void* p)){
+        void $(prefix)_add($(type) p, int unitsize, int size, void(*destroy)(void* p)){
     $(else)
-	void $(prefix)_add($(type) p){
+        void $(prefix)_add($(type) p){
     int n=(long)p % $(nbuckets)
-	struct $(prefix)node* tp = $(prefix)_count_list[n]
-	struct $(prefix)node ** rp = &$(prefix)_count_list[n]
-	$while tp
-	    rp=&(tp->next);
-	    tp = tp->next
-	tp = (struct $(prefix)node *)malloc(sizeof(struct $(prefix)node))
-	tp->value=p
-	tp->count=1
-	tp->next=NULL
-	$(if:prefix=mu)
-	    tp->unitsize=unitsize
-	    tp->size=size
-	    tp->destroy=destroy
-	    $(prefix)_total_mem+=(float)unitsize*size/1e6
-	(*rp)=tp
-	$call mu_debug, $(prefix)_add
+        struct $(prefix)node* tp = $(prefix)_count_list[n]
+        struct $(prefix)node ** rp = &$(prefix)_count_list[n]
+        $while tp
+            rp=&(tp->next);
+            tp = tp->next
+        tp = (struct $(prefix)node *)malloc(sizeof(struct $(prefix)node))
+        tp->value=p
+        tp->count=1
+        tp->next=NULL
+        $(if:prefix=mu)
+            tp->unitsize=unitsize
+            tp->size=size
+            tp->destroy=destroy
+            $(prefix)_total_mem+=(float)unitsize*size/1e6
+        (*rp)=tp
+        $call mu_debug, $(prefix)_add
     }
     # ---- mu_retain
     void $(prefix)_retain(void* p){
-	int n=(long)p % $(nbuckets)
-	struct $(prefix)node* tp = $(prefix)_count_list[n]
-	$while tp && tp->value != p
-	    tp = tp->next
-	$if tp
-	    tp->count+=1
-	    $call mu_debug, $(prefix)_retain
+        int n=(long)p % $(nbuckets)
+        struct $(prefix)node* tp = $(prefix)_count_list[n]
+        $while tp && tp->value != p
+            tp = tp->next
+        $if tp
+            tp->count+=1
+            $call mu_debug, $(prefix)_retain
     }
     # ---- mu_release
     void $(prefix)_release(void* p){
-	int n=(long)p % $(nbuckets)
-	struct $(prefix)node* tp = $(prefix)_count_list[n]
-	struct $(prefix)node ** rp = &$(prefix)_count_list[n]
-	$while tp && tp->value != p
-	    rp=&(tp->next);
-	    tp = tp->next
-	$if tp
-	    tp->count-=1
-	    $call mu_debug, $(prefix)_release
-	    $if tp->count==0
-		*rp=tp->next
-		$call mu_debug, $(prefix)_release_free
-		$call $(prefix)_free
-		free(tp)
-	$else
-	    fprintf(stderr, "release error\n")
+        int n=(long)p % $(nbuckets)
+        struct $(prefix)node* tp = $(prefix)_count_list[n]
+        struct $(prefix)node ** rp = &$(prefix)_count_list[n]
+        $while tp && tp->value != p
+            rp=&(tp->next);
+            tp = tp->next
+        $if tp
+            tp->count-=1
+            $call mu_debug, $(prefix)_release
+            $if tp->count==0
+                *rp=tp->next
+                $call mu_debug, $(prefix)_release_free
+                $call $(prefix)_free
+                free(tp)
+        $else
+            fprintf(stderr, "release error\n")
     }
     # ---- mu_final_release
     void $(prefix)_final_release(){
-	int i
-	struct $(prefix)node* tp
-	$for i=0:$(nbuckets)
-	    tp=$(prefix)_count_list[i]
-	    $while tp
-		$(prefix)_count_list[i]=tp->next
-		$call mu_debug, $(prefix)_final_release_free
-		$(if:prefix=mu)
-		    free(tp->value)
-		$(else)
-		    $call $(prefix)_free
-		free(tp)
-		tp=$(prefix)_count_list[i]
+        int i
+        struct $(prefix)node* tp
+        $for i=0:$(nbuckets)
+            tp=$(prefix)_count_list[i]
+            $while tp
+                $(prefix)_count_list[i]=tp->next
+                $call mu_debug, $(prefix)_final_release_free
+                $(if:prefix=mu)
+                    free(tp->value)
+                $(else)
+                    $call $(prefix)_free
+                free(tp)
+                tp=$(prefix)_count_list[i]
     }

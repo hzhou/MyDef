@@ -13,9 +13,9 @@ subcode: lma(exp, param, F)
     $(set:na=$(dimension))
 
     $(if:lma_step!=pf_step)
-	$local_allocate($(na), 1.0) pf_step
-	$(if:lma_step)
-	    $sumcode pf_step[i]=$(lma_step)[i]
+        $local_allocate($(na), 1.0) pf_step
+        $(if:lma_step)
+            $sumcode pf_step[i]=$(lma_step)[i]
 
     $call @lma_init
 
@@ -23,17 +23,17 @@ subcode: lma(exp, param, F)
     $call do_lma_Y_chi
     $(set:debug_diff=0)
     &call step_loop, 1
-	$call do_lma_iteration
+        $call do_lma_iteration
 
     &call step_loop, 1
-	$call do_grid
+        $call do_grid
 
 subcode: step_loop(n)
     $for tn_try=0:$(n)
-	BLOCK
-	tf_chi=tf_last_chi
-	$for i=0:$(na)
-	    pf_step[i]/=2
+        BLOCK
+        tf_chi=tf_last_chi
+        $for i=0:$(na)
+            pf_step[i]/=2
 
 #---------------------------------------- 
 subcode:: lma_init
@@ -44,51 +44,51 @@ subcode:: lma_init
 #- (J'J + \lamda diag(J'J)) \delta = J' (y - y_a)
 subcode: do_lma_iteration
     $while 1
-	$call @debug_start
-	tf_last_chi=tf_chi
+        $call @debug_start
+        tf_last_chi=tf_chi
 
-	$call do_lma_J
-	# $call debug_J
+        $call do_lma_J
+        # $call debug_J
 
-	$sumcode pf_S[i,j]=pf_J[i,k]*pf_J[j,k]
-	$sumcode pf_Jy[i]=pf_J[i,j]*pf_Y[j]
-	# $call matrix_print, pf_S
+        $sumcode pf_S[i,j]=pf_J[i,k]*pf_J[j,k]
+        $sumcode pf_Jy[i]=pf_J[i,j]*pf_Y[j]
+        # $call matrix_print, pf_S
 
-	tf_lamda=0.0
-	find_delta:
+        tf_lamda=0.0
+        find_delta:
 
-	$sumcode pf_S_lamda[i]=pf_S[i]
-	$sumcode pf_S_lamda[i,i]*=(1.0+tf_lamda)
-	$call matrix_inv, pf_S_lamda
-	$sumcode pf_delta[i]=pf_S_lamda[i,j]*pf_Jy[j]
+        $sumcode pf_S_lamda[i]=pf_S[i]
+        $sumcode pf_S_lamda[i,i]*=(1.0+tf_lamda)
+        $call matrix_inv, pf_S_lamda
+        $sumcode pf_delta[i]=pf_S_lamda[i,j]*pf_Jy[j]
 
-	$call check_delta_break
-	$sumcode $(param)[i]+=pf_delta[i]
-	$call do_lma_Y_chi
-	$call @debug_iter
+        $call check_delta_break
+        $sumcode $(param)[i]+=pf_delta[i]
+        $call do_lma_Y_chi
+        $call @debug_iter
 
-	$if tf_chi>tf_last_chi
-	    $if tf_lamda<1
-		tf_lamda+=1
-	    $else
-		tf_lamda*=1.5
-	    $for i=0:$(na)
-		$(param)[i]-=pf_delta[i]
-	    goto find_delta
-	$elif tf_chi<tf_last_chi
-	    continue
-	$else
-	    $print "Chi did not change, something wrong ...\n"
-	    break
+        $if tf_chi>tf_last_chi
+            $if tf_lamda<1
+                tf_lamda+=1
+            $else
+                tf_lamda*=1.5
+            $for i=0:$(na)
+                $(param)[i]-=pf_delta[i]
+            goto find_delta
+        $elif tf_chi<tf_last_chi
+            continue
+        $else
+            $print "Chi did not change, something wrong ...\n"
+            break
 
 subcode: check_delta_break
     tf_flag=1
     $for i=0:$(na)
-	$if fabs(pf_delta[i])>=fabs(pf_step[i]/5.0)
-	    tf_flag=0
-	    break
+        $if fabs(pf_delta[i])>=fabs(pf_step[i]/5.0)
+            tf_flag=0
+            break
     $if tf_flag
-	break
+        break
 
 #-------------------------------------------------------
 subcode:: lma_init
@@ -109,78 +109,78 @@ subcode: do_lma_J
     $call $(F), pf_Y0, $(param)
     k=0
     $for i=0:$(na)
-	$(param)[i]+=pf_step[i]
+        $(param)[i]+=pf_step[i]
 
-	$call get_lma_Y, $(param), pf_Y0, pf_Y1
-	$for j=0:$(ny)
-	    pf_J[k]= -pf_Y1[j]/pf_step[i]
-	    k++
+        $call get_lma_Y, $(param), pf_Y0, pf_Y1
+        $for j=0:$(ny)
+            pf_J[k]= -pf_Y1[j]/pf_step[i]
+            k++
 
-	$(param)[i]-=pf_step[i]
+        $(param)[i]-=pf_step[i]
 
 #---------------------------------------- 
 subcode:: lma_init
     $allocate($(ny)) pf_sim
 
     $(if:lma_correlation)
-	$fcall f_matrix_cholesky($(lma_correlation), $(ny))
-	$fcall f_matrix_cholesky_inverse($(lma_correlation), $(ny))
+        $fcall f_matrix_cholesky($(lma_correlation), $(ny))
+        $fcall f_matrix_cholesky_inverse($(lma_correlation), $(ny))
 
 subcode: get_lma_Y(param, exp, py)
     $call $(F), pf_sim, $(param)
 
     $sumcode $(py)[i]=$(exp)[i]-pf_sim[i]
     $(if:lma_sigma)
-	$sumcode $(py)[i]/=$(lma_sigma)[i]
+        $sumcode $(py)[i]/=$(lma_sigma)[i]
     $(if:lma_correlation)
-	$fcall f_matrix_cholesky_inverse_transform($(lma_correlation), $(ny), $(py))
+        $fcall f_matrix_cholesky_inverse_transform($(lma_correlation), $(ny), $(py))
 
 #-----------------------------------------
 subcode: debug_start
     printf("Start : ")
     $for i=0:$(na)
-	printf("%.2f, ", $(param)[i])
+        printf("%.2f, ", $(param)[i])
     printf(" chi = %.4f\n", tf_chi)
 
 subcode: debug_iter
     printf("   lamda=%.2f delta: ", tf_lamda)
     $for i=0:$(na)
-	printf("%.2f, ", pf_delta[i])
+        printf("%.2f, ", pf_delta[i])
     printf(" - a: ")
     $for i=0:$(na)
-	printf("%.2f, ", $(param)[i])
+        printf("%.2f, ", $(param)[i])
     printf(" chi = %.4f (last: %.2f)\n", tf_chi, tf_last_chi)
 
 subcode: debug_delta
     printf("\t")
     $for i=0:$(na)
-	printf("%.2f, ", pf_delta[i])
+        printf("%.2f, ", pf_delta[i])
     printf("\n")
 
 subcode: debug_Y(name, k)
     printf("$(name): ")
     $for j=0:$(ny):30
-	printf("%.2f ", $(name)[$(k)+j])
+        printf("%.2f ", $(name)[$(k)+j])
     printf("\n")
 
 subcode: debug_J
     printf("J: \n")
     $for i=0:$(na)
-	$call debug_Y, pf_J, i*$(ny)
+        $call debug_Y, pf_J, i*$(ny)
 
 subcode: debug_grid_start
     printf("Grid Start : ")
     $for i=0:$(na)
-	printf("%.2f, ", $(param)[i])
+        printf("%.2f, ", $(param)[i])
     printf(" chi = %.4f\n", tf_chi)
 
 subcode: debug_grid_iter
     printf("   counter: ")
     $for i=0:$(na)
-	printf("%d, ", pn_counter[i])
+        printf("%d, ", pn_counter[i])
     printf(" - a: ")
     $for i=0:$(na)
-	printf("%.2f, ", $(param)[i])
+        printf("%.2f, ", $(param)[i])
     printf(" chi = %.4f (last: %.2f)\n", tf_chi, tf_last_chi)
 
 #---------------------------------------- 
@@ -191,31 +191,31 @@ subcode:: lma_init
 subcode: do_grid
     tf_last_chi=tf_chi
     $while 1
-	tn_flag_updated=0
-	$call debug_grid_start
-	$sumcode pn_counter[i]=0
-	$sumcode pf_param_center[i]=$(param)[i]
-	$while 1
-	    do_lma_Y_chi:
-	    $sumcode $(param)[i]=pf_param_center[i]+pf_step[i]*(pn_counter[i]-1)
-	    $call do_lma_Y_chi
-	    $if tf_chi<tf_last_chi-1e-6
-		$call debug_grid_iter
-		tf_last_chi=tf_chi
-		$sumcode pf_param_save[i]=$(param)[i]
-		tn_flag_updated=1
-	    #---------------------------------------- 
-	    $for i=0:$(na)
-		pn_counter[i]++
-		$if pn_counter[i]==3
-		    pn_counter[i]=0
-		$else
-		    goto do_lma_Y_chi
-	    break
-	$if tn_flag_updated
-	    $sumcode $(param)[i]=pf_param_save[i]
-	    tf_chi=tf_last_chi
-	$else
-	    $sumcode $(param)[i]=pf_param_center[i]
-	    break
+        tn_flag_updated=0
+        $call debug_grid_start
+        $sumcode pn_counter[i]=0
+        $sumcode pf_param_center[i]=$(param)[i]
+        $while 1
+            do_lma_Y_chi:
+            $sumcode $(param)[i]=pf_param_center[i]+pf_step[i]*(pn_counter[i]-1)
+            $call do_lma_Y_chi
+            $if tf_chi<tf_last_chi-1e-6
+                $call debug_grid_iter
+                tf_last_chi=tf_chi
+                $sumcode pf_param_save[i]=$(param)[i]
+                tn_flag_updated=1
+            #---------------------------------------- 
+            $for i=0:$(na)
+                pn_counter[i]++
+                $if pn_counter[i]==3
+                    pn_counter[i]=0
+                $else
+                    goto do_lma_Y_chi
+            break
+        $if tn_flag_updated
+            $sumcode $(param)[i]=pf_param_save[i]
+            tf_chi=tf_last_chi
+        $else
+            $sumcode $(param)[i]=pf_param_center[i]
+            break
 

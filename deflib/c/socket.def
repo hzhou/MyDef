@@ -4,9 +4,9 @@ subcode:: _autoload
 
 subcode: check_socket_error(name)
     $if tn_err<0
-	$include <errno.h>
-	$symbol int errno
-	$print "socket error in $(name): errno = $errno"
+        $include <errno.h>
+        $symbol int errno
+        $print "socket error in $(name): errno = $errno"
 
 subcode: socket_init(var, scope, @type)
     $$(scope) int $(var)
@@ -17,25 +17,25 @@ subcode: socket_init(var, scope, @type)
 
     $(var)=socket($(af_family), $(sock_type), 0)
     $(if:default_addrname)
-	$(if:af_family=AF_UNIX)
-	    unlink($(path))
-	tn_err=bind($(var), (const struct sockaddr  *)&$(default_addrname), sizeof($(default_addrname)))
-	$call @check_error
+        $(if:af_family=AF_UNIX)
+            unlink($(path))
+        tn_err=bind($(var), (const struct sockaddr  *)&$(default_addrname), sizeof($(default_addrname)))
+        $call @check_error
 
 subcode: get_sockaddr(addr, @param)
     $(unset:default_addrname)
     $eval parse_sockaddr, $(param)
     $(if:default_addrname)
-	$(if:addr=default)
-	    $(set:addr=$(default_addrname))
-	$(if:af_family=AF_INET)
-	    $call ip_addr, $(addr), $(ip), $(port)
-	$(elif:af_family=AF_UNIX)
-	    $call unix_addr, $(addr), $(path)
-	$(export:default_addrname)
+        $(if:addr=default)
+            $(set:addr=$(default_addrname))
+        $(if:af_family=AF_INET)
+            $call ip_addr, $(addr), $(ip), $(port)
+        $(elif:af_family=AF_UNIX)
+            $call unix_addr, $(addr), $(path)
+        $(export:default_addrname)
     $(mexport:af_family,sock_type)
     $(if:path)
-	$(export:path)
+        $(export:path)
 
 perlcode: parse_sockaddr
     my @tlist=split /,\s*/, $param
@@ -43,39 +43,39 @@ perlcode: parse_sockaddr
     my $sock_type="SOCK_STREAM"
     my ($ip, $port, $path)
     $foreach $t in @tlist
-	$if $t eq "udp"
-	    $sock_type="SOCK_DGRAM"
-	$elif $t eq "tcp"
-	    $sock_type="SOCK_STREAM"
+        $if $t eq "udp"
+            $sock_type="SOCK_DGRAM"
+        $elif $t eq "tcp"
+            $sock_type="SOCK_STREAM"
 
-	$elif $t =~/(\d+)\.(\d+)\.(\d+)\.(\d+):(\d+)/
-	    $af_family="AF_INET"
-	    $ip=sprintf("0x%02x%02x%02x%02x", $1,$2,$3,$4)
-	    $port=$5
-	$elif $t =~/(.*):(\d+)/
-	    $af_family="AF_INET"
-	    $if $1 eq "localhost"
-		$ip="0x7f000001"
-	    $elif $1 eq "0"
-		$ip="0x0"
-	    $else
-		print "only numerical ip address supported\n"
-	    $port=$2
+        $elif $t =~/(\d+)\.(\d+)\.(\d+)\.(\d+):(\d+)/
+            $af_family="AF_INET"
+            $ip=sprintf("0x%02x%02x%02x%02x", $1,$2,$3,$4)
+            $port=$5
+        $elif $t =~/(.*):(\d+)/
+            $af_family="AF_INET"
+            $if $1 eq "localhost"
+                $ip="0x7f000001"
+            $elif $1 eq "0"
+                $ip="0x0"
+            $else
+                print "only numerical ip address supported\n"
+            $port=$2
 
-	$elif $t=~/^\//
-	    $af_family="AF_UNIX"
-	    $path="\"$t\""
+        $elif $t=~/^\//
+            $af_family="AF_UNIX"
+            $path="\"$t\""
 
     my $default_addrname
     $if $ip or $path
-	$if $af_family eq "AF_INET"
-	    $default_addrname="t_addr_inet"
-	$else
-	    $default_addrname="t_addr_unix"
+        $if $af_family eq "AF_INET"
+            $default_addrname="t_addr_inet"
+        $else
+            $default_addrname="t_addr_unix"
 
     $(for:a in af_family, sock_type, ip, port, path, default_addrname)
-	$if $$(a)
-	    MyDef::compileutil::set_current_macro("$(a)", $$(a))
+        $if $$(a)
+            MyDef::compileutil::set_current_macro("$(a)", $$(a))
 
 #----- Socket Address ----------------------------------- 
 subcode: ip_addr(addr, ip, port)
@@ -100,15 +100,15 @@ subcode: ip6_addr(addr, ip, port)
 #------
 subcode: socket_addr_param(var, addr)
     $(if:addr!=NULL)
-	$get_var_attr $(var), af_family
-	$(if:af_family=AF_UNIX)
-	    $local struct sockaddr_un $(addr)
-	$(else)
-	    $local struct sockaddr_in $(addr)
-	tn_sock_size=sizeof($(addr))
-	$(set:addr_param=(struct sockaddr *)&$(addr), &tn_sock_size)
+        $get_var_attr $(var), af_family
+        $(if:af_family=AF_UNIX)
+            $local struct sockaddr_un $(addr)
+        $(else)
+            $local struct sockaddr_in $(addr)
+        tn_sock_size=sizeof($(addr))
+        $(set:addr_param=(struct sockaddr *)&$(addr), &tn_sock_size)
     $(else)
-	$(set:addr_param=NULL, 0)
+        $(set:addr_param=NULL, 0)
     $(export:addr_param)
 
 #---- 
@@ -118,17 +118,17 @@ subcode: socket_close(var)
 #---- UDP send/recv ------------------------------------ 
 subcode: socket_sendto(var, addr, msg)
     $(if:addr=NULL)
-	$(set:addr_param=NULL, 0)
+        $(set:addr_param=NULL, 0)
     $(else)
-	$(set:addr_param=(struct sockaddr *)&$(addr), sizeof($(addr)))
+        $(set:addr_param=(struct sockaddr *)&$(addr), sizeof($(addr)))
     $(if:msg~")
-	tn_err=sendto($(var), $(msg), $(msg:strlen), 0, $(addr_param))
+        tn_err=sendto($(var), $(msg), $(msg:strlen), 0, $(addr_param))
     $(else)
-	$get_type(type) $(msg)_len
-	$(if:type=int)
-	    tn_err=sendto($(var), $(msg), $(msg)_len, 0, $(addr_param))
-	$(else)
-	    tn_err=sendto($(var), $(msg), strlen($(msg)), 0, $(addr_param))
+        $get_type(type) $(msg)_len
+        $(if:type=int)
+            tn_err=sendto($(var), $(msg), $(msg)_len, 0, $(addr_param))
+        $(else)
+            tn_err=sendto($(var), $(msg), strlen($(msg)), 0, $(addr_param))
     $call check_socket_error, sendto
 
 subcode: socket_recvfrom(var, addr, msg)
@@ -139,7 +139,7 @@ subcode: socket_recvfrom(var, addr, msg)
     tn_err=$(msg)_len
     $call check_socket_error, recvfrom
     $else
-	$(msg)[$(msg)_len]=0
+        $(msg)[$(msg)_len]=0
 
 subcode: socket_recv(var, msg)
     $call socket_recvfrom, $(var), NULL, $(msg)

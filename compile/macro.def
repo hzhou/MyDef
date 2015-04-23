@@ -11,60 +11,60 @@ subcode:: preproc_elifs
         my $name=$1
         $call set_macro_join
     $elif $preproc=~/^set:\s*(.*)/
-	# immediate macros
-	set_macro($deflist->[-1], $1)
+        # immediate macros
+        set_macro($deflist->[-1], $1)
     $elif $preproc=~/^set([012]):\s*(.*)/
-	# standard macros: def, macros, page
-	set_macro($deflist->[$1], $2)
+        # standard macros: def, macros, page
+        set_macro($deflist->[$1], $2)
     $elif $preproc=~/^setmacro:\s*(.*)/
-	# standard macros: def, macros, page
-	set_macro($deflist->[2], $1)
+        # standard macros: def, macros, page
+        set_macro($deflist->[2], $1)
     $elif $preproc=~/autoinc:\s*(\w+)/
-	my $page=$deflist->[2]
-	$page->{$1}++
+        my $page=$deflist->[2]
+        $page->{$1}++
     $elif $preproc=~/^export:\s*(.*)/
-	my $t=$1;
-	$if $t=~/^\w+,/
-	    my @plist=split /,\s*/, $t
-	    $foreach $p in @plist
-		set_macro($deflist->[-2], $p)
-	$else
-	    set_macro($deflist->[-2], $t)
+        my $t=$1;
+        $if $t=~/^\w+,/
+            my @plist=split /,\s*/, $t
+            $foreach $p in @plist
+                set_macro($deflist->[-2], $p)
+        $else
+            set_macro($deflist->[-2], $t)
     $elif $preproc=~/^mset:\s*(.*)/
-	my @plist=split /,\s*/, $1
-	$foreach $p in @plist
-	    set_macro($deflist->[-1], $p)
+        my @plist=split /,\s*/, $1
+        $foreach $p in @plist
+            set_macro($deflist->[-1], $p)
     $elif $preproc=~/^mexport:\s*(.*)/
-	my @plist=split /,\s*/, $1
-	$foreach $p in @plist
-	    set_macro($deflist->[-2], $p)
+        my @plist=split /,\s*/, $1
+        $foreach $p in @plist
+            set_macro($deflist->[-2], $p)
     $elif $preproc=~/^reset:\s*(\w+)([\.\+\-])?=(.*)/
-	my ($v, $op, $d)=($1, $2, $3, $4)
-	expand_macro(\$d)
-	my $i=$#$deflist;
-	$while $i>0 and !defined $deflist->[$i]->{$v}
-	    $i--
-	$if $i==0
-	    $i=-1
-	$if $op
-	    $deflist->[$i]->{$v}=calc_op($deflist->[$i]->{$v}, $op, $d)
-	$else
-	    $deflist->[$i]->{$v}=$d;
+        my ($v, $op, $d)=($1, $2, $3, $4)
+        expand_macro(\$d)
+        my $i=$#$deflist;
+        $while $i>0 and !defined $deflist->[$i]->{$v}
+            $i--
+        $if $i==0
+            $i=-1
+        $if $op
+            $deflist->[$i]->{$v}=calc_op($deflist->[$i]->{$v}, $op, $d)
+        $else
+            $deflist->[$i]->{$v}=$d;
     $elif $preproc=~/^unset:\s*(\w+)/
-	$foreach $m in @$deflist
-	    delete $m->{$1}
+        $foreach $m in @$deflist
+            delete $m->{$1}
     $elif $preproc=~/^eval:\s*(\w+)=(.*)/
-	my ($t1,$t2)=($1,$2)
-	expand_macro(\$t2)
-	$deflist->[-1]->{$t1}=eval($t2)
+        my ($t1,$t2)=($1,$2)
+        expand_macro(\$t2)
+        $deflist->[-1]->{$t1}=eval($t2)
     $elif $preproc=~/^split:\s*(\w+)/
-	my $p="\$($1)"
-	expand_macro(\$p)
-	my @tlist=MyDef::utils::proper_split($p)
-	my $n=@tlist
-	$deflist->[-1]->{p_n}=$n
-	$for $i=1:$n+1
-	    $deflist->[-1]->{"p_$i"}=$tlist[$i-1]
+        my $p="\$($1)"
+        expand_macro(\$p)
+        my @tlist=MyDef::utils::proper_split($p)
+        my $n=@tlist
+        $deflist->[-1]->{p_n}=$n
+        $for $i=1:$n+1
+            $deflist->[-1]->{"p_$i"}=$tlist[$i-1]
 
 #---------------------------------------- 
 subcode: set_macro_join
@@ -96,29 +96,29 @@ subcode: set_macro_join_pattern(tlist)
 #---------------------------------------- 
 subcode:: support_subs
     $sub calc_op($v, $op, $d)
-	$if $op eq "."
-	    return $v . $d
-	my $ret=get_numeric($v)
-	$if $op eq "+"
-	    $ret+=get_numeric($d)
-	$elif $op eq "-"
-	    $ret-=get_numeric($d)
-	$if $v=~/^0x/
-	    return sprintf("0x%lx", $ret)
-	$else
-	    return $ret
+        $if $op eq "."
+            return $v . $d
+        my $ret=get_numeric($v)
+        $if $op eq "+"
+            $ret+=get_numeric($d)
+        $elif $op eq "-"
+            $ret-=get_numeric($d)
+        $if $v=~/^0x/
+            return sprintf("0x%lx", $ret)
+        $else
+            return $ret
 
     $sub get_numeric($v)
-	$if $v=~/0x(.*)/
-	    return hex($v)
-	$else
-	    return $v
+        $if $v=~/0x(.*)/
+            return hex($v)
+        $else
+            return $v
 
     $sub set_macro($m, $p)
-	$if $debug eq "macro"
-	    print "set_macro: [$p]\n";
-	$if $p=~/(\w+)([\+\-\*\/\.])=(\d+)/
-	    my ($t1, $op, $num)=($1, $2, $3)
+        $if $debug eq "macro"
+            print "set_macro: [$p]\n";
+        $if $p=~/(\w+)([\+\-\*\/\.])=(\d+)/
+            my ($t1, $op, $num)=($1, $2, $3)
             $if $op eq "+"
                 $m->{$t1}+=$num
             $elif $op eq "*"
@@ -129,26 +129,26 @@ subcode:: support_subs
                 $m->{$t1}/=$num
             $elif $op eq "-"
                 $m->{$t1}/=$num
-	$elif $p=~/(\S+?)=(.*)/
-	    my ($t1, $t2)=($1, $2)
-	    $if $t1=~/\$\(.*\)/
-		expand_macro(\$t1)
-	    $if $t2=~/\$\(.*\)/
-	        expand_macro(\$t2)
-	    $m->{$t1}=$t2
-	$elif my $t=get_def($p)
-	    $m->{$p}=$t
-	$else
-	    warn "[$cur_file:$cur_line] compileutil::set_macro parse error: [$p]\n"
+        $elif $p=~/(\S+?)=(.*)/
+            my ($t1, $t2)=($1, $2)
+            $if $t1=~/\$\(.*\)/
+                expand_macro(\$t1)
+            $if $t2=~/\$\(.*\)/
+                expand_macro(\$t2)
+            $m->{$t1}=$t2
+        $elif my $t=get_def($p)
+            $m->{$p}=$t
+        $else
+            warn "[$cur_file:$cur_line] compileutil::set_macro parse error: [$p]\n"
 
     $sub set_current_macro($name, $val)
-	$deflist->[-1]->{$name}=$val
+        $deflist->[-1]->{$name}=$val
 
     $sub export_macro($i, $name, $val)
-	$deflist->[$i]->{$name}=$val
+        $deflist->[$i]->{$name}=$val
 
     $sub get_current_macro($name)
-	return $deflist->[-1]->{$name}
+        return $deflist->[-1]->{$name}
 
 # ------------------------------------------------------
 fncode: expand_macro($lref)
@@ -193,53 +193,53 @@ fncode: get_macro($s, $nowarn)
             warn "syntax error: [$s]\n"
             return undef
     $elif $s=~/^(\w+):(.*)/
-	#---- all kinds of annotations --------
-	my $p=$2;
-	my $t=get_macro($1)
-	$if $t
-	    $if $p=~/(\d+)-(\d+)/
-		#-- substr, e.g. $(macro:0-3) ----
-		my $s=substr($t, $1, $2-$1+1);
+        #---- all kinds of annotations --------
+        my $p=$2;
+        my $t=get_macro($1)
+        $if $t
+            $if $p=~/(\d+)-(\d+)/
+                #-- substr, e.g. $(macro:0-3) ----
+                my $s=substr($t, $1, $2-$1+1);
                 $print $t:$1-$2 -> [$s]
                 return $s
-	    $elif $p=~/(\d+):(\d+|word|number|strip)/
-		#-- substr with regex predicate ----
-		my $s=substr($t, $1)
-		$if $2 eq "word"
-		    $if $s=~/^\s*(\w+)/
-			$s=$1
-		$elif $2 eq "number"
-		    $if $s=~/^\s*([+-]?\d+)/
-			$s=$1
-		$elif $2 ne "strip"
-		    $s=substr($s, 0, $2)
-		return $s
-	    $elif $p eq "len"
-		#-- strlen, e.g. $(macro:len)------
-		return length($t)
-	    $elif $p eq "strlen"
-		#-- literal strlen -----
-		$if $t=~/^".*"$/
-		    return eval "length($t)"
-		$else
-		    return length($t)
-	    $elif $p eq "strip"
-		return substr($t, 1, -1)
-	    $elif $p=~/list:(.*)/
-		my $idx=$1
-		my @tlist=MyDef::utils::proper_split($t)
-		$if $idx eq "n"
-		    return scalar(@tlist)
-		$elif $idx=~/(\d+)/
-		    return $tlist[$1]
-	    $else
-		#--INLINE macro -- $(macro:p1,p2,p3)
-		my @plist=MyDef::utils::proper_split($p)
-		my $i=1;
-		$foreach $pp in @plist
-		    $t=~s/\$$i/$pp/g
-		    $i++
-		return $t
+            $elif $p=~/(\d+):(\d+|word|number|strip)/
+                #-- substr with regex predicate ----
+                my $s=substr($t, $1)
+                $if $2 eq "word"
+                    $if $s=~/^\s*(\w+)/
+                        $s=$1
+                $elif $2 eq "number"
+                    $if $s=~/^\s*([+-]?\d+)/
+                        $s=$1
+                $elif $2 ne "strip"
+                    $s=substr($s, 0, $2)
+                return $s
+            $elif $p eq "len"
+                #-- strlen, e.g. $(macro:len)------
+                return length($t)
+            $elif $p eq "strlen"
+                #-- literal strlen -----
+                $if $t=~/^".*"$/
+                    return eval "length($t)"
+                $else
+                    return length($t)
+            $elif $p eq "strip"
+                return substr($t, 1, -1)
+            $elif $p=~/list:(.*)/
+                my $idx=$1
+                my @tlist=MyDef::utils::proper_split($t)
+                $if $idx eq "n"
+                    return scalar(@tlist)
+                $elif $idx=~/(\d+)/
+                    return $tlist[$1]
+            $else
+                #--INLINE macro -- $(macro:p1,p2,p3)
+                my @plist=MyDef::utils::proper_split($p)
+                my $i=1;
+                $foreach $pp in @plist
+                    $t=~s/\$$i/$pp/g
+                    $i++
+                return $t
     $elif $s=~/^([mg])([\|&]+):(.*)/
         my ($m, $sep, $t)=($1, $2, $3)
         my @tlist

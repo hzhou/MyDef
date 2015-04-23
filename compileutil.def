@@ -20,22 +20,22 @@ subcode: compile_main
     $call support_subs
     # ---------------------------------------------------
     $sub compile
-	my $page=$MyDef::page
-	my $pagename=$page->{pagename}
-	$call output_outdir
-	$page->{outdir}=$outdir
-	$call compile
+        my $page=$MyDef::page
+        my $pagename=$page->{pagename}
+        $call output_outdir
+        $page->{outdir}=$outdir
+        $call compile
 
     $sub output($plines)
-	my $page=$MyDef::page
-	my $pagename=$page->{pagename}
-	my $pageext=$page->{pageext}
-	my $outdir=$page->{outdir}
+        my $page=$MyDef::page
+        my $pagename=$page->{pagename}
+        my $pageext=$page->{pageext}
+        my $outdir=$page->{outdir}
 
-	my $outname=$outdir."/".$pagename;
-	$if $pageext
-	    $outname.=".$pageext";
-	print "  --> [$outname]\n";
+        my $outname=$outdir."/".$pagename;
+        $if $pageext
+            $outname.=".$pageext";
+        print "  --> [$outname]\n";
         my $n=@$plines
         $if $n==0
             $print "Strange, no output!"
@@ -45,9 +45,9 @@ subcode: compile_main
                     print Out $l;
 
     $sub parse_code($code)
-	modepush($code->{type});
-	parseblock($code);
-	modepop();
+        modepush($code->{type});
+        parseblock($code);
+        modepop();
 
     # --------------------------------------------------------
     1;
@@ -58,16 +58,16 @@ subcode:: package_global
     $global $(interface)
 
     $sub set_interface
-	($(interface))=@_;
+        ($(interface))=@_;
 
     $sub get_interface
-	return ($(interface))
+        return ($(interface))
 
     $sub set_output($output)
-	my $old=$out
-	$out=$output
-	$f_setout->($out)
-	return $old
+        my $old=$out
+        $out=$output
+        $f_setout->($out)
+        return $old
 
     # ---------------------------------------------------
     $global $deflist, %misc_vars
@@ -76,15 +76,15 @@ subcode:: package_global
 subcode: compile
     my $mode=$f_init->($page);
     $if $mode
-	modepush($mode)
+        modepush($mode)
     init_output();
     print STDERR "PAGE: $pagename\n";
 
     #---- save var
     my %varsave;
     $while my ($k, $v)=each %$page
-	$varsave{$k}=$MyDef::var->{$k};
-	$MyDef::var->{$k}=$v;
+        $varsave{$k}=$MyDef::var->{$k};
+        $MyDef::var->{$k}=$v;
     #---- compile
     $deflist=[$MyDef::def, $MyDef::def->{macros}, $page];
 
@@ -94,53 +94,53 @@ subcode: compile
 
     my $codelist=$MyDef::def->{codes};
     $foreach my $codename  in keys %$codelist
-	$if $codename=~/_autoload$/
-	    parse_code($codelist->{$codename});
+        $if $codename=~/_autoload$/
+            parse_code($codelist->{$codename});
     $in_autoload=0
 
     #---- main
     my $maincode=$page->{codes}->{main};
     $if !$maincode
-	$maincode=$MyDef::def->{codes}->{main};
+        $maincode=$MyDef::def->{codes}->{main};
     $if !$maincode
-	$maincode=$MyDef::def->{codes}->{basic_frame};
+        $maincode=$MyDef::def->{codes}->{basic_frame};
     $if !$maincode
-	die "Missing maincode\n"
+        die "Missing maincode\n"
     parse_code($maincode);
     $f_parse->("NOOP POST_MAIN")
 
     #---- restore var
     $while my ($k, $v)=each %varsave
-	$MyDef::var->{$k}=$v;
+        $MyDef::var->{$k}=$v;
     
     #---- Dump
     $if !$page->{subpage}
-	my @buffer;
-	$f_dumpout->(\@buffer, fetch_output(0), $page->{pageext})
-	return \@buffer
+        my @buffer;
+        $f_dumpout->(\@buffer, fetch_output(0), $page->{pageext})
+        return \@buffer
 
 subcode: output_outdir
     my $outdir=".";
     $if $MyDef::var->{output_dir}
-	$outdir=$MyDef::var->{output_dir};
+        $outdir=$MyDef::var->{output_dir};
     $if $page->{output_dir}
-	$if $page->{output_dir}=~/^[\/\.]/
-	    $outdir=$page->{output_dir};
-	$else
-	    $outdir=$outdir."/".$page->{output_dir};
+        $if $page->{output_dir}=~/^[\/\.]/
+            $outdir=$page->{output_dir};
+        $else
+            $outdir=$outdir."/".$page->{output_dir};
     $outdir=~s/^\s+//;
     # create output dir
     $if ! -d $outdir
-	my @tdir_list=split /\//, $outdir;
-	my $tdir;
-	my $slash=0;
-	$foreach my $t in @tdir_list
-	    $if !$slash
-		$tdir=$t;
-		$slash=1;
-	    $else
-		$tdir=$tdir.'/'.$t;
-	    if(!$tdir){next;}
-	    $if ! -d $tdir
-		mkdir $tdir or die "Can't create output directory: $tdir\n";
+        my @tdir_list=split /\//, $outdir;
+        my $tdir;
+        my $slash=0;
+        $foreach my $t in @tdir_list
+            $if !$slash
+                $tdir=$t;
+                $slash=1;
+            $else
+                $tdir=$tdir.'/'.$t;
+            if(!$tdir){next;}
+            $if ! -d $tdir
+                mkdir $tdir or die "Can't create output directory: $tdir\n";
 

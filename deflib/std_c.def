@@ -4,15 +4,15 @@ subcode: basic_frame
     $include stdlib
     $call @global
     $(if:hascode:n_main)
-	$list n_main
+        $list n_main
     $(if:hascode:main2)
-	$list main2
+        $list main2
 
 ###############################################################
 ## Utility
 subcode: assert(check)
     $if !($(check))
-	$call assert_action
+        $call assert_action
 
 subcode: assert_action
     printf("Assert Error: ($(check)) at line %d \n", __LINE__)
@@ -35,11 +35,11 @@ subcode: try
     $local n_exception_code
     n_exception_code=setjmp(tryenv)
     $if n_exception_code==0
-	BLOCK
+        BLOCK
 
 subcode: catch(exception)
     $elif n_exception_code==$(exception)
-	BLOCK
+        BLOCK
 
 subcode: throw(exception)
     longjmp(tryenv, $(exception))
@@ -48,9 +48,9 @@ subcode: throw(exception)
 subcode: retry_block
     tn_retry_index=0
     $while 1
-	tn_retry_index++
-	BLOCK
-	break
+        tn_retry_index++
+        BLOCK
+        break
 
 subcode: retry
     continue
@@ -58,13 +58,13 @@ subcode: retry
 #----
 subcode: seq_block
     $dowhile 0
-	BLOCK
+        BLOCK
 
 #----
 subcode: on_tn_err(fn)
     $if tn_err
-	$print "Error: $(fn): tn_err=$tn_err"
-	exit(1)
+        $print "Error: $(fn): tn_err=$tn_err"
+        exit(1)
 
 #---- useful ------------
 subcode: swap(a, b)
@@ -77,11 +77,11 @@ subcode: swap(a, b)
 
 subcode: update_max(max, a)
     $if $(max)<$(a)
-	$(max)=$(a)
+        $(max)=$(a)
 
 subcode: update_min(min, a)
     $if $(min)>$(a)
-	$(min)=$(a)
+        $(min)=$(a)
 
 subcode: free(v)
     free($(v))
@@ -152,16 +152,16 @@ subcode: tick_loop
     $include time
     $call tick_reset
     $while 1
-	BLOCK
+        BLOCK
 
 subcode: on_tick(sec)
     $if time(NULL)-time_tick_set>=$(sec)
-	BLOCK
+        BLOCK
 
 subcode: every_tick(sec)
     $if time(NULL)-time_tick_set>=$(sec)
-	$call tick_reset
-	BLOCK
+        $call tick_reset
+        BLOCK
 
 subcode: tick_reset
     time_tick_set=time(NULL)
@@ -172,37 +172,37 @@ subcode: print_time(type)
     $my struct tm * p_now
     p_now=localtime(&time_now)
     $(if:type=default)
-	printf("%d/%d %02d:%02d ", p_now->tm_mon+1, p_now->tm_mday, p_now->tm_hour, p_now->tm_min)
+        printf("%d/%d %02d:%02d ", p_now->tm_mon+1, p_now->tm_mday, p_now->tm_hour, p_now->tm_min)
     $(else)
-	printf("%d/%d %02d:%02d ", p_now->tm_mon+1, p_now->tm_mday, p_now->tm_hour, p_now->tm_min)
+        printf("%d/%d %02d:%02d ", p_now->tm_mon+1, p_now->tm_mday, p_now->tm_hour, p_now->tm_min)
 
 # ---- sort -------------------------------------
 subcode: qsort(list, size, type)
     $function qsort_cmp(const void * a, const void * b)
-	$return_type int
-	$(set:a=(*($(type)*)a))
-	$(set:b=(*($(type)*)b))
-	BLOCK
+        $return_type int
+        $(set:a=(*($(type)*)a))
+        $(set:b=(*($(type)*)b))
+        BLOCK
     qsort($(list), $(size), sizeof($(type)), $(lamda))
 
 subcode: numcmp(na, nb)
     $(allow_recurse:10)
     $if $(na)<$(nb)
-	return -1
+        return -1
     $elif $(na)>$(nb)
-	return 1
+        return 1
     $else
-	BLOCK
+        BLOCK
 
 #---- scanf ------------------------------------ 
 fncode: get_s_int(s, int * p_n)
     $return_type char *
     n=0
     $while *s>='0' && *s<='9'
-	n*=10
-	n+=(*s-'0')
-	s++
+        n*=10
+        n+=(*s-'0')
+        s++
     *p_n=n
     $while *s==' '
-	s++
+        s++
     return s

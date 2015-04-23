@@ -12,11 +12,11 @@ subcode:: init_page
 subcode:: dumpout
     my $block=MyDef::compileutil::get_named_block("js_init")
     $foreach $v in @js_globals
-	push @$block, "var $v;\n"
+        push @$block, "var $v;\n"
 
 subcode: js_parsecode_other
     $if $l!~/[:\(\{\};,]\s*$/
-	$l.=';'
+        $l.=';'
 
 subcode: js_parse_func_param
 
@@ -30,57 +30,57 @@ subcode: js_parse_func
             $if !$js_globals{$v}
                 $js_globals{$v}=1
                 push @js_globals, $v
-	return
+        return
     $elif $func =~ /^(function)$/
-	return single_block("$1 $param\{", "}")
+        return single_block("$1 $param\{", "}")
     $elif $func =~ /^(if|while|switch)$/
-	return single_block("$1($param){", "}")
+        return single_block("$1($param){", "}")
     $elif $func =~ /^(el|els|else)if$/
-	return single_block("else if($param){", "}")
+        return single_block("else if($param){", "}")
     $elif $func eq "else"
-	return single_block("else{", "}")
+        return single_block("else{", "}")
     $elif $func eq "for" or $func eq "foreach"
-	$call js_parse_for
+        $call js_parse_for
 
 subcode: js_parse_for
     $if $param=~/(\w+)=(.*?):(.*?)(:.*)?$/
-	my ($var, $i0, $i1, $step)=($1, $2, $3, $4);
-	my $stepclause;
-	$if $step
-	    my $t=substr($step, 1);
-	    $if $t eq "-1"
-		$stepclause="var $var=$i0;$var>$i1;$var--";
-	    $elif $t=~/^-/
-		$stepclause="var $var=$i0;$var>$i1;$var=$var$t";
-	    $else
-		$stepclause="var $var=$i0;$var<$i1;$var+=$t";
-	$else
-	    $if $i1 eq "0"
-		$stepclause="var $var=$i0-1;$var>=0;$var--";
-	    $elif $i1=~/^-?\d+/ and $i0=~/^-?\d+/ and $i1<$i0
-		$stepclause="var $var=$i0;$var>$i1;$var--";
-	    $else
-		$stepclause="var $var=$i0;$var<$i1;$var++";
-	return single_block("for($stepclause){", "}")
+        my ($var, $i0, $i1, $step)=($1, $2, $3, $4);
+        my $stepclause;
+        $if $step
+            my $t=substr($step, 1);
+            $if $t eq "-1"
+                $stepclause="var $var=$i0;$var>$i1;$var--";
+            $elif $t=~/^-/
+                $stepclause="var $var=$i0;$var>$i1;$var=$var$t";
+            $else
+                $stepclause="var $var=$i0;$var<$i1;$var+=$t";
+        $else
+            $if $i1 eq "0"
+                $stepclause="var $var=$i0-1;$var>=0;$var--";
+            $elif $i1=~/^-?\d+/ and $i0=~/^-?\d+/ and $i1<$i0
+                $stepclause="var $var=$i0;$var>$i1;$var--";
+            $else
+                $stepclause="var $var=$i0;$var<$i1;$var++";
+        return single_block("for($stepclause){", "}")
     $elif $param=~/^(\S+)$/
         $call set_macro, "item", "$1\[i]"
         return single_block("for(i=0;i<$1.length;i++){", "}")
     $else
-	return single_block("$func($param){", "}")
+        return single_block("$func($param){", "}")
 
 
 # -------------------------
 subcode:: support_subs
     $sub js_string($t)
-	my @parts=split /(\$\w+)/, $t
-	$if $parts[0]=~/^$/
-	    shift @parts
-	$for $i=0:@parts
-	    $if $parts[$i]=~/^\$(\w+)/
-		$parts[$i]=$1
-		$while $parts[$i+1]=~/^(\[.*?\])/
-		    $parts[$i].=$1
-		    $parts[$i+1]=$'
-	    $else
-		$parts[$i]= "\"$parts[$i]\""
-	return join(' + ', @parts)
+        my @parts=split /(\$\w+)/, $t
+        $if $parts[0]=~/^$/
+            shift @parts
+        $for $i=0:@parts
+            $if $parts[$i]=~/^\$(\w+)/
+                $parts[$i]=$1
+                $while $parts[$i+1]=~/^(\[.*?\])/
+                    $parts[$i].=$1
+                    $parts[$i+1]=$'
+            $else
+                $parts[$i]= "\"$parts[$i]\""
+        return join(' + ', @parts)

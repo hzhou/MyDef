@@ -54,16 +54,16 @@ subcode: hash_init(var, scope, @type)
 #----
 subcode: hash_value_type
     $(if:type=default)
-	$(set:type=int)
+        $(set:type=int)
 
     $(set:type_n=$(type:list:n))
     $(if:type_n=1)
         $(set:T=$(type))
-	$struct($(hashtype)hash_$(T)) $(hash), $(type) * p_val
+        $struct($(hashtype)hash_$(T)) $(hash), $(type) * p_val
     $(else)
         $tuple $(type)
-	$struct($(hashtype)hash_$(T)) $(hash), struct $(T) * p_val
-	$(set:type=struct $(T))
+        $struct($(hashtype)hash_$(T)) $(hash), struct $(T) * p_val
+        $(set:type=struct $(T))
 
     $(mexport:type,type_n,T)
 
@@ -88,13 +88,13 @@ subcode: str_hash_exist(var, key)
 
 subcode: strhash_check_key(key)
     $(if:key~^")
-	$(export:keylen=$(key:strlen))
+        $(export:keylen=$(key:strlen))
     $(else)
-	$get_type(keytype) $(key)
-	$(if:keytype!=char *)
-	    $(export:key="$(key)")
-	    $(export:keylen=$(key:len))
-	$(else)
+        $get_type(keytype) $(key)
+        $(if:keytype!=char *)
+            $(export:key="$(key)")
+            $(export:keylen=$(key:len))
+        $(else)
             $get_var_attr $(key), strlen
             $(if:!strlen)
                 $(export:keylen=strlen($(key)))
@@ -143,7 +143,7 @@ subcode: hash_resize(type)
         $else
             n_size=h->n_size*$(hash_resize_ratio)
     $elif n_size<=h->n_size
-	return
+        return
 
     $local tp_exist = h->p_exist
     $local tp_key=h->p_key
@@ -160,7 +160,7 @@ subcode: hash_resize(type)
         $call resize_str_pool_n, h, n_size
     #---- copy contents -------------------
     $if tn_old_size>0
-	$for i=1:tn_old_size+1
+        $for i=1:tn_old_size+1
             $if tp_exist[i]
                 $(if:type=str)
                     $call get_str_pool, h, tp_key[i]
@@ -171,8 +171,8 @@ subcode: hash_resize(type)
                 h->p_key[k]=tp_key[i]
                 memcpy(h->p_val+k*$(n), tp_val+i*$(n), $(n))
         free(tp_exist)
-	free(tp_key)
-	free(tp_val)
+        free(tp_key)
+        free(tp_val)
 
 #---------------------------------------- 
 #---------------------------------------- 
@@ -186,7 +186,7 @@ subcode: hash_lookup(type)
     $return_type int
     $local struct $(type)hash * h = hash
     $if h->n_size==0
-	return 0
+        return 0
     #---------------------------------------- 
     $call get_$(type)hash_k
     #---------------------------------------- 
@@ -196,8 +196,8 @@ subcode: hash_lookup(type)
         $call get_str_pool, h, h->p_key[k]
         $(set:keyeq=$(strlen)==keylen && memcmp($(s), pc_key, keylen)==0)
     $while 1
-	$if ! h->p_exist[k]
-	    return k
+        $if ! h->p_exist[k]
+            return k
         $else
             $if $(keyeq)
                 return k
@@ -278,16 +278,16 @@ subcode: str_hash_exit(var)
         free($(var)->pn_str)
         free($(var)->pc_pool)
 
-	free($(var)->p_exist)
-	free($(var)->p_key)
-	free($(var)->p_val)
+        free($(var)->p_exist)
+        free($(var)->p_key)
+        free($(var)->p_val)
     free($(var))
 
 subcode: int_hash_exit(var)
     $if $(var)->n_size>0
-	free($(var)->p_exist)
-	free($(var)->p_key)
-	free($(var)->p_val)
+        free($(var)->p_exist)
+        free($(var)->p_key)
+        free($(var)->p_val)
     free($(var))
 
 #---------------------------------------- 
@@ -320,5 +320,5 @@ subcode: int_hash_each(var)
 subcode: hash_debug(var)
     $print hash_debug $(var):
     &call hash_iter, $(var)
-	$print "%d: %s => ${$(value)}", $(i), $(key)
+        $print "%d: %s => ${$(value)}", $(i), $(key)
 

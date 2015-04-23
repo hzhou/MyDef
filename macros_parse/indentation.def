@@ -27,7 +27,7 @@ subcode: start_code_indent(type, indent, item)
         $curindent=$(indent)
 
 
-subcode: check_end_indent
+subcode: check_end_codeindent
     $while $curindent <$codeindent
         # $print end_code_indent: $codetype, $codeindent, $codeitem
         $if $codetype eq "code"
@@ -36,6 +36,9 @@ subcode: check_end_indent
         ($codetype, $codeindent, $codeitem) = @$t
         $if $codetype eq "code"
             $lastindent = $codeindent
+            $source = $codeitem->{source}
+            my $src_location="SOURCE: $cur_file - $cur_line";
+            push @$source, $src_location
 
 subcode: check_end_automain
     $if $curindent==1 && $codetype eq "code" && $indent_stack[-1]->[0] eq "page"
@@ -57,12 +60,12 @@ subcode:: import_file_init
 
 subcode: get_source_indent(curindent)
     $while $(curindent)>$lastindent
-	$lastindent++;
-	push @$source, "SOURCE_INDENT";
+        $lastindent++;
+        push @$source, "SOURCE_INDENT";
 
 subcode: get_source_dedent(curindent)
     $while $(curindent)<$lastindent
-	$lastindent--;
-	push @$source, "SOURCE_DEDENT";
+        $lastindent--;
+        push @$source, "SOURCE_DEDENT";
 
 #---------------------------------------- 

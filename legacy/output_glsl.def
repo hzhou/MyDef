@@ -5,25 +5,25 @@ page: output_glsl
     init_mode: sub
     package: MyDef::output_glsl
     subcode: main
-	use MyDef::output_c;
+        use MyDef::output_c;
 
-	$sub get_interface
-	    return (\&init_page, \&parsecode, \&MyDef::output_c::set_output, \&MyDef::output_c::modeswitch, \&dumpout);
+        $sub get_interface
+            return (\&init_page, \&parsecode, \&MyDef::output_c::set_output, \&MyDef::output_c::modeswitch, \&dumpout);
 
-	$sub init_page
-	    my @ret = MyDef::output_c::init_page(@_)
-	    $call @on_init
-	    return @ret
+        $sub init_page
+            my @ret = MyDef::output_c::init_page(@_)
+            $call @on_init
+            return @ret
 
-	$sub parsecode($l)
-	    $call on_parsecode
-	    return MyDef::output_c::parsecode($l)
+        $sub parsecode($l)
+            $call on_parsecode
+            return MyDef::output_c::parsecode($l)
 
-	$sub dumpout($f, $out)
-	    $call @on_dumpout
-	    MyDef::output_c::dumpout($f, $out)
+        $sub dumpout($f, $out)
+            $call @on_dumpout
+            MyDef::output_c::dumpout($f, $out)
 
-	1;
+        1;
 
 subcode: on_init
     $MyDef::output_c::type_prefix{v}="vec4"
@@ -56,18 +56,18 @@ subcode: on_dumpout
     # ----  Main Function -------------------
     my $func=$MyDef::output_c::functions{"main"};
     $if $func
-	$func->{skip_declare}=1;
-	$func->{ret_type}="void";
-	$func->{param_list}=["void"];
-	$func->{init}=["DUMP_STUB main_init"];
-	$func->{finish}=["DUMP_STUB main_exit"];
+        $func->{skip_declare}=1;
+        $func->{ret_type}="void";
+        $func->{param_list}=["void"];
+        $func->{init}=["DUMP_STUB main_init"];
+        $func->{finish}=["DUMP_STUB main_exit"];
 
 subcode: on_parsecode
     $if $l=~/^\$(attribute|uniform|varying)\s*(.*)/
-	my $a=$1;
-	my @vlist=split /,\s+/, $2
-	my $ghash=$MyDef::output_c::global_hash
-	$foreach $v in @vlist
-	    MyDef::output_c::global_add_var($v)
-	    $ghash->[$v]="$a $v"
-	return
+        my $a=$1;
+        my @vlist=split /,\s+/, $2
+        my $ghash=$MyDef::output_c::global_hash
+        $foreach $v in @vlist
+            MyDef::output_c::global_add_var($v)
+            $ghash->[$v]="$a $v"
+        return

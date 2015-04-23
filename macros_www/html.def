@@ -10,18 +10,18 @@ subcode:: dumpout
 subcode: dumpmeta(block)
     my $charset=$page->{charset}
     $if !$charset
-	$charset="utf-8"
+        $charset="utf-8"
     my $title=$page->{title}
     $if !$title
-	$title=$page->{pagename}
+        $title=$page->{pagename}
     push @$(block), "<meta charset=\"$charset\">"
     push @$(block), "<title>$title</title>\n"
 
     my %sheet_hash;
     $foreach $s in @$style_sheets
-	$if !$sheet_hash{$s}
-	    $sheet_hash{$s}=1;
-	    push @$(block), "<link rel=\"stylesheet\" type=\"text/css\" href=\"$s\" />\n";
+        $if !$sheet_hash{$s}
+            $sheet_hash{$s}=1;
+            push @$(block), "<link rel=\"stylesheet\" type=\"text/css\" href=\"$s\" />\n";
 
     $if @style_key_list
         push @$(block), "<style>\n"
@@ -62,75 +62,75 @@ subcode: parsecode_html_tag
     $(set:list=ol|ul|li)
     $(set:misc=img|a|center|b|style)
     $if $func =~ /^(tag|$(block)|$(list)|$(table)|$(basic)|$(html)|$(form)|$(misc))$/
-	my @tt_list=split /,\s*/, $param
+        my @tt_list=split /,\s*/, $param
         $if $func ne "tag"
             unshift @tt_list, $func
         # ---- refer: deflib/perl/html.def ----
         my ($func, $attr, $quick_content)= parse_tag_attributes(\@tt_list)
 
-	my $P="PRINT-$cur_mode"
-	$if $func=~ /img|input/
-	    push @$out, "$P <$func$attr>"
-	$elif defined $quick_content
-	    push @$out, "$P <$func$attr>$quick_content</$func>"
-	$elif $func eq "pre"
-	    my @pre=("$P <$func$attr>", "PUSHDENT")
-	    my @post=("POPDENT", "$P </$func>")
-	    return single_block_pre_post(\@pre, \@post)
-	$else
-	    return single_block("$P <$func$attr>", "$P </$func>")
-	return 0
+        my $P="PRINT-$cur_mode"
+        $if $func=~ /img|input/
+            push @$out, "$P <$func$attr>"
+        $elif defined $quick_content
+            push @$out, "$P <$func$attr>$quick_content</$func>"
+        $elif $func eq "pre"
+            my @pre=("$P <$func$attr>", "PUSHDENT")
+            my @post=("POPDENT", "$P </$func>")
+            return single_block_pre_post(\@pre, \@post)
+        $else
+            return single_block("$P <$func$attr>", "$P </$func>")
+        return 0
 
 # ------------------------------------------------------------
 subcode: html_parse_func
     $if $func eq "include"
-	$if open my $in, $param
-	    my $omit=0;
-	    $while <$in>
-		$if /<!-- start omit -->/
-		    $omit=1;
-		$elsif $omit
-		    $if /<!-- end omit -->/
-			$omit=0;
-		    next
-		$elsif /(.*)<call>(\w+)<\/call>(.*)/
-		    my ($a, $b, $c)=($1, $2, $3);
-		    push @$out, $a;
-		    print "    call $b\n";
-		    MyDef::compileutil::call_sub($b);
-		    push @$out, $c;
-		$elsif /^\s*<\/HEAD>/i
-		    push @$out, "DUMP_STUB meta"
-		    push @$out, $_;
-		$else
-		    push @$out, $_;
-	    close $in;
-	$else
-	    warn " Can't open [$param]\n";
+        $if open my $in, $param
+            my $omit=0;
+            $while <$in>
+                $if /<!-- start omit -->/
+                    $omit=1;
+                $elsif $omit
+                    $if /<!-- end omit -->/
+                        $omit=0;
+                    next
+                $elsif /(.*)<call>(\w+)<\/call>(.*)/
+                    my ($a, $b, $c)=($1, $2, $3);
+                    push @$out, $a;
+                    print "    call $b\n";
+                    MyDef::compileutil::call_sub($b);
+                    push @$out, $c;
+                $elsif /^\s*<\/HEAD>/i
+                    push @$out, "DUMP_STUB meta"
+                    push @$out, $_;
+                $else
+                    push @$out, $_;
+            close $in;
+        $else
+            warn " Can't open [$param]\n";
 
 #---------------------------------------- 
 /*
 subcode: html_parsecode_other
     $if $l=~/\$(a|img|span)\[(.*?)\](\{(.*?)\})?/
-	my $t
-	$if $1 eq "a" or $1 eq "link"
-	    $t=html_link($2, $4)
-	$elif $1 eq "img"
-	    $t="<img src=\"$2\">"
-	$elif $1 eq "span"
-	    $t="<span class=\"$2\">$3</span>"
-	$l=$`.$t.$';
+        my $t
+        $if $1 eq "a" or $1 eq "link"
+            $t=html_link($2, $4)
+        $elif $1 eq "img"
+            $t="<img src=\"$2\">"
+        $elif $1 eq "span"
+            $t="<span class=\"$2\">$3</span>"
+        $l=$`.$t.$';
 
 subcode:: support_subs
     $sub html_link($text, $url)
-	$if $url
-	    return "<a href=\"$url\">$text</a>"
-	$else
-	    return "<a href=\"$text\">$text</a>"
+        $if $url
+            return "<a href=\"$url\">$text</a>"
+        $else
+            return "<a href=\"$text\">$text</a>"
 
     $sub html_img($src, $attr)
-	$if !$attr
-	    return "<img src=\"$src\">"
-	$else
-	    return "<img src=\"$src\" $attr>"
+        $if !$attr
+            return "<img src=\"$src\">"
+        $else
+            return "<img src=\"$src\" $attr>"
 */

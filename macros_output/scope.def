@@ -1,15 +1,15 @@
 #---------------------------------------- 
 subcode: parsecode_scope
     $case $l=~/^SUBBLOCK BEGIN (\d+) (.*)/
-	# my ($blk_idx, $scope_name)=($1, $2)
-	open_scope($1, $2)
-	return
+        # my ($blk_idx, $scope_name)=($1, $2)
+        open_scope($1, $2)
+        return
     $case $l=~/^SUBBLOCK END (\d+) (.*)/
-	# my ($blk_idx, $scope)=($1, $2)
-	$if $out->[-1]=~/^(return|break)/
-	    $cur_scope->{return}=pop @$out
-	close_scope()
-	return
+        # my ($blk_idx, $scope)=($1, $2)
+        $if $out->[-1]=~/^(return|break)/
+            $cur_scope->{return}=pop @$out
+        close_scope()
+        return
 
 subcode:: _autoload
     $global @scope_stack, $cur_scope, $global_scope
@@ -18,41 +18,41 @@ subcode:: _autoload
     push @scope_stack, $global_scope
 
     $sub open_scope($blk_idx, $scope_name)
-	push @scope_stack, $cur_scope
-	$cur_scope={var_list=>[], var_hash=>{}, name=>$scope_name}
+        push @scope_stack, $cur_scope
+        $cur_scope={var_list=>[], var_hash=>{}, name=>$scope_name}
 
     $sub close_scope($blk, $pre, $post)
-	$if !$blk
-	    $blk=$cur_scope
+        $if !$blk
+            $blk=$cur_scope
 
-	$call @process_close_scope
+        $call @process_close_scope
 
-	$if $blk->{return}
-	    $if !$post
-		$post=MyDef::compileutil::get_named_block("_post")
-	    push @$post, $blk->{return}
+        $if $blk->{return}
+            $if !$post
+                $post=MyDef::compileutil::get_named_block("_post")
+            push @$post, $blk->{return}
 
-	$cur_scope=pop @scope_stack
+        $cur_scope=pop @scope_stack
 
     $sub find_var($name)
-	$call debug_scopes
-	$if $cur_scope->{var_hash}->{$name}
-	    return $cur_scope->{var_hash}->{$name}
+        $call debug_scopes
+        $if $cur_scope->{var_hash}->{$name}
+            return $cur_scope->{var_hash}->{$name}
 
-	$for $i=$#scope_stack:0:-1
-	    $if $scope_stack[$i]->{var_hash}->{$name}
-		return $scope_stack[$i]->{var_hash}->{$name}
-	return undef
+        $for $i=$#scope_stack:0:-1
+            $if $scope_stack[$i]->{var_hash}->{$name}
+                return $scope_stack[$i]->{var_hash}->{$name}
+        return undef
 
 subcode: debug_scopes
     $if $debug eq "type"
-	$call debug_scope, $cur_scope, cur_scope
-	$for $i=$#scope_stack:0:-1
-	    $call debug_scope, $scope_stack[$i], scope $i
+        $call debug_scope, $cur_scope, cur_scope
+        $for $i=$#scope_stack:0:-1
+            $call debug_scope, $scope_stack[$i], scope $i
 
 subcode: debug_scope(scope, name)
     print "  $(name)\[$(scope)->{name}]: "
     $foreach $v in @{$(scope)->{var_list}}
-	print "$v, "
+        print "$v, "
     print "\n"
 

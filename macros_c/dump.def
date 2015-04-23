@@ -5,7 +5,7 @@ subcode: c_dump_init
     unshift @$global_init, "INCLUDE_BLOCK block_init"
 
     $if %objects
-	push @dump_init, "/* link: $lib_list $obj_list */\n"
+        push @dump_init, "/* link: $lib_list $obj_list */\n"
 
     my $dump_out=\@dump_init
     $call dump_includes
@@ -23,8 +23,8 @@ subcode: c_dump_init
 subcode: dump_classes
     $global $dump_classes
     $if $dump_classes
-	$foreach $l in @$dump_classes
-	    push @$dump_out, $l
+        $foreach $l in @$dump_classes
+            push @$dump_out, $l
 
 # ---- Includes ----
 subcode:: c_init
@@ -37,20 +37,20 @@ subcode:: c_init
 fncode: add_include($l)
     my @flist=split /,\s*/, $l
     $foreach $f in @flist
-	my $key
-	$if $f=~/\.\w+$/
-	    $key="\"$f\""
+        my $key
+        $if $f=~/\.\w+$/
+            $key="\"$f\""
         $elif $f=~/^[A-Z_]+/
             # e.g. freetype2 #include FT_FREETYPE_H
             $key=$f
-	$elif $f=~/^".*"$/
-	    $key=$f
-	$elif $f=~/^<.*>$/
-	    $key=$f
-	$elif $f=~/^\S+$/
-	    $key="<$f.h>"
-	$else
-	    $key=$f
+        $elif $f=~/^".*"$/
+            $key=$f
+        $elif $f=~/^<.*>$/
+            $key=$f
+        $elif $f=~/^\S+$/
+            $key="<$f.h>"
+        $else
+            $key=$f
         $if !$includes{$key}
             $includes{$key}=1
             push @include_list, $key
@@ -58,10 +58,10 @@ fncode: add_include($l)
 subcode: dump_includes
     my $cnt=0
     $foreach $k in @include_list
-	push @$dump_out, "#include $k\n";
-	$cnt++
+        push @$dump_out, "#include $k\n";
+        $cnt++
     $if $cnt>0
-	push @$dump_out, "\n";
+        push @$dump_out, "\n";
 
 # ---- Defines ----
 subcode:: c_init
@@ -80,15 +80,15 @@ fncode: add_define($name, $var)
 subcode: dump_defines
     my $cnt=0
     $if $page->{use_bool}
-	push @$dump_out, "typedef int bool;\n"
-	push @$dump_out, "#define true 1\n"
-	push @$dump_out, "#define false 0\n"
-	$cnt++
+        push @$dump_out, "typedef int bool;\n"
+        push @$dump_out, "#define true 1\n"
+        push @$dump_out, "#define false 0\n"
+        $cnt++
     $foreach $k in @define_list
-	$call dump_define, $k
-	$cnt++
+        $call dump_define, $k
+        $cnt++
     $if $cnt>0
-	push @$dump_out, "\n";
+        push @$dump_out, "\n";
 
 subcode: dump_define(k)
     push @$dump_out, "#define $(k) $defines{$(k)}\n";
@@ -110,16 +110,16 @@ subcode:: support_subs
 
 subcode: dump_typedefs
     $if @typedef_list
-	$foreach $k in @typedef_list
-	    $call dump_typedef, $k
-	push @$dump_out, "\n";
+        $foreach $k in @typedef_list
+            $call dump_typedef, $k
+        push @$dump_out, "\n";
 
 subcode: dump_typedef(k)
     my $t=$typedef_hash{$(k)}
     $if $t=~/\(\*\s*(\w+)\)/
-	push @$dump_out, "typedef $t;"
+        push @$dump_out, "typedef $t;"
     $else
-	push @$dump_out, "typedef $t $(k);"
+        push @$dump_out, "typedef $t $(k);"
 
 # ---- Enums ----
 subcode:: c_init
@@ -130,28 +130,28 @@ subcode:: c_init
 subcode: dump_enums
     my $cnt=0
     $foreach $name in @enum_list
-	my $t=$enums{$name};
-	$if $name=~/^ANONYMOUS/
-	    push @$dump_out, "enum {$t};\n";
-	$elif $name=~/^,\s*(\w+)/ 
-	    push @$dump_out, "enum {$t} $1;\n";
-	$else
-	    push @$dump_out, "enum $name {$t};\n";
-	$cnt++
+        my $t=$enums{$name};
+        $if $name=~/^ANONYMOUS/
+            push @$dump_out, "enum {$t};\n";
+        $elif $name=~/^,\s*(\w+)/ 
+            push @$dump_out, "enum {$t} $1;\n";
+        $else
+            push @$dump_out, "enum $name {$t};\n";
+        $cnt++
     $if $cnt>0
-	push @$dump_out, "\n";
+        push @$dump_out, "\n";
 
 # ---- Global Variables ----
 subcode: dump_globals
     my $cnt=0
     $foreach $name in @$global_list
-	my $v=$global_hash->{$name}
-	my $decl=var_declare($v)
-	$if $decl
-	    push @$dump_out, "$decl;\n";
-	$cnt++
+        my $v=$global_hash->{$name}
+        my $decl=var_declare($v)
+        $if $decl
+            push @$dump_out, "$decl;\n";
+        $cnt++
     $if $cnt>0
-	push @$dump_out, "\n";
+        push @$dump_out, "\n";
 
 #---- Function Delcares ----
 subcode:: c_init
@@ -161,12 +161,12 @@ subcode:: c_init
 subcode: dump_function_declares
     my $cnt=0
     $foreach $t in @function_declare_list
-	my $func=$functions{$t}
-	$if !$func->{skip_declare}
-	    $call declare, $func
-	    $cnt++
+        my $func=$functions{$t}
+        $if !$func->{skip_declare}
+            $call declare, $func
+            $cnt++
     $if $cnt>0
-	push @$dump_out, "\n";
+        push @$dump_out, "\n";
 
     # ---------------------
     subcode: declare(k)
@@ -184,11 +184,11 @@ subcode:: do_declare(param)
 
 subcode: dump_declares
     $foreach $l in @declare_list
-	$if $l!~/;\s*$/
-	    $l.=";"
-	push @$dump_out, "$l\n";
+        $if $l!~/;\s*$/
+            $l.=";"
+        push @$dump_out, "$l\n";
     $if @declare_list
-	push @$dump_out, "\n";
+        push @$dump_out, "\n";
 
 # ---- Structures ----
 subcode:: c_init
@@ -229,31 +229,31 @@ subcode: dump_structs
 subcode: dump_structs_functions
     my $cnt=0
     $foreach $name in @struct_list
-	my ($param, $init)=get_struct_constructor($name)
-	$if defined $init
-	    $if !@$param
-		push @$dump_out, "void $name\_constructor(struct $name* p){\n";
-	    $else
-		my $param_line=join(", ", @$param)
-		push @$dump_out, "void $name\_constructor(struct $name* p, $param_line){\n";
+        my ($param, $init)=get_struct_constructor($name)
+        $if defined $init
+            $if !@$param
+                push @$dump_out, "void $name\_constructor(struct $name* p){\n";
+            $else
+                my $param_line=join(", ", @$param)
+                push @$dump_out, "void $name\_constructor(struct $name* p, $param_line){\n";
 
-	    $foreach $l in @$init
-		push @$dump_out, "    p->$l;\n"
-	    push @$dump_out, "}\n";
-	    $cnt++
-	#------------------------------
-	my $s_list=$structs{$name}->{list}
-	my $s_hash=$structs{$name}->{hash}
-	my $s_exit=$s_hash->{"-exit"}
-	$if $s_exit and @$s_exit
-	    push @$dump_out, "void $name\_destructor(struct $name* p){\n";
-	    $foreach $l in @$s_exit
-		push @$dump_out, "    $l\n";
-	    push @$dump_out, "}\n";
-	    $cnt++
-	# ------------------------
+            $foreach $l in @$init
+                push @$dump_out, "    p->$l;\n"
+            push @$dump_out, "}\n";
+            $cnt++
+        #------------------------------
+        my $s_list=$structs{$name}->{list}
+        my $s_hash=$structs{$name}->{hash}
+        my $s_exit=$s_hash->{"-exit"}
+        $if $s_exit and @$s_exit
+            push @$dump_out, "void $name\_destructor(struct $name* p){\n";
+            $foreach $l in @$s_exit
+                push @$dump_out, "    $l\n";
+            push @$dump_out, "}\n";
+            $cnt++
+        # ------------------------
     $if $cnt>0
-	push @$dump_out, "\n";
+        push @$dump_out, "\n";
 
 # ---- Init codes ----
 subcode:: c_init
@@ -262,7 +262,7 @@ subcode:: c_init
 
 subcode: dump_code_list
     $foreach my $l in @initcodes
-	push @$dump_out, "$l\n";
+        push @$dump_out, "$l\n";
     $if @initcodes
-	push @$dump_out, "\n";
+        push @$dump_out, "\n";
 

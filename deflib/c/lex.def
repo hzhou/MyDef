@@ -38,11 +38,11 @@ subcode: sub_input(vs, ve)
 subcode: match_char_sub(cond)
     $call input_get_c, tn_c
     $if $(cond)
-	return 1
+        return 1
     $else
-	$if tn_c>0
-	    $call input_back_c
-	return 0
+        $if tn_c>0
+            $call input_back_c
+        return 0
 
 #----
 fncode: match_char(tn_char)
@@ -62,22 +62,22 @@ subcode: match_keyword_sub(notcond)
     $(set:isword=(isalnum(tn_c)||tn_c=='_'))
     $(set:isword2=(isalnum(tn_c2)||tn_c2=='_'))
     $while 1
-	$call input_get_c, tn_c
-	$if $(notcond)
+        $call input_get_c, tn_c
+        $if $(notcond)
             input->n_pos=input->s[0]
-	    return false
-	s_key++
-	$if !*s_key
+            return false
+        s_key++
+        $if !*s_key
             #-- check word boundary
-	    $call input_get_c, tn_c2
-	    $if tn_c2<=0
-		return true
-	    $elif $(isword) && !$(isword2) || !$(isword) 
-		$call input_back_c
-		return true
-	    $else
-		input->n_pos=input->s[0]
-		return false
+            $call input_get_c, tn_c2
+            $if tn_c2<=0
+                return true
+            $elif $(isword) && !$(isword2) || !$(isword) 
+                $call input_back_c
+                return true
+            $else
+                input->n_pos=input->s[0]
+                return false
 
 fncode: match_keyword(s_key)
     lexical: input
@@ -95,8 +95,8 @@ fncode: match_eof
     $return_type bool
     $call input_get_c, tn_c
     $if tn_c<=0 && input->n_pos>=input->n_end
-	return 1
+        return 1
     $else
-	$call input_back_c
-	return 0
+        $call input_back_c
+        return 0
 

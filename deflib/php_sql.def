@@ -1,60 +1,60 @@
 
 phpcode: mysqlerror
     $if mysql_errno()
-	$errors[]='Database: '.mysql_error()
+        $errors[]='Database: '.mysql_error()
     $else
-	$errors[]='Database: '.$php_errormsg
+        $errors[]='Database: '.$php_errormsg
 
 phpcode: database_start
     $if $dbhost
-	$if empty($db0)
-	    $db0=mysql_connect($dbhost, $dbuser, $dbpass)
-	    $if !$db0
-		$call mysqlerror
-	    mysql_select_db($dbname);
+        $if empty($db0)
+            $db0=mysql_connect($dbhost, $dbuser, $dbpass)
+            $if !$db0
+                $call mysqlerror
+            mysql_select_db($dbname);
 
 phpcode: sqlexec
     $r=mysql_query($sql)
     $if !$r
-	$infos[]="errsql: $sql";
-	$tpage=addslashes($_SERVER["PHP_SELF"]);
-	$tsql=addslashes($sql);
-	mysql_query("INSERT INTO log_errsql (errsql, page) VALUES ('$tsql', '$tpage'");
-	$errors[]="Database Error.";
+        $infos[]="errsql: $sql";
+        $tpage=addslashes($_SERVER["PHP_SELF"]);
+        $tsql=addslashes($sql);
+        mysql_query("INSERT INTO log_errsql (errsql, page) VALUES ('$tsql', '$tpage'");
+        $errors[]="Database Error.";
 
 ## ---------------------------------------------------------------------
 phpcode: sql_fetch_count
     $if $r
-	$row=mysql_fetch_row($r)
-	$count=$row[0]
+        $row=mysql_fetch_row($r)
+        $count=$row[0]
 
 phpcode: sql_fetch_list
     $if $r
-	$itemlist=array()
-	$while $row=mysql_fetch_row($r)
-	    $i=array()
-	    BLOCK
-	    $itemlist[]=$i
+        $itemlist=array()
+        $while $row=mysql_fetch_row($r)
+            $i=array()
+            BLOCK
+            $itemlist[]=$i
 
 phpcode: sql_fetch_array(var)
     $if $r
-	$(var)=array()
-	$while $row=mysql_fetch_row($r)
-	    $(var)[]=$row[0]
+        $(var)=array()
+        $while $row=mysql_fetch_row($r)
+            $(var)[]=$row[0]
 
 phpcode: sql_fetch_hash(var)
     $if $r
-	$(var)=array()
-	$while $row=mysql_fetch_row($r)
-	    $(var)[$row[0]]=$row[1]
+        $(var)=array()
+        $while $row=mysql_fetch_row($r)
+            $(var)[$row[0]]=$row[1]
 
 phpcode: sql_fetch_one
     $empty=1
     $if $r
-	$row=mysql_fetch_row($r)
-	$if $row
-	    $empty=0
-	    BLOCK
+        $row=mysql_fetch_row($r)
+        $if $row
+            $empty=0
+            BLOCK
 
 phpcode: sql_fetch_list_i(name, i)
     $i['$(name)']=$row[$(i)]
@@ -68,37 +68,37 @@ phpcode:: _autoload
 
 perlcode: sqlrun
     $if $param=~/(UPDATE\s+\S+\s+SET)\s+(.*?)\s+(WHERE\s.*)/i
-	my ($action, $param, $where)=($1, $2, $3)
-	$call sql_update
+        my ($action, $param, $where)=($1, $2, $3)
+        $call sql_update
     $elsif $param=~/((INSERT|INSERT IGNORE|REPLACE)\s+INTO\s+\S+\s+)([^\(].*)/i
-	my ($action, $param)=($1, $3)
-	$call sql_insert
+        my ($action, $param)=($1, $3)
+        $call sql_insert
     $elsif $param=~/(SELECT_COUNT FROM\s.*)/i
-	push @$out, "\$sql=\"$1\";";
-	MyDef::compileutil::call_sub("sqlexec")
-	MyDef::compileutil::call_sub("sql_fetch_count")
+        push @$out, "\$sql=\"$1\";";
+        MyDef::compileutil::call_sub("sqlexec")
+        MyDef::compileutil::call_sub("sql_fetch_count")
     $elsif $param=~/SELECT(\w*)\s+(.*?)\s+(FROM\s.*)/i
-	my ($type, $param, $where)=($1, $2, $3)
-	$call sql_select
+        my ($type, $param, $where)=($1, $2, $3)
+        $call sql_select
     $else
-	push @$out, "\$sql=\"$param\";";
-	MyDef::compileutil::call_sub("sqlexec")
+        push @$out, "\$sql=\"$param\";";
+        MyDef::compileutil::call_sub("sqlexec")
 
 perlcode: sql_parse_var(f)
     my ($varname, $colname)=($(f), $(f))
     $if $(f)=~/^([^(]*)\((.*)\)$/
-	$varname=$1
-	$colname=$2
+        $varname=$1
+        $colname=$2
 
 perlcode: sql_update
     my @sqlsegs
     $foreach $f in split /,\s*/, $param
-	$if $f=~/(.*)=(.*)/
-	    push @sqlsegs, $f;
-	$else
-	    $call sql_parse_var, $f
-	    my $sqlval=sql_value($varname, $colname)
-	    push @sqlsegs, "$colname=$sqlval"
+        $if $f=~/(.*)=(.*)/
+            push @sqlsegs, $f;
+        $else
+            $call sql_parse_var, $f
+            my $sqlval=sql_value($varname, $colname)
+            push @sqlsegs, "$colname=$sqlval"
     push @$out, "\$sql = \"$action ".join(', ', @sqlsegs)." $where\";"
     MyDef::compileutil::call_sub("sqlexec")
 
@@ -106,14 +106,14 @@ perlcode: sql_insert
     my @sqlnames
     my @sqlsegs
     $foreach $f in split /,\s*/, $param
-	$if $f=~/(.*)=(.*)/
-	    push @sqlnames, $1
-	    push @sqlsegs, $2
-	$else
-	    $call sql_parse_var, $f
-	    my $sqlval=sql_value($varname, $colname)
-	    push @sqlnames, $colname
-	    push @sqlsegs, $sqlval
+        $if $f=~/(.*)=(.*)/
+            push @sqlnames, $1
+            push @sqlsegs, $2
+        $else
+            $call sql_parse_var, $f
+            my $sqlval=sql_value($varname, $colname)
+            push @sqlnames, $colname
+            push @sqlsegs, $sqlval
     push @$out, "\$sql = \"$action (".join(', ', @sqlnames).") VALUES (".join(', ', @sqlsegs).")\";";
     MyDef::compileutil::call_sub("sqlexec")
 
@@ -121,9 +121,9 @@ perlcode: sql_select_exec
     my @sqlnames
     my @varnames
     $foreach $f in split /,\s*/, $param
-	$call sql_parse_var, $f
-	push @sqlnames, $colname
-	push @varnames, $varname
+        $call sql_parse_var, $f
+        push @sqlnames, $colname
+        push @varnames, $varname
     push @$out, "\$sql = \"SELECT ".join(', ', @sqlnames). " $where\";";
     MyDef::compileutil::call_sub("sqlexec")
 
@@ -131,24 +131,24 @@ perlcode: sql_select
     $call sql_select_exec
     my $fetchtype
     $if $type eq "_LIST"
-	$fetchtype="list"
+        $fetchtype="list"
     $elif $type eq "_ARRAY"
-	$if @sqlnames!=1
-	    warn "SELECT_ARRAY with more than one columns!\n"
-	my $var='$'.$varnames[0]."_list"
-	MyDef::compileutil::call_sub("sql_fetch_array, $var")
+        $if @sqlnames!=1
+            warn "SELECT_ARRAY with more than one columns!\n"
+        my $var='$'.$varnames[0]."_list"
+        MyDef::compileutil::call_sub("sql_fetch_array, $var")
     $elif $type eq "_HASH"
-	$if @sqlnames!=2
-	    warn "SELECT_HASH not with two columns!\n"
-	my $var='$'.$varnames[1]."_list"
-	MyDef::compileutil::call_sub("sql_fetch_hash, $var")
+        $if @sqlnames!=2
+            warn "SELECT_HASH not with two columns!\n"
+        my $var='$'.$varnames[1]."_list"
+        MyDef::compileutil::call_sub("sql_fetch_hash, $var")
     $else
-	$fetchtype="one"
+        $fetchtype="one"
     $if $fetchtype
-	my @subblock
-	$for $i=0:@sqlnames
-	    push @subblock, "\$call sql_fetch_$fetchtype\_i, $varnames[$i], $i"
-	MyDef::compileutil::call_back("sql_fetch_$fetchtype", \@subblock)
+        my @subblock
+        $for $i=0:@sqlnames
+            push @subblock, "\$call sql_fetch_$fetchtype\_i, $varnames[$i], $i"
+        MyDef::compileutil::call_back("sql_fetch_$fetchtype", \@subblock)
 
 # ---------------------------------------------------------------------
 perlcode: sql_createtable
@@ -163,215 +163,215 @@ perlcode: sql_createtable
     push @out,  "DROP TABLE IF EXISTS $name;\n";
     push @out,  "CREATE TABLE $name (\n";
     if($table->{useid}){
-	push @out,  "\tid INT UNSIGNED NOT NULL AUTO_INCREMENT,\n";
-	push @out,  "\tPRIMARY KEY (id),\n";
+        push @out,  "\tid INT UNSIGNED NOT NULL AUTO_INCREMENT,\n";
+        push @out,  "\tPRIMARY KEY (id),\n";
     }
     if($table->{timestamp}){
-	push @out, "\ttimestamp TIMESTAMP,\n";
+        push @out, "\ttimestamp TIMESTAMP,\n";
     }
     my $unique;
     if($table->{unique}){
-	my @list=split /,\s*/, $table->{unique};
-	push @out, "\tUNIQUE (".join(", ", @list)."),\n";
+        my @list=split /,\s*/, $table->{unique};
+        push @out, "\tUNIQUE (".join(", ", @list)."),\n";
     }
     if($table->{fulltext}){
-	push @out, "\tFULLTEXT (".$table->{fulltext}."),\n";
+        push @out, "\tFULLTEXT (".$table->{fulltext}."),\n";
     }
     if($table->{key}){
-	my @list=split /,\s*/, $table->{key};
-	push @out, "\tPRIMARY KEY (".join(", ", @list)."),\n";
+        my @list=split /,\s*/, $table->{key};
+        push @out, "\tPRIMARY KEY (".join(", ", @list)."),\n";
     }
     if($table->{insertdate}){
-	push @out, "\tdate_inserted DATE,\n";
+        push @out, "\tdate_inserted DATE,\n";
     }
     foreach my $f (@$flist){
-	my $size=50;
-	my $type;
-	my $defname=$f;
-	my $colname=$f;
-	if($f=~/(\w+)\((\w+)\)/){
-	    $defname=$1;
-	    $colname=$2;
-	}
-	elsif($f=~/$name\_(\w+)/){
-	    $defname=$f;
-	    $colname=$1;
-	}
-	push @out,  "\t$colname ";
-	my $ff=$fields->{$defname};
-	$type=getfieldtype($ff, $colname);
-	$size=getfieldsize($ff, $type);
-	if($type eq "password"){
-	    push @out,  "VARCHAR($size) BINARY";
-	}
-	elsif($type eq "datetime"){
-	    push @out,  "DATETIME";
-	}
-	elsif($type eq "curdate"){
-	    push @out,  "DATE";
-	}
-	elsif($type eq "money"){
-	    push @out,  "DECIMAL(10, 2)";
-	}
-	elsif($type eq "uint"){
-	    push @out,  "INT UNSIGNED";
-	}
-	elsif($type){
-	    push @out, uc($type);
-	}
-	else{
-	    push @out,  "VARCHAR($size)";
-	}
-	if($ff->{notnull}){push @out, " NOT NULL";}
-	if(defined $ff->{default}){
-	    push @out, " DEFAULT $ff->{default}";
-	}
-	if($f eq $lastf){
-	    if($unique){
-		push @out, ",\n\t$unique\n);\n";
-	    }
-	    else{
-		push @out,  "\n);\n";
-	    }
-	}
-	else{
-	    push @out,  ",\n";
-	}
+        my $size=50;
+        my $type;
+        my $defname=$f;
+        my $colname=$f;
+        if($f=~/(\w+)\((\w+)\)/){
+            $defname=$1;
+            $colname=$2;
+        }
+        elsif($f=~/$name\_(\w+)/){
+            $defname=$f;
+            $colname=$1;
+        }
+        push @out,  "\t$colname ";
+        my $ff=$fields->{$defname};
+        $type=getfieldtype($ff, $colname);
+        $size=getfieldsize($ff, $type);
+        if($type eq "password"){
+            push @out,  "VARCHAR($size) BINARY";
+        }
+        elsif($type eq "datetime"){
+            push @out,  "DATETIME";
+        }
+        elsif($type eq "curdate"){
+            push @out,  "DATE";
+        }
+        elsif($type eq "money"){
+            push @out,  "DECIMAL(10, 2)";
+        }
+        elsif($type eq "uint"){
+            push @out,  "INT UNSIGNED";
+        }
+        elsif($type){
+            push @out, uc($type);
+        }
+        else{
+            push @out,  "VARCHAR($size)";
+        }
+        if($ff->{notnull}){push @out, " NOT NULL";}
+        if(defined $ff->{default}){
+            push @out, " DEFAULT $ff->{default}";
+        }
+        if($f eq $lastf){
+            if($unique){
+                push @out, ",\n\t$unique\n);\n";
+            }
+            else{
+                push @out,  "\n);\n";
+            }
+        }
+        else{
+            push @out,  ",\n";
+        }
     }
     # initialization
     if($table->{initlist}){
-	my @values=split /,\s*/, $table->{initlist};
-	my $f=$flist->[0];
-	my $ff=$fields->{$f};
-	$type=getfieldtype($ff, $colname);
-	$size=getfieldsize($ff, $type);
-	foreach my $v (@values){
-	    push @out, "INSERT INTO $name ($f) VALUES (".sql_quote($type, $v).");\n";
-	}
-	push @out,  "\n";
+        my @values=split /,\s*/, $table->{initlist};
+        my $f=$flist->[0];
+        my $ff=$fields->{$f};
+        $type=getfieldtype($ff, $colname);
+        $size=getfieldsize($ff, $type);
+        foreach my $v (@values){
+            push @out, "INSERT INTO $name ($f) VALUES (".sql_quote($type, $v).");\n";
+        }
+        push @out,  "\n";
     }
     elsif($table->{init}){
-	my $tlist=$table->{init};
-	my $insert_a="INSERT INTO $name (". join(", ", @$flist).") VALUES ";
-	foreach my $init_line (@$tlist){
-	    my @l=split /,\s*/, $init_line;
-	    push @out, $insert_a."('".join("', '", @l)."');\n";
-	}
+        my $tlist=$table->{init};
+        my $insert_a="INSERT INTO $name (". join(", ", @$flist).") VALUES ";
+        foreach my $init_line (@$tlist){
+            my @l=split /,\s*/, $init_line;
+            push @out, $insert_a."('".join("', '", @l)."');\n";
+        }
     }
     return join '', @out;
 }
 
 phpcode: old
     sub sql_quote {
-	my ($type, $v)=@_;
-	if($type =~/int|DATE/i){
-	    return $v;
-	}
-	else{
-	    return "'$v'";
-	}
+        my ($type, $v)=@_;
+        if($type =~/int|DATE/i){
+            return $v;
+        }
+        else{
+            return "'$v'";
+        }
     }
 
     sub display_list_field {
-	my ($out, $f, $fields, $suffix, $csv)=@_;
-	my $colname;
-	$if $f=~/(.*)\((.*)\)/
-	    $colname=$2;
-	    $f=$1;
-	$else
-	    $colname=$f;
-	my $ff=$fields->{$f};
-	my $display;
-	$if $csv and $ff->{text_display}
-	    $display=$ff->{text_display}
-	$elsif $ff->{display}
-	    $display=$ff->{display}
+        my ($out, $f, $fields, $suffix, $csv)=@_;
+        my $colname;
+        $if $f=~/(.*)\((.*)\)/
+            $colname=$2;
+            $f=$1;
+        $else
+            $colname=$f;
+        my $ff=$fields->{$f};
+        my $display;
+        $if $csv and $ff->{text_display}
+            $display=$ff->{text_display}
+        $elsif $ff->{display}
+            $display=$ff->{display}
 
-	$if $display
-	    $if $display=~/function (\w+)\((.*)\)/
-		my $t0=$1;
-		my $t1=$2;
-		$t1=~s/\$\(colname\)/$colname/g;
-		push @$out, "    $t0($t1);";
-	    $elsif $display=~/function (\w+)/
-		push @$out, "    $1(\$i$suffix);";
-	    $elsif $display=~/call\s+(.*)/
-		MyDef::compileutil::call_sub($1);
-	    $elsif $display=~/do\s+(.*)/
-		push @$out, "    $1;";
-	    $else
-		my @tt;
-		$display=~s/"/\\"/g;
-		$while $display=~/\$\[(.*?)\]/
-		    push @tt, "\"$`\"";
-		    push @tt, "\$i$suffix\['$1'\]";
-		    $display=$';
-		push @tt, "\"$display\"";
-		push @$out, "        print ".join('.',@tt).";";
-	$elsif $ff->{type} eq "boolean" and $ff->{list}
-	    @l=split /,\s*/, $ff->{list};
-	    push @$out, "if(\$i$suffix\['$f']){";
-	    push @$out, "    print \"$l[0]\";";
-	    push @$out, "}else{";
-	    push @$out, "    print \"$l[1]\";";
-	    push @$out, "}"
-	$else
-	    $listname=getfieldlistname($ff, $f);
-	    if($listname){
-		push @$out, "if(!empty(\$$listname) and array_key_exists(\$i$suffix\['$f'], \$$listname)){";
-		push @$out, "    print \$$listname\[\$i$suffix\['$f']];";
-		push @$out, "}else{";
-		push @$out, "    print \$i$suffix\['$f'];";
-		push @$out, "}"
-	    }
-	    else{
-		if($f=~/^\$/){
-		    push @$out, "        print \$i$suffix\[$f];";
-		}
-		else{
-		    push @$out, "        print \$i$suffix\['$f'];";
-		}
-	    }
-	$if $csv
-	    push @$out, "PRINT , "
+        $if $display
+            $if $display=~/function (\w+)\((.*)\)/
+                my $t0=$1;
+                my $t1=$2;
+                $t1=~s/\$\(colname\)/$colname/g;
+                push @$out, "    $t0($t1);";
+            $elsif $display=~/function (\w+)/
+                push @$out, "    $1(\$i$suffix);";
+            $elsif $display=~/call\s+(.*)/
+                MyDef::compileutil::call_sub($1);
+            $elsif $display=~/do\s+(.*)/
+                push @$out, "    $1;";
+            $else
+                my @tt;
+                $display=~s/"/\\"/g;
+                $while $display=~/\$\[(.*?)\]/
+                    push @tt, "\"$`\"";
+                    push @tt, "\$i$suffix\['$1'\]";
+                    $display=$';
+                push @tt, "\"$display\"";
+                push @$out, "        print ".join('.',@tt).";";
+        $elsif $ff->{type} eq "boolean" and $ff->{list}
+            @l=split /,\s*/, $ff->{list};
+            push @$out, "if(\$i$suffix\['$f']){";
+            push @$out, "    print \"$l[0]\";";
+            push @$out, "}else{";
+            push @$out, "    print \"$l[1]\";";
+            push @$out, "}"
+        $else
+            $listname=getfieldlistname($ff, $f);
+            if($listname){
+                push @$out, "if(!empty(\$$listname) and array_key_exists(\$i$suffix\['$f'], \$$listname)){";
+                push @$out, "    print \$$listname\[\$i$suffix\['$f']];";
+                push @$out, "}else{";
+                push @$out, "    print \$i$suffix\['$f'];";
+                push @$out, "}"
+            }
+            else{
+                if($f=~/^\$/){
+                    push @$out, "        print \$i$suffix\[$f];";
+                }
+                else{
+                    push @$out, "        print \$i$suffix\['$f'];";
+                }
+            }
+        $if $csv
+            push @$out, "PRINT , "
     }
     # list $itemlist in a csv 
     #      accepts a fieldlist of column definitions.
     #
     sub csvlist {
-	my ($out, $listname, $full, $suffix)=@_;
-	#$full Print table header row.
-	my $fields=$MyDef::def->{fields};
-	my $table=$MyDef::def->{fieldsets}->{$listname};
-	my $flist;
-	if(!$table){
-	    @$flist=split /,\s*/, $listname;
-	}
-	else{
-	    $flist=$table->{fields};
-	}
-	if($full){
-	    foreach my $f (@$flist){
-		if($f=~/(.*)\((.*)\)/){
-		    $colname=$2;
-		    $f=$1;
-		}
-		my $ff=$fields->{$f};
+        my ($out, $listname, $full, $suffix)=@_;
+        #$full Print table header row.
+        my $fields=$MyDef::def->{fields};
+        my $table=$MyDef::def->{fieldsets}->{$listname};
+        my $flist;
+        if(!$table){
+            @$flist=split /,\s*/, $listname;
+        }
+        else{
+            $flist=$table->{fields};
+        }
+        if($full){
+            foreach my $f (@$flist){
+                if($f=~/(.*)\((.*)\)/){
+                    $colname=$2;
+                    $f=$1;
+                }
+                my $ff=$fields->{$f};
 
-		my $title=$f;
-		if($ff->{title}){$title=$ff->{title};}
-		push @$out, "PRINT $title, ";
-	    }
-	    push @$out, "PRINTLN ";
-	}
-	push @$out, "\$j$suffix=0;";
-	push @$out, "foreach(\$itemlist$suffix as \$i$suffix){";
-	foreach my $f (@$flist){
-	    display_list_field($out, $f, $fields, $suffix, "csv");
-	}
-	push @$out, "PRINTLN ";
-	push @$out, "    \$j$suffix++;";
-	push @$out, "}";
+                my $title=$f;
+                if($ff->{title}){$title=$ff->{title};}
+                push @$out, "PRINT $title, ";
+            }
+            push @$out, "PRINTLN ";
+        }
+        push @$out, "\$j$suffix=0;";
+        push @$out, "foreach(\$itemlist$suffix as \$i$suffix){";
+        foreach my $f (@$flist){
+            display_list_field($out, $f, $fields, $suffix, "csv");
+        }
+        push @$out, "PRINTLN ";
+        push @$out, "    \$j$suffix++;";
+        push @$out, "}";
     }
 
     #-----------------------------------------#
@@ -379,357 +379,357 @@ phpcode: old
     #      accepts a fieldlist of column definitions.
     #
     $sub tablelist($out, $listname, $full, $suffix)
-	#$full Print table header row.
-	my $fields=$MyDef::def->{fields};
-	my $table=$MyDef::def->{fieldsets}->{$listname};
-	my $flist;
-	if(!$table){
-	    @$flist=split /,\s*/, $listname;
-	}
-	else{
-	    $flist=$table->{fields};
-	}
-	push @$out, "PRINT <table class=\"tablelist$suffix\" cellspacing=2>";
-	my $use_paritycolumn;
-	$if $full
-	    push @$out, "PRINT <tr>";
-	    foreach my $f (@$flist){
-		my $parity;
-		if($f=~/^parity-(.*)/){
-		    $f=$1;
-		    $parity=1;
-		}
-		if($f=~/(.*)\((.*)\)/){
-		    $colname=$2;
-		    $f=$1;
-		}
-		my $ff=$fields->{$f};
-		if($parity){
-		    $use_paritycolumn=$f;
-		}
+        #$full Print table header row.
+        my $fields=$MyDef::def->{fields};
+        my $table=$MyDef::def->{fieldsets}->{$listname};
+        my $flist;
+        if(!$table){
+            @$flist=split /,\s*/, $listname;
+        }
+        else{
+            $flist=$table->{fields};
+        }
+        push @$out, "PRINT <table class=\"tablelist$suffix\" cellspacing=2>";
+        my $use_paritycolumn;
+        $if $full
+            push @$out, "PRINT <tr>";
+            foreach my $f (@$flist){
+                my $parity;
+                if($f=~/^parity-(.*)/){
+                    $f=$1;
+                    $parity=1;
+                }
+                if($f=~/(.*)\((.*)\)/){
+                    $colname=$2;
+                    $f=$1;
+                }
+                my $ff=$fields->{$f};
+                if($parity){
+                    $use_paritycolumn=$f;
+                }
 
-		my $title=$f;
-		if($ff->{title}){$title=$ff->{title};}
-		my $width="";
-		if($ff->{width}){$width=" width=\"$ff->{width}\"";}
-		if($ff->{sort}){
-		    $title="<a href=\"{\$_SERVER['PHPSELF']}?$ff->{sort}\">$title<\/a>";
-		}
-		push @$out, "PRINT <th $width align=center>$title</th>";
-	    }
-	    push @$out, "PRINT </tr>";
-	push @$out, "\$j$suffix=0;";
-	if($use_paritycolumn){
-	    #push @$out, "\$old_parity;";
-	    push @$out, "\$cur_parity=\"\";";
-	}
-	push @$out, "foreach(\$itemlist$suffix as \$i$suffix){";
-	if($use_paritycolumn){
-	    push @$out, "   \$cur_parity=\$i$suffix\['$use_paritycolumn'];";
-	    push @$out, "   if(!isset(\$old_parity)){\$old_parity=\$cur_parity;}";
-	    push @$out, "    if(\$cur_parity!=\$old_parity){\$old_parity=\$cur_parity; \$j$suffix++;}";
-	}
-	else{
-	    push @$out, "    \$j$suffix++;";
-	}
-	push @$out, "    if(\$j$suffix%2){\$tdclass=\"even$suffix\";}";
-	push @$out, "    else{\$tdclass=\"odd$suffix\";}";
-	my $rlink=$MyDef::compileutil::deflist->[-1]->{rlink}
-	my $attr="class=\\\"\$tdclass\\\""
-	$if $rlink
-	    $rlink=~s/\$\[(.*?)\]/{\$i$suffix\['\1']}/g
-	    $attr.=" onclick=\\\"window.location.href='$rlink'\\\""
-	push @$out, "    print \"<tr $attr>\";";
-	# !!!!!! Note that the former foreach loop changed the $flist values
-	foreach my $f (@$flist){
-	    my $ff=$fields->{$f};
-	    my $align="center";
-	    if($ff->{align}){
-		$align=$ff->{align};
-	    }
-	    my $width="";
-	    if($ff->{width}){$width=" width=\\\"$ff->{width}\\\"";}
-	    push @$out, "    print \"<td align=$align $width>\";";
-	    display_list_field($out, $f, $fields, $suffix);
-	    push @$out, "    print \"</td>\";";
-	}
-	push @$out, "    print \"</tr>\";";
-	push @$out, "}";
-	push @$out, "PRINT </table>";
+                my $title=$f;
+                if($ff->{title}){$title=$ff->{title};}
+                my $width="";
+                if($ff->{width}){$width=" width=\"$ff->{width}\"";}
+                if($ff->{sort}){
+                    $title="<a href=\"{\$_SERVER['PHPSELF']}?$ff->{sort}\">$title<\/a>";
+                }
+                push @$out, "PRINT <th $width align=center>$title</th>";
+            }
+            push @$out, "PRINT </tr>";
+        push @$out, "\$j$suffix=0;";
+        if($use_paritycolumn){
+            #push @$out, "\$old_parity;";
+            push @$out, "\$cur_parity=\"\";";
+        }
+        push @$out, "foreach(\$itemlist$suffix as \$i$suffix){";
+        if($use_paritycolumn){
+            push @$out, "   \$cur_parity=\$i$suffix\['$use_paritycolumn'];";
+            push @$out, "   if(!isset(\$old_parity)){\$old_parity=\$cur_parity;}";
+            push @$out, "    if(\$cur_parity!=\$old_parity){\$old_parity=\$cur_parity; \$j$suffix++;}";
+        }
+        else{
+            push @$out, "    \$j$suffix++;";
+        }
+        push @$out, "    if(\$j$suffix%2){\$tdclass=\"even$suffix\";}";
+        push @$out, "    else{\$tdclass=\"odd$suffix\";}";
+        my $rlink=$MyDef::compileutil::deflist->[-1]->{rlink}
+        my $attr="class=\\\"\$tdclass\\\""
+        $if $rlink
+            $rlink=~s/\$\[(.*?)\]/{\$i$suffix\['\1']}/g
+            $attr.=" onclick=\\\"window.location.href='$rlink'\\\""
+        push @$out, "    print \"<tr $attr>\";";
+        # !!!!!! Note that the former foreach loop changed the $flist values
+        foreach my $f (@$flist){
+            my $ff=$fields->{$f};
+            my $align="center";
+            if($ff->{align}){
+                $align=$ff->{align};
+            }
+            my $width="";
+            if($ff->{width}){$width=" width=\\\"$ff->{width}\\\"";}
+            push @$out, "    print \"<td align=$align $width>\";";
+            display_list_field($out, $f, $fields, $suffix);
+            push @$out, "    print \"</td>\";";
+        }
+        push @$out, "    print \"</tr>\";";
+        push @$out, "}";
+        push @$out, "PRINT </table>";
 
     sub script_selectother {
-	my ($name)=@_;
-	my @lines;
-	push @lines, "function selectother_$name(e){";
-	push @lines, "    if(e.value=='other'){";
-	push @lines, "        document.getElementById('other_$name').style.display='block';";
-	push @lines, "    }";
-	push @lines, "    else{";
-	push @lines, "        document.getElementById('other_$name').style.display='none';";
-	push @lines, "    }";
-	push @lines, "}";
-	$MyDef::def->{scripts}->{"selectother_$name"}=\@lines;
+        my ($name)=@_;
+        my @lines;
+        push @lines, "function selectother_$name(e){";
+        push @lines, "    if(e.value=='other'){";
+        push @lines, "        document.getElementById('other_$name').style.display='block';";
+        push @lines, "    }";
+        push @lines, "    else{";
+        push @lines, "        document.getElementById('other_$name').style.display='none';";
+        push @lines, "    }";
+        push @lines, "}";
+        $MyDef::def->{scripts}->{"selectother_$name"}=\@lines;
     }
     sub loadoptlist {
-	my ($out, $f)=shift;
-	my $ff=$MyDef::def->{fields}->{$f};
-	if(!$ff){print "loadoptlist: $f not defined.\n";}
-	if($ff->{list} and $ff->{type} ne 'boolean'){
-	    my $listname="$f"."_optlist";
-	    my @list;
-	    if($ff->{list}=~/^\s*(\d+)-(\d+)\s*$/){
-		for(my $j=$1; $j<=$2; $j++){
-		    push @list, "\"$j\"=>\"$j\"";
-		}
-	    }
-	    else{
-		my @opts=split /,\s*/, $ff->{list};
-		foreach my $o(@opts){
-		    if($o=~/(.*):(.*)/){
-			push @list, "\"$1\"=>\"$2\"";
-		    }
-		    else{
-			push @list, "\"$o\"=>\"$o\"";
-		    }
-		}
-	    }
-	    push @$out, "\$$listname=array(".join(', ', @list).");";
-	}
+        my ($out, $f)=shift;
+        my $ff=$MyDef::def->{fields}->{$f};
+        if(!$ff){print "loadoptlist: $f not defined.\n";}
+        if($ff->{list} and $ff->{type} ne 'boolean'){
+            my $listname="$f"."_optlist";
+            my @list;
+            if($ff->{list}=~/^\s*(\d+)-(\d+)\s*$/){
+                for(my $j=$1; $j<=$2; $j++){
+                    push @list, "\"$j\"=>\"$j\"";
+                }
+            }
+            else{
+                my @opts=split /,\s*/, $ff->{list};
+                foreach my $o(@opts){
+                    if($o=~/(.*):(.*)/){
+                        push @list, "\"$1\"=>\"$2\"";
+                    }
+                    else{
+                        push @list, "\"$o\"=>\"$o\"";
+                    }
+                }
+            }
+            push @$out, "\$$listname=array(".join(', ', @list).");";
+        }
     }
 
     sub formpreloadselection {
-	my ($out, $formname)=@_;
-	my $form=$MyDef::def->{fieldsets}->{$formname};
-	my $fields=$MyDef::def->{fields};
-	my $flist=$form->{fields};
-	foreach my $f (@$flist){
-	    my $ff=$fields->{$f};
-	    if($ff->{list}){
-		my $listname="$f"."_optlist";
-		my @opts=split /,\s*/, $ff->{list};
-		my @list;
-		foreach my $o(@opts){
-		    push @list, "\"$o\"=>\"$o\"";
-		}
-		push @$out, "\$$listname=array(".join(', ', @list).");";
-	    }
-	}
+        my ($out, $formname)=@_;
+        my $form=$MyDef::def->{fieldsets}->{$formname};
+        my $fields=$MyDef::def->{fields};
+        my $flist=$form->{fields};
+        foreach my $f (@$flist){
+            my $ff=$fields->{$f};
+            if($ff->{list}){
+                my $listname="$f"."_optlist";
+                my @opts=split /,\s*/, $ff->{list};
+                my @list;
+                foreach my $o(@opts){
+                    push @list, "\"$o\"=>\"$o\"";
+                }
+                push @$out, "\$$listname=array(".join(', ', @list).");";
+            }
+        }
     }
     sub getfieldsize {
-	my ($ff, $type) =@_;
-	my $size=$ff->{size};
-	if(!$size){
-	    $if $type eq "year"
-		$size=4;
-	    $elsif $type eq "date"
-		$size=10; if($ff->{optional}){$valign="valign=\"middle\"";}
-	    $elsif $type eq "money"
-		$size=10;
-	    $elsif $type eq "zip"
-		$size=5;
-	    $elsif $type eq "int"
-		$size=5;
-	    $elsif $type eq "phone"
-		$size=15;
-	    $elsif $type eq "email"
-		$size=25;
-	    $elsif $type eq "usdollar"
-		$size=12;$prefix='\$';
-	    $else
-		$size=50;
-	}
-	return $size;
+        my ($ff, $type) =@_;
+        my $size=$ff->{size};
+        if(!$size){
+            $if $type eq "year"
+                $size=4;
+            $elsif $type eq "date"
+                $size=10; if($ff->{optional}){$valign="valign=\"middle\"";}
+            $elsif $type eq "money"
+                $size=10;
+            $elsif $type eq "zip"
+                $size=5;
+            $elsif $type eq "int"
+                $size=5;
+            $elsif $type eq "phone"
+                $size=15;
+            $elsif $type eq "email"
+                $size=25;
+            $elsif $type eq "usdollar"
+                $size=12;$prefix='\$';
+            $else
+                $size=50;
+        }
+        return $size;
     }
 
     sub getfieldlistname {
-	my ($ff, $f)=@_;
-	if($ff->{listname}){
-	    return $ff->{listname};
-	}
-	elsif($ff->{list}){
-	    return $f.'_optlist';
-	}
+        my ($ff, $f)=@_;
+        if($ff->{listname}){
+            return $ff->{listname};
+        }
+        elsif($ff->{list}){
+            return $f.'_optlist';
+        }
     }
 
     sub getfieldlabel {
-	my ($ff, $f) =@_;
-	my $title=$f;
-	if($ff->{title}){$title=$ff->{title};}
-	return "$title";
+        my ($ff, $f) =@_;
+        my $title=$f;
+        if($ff->{title}){$title=$ff->{title};}
+        return "$title";
     }
 
 
     sub formbutton {
-	my ($out, $param)=@_;
-	my @bb=split /,\s*/, $param;	    
-	push @$out, "PRINT &nbsp;";
-	my $MODE;
-	if($bb[1]){
-	    $MODE="onclick=\\\"this.form.MODE.value='$bb[1]'; return true;\\\"";
-	}
-	push @$out, "print \"<input class=\\\"formbutton\\\" type=\\\"submit\\\" value=\\\"$bb[0]\\\" onmouseover=\\\"this.style.borderColor='silver';\\\" onmouseout=\\\"this.style.borderColor='gray';\\\" $MODE>\";";
-	push @$out, "PRINT &nbsp;";
+        my ($out, $param)=@_;
+        my @bb=split /,\s*/, $param;        
+        push @$out, "PRINT &nbsp;";
+        my $MODE;
+        if($bb[1]){
+            $MODE="onclick=\\\"this.form.MODE.value='$bb[1]'; return true;\\\"";
+        }
+        push @$out, "print \"<input class=\\\"formbutton\\\" type=\\\"submit\\\" value=\\\"$bb[0]\\\" onmouseover=\\\"this.style.borderColor='silver';\\\" onmouseout=\\\"this.style.borderColor='gray';\\\" $MODE>\";";
+        push @$out, "PRINT &nbsp;";
     }
 
     #################################################
     sub get_f_type {
-	my $f=shift;
-	my $ff=$MyDef::def->{fields}->{$f};
-	my $type;
-	if($ff->{type}){
-	    return $ff->{type};
-	}
-	elsif($f=~/_id$/){
-	    $type="uint";
-	}
-	elsif($f=~/_date$/ or $f=~/^date_/){
-	    $type="date";
-	}
-	elsif($f=~/_flag$/ or $f=~/^flag_/){
-	    $type="boolean";
-	}
-	elsif($f=~/_quantity$/){
-	    $type="int";
-	}
-	elsif($f=~/^number_/){
-	    $type="int";
-	}
-	elsif($f eq "password"){
-	    $type="password";
-	}
-	elsif($f =~/phone/){
-	    $type="phone";
-	}
-	elsif($f eq 'city'){
-	    $type='city';
-	}
-	elsif($f eq 'state'){
-	    $type='state';
-	}
-	elsif($f =~ /zip(code)?/){
-	    $type='zip'
-	}
-	elsif($f =~ /email/){
-	    $type='email';
-	}
-	elsif($f =~ /city_state_zip/){
-	    $type='city_state_zip';
-	}
-	$ff->{type}=$type;
-	return $type;
+        my $f=shift;
+        my $ff=$MyDef::def->{fields}->{$f};
+        my $type;
+        if($ff->{type}){
+            return $ff->{type};
+        }
+        elsif($f=~/_id$/){
+            $type="uint";
+        }
+        elsif($f=~/_date$/ or $f=~/^date_/){
+            $type="date";
+        }
+        elsif($f=~/_flag$/ or $f=~/^flag_/){
+            $type="boolean";
+        }
+        elsif($f=~/_quantity$/){
+            $type="int";
+        }
+        elsif($f=~/^number_/){
+            $type="int";
+        }
+        elsif($f eq "password"){
+            $type="password";
+        }
+        elsif($f =~/phone/){
+            $type="phone";
+        }
+        elsif($f eq 'city'){
+            $type='city';
+        }
+        elsif($f eq 'state'){
+            $type='state';
+        }
+        elsif($f =~ /zip(code)?/){
+            $type='zip'
+        }
+        elsif($f =~ /email/){
+            $type='email';
+        }
+        elsif($f =~ /city_state_zip/){
+            $type='city_state_zip';
+        }
+        $ff->{type}=$type;
+        return $type;
     }
 
 
     sub get_f_name {
-	my $f=shift;
-	my $ff=$MyDef::def->{fields}->{$f};
-	if(!$ff or !$ff->{name}) {return $f;}
-	return $ff->{name};
+        my $f=shift;
+        my $ff=$MyDef::def->{fields}->{$f};
+        if(!$ff or !$ff->{name}) {return $f;}
+        return $ff->{name};
     }
 
     sub get_f_listname {
-	my $f=shift;
-	my $ff=$MyDef::def->{fields}->{$f};
-	if($ff->{listname}){
-	    return $ff->{listname};
-	}
-	elsif($ff->{list}){
-	    return $f.'_optlist';
-	}
-	return;
+        my $f=shift;
+        my $ff=$MyDef::def->{fields}->{$f};
+        if($ff->{listname}){
+            return $ff->{listname};
+        }
+        elsif($ff->{list}){
+            return $f.'_optlist';
+        }
+        return;
     }
 
     sub get_f_label {
-	my $f=shift;
-	my $ff=$MyDef::def->{fields}->{$f};
-	if(!$ff){return $f;}
-	if($ff->{title}){return $ff->{title};}
-	if($ff->{label}){return $ff->{label};}
-	return $f;
+        my $f=shift;
+        my $ff=$MyDef::def->{fields}->{$f};
+        if(!$ff){return $f;}
+        if($ff->{title}){return $ff->{title};}
+        if($ff->{label}){return $ff->{label};}
+        return $f;
     }
 
     sub get_f_display {
-	my $f=shift;
-	my $ff=$MyDef::def->{fields}->{$f};
-	if($ff->{display}){return;}
-	my $listname=getfieldlistname($ff, $f);
-	my $type=getfieldtype($ff, $f);
-	if($type eq "boolean"){
-	    my $y="Yes";
-	    my $n="No";
-	    if($ff->{list}){
-		my @l=split(/,\s*/, $ff->{list});
-		$y=$l[0];
-		$n=$l[1];
-	    }
-	    push @$out, "if(\$$f==1){print \"$y\";}";
-	    push @$out, "else{print \"$n\";}";
-	}
-	elsif($type eq "file"){
-	}
-	elsif($type eq "imagefile"){
-	}
-	elsif($type eq "password"){
-	    push @$out, "*** ***";
-	}
-	else{
-	    if($listname){
-		push @$out, "if(\$$listname){";
-		push @$out, "    print \$$listname\[\$$f\];";
-		push @$out, "}";
-		push @$out, "else{";
-		push @$out, "    print \$$f;";
-		push @$out, "}";  
-	    }
-	    else{
-		push @$out, "print \$$f;";
-	    }
-	}
+        my $f=shift;
+        my $ff=$MyDef::def->{fields}->{$f};
+        if($ff->{display}){return;}
+        my $listname=getfieldlistname($ff, $f);
+        my $type=getfieldtype($ff, $f);
+        if($type eq "boolean"){
+            my $y="Yes";
+            my $n="No";
+            if($ff->{list}){
+                my @l=split(/,\s*/, $ff->{list});
+                $y=$l[0];
+                $n=$l[1];
+            }
+            push @$out, "if(\$$f==1){print \"$y\";}";
+            push @$out, "else{print \"$n\";}";
+        }
+        elsif($type eq "file"){
+        }
+        elsif($type eq "imagefile"){
+        }
+        elsif($type eq "password"){
+            push @$out, "*** ***";
+        }
+        else{
+            if($listname){
+                push @$out, "if(\$$listname){";
+                push @$out, "    print \$$listname\[\$$f\];";
+                push @$out, "}";
+                push @$out, "else{";
+                push @$out, "    print \$$f;";
+                push @$out, "}";  
+            }
+            else{
+                push @$out, "print \$$f;";
+            }
+        }
     }
 
     $sub field_label($f)
-	my $ff=$MyDef::def->{fields}->{$f};
-	my $title=ucfirst($f);
-	$if $ff->{label}
-	    $title=$ff->{label}
-	$elif $ff->{title}
-	    $title=$ff->{title}
-	push @$out, "print \"$title\";"
+        my $ff=$MyDef::def->{fields}->{$f};
+        my $title=ucfirst($f);
+        $if $ff->{label}
+            $title=$ff->{label}
+        $elif $ff->{title}
+            $title=$ff->{title}
+        push @$out, "print \"$title\";"
 
     sub fielddisplay {
-	my ($out, $f, $ff) =@_;
-	my $listname=getfieldlistname($ff, $f);
-	my $type=getfieldtype($ff, $f);
-	if($type eq "boolean"){
-	    my $y="Yes";
-	    my $n="No";
-	    if($ff->{list}){
-		my @l=split(/,\s*/, $ff->{list});
-		$y=$l[0];
-		$n=$l[1];
-	    }
-	    push @$out, "if(\$$f==1){print \"$y\";}";
-	    push @$out, "else{print \"$n\";}";
-	}
-	elsif($type eq "file"){
-	}
-	elsif($type eq "imagefile"){
-	}
-	elsif($type eq "password"){
-	    push @$out, "*** ***";
-	}
-	else{
-	    if($listname){
-		push @$out, "if(\$$listname){";
-		push @$out, "    print \$$listname\[\$$f\];";
-		push @$out, "}";
-		push @$out, "else{";
-		push @$out, "    print \$$f;";
-		push @$out, "}";  
-	    }
-	    else{
-		push @$out, "print \$$f;";
-	    }
-	}
+        my ($out, $f, $ff) =@_;
+        my $listname=getfieldlistname($ff, $f);
+        my $type=getfieldtype($ff, $f);
+        if($type eq "boolean"){
+            my $y="Yes";
+            my $n="No";
+            if($ff->{list}){
+                my @l=split(/,\s*/, $ff->{list});
+                $y=$l[0];
+                $n=$l[1];
+            }
+            push @$out, "if(\$$f==1){print \"$y\";}";
+            push @$out, "else{print \"$n\";}";
+        }
+        elsif($type eq "file"){
+        }
+        elsif($type eq "imagefile"){
+        }
+        elsif($type eq "password"){
+            push @$out, "*** ***";
+        }
+        else{
+            if($listname){
+                push @$out, "if(\$$listname){";
+                push @$out, "    print \$$listname\[\$$f\];";
+                push @$out, "}";
+                push @$out, "else{";
+                push @$out, "    print \$$f;";
+                push @$out, "}";  
+            }
+            else{
+                push @$out, "print \$$f;";
+            }
+        }
     }
 

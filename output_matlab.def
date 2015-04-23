@@ -10,14 +10,14 @@ page: output_matlab, output_main
     interface_type: matlab
 
     subcode: init_page
-	$global @func_input
-	$global @func_return
-	$global $func_varargout
-	$global $func_varargin
-	undef @func_input
-	undef @func_return
-	undef $func_varargout
-	undef $func_varargin
+        $global @func_input
+        $global @func_return
+        $global $func_varargout
+        $global $func_varargin
+        undef @func_input
+        undef @func_return
+        undef $func_varargout
+        undef $func_varargin
 
 # -----
 subcode: case_matlab_style
@@ -26,9 +26,9 @@ subcode: case_matlab_style
     push @$out, "BLOCK"
     push @$out, "DEDENT"
     $if $case eq "if"
-	$if !$case_wrap
-	    $case_wrap=[]
-	push @$case_wrap, "end"
+        $if !$case_wrap
+            $case_wrap=[]
+        push @$case_wrap, "end"
 
 subcode: else_matlab_style
     push @$out, "else"
@@ -39,30 +39,30 @@ subcode: else_matlab_style
 subcode: parsecode
     $call parsecode_case_support, if, elseif, matlab_style
     $if $l=~/^\s*\$(\w+)\s*(.*)$/
-	my $func=$1;
-	my $param=$2;
-	$if $func =~ /^(while|for)$/
-	    return single_block("$1 $param", "end")
-	$elif $func=~/^input/
-	    $global @func_input
-	    $global $func_varargin
-	    $if $param=~/^\s*varargin(.*)/
-		$func_varargin=1
-		$param=$1
-		$param=~s/^\s*[:,]?\s*//
-	    $if $param
-		@func_input=split /,\s*/, $param
-	    return 0
-	$elif $func=~/^return/
-	    $global @func_return
-	    $global $func_varargout
-	    $if $param=~/^\s*varargout(.*)/
-		$func_varargout=1
-		$param=$1
-		$param=~s/^\s*[:,]?\s*//
-	    $if $param
-		push @func_return, split /,\s*/, $param
-	    return 0
+        my $func=$1;
+        my $param=$2;
+        $if $func =~ /^(while|for)$/
+            return single_block("$1 $param", "end")
+        $elif $func=~/^input/
+            $global @func_input
+            $global $func_varargin
+            $if $param=~/^\s*varargin(.*)/
+                $func_varargin=1
+                $param=$1
+                $param=~s/^\s*[:,]?\s*//
+            $if $param
+                @func_input=split /,\s*/, $param
+            return 0
+        $elif $func=~/^return/
+            $global @func_return
+            $global $func_varargout
+            $if $param=~/^\s*varargout(.*)/
+                $func_varargout=1
+                $param=$1
+                $param=~s/^\s*[:,]?\s*//
+            $if $param
+                push @func_return, split /,\s*/, $param
+            return 0
 
     $call check_termination
     push @$out, $l
@@ -73,71 +73,71 @@ subcode: dumpout
     # ----------------
     my ($input, $return, @vararg)
     $if @func_return
-	$if !@func_input
-	    $input="varargin"
-	$else
-	    my $idx=0
-	    my (@arg_1, @arg_2, @arg_v)
-	    my $flag_varargin
-	    $foreach $a in @func_input
-		$idx++
-		$if !$flag_varargin
-		    $if $a=~/(\w+)=/
-			$flag_varargin=$idx
-			push @arg_1, "varargin"
-		    $else
-			push @arg_1, $a
-		$if $flag_varargin
-		    $if $a=~/(\w+)=(.*)/
-			push @arg_2, $1
-			push @arg_v, $2
-		    $else
-			push @arg_2, $a
-			push @arg_v, "0"
-	    $input=join(", ", @arg_1)
-	    $for $i=0:@arg_2
-		my $var=$arg_2[$i]
-		my $val=$arg_v[$i]
-		my $i1=$i+1
-		my $i2=$i+$flag_varargin
-		push @vararg, "if nargin>=$i2\n"
-		push @vararg, "    $var=varargin\{$i1\};\n"
-		push @vararg, "else\n"
-		push @vararg, "    $var=$val;\n"
-		push @vararg, "end\n"
+        $if !@func_input
+            $input="varargin"
+        $else
+            my $idx=0
+            my (@arg_1, @arg_2, @arg_v)
+            my $flag_varargin
+            $foreach $a in @func_input
+                $idx++
+                $if !$flag_varargin
+                    $if $a=~/(\w+)=/
+                        $flag_varargin=$idx
+                        push @arg_1, "varargin"
+                    $else
+                        push @arg_1, $a
+                $if $flag_varargin
+                    $if $a=~/(\w+)=(.*)/
+                        push @arg_2, $1
+                        push @arg_v, $2
+                    $else
+                        push @arg_2, $a
+                        push @arg_v, "0"
+            $input=join(", ", @arg_1)
+            $for $i=0:@arg_2
+                my $var=$arg_2[$i]
+                my $val=$arg_v[$i]
+                my $i1=$i+1
+                my $i2=$i+$flag_varargin
+                push @vararg, "if nargin>=$i2\n"
+                push @vararg, "    $var=varargin\{$i1\};\n"
+                push @vararg, "else\n"
+                push @vararg, "    $var=$val;\n"
+                push @vararg, "end\n"
 
-	$if $func_varargout
-	    $return="varargout"
-	$elif @func_return>1
-	    $return="[".join(", ", @func_return)."]"
-	$else
-	    $return=$func_return[0]
-	my $fline="function $return=".$page->{pagename}."($input)"
-	push @$f, "$fline\n\n"
-	$if @vararg
-	    push @$f, @vararg
-	    push @$f, "\n"
+        $if $func_varargout
+            $return="varargout"
+        $elif @func_return>1
+            $return="[".join(", ", @func_return)."]"
+        $else
+            $return=$func_return[0]
+        my $fline="function $return=".$page->{pagename}."($input)"
+        push @$f, "$fline\n\n"
+        $if @vararg
+            push @$f, @vararg
+            push @$f, "\n"
 
 
     $if $func_varargout
-	push @$out, "\n"
-	push @$out, "if nargout<=1\n"
-	push @$out, "    varargout{1}=[".join(", ", @func_return)."];\n"
-	push @$out, "else\n"
-	$for $i=0:@func_return
-	    my $idx=$i+1
-	    push @$out, "    varargout{$idx}=$func_return[$i];\n"
-	push @$out, "end\n"
+        push @$out, "\n"
+        push @$out, "if nargout<=1\n"
+        push @$out, "    varargout{1}=[".join(", ", @func_return)."];\n"
+        push @$out, "else\n"
+        $for $i=0:@func_return
+            my $idx=$i+1
+            push @$out, "    varargout{$idx}=$func_return[$i];\n"
+        push @$out, "end\n"
 
 subcode: check_termination
     #$l=~s/^\|//;
     $if $l=~/^\s*$/
-	# NOOP
+        # NOOP
     $elif $l=~/(for|while|if|elseif)\s*\(.*\)\s*$/
-	# NOOP
+        # NOOP
     $elif $l!~/[,:\(\[\{;]\s*$/
-	#print "[$l]appending ;\n";
-	$l.=";";
+        #print "[$l]appending ;\n";
+        $l.=";";
     $else
-	#print "[$l]\n";
+        #print "[$l]\n";
 

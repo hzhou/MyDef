@@ -29,38 +29,38 @@ subcode: start_subcode
 
     $if $curindent==0 and $codes->{$name} and $codes->{$name}->{attr} ne "default"
         $t_code=$codes->{$name}
-	# Subcode Already Exist --
-	$if $dblcolon eq "@"
-	    # -- skip the default subcode
-	$elif $dblcolon eq ":"
-	    # -- append
-	    $source=$t_code->{source}
-	    push @$source, $src_location
-	$elif $dblcolon eq "-"
-	    # -- prepend
-	    $code_prepend=$t_code->{source}
+        # Subcode Already Exist --
+        $if $dblcolon eq "@"
+            # -- skip the default subcode
+        $elif $dblcolon eq ":"
+            # -- append
+            $source=$t_code->{source}
+            push @$source, $src_location
+        $elif $dblcolon eq "-"
+            # -- prepend
+            $code_prepend=$t_code->{source}
             $t_code->{source} = $source
-	$elif $t_code->{attr} eq "optional"
-	    # -- append and finalize
-	    $t_code->{attr}=undef
-	    $source=$t_code->{source}
-	    push @$source, $src_location
-	$elif $debug>1
-	    # -- skip
-	    print STDERR "overwiritten $type code: $name\n"
+        $elif $t_code->{attr} eq "optional"
+            # -- append and finalize
+            $t_code->{attr}=undef
+            $source=$t_code->{source}
+            push @$source, $src_location
+        $elif $debug>1
+            # -- skip
+            print STDERR "overwiritten $type code: $name\n"
     $else
-	#---- new code or overwrite ----
-	my @params;
-	$if $t=~/\((.*)\)/
-	    $t=$1;
-	    @params=split /,\s*/, $t;
-	$global $code_index=0
-	$code_index++
-	$t_code={'type'=>$type, 'index'=>$code_index, 'source'=>$source, 'params'=>\@params, 'name'=>$name};
-	$if $dblcolon eq "@"
-	    $t_code->{attr}="default"
-	$elif $dblcolon eq ":" or $dblcolon eq "-"
-	    $t_code->{attr}="optional"
+        #---- new code or overwrite ----
+        my @params;
+        $if $t=~/\((.*)\)/
+            $t=$1;
+            @params=split /,\s*/, $t;
+        $global $code_index=0
+        $code_index++
+        $t_code={'type'=>$type, 'index'=>$code_index, 'source'=>$source, 'params'=>\@params, 'name'=>$name};
+        $if $dblcolon eq "@"
+            $t_code->{attr}="default"
+        $elif $dblcolon eq ":" or $dblcolon eq "-"
+            $t_code->{attr}="optional"
         $if $codetype eq "page" && $name eq "main"
             $call add_main_code
         $else
@@ -84,7 +84,7 @@ subcode: jump_to_main_code
 
 subcode: add_main_code
     $if $page->{codes}->{main}
-	$page->{codes}->{'main2'}=$t_code;
+        $page->{codes}->{'main2'}=$t_code;
     $else
-	$page->{codes}->{"main"}=$t_code;
+        $page->{codes}->{"main"}=$t_code;
 

@@ -35,6 +35,7 @@ subcode:: on_dumpout
     push @$f, "#include <windows.h>\n";
     $foreach $i in keys %$(C)objects
         $if $i=~/^lib(.*)/
-            push @$f, "#pragma comment(lib, \"$1\")\n"
-            $$(C)objects{$i}=undef
+            $if $1 ne "m"
+                push @$f, "#pragma comment(lib, \"$1\")\n"
+                $$(C)objects{$i}=undef
 

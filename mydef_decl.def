@@ -30,9 +30,10 @@ fncode: load_declare($f)
     &call open_r, $f
         $if /^(\S.+)\s+(\w+)\((.*)\);/
             my ($type, $name, $param)=($1, $2, $3)
-            $if $type !~/^static/
-                $decl_list{$name}="$type $name($param)"
-                push @decl_list, $name
+            $if !$decl_list{$name}
+                $if $type !~/^static/
+                    $decl_list{$name}="$type $name($param)"
+                    push @decl_list, $name
         $elif /^struct\s+(\w+)\s*{\s*(.*)$/
             my ($name, $comment) = ($1, $2)
             my @t

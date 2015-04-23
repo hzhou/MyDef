@@ -65,10 +65,10 @@ subcode: test_cholesky
     $my $(float) * A
     $local_allocate(5*5) A
     $for i=0:5
-	A[i*5+i]=2
-	$if i>0
-	    A[i*5+i-1]=-1
-	    A[(i-1)*5+i]=-1
+        A[i*5+i]=2
+        $if i>0
+            A[i*5+i-1]=-1
+            A[(i-1)*5+i]=-1
     A.$print
     $fcall f_matrix_cholesky(A, 5)
     A.$print

@@ -6,7 +6,7 @@ page: MyDef
     package: MyDef
 
     subcode: main
-	$call mydef_main
+        $call mydef_main
 
 subcode: mydef_main
     $global $def, $page, $var={}
@@ -19,14 +19,14 @@ subcode: mydef_main
     import_config("config");
     my @include_path=split /:/, $var->{include_path}
     $if $ENV{MYDEFLIB}
-	my $mydeflib=$ENV{MYDEFLIB}
-	my @t
-	$foreach $d in @include_path
-	    $if $d=~/^\w+/ and -d "$mydeflib/$d"
-		push @t, "$mydeflib/$d"
-	$var->{include_path}.=":$ENV{MYDEFLIB}";
-	$if @t
-	    $var->{include_path}.=":". join(":", @t)
+        my $mydeflib=$ENV{MYDEFLIB}
+        my @t
+        $foreach $d in @include_path
+            $if $d=~/^\w+/ and -d "$mydeflib/$d"
+                push @t, "$mydeflib/$d"
+        $var->{include_path}.=":$ENV{MYDEFLIB}";
+        $if @t
+            $var->{include_path}.=":". join(":", @t)
 
     1;
 
@@ -112,6 +112,6 @@ fncode: import_config($file)
 ################################################
 subcode: require_module(name)
     $elif $module eq "$(name)"
-	require MyDef::output_$(name);
-	MyDef::compileutil::set_interface(MyDef::output_$(name)::get_interface());
+        require MyDef::output_$(name);
+        MyDef::compileutil::set_interface(MyDef::output_$(name)::get_interface());
 

@@ -38,19 +38,19 @@ fncode: dlist_push(plist)
 
 fncode: dlist_pop(plist)
     $if plist->n>0
-	p=plist->head->prev
-	$call dlist_unlink, plist, p
-	return p
+        p=plist->head->prev
+        $call dlist_unlink, plist, p
+        return p
     $else
-	return NULL
+        return NULL
 
 fncode: dlist_shift(plist)
     $if plist->n>0
-	p=plist->head->next
-	$call dlist_unlink, plist, p
-	return p
+        p=plist->head->next
+        $call dlist_unlink, plist, p
+        return p
     $else
-	return NULL
+        return NULL
 
 fncode: dlist_unshift(plist)
     p=(struct $(name)_node *)malloc(sizeof(struct $(name)_node))
@@ -75,7 +75,7 @@ subcode: dlist_each(plist, p)
 subcode: dlist_each_safe(plist, p, p2)
     $(p2)=$(plist)->head->next
     $while $(p2) != $(plist)->head
-	$(p)=$(p2)
+        $(p)=$(p2)
         $(p2)=$(p2)->next
         BLOCK
 
@@ -88,7 +88,7 @@ subcode: dlist_each_inverse(plist, p)
 subcode: dlist_each_inverse_safe(plist, p, p2)
     $(p2)=$(plist)->head
     $while $(p2)->prev != $(plist)->head
-	$(p)=$(p2)->prev
+        $(p)=$(p2)->prev
         BLOCK
         $(p2)=$(p2)->prev
 

@@ -26,6 +26,8 @@ subcode: grab_codelist
     my $codelist = $MyDef::compileutil::named_blocks{"last_grab"}
     $if $codelist
         $call filter_SOURCE
+    $else
+        $call @direct
 
     subcode: filter_SOURCE
         #-- remove SOURCE line ---
@@ -45,14 +47,17 @@ subcode: grab_codelist
 
 subcode: filter_codelist
     my $codelist = $MyDef::compileutil::named_blocks{"last_grab"}
+    my @source
     $if $codelist
-        my @source
         $foreach $t in @$codelist
             $if $t =~/^SOURCE/
                 push @source, $t
             $else
                 BLOCK
         # $call @debug
+    $else
+        $call @direct
+    $if @source
         MyDef::compileutil::parseblock({source=>\@source, name=>"filtered"})
 
     subcode: debug

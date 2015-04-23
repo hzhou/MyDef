@@ -11,11 +11,11 @@ subcode: memtrack_pause(on)
 
 subcode: memtrack_clean
     $for i=0:n_da_len_memtrack
-	free(memtrack[i])
+        free(memtrack[i])
     $call darray_clear, memtrack
     memtrack_on=0
 
 subcode: memtrack_add(p)
     $if memtrack_on
-	$call darray_check, memtrack
-	memtrack[$(da_len)++]=(void *)$(p)
+        $call darray_check, memtrack
+        memtrack[$(da_len)++]=(void *)$(p)

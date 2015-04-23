@@ -16,22 +16,22 @@ fncode: parse_tag_attributes($tt_list)
     my $attr=""
     my $quick_content
     $foreach $tt in @$tt_list
-	$if $tt eq "/"
+        $if $tt eq "/"
             $quick_content=""
-	$elsif $tt=~/^#(\S+)$/
-	    # ---- ID ------------
-	    $attr.=" id=\"$1\"";
-	$elif $tt=~/^(\S+?)[:=]"(.*)"/
-	    # ---- Named Attribute ----
-	    $attr.=" $1=\"$2\""
-	$elif $tt=~/^(\S+?)[:=](.*)/
-	    $attr.=" $1=\"$2\""
-	$elif $tt=~/^"(.*)"/
-	    # ---- Quick Content ----
-	    $quick_content=$1
-	$else
-	    # ---- Classes ----
-	    $attr.=" class=\"$tt\"";
+        $elsif $tt=~/^#(\S+)$/
+            # ---- ID ------------
+            $attr.=" id=\"$1\"";
+        $elif $tt=~/^(\S+?)[:=]"(.*)"/
+            # ---- Named Attribute ----
+            $attr.=" $1=\"$2\""
+        $elif $tt=~/^(\S+?)[:=](.*)/
+            $attr.=" $1=\"$2\""
+        $elif $tt=~/^"(.*)"/
+            # ---- Quick Content ----
+            $quick_content=$1
+        $else
+            # ---- Classes ----
+            $attr.=" class=\"$tt\"";
 
     $call tag_input
     $call tag_form
@@ -39,14 +39,14 @@ fncode: parse_tag_attributes($tt_list)
 
 subcode: tag_input
     $case $func eq "input"
-	$if $attr !~ /type=/
-	    $attr.=" type=\"text\""
-	$if $quick_content
-	    $attr.=" placeholder=\"$quick_content\""
+        $if $attr !~ /type=/
+            $attr.=" type=\"text\""
+        $if $quick_content
+            $attr.=" placeholder=\"$quick_content\""
 subcode: tag_form
     $case $func eq "form"
-	$if $attr !~ /action=/
-	    $attr.=" action=\"<?=\$_SERVER['PHP_SELF'] ?>\""
-	$if $attr !~ /method=/
-	    $attr.=" method=\"POST\""
+        $if $attr !~ /action=/
+            $attr.=" action=\"<?=\$_SERVER['PHP_SELF'] ?>\""
+        $if $attr !~ /method=/
+            $attr.=" method=\"POST\""
 

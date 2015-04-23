@@ -11,39 +11,39 @@ subcode: Write(fd, buf, len)
 
 fncode: read1(int fd, void * p, n)
     &call retry_block
-	tn_read=read(fd, p, n)
-	$if tn_read<0 && errno==EINTR
-	    $call retry
+        tn_read=read(fd, p, n)
+        $if tn_read<0 && errno==EINTR
+            $call retry
     return tn_read
 
 fncode: readn(int fd, void * p, n)
     tn_remain=n
     $while tn_remain>0
-	tn_read=read(fd, p, tn_remain)
-	$if tn_read<0
-	    $if errno=EINTR
-		tn_read=0
-	    $else
-		return -1
-	$elif tn_read==0
-	    break
-	$else
-	    tn_read-=tn_read
-	    p+=tn_read
+        tn_read=read(fd, p, tn_remain)
+        $if tn_read<0
+            $if errno=EINTR
+                tn_read=0
+            $else
+                return -1
+        $elif tn_read==0
+            break
+        $else
+            tn_read-=tn_read
+            p+=tn_read
     return n-tn_remain
 
 fncode: writen(int fd, void * p, n)
     tn_remain=n
     $while tn_remain>0
-	tn_written=write(fd, p, tn_remain)
-	$if tn_written<=0
-	    $if tn_written<0 && error==EINTR
-		tn_written==0
-	    $else
-		return -1
-	$else
-	    tn_remain-=tn_written
-	    p+=tn_written
+        tn_written=write(fd, p, tn_remain)
+        $if tn_written<=0
+            $if tn_written<0 && error==EINTR
+                tn_written==0
+            $else
+                return -1
+        $else
+            tn_remain-=tn_written
+            p+=tn_written
     return n
 
 # ---- Generic Client -------------------------------------
@@ -64,18 +64,18 @@ subcode: tcp_connect(host, port)
     $call assert, tn_ret==0
     ai_p=ai_res
     $while ai_p
-	tn_socket=socket(ai_p->ai_family, ai_p->ai_socktype, ai_p->ai_protocol)
-	$if tn_socket<0
-	    ai_p=ai_p->ai_next
-	    continue
-	tn_ret=connect(tn_socket, ai_p->ai_addr, ai_p->ai_addrlen)
-	$if tn_ret==0
-	    break
-	$else
-	    print Failed to connect.
-	    close(tn_socket)
-	    ai_p=ai_p->ai_next
-	    continue
+        tn_socket=socket(ai_p->ai_family, ai_p->ai_socktype, ai_p->ai_protocol)
+        $if tn_socket<0
+            ai_p=ai_p->ai_next
+            continue
+        tn_ret=connect(tn_socket, ai_p->ai_addr, ai_p->ai_addrlen)
+        $if tn_ret==0
+            break
+        $else
+            print Failed to connect.
+            close(tn_socket)
+            ai_p=ai_p->ai_next
+            continue
     $call assert, ai_p
     freeaddrinfo(ai_res)
 
@@ -84,15 +84,15 @@ subcode: socket_read_loop
     $(set:SIZE=1000)
     $local ts_socket_buffer[$(SIZE)+1]
     $while 1
-	# $call Read, tn_socket, ts_socket_buffer, $(SIZE)
-	n=read(tn_socket, ts_socket_buffer, $(SIZE))
-	$if n<0
-	    $call debug_errno, Read Error
-	    break
-	$elif n==0
-	    break
-	$else
-	    BLOCK
+        # $call Read, tn_socket, ts_socket_buffer, $(SIZE)
+        n=read(tn_socket, ts_socket_buffer, $(SIZE))
+        $if n<0
+            $call debug_errno, Read Error
+            break
+        $elif n==0
+            break
+        $else
+            BLOCK
 
 # ---- Generic Server -------------------------------------
 subcode: socket_server(port)
@@ -100,20 +100,20 @@ subcode: socket_server(port)
     server.$listen
 
     $while 1
-	print "Accepting connection at port $(port)"
-	server.$accept client_addr
-	$if tn_socket>=0
-	    BLOCK
-	    tn_socket.$close
+        print "Accepting connection at port $(port)"
+        server.$accept client_addr
+        $if tn_socket>=0
+            BLOCK
+            tn_socket.$close
 
 # ---- Common Util-----------------------------------------
 subcode: fork_server
     tn_pid=fork()
     $if tn_pid==0
-	$call Close, tn_socket_listen
-	BLOCK
-	$call Close, tn_socket
-	exit(0)
+        $call Close, tn_socket_listen
+        BLOCK
+        $call Close, tn_socket
+        exit(0)
 
 subcode: print_client_address
     $local ts_ip_buffer[16]
@@ -125,13 +125,13 @@ subcode: print_client_address
 subcode: sig_child
     $include sys/wait
     &call signal, SIGCHLD
-	int tn_pid, tn_stat
-	$while 1
-	    tn_pid=waitpid(-1, &tn_stat, WNOHANG)
-	    $if tn_pid>0
-		printf("child %d terminated.\n", tn_pid)
-	    $else
-		break
+        int tn_pid, tn_stat
+        $while 1
+            tn_pid=waitpid(-1, &tn_stat, WNOHANG)
+            $if tn_pid>0
+                printf("child %d terminated.\n", tn_pid)
+            $else
+                break
 
 #---- Daemon ---------------------------------
 fncode: daemon_start
@@ -139,13 +139,13 @@ fncode: daemon_start
     $call daemon_fork
     # -- new session leader --
     $if setsid()<0
-	return -1
+        return -1
     $call signal_ignore, SIGHUP
     $call daemon_fork
     # -- non_session_leader --
     chdir("/")
     $for i=0:3
-	close(i)
+        close(i)
     $include fcntl
     open("/dev/null", O_RDONLY)
     open("/dev/null", O_RDWR)
@@ -156,11 +156,11 @@ fncode: daemon_start
 subcode: daemon_fork
     tn_pid=fork()
     $if tn_pid<0
-	$print "daemon_fork failed!"
-	return -1
+        $print "daemon_fork failed!"
+        return -1
     $elif tn_pid>0
-	# parent
-	_exit(0)
+        # parent
+        _exit(0)
 
 
 #---- syslog ------------------------------------
@@ -179,8 +179,8 @@ subcode: Close(fd)
 # ---- Signal handling ---------------------------
 subcode: signal(signo)
     $function on_$(signo)(int signo)
-	BLOCK
-	return
+        BLOCK
+        return
     $call signal_set, $(signo), on_$(signo)
 
 subcode: signal_ignore(signo)
@@ -198,7 +198,7 @@ subcode: signal_set(signo, handler)
 # ---- Select -----------------------------------
 subcode: select_read(fd)
     $if $(fd)>tn_select_max
-	tn_select_max=$(fd)
+        tn_select_max=$(fd)
     FD_SET($(fd), &select_rset)
 
 subcode: select(@plist)
@@ -207,51 +207,51 @@ subcode: select(@plist)
     tn_select_max=0
 
     $(foreach:p)
-	$(if:p~timeout:)
-	    $eval select_timeout, $(p)
-	$(elif:p~callsub:)
-	    $call $(p:8:strip)
-	$(else)
-	    $call select_read, $(p)
+        $(if:p~timeout:)
+            $eval select_timeout, $(p)
+        $(elif:p~callsub:)
+            $call $(p:8:strip)
+        $(else)
+            $call select_read, $(p)
 
     tn_select_max+=1
     $local tn_ret
     $(if:select_timeout)
-	$my struct timeval select_timeout
-	select_timeout.tv_sec=$(select_sec)
-	select_timeout.tv_usec=$(select_usec)
-	tn_ret=select(tn_select_max, &select_rset, NULL, NULL, &select_timeout)
+        $my struct timeval select_timeout
+        select_timeout.tv_sec=$(select_sec)
+        select_timeout.tv_usec=$(select_usec)
+        tn_ret=select(tn_select_max, &select_rset, NULL, NULL, &select_timeout)
     $(else)
-	tn_ret=select(tn_select_max, &select_rset, NULL, NULL, NULL)
+        tn_ret=select(tn_select_max, &select_rset, NULL, NULL, NULL)
     $call assert, tn_ret>=0
 
     BLOCK
 
 perlcode: select_timeout
     $if $param=~/timeout:(\d+)(\.(\d+))?/
-	MyDef::compileutil::export_macro(-2, "select_timeout", 1)
-	MyDef::compileutil::export_macro(-2, "select_sec", $1)
-	$if !$3
-	    MyDef::compileutil::export_macro(-2, "select_usec", 0)
-	$elif length($3)==3
-	    MyDef::compileutil::export_macro(-2, "select_usec", $3."000")
-	$else
-	    MyDef::compileutil::export_macro(-2, "select_usec", $3)
+        MyDef::compileutil::export_macro(-2, "select_timeout", 1)
+        MyDef::compileutil::export_macro(-2, "select_sec", $1)
+        $if !$3
+            MyDef::compileutil::export_macro(-2, "select_usec", 0)
+        $elif length($3)==3
+            MyDef::compileutil::export_macro(-2, "select_usec", $3."000")
+        $else
+            MyDef::compileutil::export_macro(-2, "select_usec", $3)
 
 subcode: on_select(fd)
     $if FD_ISSET($(fd), &select_rset)
-	BLOCK
+        BLOCK
 
 subcode: on_select_timeout
     $if select_timeout.tv_sec==0 && select_timeout.tv_usec==0
-	BLOCK
+        BLOCK
 
 #---- Thread -------------------------------------------------
 subcode: run_thread(subname)
     $uselib pthread                                                 
     $function thread_fn(void * p_dummy)
-	$return_type void *                                             
-	$call $(subname)
+        $return_type void *                                             
+        $call $(subname)
     $local pthread_t thread_id                                      
     pthread_create(&thread_id, NULL, $(lamda), NULL)          
                                                                     
@@ -262,9 +262,9 @@ subcode: debug_errno(label)
     print "$(label): errno = %d ", errno
     $map debug_errno_code, EAGAIN, EWOULDBLOCK, EBADF, EFAULT, EINTR, EINVAL, EIO, EISDIR, ECONNRESET
     $else
-	print "Unknown\n"
+        print "Unknown\n"
 
 subcode: debug_errno_code(code)
     $case errno==$(code)
-	print "$(code)\n"
+        print "$(code)\n"
 

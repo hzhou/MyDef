@@ -12,30 +12,30 @@ page: output_make, output_main
     ext: 
     package: MyDef::output_make
     subcode: parsecode
-	$if $l=~/^\s*PRINT (.*)/
-	    push @$out, $1
-	    return 0
-	$elif $l=~/^\s*\$(\w+)\s*(.*)$/
-	    my ($func, $param)=($1, $2)
-	    $if $func=~/^(ifeq|ifneq|ifdef|ifndef)(_?)$/
-		push @$out, "$1 $param"
-		push @$out, "BLOCK"
-		$if $2 eq "_"
-		    push @$out, "endif"
-		push @$out, "endif"
-		return "NEWBLOCK"
-	    $elif $func=~/^el(ifeq|ifneq|ifdef|ifndef)(_?)$/
-		push @$out, "else $1 $param"
-		push @$out, "BLOCK"
-		$if $2 eq "_"
-		    push @$out, "endif"
-		return "NEWBLOCK";
-	    $elif $func=~/^else$/
-		push @$out, "else"
-		push @$out, "BLOCK"
-		push @$out, "endif"
-		return "NEWBLOCK"
-	push @$out, $l
-	return 0
+        $if $l=~/^\s*PRINT (.*)/
+            push @$out, $1
+            return 0
+        $elif $l=~/^\s*\$(\w+)\s*(.*)$/
+            my ($func, $param)=($1, $2)
+            $if $func=~/^(ifeq|ifneq|ifdef|ifndef)(_?)$/
+                push @$out, "$1 $param"
+                push @$out, "BLOCK"
+                $if $2 eq "_"
+                    push @$out, "endif"
+                push @$out, "endif"
+                return "NEWBLOCK"
+            $elif $func=~/^el(ifeq|ifneq|ifdef|ifndef)(_?)$/
+                push @$out, "else $1 $param"
+                push @$out, "BLOCK"
+                $if $2 eq "_"
+                    push @$out, "endif"
+                return "NEWBLOCK";
+            $elif $func=~/^else$/
+                push @$out, "else"
+                push @$out, "BLOCK"
+                push @$out, "endif"
+                return "NEWBLOCK"
+        push @$out, $l
+        return 0
 
 

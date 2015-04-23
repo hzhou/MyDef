@@ -1,18 +1,18 @@
 page: Makefile
     type: PL
     subcode: main
-	use 5.008001;
-	use ExtUtils::MakeMaker;
-	# See lib/ExtUtils/MakeMaker.pm for details of how to influence
-	# the contents of the Makefile that is written.
+        use 5.008001;
+        use ExtUtils::MakeMaker;
+        # See lib/ExtUtils/MakeMaker.pm for details of how to influence
+        # the contents of the Makefile that is written.
 
-	my @scripts=glob("script/*");
-	WriteMakefile(
-	    ABSTRACT          => 'A higher language system',
-	    AUTHOR            => 'Hui Zhou <hzhou@hzsolutions.net>',
-	    NAME              => 'MyDef',
-	    VERSION           => 0.2,
-	    PREREQ_PM         => {},
-	    EXE_FILES         => \@scripts,
-	);
+        my @scripts=glob("script/*");
+        WriteMakefile(
+            ABSTRACT          => 'A higher language system',
+            AUTHOR            => 'Hui Zhou <hzhou@hzsolutions.net>',
+            NAME              => 'MyDef',
+            VERSION           => 0.2,
+            PREREQ_PM         => {},
+            EXE_FILES         => \@scripts,
+        );
 

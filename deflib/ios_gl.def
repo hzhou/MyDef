@@ -25,7 +25,7 @@ subcode: createFramebuffer
     glFramebufferRenderbufferOES(GL_FRAMEBUFFER_OES, GL_DEPTH_ATTACHMENT_OES, GL_RENDERBUFFER_OES, ui_depthbuffer);
     
     $if glCheckFramebufferStatusOES(GL_FRAMEBUFFER_OES) != GL_FRAMEBUFFER_COMPLETE_OES
-	NSLog(@"failed to make complete framebuffer object %x", glCheckFramebufferStatusOES(GL_FRAMEBUFFER_OES));
+        NSLog(@"failed to make complete framebuffer object %x", glCheckFramebufferStatusOES(GL_FRAMEBUFFER_OES));
 
 subcode: destroyFramebuffer
     glDeleteFramebuffersOES(1, &ui_framebuffer);
@@ -33,8 +33,8 @@ subcode: destroyFramebuffer
     glDeleteRenderbuffersOES(1, &ui_renderbuffer);
     ui_renderbuffer = 0;
     $if ui_depthbuffer
-	glDeleteRenderbuffersOES(1, &ui_depthbuffer);
-	ui_depthbuffer = 0;
+        glDeleteRenderbuffersOES(1, &ui_depthbuffer);
+        ui_depthbuffer = 0;
 
 #--------------
 subcode: gl_start_framebuffer
@@ -91,20 +91,20 @@ subcode: gl_brush
     brushWidth=CGImageGetWidth(brushImage)
     brushHeight=CGImageGetHeight(brushImage)
     $if brushImage
-	printf("burshImage created %d x %d\n", brushWidth, brushHeight);
-	$allocate(4*brushWidth*brushHeight, 0) brushData	
-	brushContext = CGBitmapContextCreate(brushData, brushWidth, brushHeight, 8, brushWidth * 4, CGImageGetColorSpace(brushImage), kCGImageAlphaPremultipliedLast)
-	CGContextDrawImage(brushContext, CGRectMake(0.0, 0.0, (CGFloat)brushWidth, (CGFloat)brushHeight), brushImage)
-	CGContextRelease(brushContext)
-	
-	glGenTextures(1, &ui_brush_texture)
-	glBindTexture(GL_TEXTURE_2D, ui_brush_texture)
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, brushWidth, brushHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, brushData)
+        printf("burshImage created %d x %d\n", brushWidth, brushHeight);
+        $allocate(4*brushWidth*brushHeight, 0) brushData        
+        brushContext = CGBitmapContextCreate(brushData, brushWidth, brushHeight, 8, brushWidth * 4, CGImageGetColorSpace(brushImage), kCGImageAlphaPremultipliedLast)
+        CGContextDrawImage(brushContext, CGRectMake(0.0, 0.0, (CGFloat)brushWidth, (CGFloat)brushHeight), brushImage)
+        CGContextRelease(brushContext)
+        
+        glGenTextures(1, &ui_brush_texture)
+        glBindTexture(GL_TEXTURE_2D, ui_brush_texture)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, brushWidth, brushHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, brushData)
 
-	mu_del_pointer(brushData)
+        mu_del_pointer(brushData)
 
 subcode: delete_brush
     $if ui_brush_texture
-	glDeleteTextures(1, &ui_brush_texture)
-	ui_brush_texture=0
+        glDeleteTextures(1, &ui_brush_texture)
+        ui_brush_texture=0

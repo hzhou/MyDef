@@ -25,10 +25,10 @@ page: output_c, output_main
     package: MyDef::output_c
 
     subcode: init_page
-	$call @c_init
-	$if $MyDef::def->{"macros"}->{"use_double"} or $page->{"use_double"}
-	    $type_name{f}="double";
-	    $type_prefix{f}="double";
+        $call @c_init
+        $if $MyDef::def->{"macros"}->{"use_double"} or $page->{"use_double"}
+            $type_name{f}="double";
+            $type_prefix{f}="double";
         $elif $page->{"use_libmydef"}
             $call load_autodecl, c/libmydef.inc
         $elif $page->{autodecl}
@@ -38,106 +38,106 @@ page: output_c, output_main
         $call @autolist_functions
 
     subcode: parsecode
-	$(set:parse_condition=1)
-	$call parsecode_case_support, if, else if, c_style
-	$call parsecode_common
+        $(set:parse_condition=1)
+        $call parsecode_case_support, if, else if, c_style
+        $call parsecode_common
 
     subcode: parsecode_template
-	$if $a=~/(\s*)\/\*\s*\$call\s*(.*)\s*\*\//
-	    my ($spaces, $call_line)=($1, $2)
-	    my $len=length($spaces)
-	    my $n=int($len/4)
-	    $if $len % 4
-		$n++
-	    $for $i=0:$n
-		push @$out, "INDENT"
-	    MyDef::compileutil::call_sub($call_line)
-	    $for $i=0:$n
-		push @$out, "DEDENT"
-	    next
-	$elif $a=~/DUMP_STUB\s+(\w+)/
-	    push @$out, "DUMP_STUB $1"
-	    $page->{"has_stub_$1"}=1
-	    next
+        $if $a=~/(\s*)\/\*\s*\$call\s*(.*)\s*\*\//
+            my ($spaces, $call_line)=($1, $2)
+            my $len=length($spaces)
+            my $n=int($len/4)
+            $if $len % 4
+                $n++
+            $for $i=0:$n
+                push @$out, "INDENT"
+            MyDef::compileutil::call_sub($call_line)
+            $for $i=0:$n
+                push @$out, "DEDENT"
+            next
+        $elif $a=~/DUMP_STUB\s+(\w+)/
+            push @$out, "DUMP_STUB $1"
+            $page->{"has_stub_$1"}=1
+            next
 
     subcode: case_flag_set
-	$global $case_flag="b_flag_case"
-	global_add_var($case_flag)
-	push @$out, "b_flag_case=1;"
+        $global $case_flag="b_flag_case"
+        global_add_var($case_flag)
+        push @$out, "b_flag_case=1;"
 
     subcode: case_flag_reset
-	push @$out, "b_flag_case=0;"
+        push @$out, "b_flag_case=0;"
 
     subcode: dumpout
-	# ----  Main Function -------------------
-	my $mainfunc=$functions{"main"};
-	$if $mainfunc
+        # ----  Main Function -------------------
+        my $mainfunc=$functions{"main"};
+        $if $mainfunc
             $global $has_main
             $has_main=1
-	    $mainfunc->{skip_declare}=1;
-	    $mainfunc->{ret_type}="int";
-	    $mainfunc->{param_list}=["int argc", "char** argv"];
-	    unshift @{$mainfunc->{init}}, "DUMP_STUB main_init"
-	    push @{$mainfunc->{finish}}, "DUMP_STUB main_exit"
-	    $if !$mainfunc->{return}
-		$mainfunc->{return}="return 0;"
+            $mainfunc->{skip_declare}=1;
+            $mainfunc->{ret_type}="int";
+            $mainfunc->{param_list}=["int argc", "char** argv"];
+            unshift @{$mainfunc->{init}}, "DUMP_STUB main_init"
+            push @{$mainfunc->{finish}}, "DUMP_STUB main_exit"
+            $if !$mainfunc->{return}
+                $mainfunc->{return}="return 0;"
 
-	# ---- process_function ------------------------
-	$foreach $func in @function_list
-	    $if !$func->{processed}
-		process_function_std($func)
+        # ---- process_function ------------------------
+        $foreach $func in @function_list
+            $if !$func->{processed}
+                process_function_std($func)
                 $if !$has_main
                     my $name=$func->{name}
                     $if $function_autolist{$name} eq "static"
                         $func->{declare}="static ".$func->{declare}
 
-	$call process_extern_binary
-	$call process_link_objects
-	$call dump_Makefile
+        $call process_extern_binary
+        $call process_link_objects
+        $call dump_Makefile
 
-	# ---- Header stuff --------------------------
-	$if !$page->{has_stub_global_init}
-	    # unshift @$out, "\n/**** END GLOBAL INIT ****/\n"
-	    unshift @$out, "DUMP_STUB global_init"
+        # ---- Header stuff --------------------------
+        $if !$page->{has_stub_global_init}
+            # unshift @$out, "\n/**** END GLOBAL INIT ****/\n"
+            unshift @$out, "DUMP_STUB global_init"
 
-	$call c_dump_init
+        $call c_dump_init
 
     subcode: process_link_objects
-	my @objlist
-	my @liblist
-	$foreach $i in keys %objects
-	    $if $i=~/^lib(.*)/
-		push @liblist, "-l$1"
-	    $elif $i=~/(.*\.o)/
-		push @objlist, "$i"
-	my $lib_list=join(" ", @liblist)
-	my $obj_list=join(" ", @objlist)
+        my @objlist
+        my @liblist
+        $foreach $i in keys %objects
+            $if $i=~/^lib(.*)/
+                push @liblist, "-l$1"
+            $elif $i=~/(.*\.o)/
+                push @objlist, "$i"
+        my $lib_list=join(" ", @liblist)
+        my $obj_list=join(" ", @objlist)
 
     subcode: dump_Makefile
-	$if $mainfunc
-	    my $ofile=$page->{outdir}."/Makefile"
-	    $if !-f $ofile or $page->{makefile}
-		print "  ---> $ofile\n"
-		my $pagename=$page->{pagename}
-		open Subfile, ">$ofile" or die "Can't write $ofile\n"
-		$call set_make_macro, CC, gcc
-		$call set_make_macro, CFLAGS, -
-		$call set_make_macro, INC, -
-		$call set_make_macro, LIB, -
-		$if $page->{makefile} eq "debug"
-		    print Subfile "CFLAGS+= -g"
-		print Subfile "\n"
-		print Subfile "$pagename: $pagename.o $obj_list\n";
-		print Subfile "\t\$\(CC) \$\(LIB) $lib_list -o $pagename \$^\n"
-		print Subfile "\n"
-		print Subfile "%.o: %.c\n"
-		print Subfile "\t\$\(CC) -c \$\(CFLAGS) \$\(INC) -o \$@ \$<\n"
-		close Subfile
+        $if $mainfunc
+            my $ofile=$page->{outdir}."/Makefile"
+            $if !-f $ofile or $page->{makefile}
+                print "  ---> $ofile\n"
+                my $pagename=$page->{pagename}
+                open Subfile, ">$ofile" or die "Can't write $ofile\n"
+                $call set_make_macro, CC, gcc
+                $call set_make_macro, CFLAGS, -
+                $call set_make_macro, INC, -
+                $call set_make_macro, LIB, -
+                $if $page->{makefile} eq "debug"
+                    print Subfile "CFLAGS+= -g"
+                print Subfile "\n"
+                print Subfile "$pagename: $pagename.o $obj_list\n";
+                print Subfile "\t\$\(CC) \$\(LIB) $lib_list -o $pagename \$^\n"
+                print Subfile "\n"
+                print Subfile "%.o: %.c\n"
+                print Subfile "\t\$\(CC) -c \$\(CFLAGS) \$\(INC) -o \$@ \$<\n"
+                close Subfile
 
 subcode: set_make_macro(name, default)
     $if $page->{$(name)}
-	print Subfile "$(name)=$page->{$(name)}\n"
+        print Subfile "$(name)=$page->{$(name)}\n"
     $(if:default!=-)
-	$else
-	    print Subfile "$(name)=$(default)\n"
+        $else
+            print Subfile "$(name)=$(default)\n"
 

@@ -1,35 +1,35 @@
 subcode:: parsecode_func_param_other
     $elif $func eq "allocate"
-	allocate($param1, $param2, "malloc")
-	return
+        allocate($param1, $param2, "malloc")
+        return
     $elif $func eq "realloc"
-	allocate($param1, $param2, "realloc")
-	return
+        allocate($param1, $param2, "realloc")
+        return
     $elif $func eq "local_allocate"
-	local_allocate($param1, $param2, "auto")
-	return
+        local_allocate($param1, $param2, "auto")
+        return
 
 subcode:: parsecode_func_other
     $elif $func eq "allocate"
-	allocate("1", $param, "malloc")
-	return
+        allocate("1", $param, "malloc")
+        return
 
 #---------------------------------------- 
-fncode: allocate($dim, $param2, $type)
+fncode: allocate($dim, $param2, $alloc_type)
     add_include("stdlib, string")
     $call get_dimension
     $call auto_post
     my @plist=split /,\s+/, $param2;
     $foreach $p in @plist
-	$if $p
+        $if $p
             $call @get_var
-	    my $type=pointer_type(get_var_type($p))
+            my $type=pointer_type(get_var_type($p))
 
             my $size="sizeof($type)"
-	    $if $dim ne "1"
-		$size = "$dim*$size"
+            $if $dim ne "1"
+                $size = "$dim*$size"
 
-            $if $type eq "realloc"
+            $if $alloc_type eq "realloc"
                 push @$out, "$p=($type*)realloc($p, $size);";
             $else
                 push @$out, "$p=($type*)malloc($size);";
@@ -40,10 +40,10 @@ fncode: allocate($dim, $param2, $type)
     # ----------------------------------
     subcode: auto_post
         my $post
-        $if $type eq "auto"
+        $if $alloc_type eq "auto"
             $post=MyDef::compileutil::get_named_block("_post")
     subcode: auto_post_p
-        $if $type eq "auto"
+        $if $alloc_type eq "auto"
             push @$post, "free($p);"
 
     subcode: get_dimension

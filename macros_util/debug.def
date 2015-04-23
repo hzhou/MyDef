@@ -1,12 +1,12 @@
 subcode: dump_array(a)
     print "Dump array $(a)\n"
     $foreach my $t in @$(a)
-	print "    ", $t, "\n"
+        print "    ", $t, "\n"
 
 subcode: dump_hash(h)
     print "Dump hash $(h)\n"
     $while my ($k, $v) = each %$(h)
-	print "    ", "$k: $v\n"
+        print "    ", "$k: $v\n"
 
 subcode: dump_line(name)
     my $yellow="\033[33;1m";
@@ -16,7 +16,7 @@ subcode: dump_line(name)
 subcode: dump_def
     print "Dump def $def\n"
     $while my ($k, $v) = each %$def
-	print "    ", "$k: $v\n"
+        print "    ", "$k: $v\n"
         $if $k eq "codes"
             $while my ($k2, $v2) = each %$v
                 print "        ", $v2->{type}, "code: $k2\n"

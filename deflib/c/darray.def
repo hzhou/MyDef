@@ -4,7 +4,7 @@ subcode:: _autoload
 
 #--- dynamic array ----------------------------
 #    Consideration:: 
-# 	do not over worry about global name collision
+#       do not over worry about global name collision
 #       rather, work on how to get program detect name collisions
 
 subcode: libdarray
@@ -14,10 +14,10 @@ subcode: libdarray
 #-   $my darray P: int
 subcode: darray_init(var, scope, @type)
     $(if:$(type:list:n)=1)
-	$$(scope) $(type) * $(var)=NULL
+        $$(scope) $(type) * $(var)=NULL
     $(else)
-	$tuple $(type)
-	$$(scope) struct $(T) * $(var)=NULL
+        $tuple $(type)
+        $$(scope) struct $(T) * $(var)=NULL
 
     $set_var_attr $(var), class=darray, dimension=$(var)_len
     $set_var_attr $(var), exit=darray_exit
@@ -26,20 +26,20 @@ subcode: darray_init(var, scope, @type)
 
 subcode: darray_exit(var)
     $if $(var)_size>0
-	free($(var))
+        free($(var))
 
 subcode: darray_resize(var, n)
     $(if:n=0)
-	$if $(var)_size>0
-	    free($(var))
-	    $(var)=NULL
-	    $(var)_len=0
-	    $(var)_size=0
+        $if $(var)_size>0
+            free($(var))
+            $(var)=NULL
+            $(var)_len=0
+            $(var)_size=0
     $(else)
-	$if $(var)_size<$(n)
-	    $(var)_size=$(n)
-	    $call darray_expand, $(var) 
-	$(var)_len=$(n)
+        $if $(var)_size<$(n)
+            $(var)_size=$(n)
+            $call darray_expand, $(var) 
+        $(var)_len=$(n)
 
 subcode: darray_clear(var)
     $(var)_len=0
@@ -60,8 +60,8 @@ subcode: darray_check(var)
     $(export:size=$(var)_size)
 
     $if $(len)+1>$(size)
-	$get_pointer_type(type) $(var)
-	$fcall $(var)=f_darray_expand($(var), sizeof($(type)), &$(var)_size)
+        $get_pointer_type(type) $(var)
+        $fcall $(var)=f_darray_expand($(var), sizeof($(type)), &$(var)_size)
 
 subcode: darray_expand(var)
     $get_pointer_type(type) $(var)
@@ -72,7 +72,7 @@ fncode: f_darray_expand(void * P, n_rec_size, pn_size)
     $return_type void *
     tn_temp=(*pn_size)*2/3
     $if tn_temp<64
-	tn_temp=64
+        tn_temp=64
     (*pn_size)+=tn_temp
     P=realloc(P, (*pn_size)*n_rec_size)
     # $call @assert, P

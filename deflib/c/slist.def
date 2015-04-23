@@ -16,8 +16,8 @@ subcode: slist_init(var, @plist)
     $(sl)tail=NULL
     $(sl)n=0
     $(ifeach:p)
-	# list_member = init value;
-	$(sl)$(p)
+        # list_member = init value;
+        $(sl)$(p)
 
 # ----------------------------------------------------
 subcode: slist_set_macro(var)
@@ -35,62 +35,62 @@ subcode: slist_index(var, n)
     tn_sl_index=$(n)
     $(p)=$(sl)head
     $while 1
-	$if !$(p)
-	    break
-	$elif tn_sl_index==0
-	    BLOCK
-	    break
-	$else
-	    $(p)=$(p)->next
-	    tn_sl_index--
+        $if !$(p)
+            break
+        $elif tn_sl_index==0
+            BLOCK
+            break
+        $else
+            $(p)=$(p)->next
+            tn_sl_index--
     $(export:p)
 
 subcode: slist_head(var)
     $call slist_set_macro, $(var)
     $if $(sl)head
-	$(p)=$(sl)head
-	BLOCK
+        $(p)=$(sl)head
+        BLOCK
     $(export:p)
     $(export:sl)
 
 subcode: slist_tail(var)
     $call slist_set_macro, $(var)
     $if $(sl)tail
-	$(p)=$(sl)tail
-	BLOCK
+        $(p)=$(sl)tail
+        BLOCK
     $(export:p)
     $(export:sl)
 # --
 subcode: slist_head_pop(var)
     $call slist_set_macro, $(var)
     $while $(sl)head
-	$local $(nodetype) * $(p)
-	$(p)=$(sl)head
-	BLOCK
-	$(sl)head=$(p)->next
-	$(sl)n--
-	free($(p))
+        $local $(nodetype) * $(p)
+        $(p)=$(sl)head
+        BLOCK
+        $(sl)head=$(p)->next
+        $(sl)n--
+        free($(p))
     $if !$(sl)head
-	$(sl)tail=NULL
+        $(sl)tail=NULL
     $(export:p)
 
 subcode: slist_clear(var)
     &call slist_head_pop, $(var)
-	# NOOP
-	
+        # NOOP
+        
 subcode: slist_push(var, @plist)
     $call slist_set_macro, $(var)
     $local $(nodetype) * $(p)
     $(p)=($(nodetype) *)malloc(sizeof($(nodetype)))
     $(p)->next=NULL
     $if !$(sl)head
-	$(sl)head=$(p)
+        $(sl)head=$(p)
     $else
-	$(sl)tail->next=$(p)
+        $(sl)tail->next=$(p)
     $(sl)tail=$(p)
     $(sl)n++
     $(ifeach:t)
-	$(p)->$(t)
+        $(p)->$(t)
     $(export:p)
 
 subcode: slist_shift(var)
@@ -99,7 +99,7 @@ subcode: slist_shift(var)
     $(p)=$(sl)head
     $(sl)head=$(sl)head->next
     $if !$(sl)head
-	$(sl)tail=NULL
+        $(sl)tail=NULL
     $(sl)n--
     $(export:p)
 
@@ -110,10 +110,10 @@ subcode: slist_unshift(var, @plist)
     $(p)->next=$(sl)head
     $(sl)head=$(p)
     $if !$(sl)tail
-	$(sl)tail=$(p)
+        $(sl)tail=$(p)
     $(sl)n++
     $(ifeach:t)
-	$(p)->$(t)
+        $(p)->$(t)
     $(export:p)
 
 subcode: slist_each(var)
@@ -121,8 +121,8 @@ subcode: slist_each(var)
     $local $(nodetype) * $(p)
     $(p)=$(sl)head
     $while $(p)
-	BLOCK
-	$(p)=$(p)->next
+        BLOCK
+        $(p)=$(p)->next
     $(export:p, sl)
 
 # ---- Iteration that allows delete and insert
@@ -137,22 +137,22 @@ subcode: slist_each_2(var)
     $(pp)=&$(sl)head
     $(p)=$(sl)head
     $while $(p)
-	tn_flag=1
-	BLOCK
-	$if tn_flag==0
-	    # node deleted, p2 and pp does not change
-	    free($(p))
-	    $(p)=*$(pp)
-	$if tn_flag==1
-	    # advance 1
-	    $(p2)=$(p)
-	    $(pp)=&($(p)->next)
-	    $(p)=$(p)->next
-	$elif tn_flag==2
-	    # after insert_before, advance 2
-	    $(p2)=$(p)->next
-	    $(pp)=&($(p2)->next)
-	    $(p)=$(p2)->next
+        tn_flag=1
+        BLOCK
+        $if tn_flag==0
+            # node deleted, p2 and pp does not change
+            free($(p))
+            $(p)=*$(pp)
+        $if tn_flag==1
+            # advance 1
+            $(p2)=$(p)
+            $(pp)=&($(p)->next)
+            $(p)=$(p)->next
+        $elif tn_flag==2
+            # after insert_before, advance 2
+            $(p2)=$(p)->next
+            $(pp)=&($(p2)->next)
+            $(p)=$(p2)->next
     $(export:p, p2, pp, sl, nodetype)
 
 subcode: slist_insert(@plist)
@@ -161,12 +161,12 @@ subcode: slist_insert(@plist)
     $(p)->next=$(p2)
     $(sl)n++
     $if $(p2)->next==NULL
-	$(sl)tail=$(p2)
+        $(sl)tail=$(p2)
 
     $(p)=$(p2)
 
     $(ifeach:t)
-	$(p)->$(t)
+        $(p)->$(t)
 
 subcode: slist_insert_before(@plist)
     $(p2)=($(nodetype) *)malloc(sizeof($(nodetype)))
@@ -178,13 +178,13 @@ subcode: slist_insert_before(@plist)
     tn_flag=2
 
     $(ifeach:t)
-	$(p)->$(t)
+        $(p)->$(t)
 
 subcode: slist_delete
     *$(pp)=$(p)->next
     $(sl)n--
     $if *$(pp)==NULL
-	$(sl)tail=$(p2)
+        $(sl)tail=$(p2)
 
     tn_flag=0
 

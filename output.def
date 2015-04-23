@@ -16,62 +16,62 @@ subcode: output_main
     $call @package_globals
 
     $sub get_interface
-	$(if:interface_type)
-	    my $interface_type="$(interface_type)"
-	$(else)
-	    my $interface_type="general"
-	return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout, $interface_type);
+        $(if:interface_type)
+            my $interface_type="$(interface_type)"
+        $(else)
+            my $interface_type="general"
+        return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout, $interface_type);
 
     $sub init_page($t_page)
-	$page=$t_page
-	# ---- Set output file extension
-	$(if:ext)
-	    MyDef::set_page_extension("$(ext)")
-	$(else)
-	    MyDef::set_page_extension(undef)
+        $page=$t_page
+        # ---- Set output file extension
+        $(if:ext)
+            MyDef::set_page_extension("$(ext)")
+        $(else)
+            MyDef::set_page_extension(undef)
         $(if:init_mode)
             my $init_mode="$(init_mode)"
         $(else)
             my $init_mode="sub"
-	$call @init_page
-	return $init_mode
+        $call @init_page
+        return $init_mode
 
     $sub set_output($newout)
-	$out = $newout
+        $out = $newout
 
     # ---- www has php,  html and js mode ----------
     $sub modeswitch($mode, $in)
-	$call @modeswitch
+        $call @modeswitch
 
     # ---- All specialized parsing goes here.
     $sub parsecode($l)
-	$if $debug eq "parse"
-	    $call dump_line, parsecode
-	$if $l=~/^DEBUG (\w+)/
-	    $if $1 eq "OFF"
-		$debug=0
-	    $else
-		$debug=$1
-	    return
-	$elif $l=~/^\$warn (.*)/
-	    $call warn, $1
-	    return
-	$elif $l=~/^\$template\s*(.*)/
-	    open In, $1 or die "Can't open template $1\n"
-	    my @all=<In>
-	    close In
-	    $foreach $a in @all
-		$call @parsecode_template
-		push @$out, $a
-	    return
-	$call parsecode_eval
-	$call parsecode
+        $if $debug eq "parse"
+            $call dump_line, parsecode
+        $if $l=~/^DEBUG (\w+)/
+            $if $1 eq "OFF"
+                $debug=0
+            $else
+                $debug=$1
+            return
+        $elif $l=~/^\$warn (.*)/
+            $call warn, $1
+            return
+        $elif $l=~/^\$template\s*(.*)/
+            open In, $1 or die "Can't open template $1\n"
+            my @all=<In>
+            close In
+            $foreach $a in @all
+                $call @parsecode_template
+                push @$out, $a
+            return
+        $call parsecode_eval
+        $call parsecode
 
     # ---- Final output, allows for 2nd pass translation
     $sub dumpout($f, $out, $pagetype)
-	my $dump={out=>$out,f=>$f, module=>"$(pagename)"}
-	$call @dumpout
-	MyDef::dumpout::dumpout($dump);
+        my $dump={out=>$out,f=>$f, module=>"$(pagename)"}
+        $call @dumpout
+        MyDef::dumpout::dumpout($dump);
 
     $call single_blocks
     $call @support_subs
@@ -81,6 +81,7 @@ subcode: output_main
 #---------------------------------------- 
 subcode: inherit_c
     use MyDef::output_c
+    $global $out
     $(export:C=MyDef::output_c::)
     $(export:Cpage=$MyDef::output_c::page)
     $(export:Cout=$MyDef::output_c::out)
@@ -88,28 +89,33 @@ subcode: inherit_c
     $call @package_globals
 
     $sub get_interface
-	return (\&init_page, \&parsecode, \&$(C)set_output, \&modeswitch, \&dumpout);
+        return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
+
+    $sub set_output($newout)
+        $out = $newout
+        $(C)set_output($newout)
+
 
     $sub modeswitch($mode, $in)
-	$call @on_modeswitch
+        $call @on_modeswitch
 
     $sub init_page
-	my ($page)=@_
-	# overwrite default .c extension
-	$if !$page->{type}
-	    $page->{type}="$(ext)"
-	$(C)init_page(@_)
-	$call @on_init
-	return $page->{init_mode}
+        my ($page)=@_
+        # overwrite default .c extension
+        $if !$page->{type}
+            $page->{type}="$(ext)"
+        $(C)init_page(@_)
+        $call @on_init
+        return $page->{init_mode}
 
     $sub parsecode($l)
-	$call parsecode_eval
-	$call @on_parsecode
-	return $(C)parsecode($l)
+        $call parsecode_eval
+        $call @on_parsecode
+        return $(C)parsecode($l)
 
     $sub dumpout($f, $out, $pagetype)
-	$call @on_dumpout
-	$(C)dumpout($f, $out, $pagetype)
+        $call @on_dumpout
+        $(C)dumpout($f, $out, $pagetype)
 
     $call @support_subs
 
@@ -125,29 +131,29 @@ subcode: parsecode_PRINT
 
 subcode: parsecode_eval
     $case $l=~/^\$eval\s+(\w+)(.*)/
-	my ($codename, $param)=($1, $2)
-	$param=~s/^\s*,\s*//
-	$call parsecode_run_eval, $codename
-	return
+        my ($codename, $param)=($1, $2)
+        $param=~s/^\s*,\s*//
+        $call parsecode_run_eval, $codename
+        return
 
 #---------------------------------------- 
 subcode: parsecode_common
     # print "parsecode_common: input [$l]\n"
     $if $MyDef::compileutil::cur_mode eq "PRINT"
-	$call @parsecode_PRINT
+        $call @parsecode_PRINT
     $call @parsecode_special
     $elif $l=~/^\s*\$(\w+)\((.*?)\)\s+(.*)$/
-	# $function(param1) param2 ---------------------------
-	my ($func, $param1, $param2)=($1, $2, $3)
-	$call parsecode_plugin
-	# $call parsecode_check_plugin
-	$call parsecode_func_param
+        # $function(param1) param2 ---------------------------
+        my ($func, $param1, $param2)=($1, $2, $3)
+        $call parsecode_plugin
+        # $call parsecode_check_plugin
+        $call parsecode_func_param
     $elif $l=~/^\s*\$(\w+)\s*(.*)$/
-	# $function param  -----------------------------------
-	my ($func, $param)=($1, $2)
-	$if $param !~ /^=/
-	    $call parsecode_check_plugin
-	    $call parsecode_func
+        # $function param  -----------------------------------
+        my ($func, $param)=($1, $2)
+        $if $param !~ /^=/
+            $call parsecode_check_plugin
+            $call parsecode_func
 
     $call @parsecode_other
 
@@ -156,87 +162,87 @@ subcode: parsecode_common
 
 subcode: single_blocks
     $sub single_block($t1, $t2, $scope)
-	push @$out, "$t1";
-	push @$out, "INDENT";
-	push @$out, "BLOCK";
-	push @$out, "DEDENT";
-	push @$out, "$t2";
-	$if $scope
-	    return "NEWBLOCK-$scope"
-	$else
-	    return "NEWBLOCK";
+        push @$out, "$t1";
+        push @$out, "INDENT";
+        push @$out, "BLOCK";
+        push @$out, "DEDENT";
+        push @$out, "$t2";
+        $if $scope
+            return "NEWBLOCK-$scope"
+        $else
+            return "NEWBLOCK";
 
     $sub single_block_pre_post($pre, $post, $scope)
-	$if $pre
-	    push @$out, @$pre
-	push @$out, "BLOCK";
-	$if $post
-	    push @$out, @$post
-	$if $scope
-	    return "NEWBLOCK-$scope";
-	$else
-	    return "NEWBLOCK";
+        $if $pre
+            push @$out, @$pre
+        push @$out, "BLOCK";
+        $if $post
+            push @$out, @$post
+        $if $scope
+            return "NEWBLOCK-$scope";
+        $else
+            return "NEWBLOCK";
 
 # ------------------------------------------
 subcode: debug_plugin
     $while my ($funcname, $codename)=each %plugin_statement
-	print " plugin statement:  $funcname => $codename\n"
+        print " plugin statement:  $funcname => $codename\n"
     $while my ($funcname, $codename)=each %plugin_condition
-	print " plugin condition:  $funcname => $codename\n"
+        print " plugin condition:  $funcname => $codename\n"
 
 subcode: parsecode_plugin
     $global %plugin_statement
     $global %plugin_condition
     $case $func eq "plugin"
-	$if $param2=~/_condition$/
-	    $plugin_condition{$param1}=$param2
-	$else
-	    $plugin_statement{$param1}=$param2
-	return
+        $if $param2=~/_condition$/
+            $plugin_condition{$param1}=$param2
+        $else
+            $plugin_statement{$param1}=$param2
+        return
 
 subcode: parsecode_run_eval(code)
     $(if:code!=$codename)
-	my $codename=$(code)
+        my $codename=$(code)
     # print "parsecode_run_eval - $codename - ", __PACKAGE__, "\n"
     my $t=MyDef::compileutil::eval_sub($codename)
     eval $t
     $if $@ and !$MyDef::compileutil::eval_sub_error{$codename}
-	$MyDef::compileutil::eval_sub_error{$codename}=1
-	print "evalsub - $codename\n"
-	print "[$t]\n"
-	print "eval error: [$@] package [", __PACKAGE__, "]\n"
+        $MyDef::compileutil::eval_sub_error{$codename}=1
+        print "evalsub - $codename\n"
+        print "[$t]\n"
+        print "eval error: [$@] package [", __PACKAGE__, "]\n"
 
 subcode: parsecode_check_plugin
     $if $plugin_statement{$func}
-	$call parsecode_run_eval, $plugin_statement{$func}
-	return
+        $call parsecode_run_eval, $plugin_statement{$func}
+        return
 
 subcode: parse_condition_check_plugin
     $if $plugin_condition{$func}
-	my $condition
-	$call parsecode_run_eval, $plugin_condition{$func}
-	return $condition
+        my $condition
+        $call parsecode_run_eval, $plugin_condition{$func}
+        return $condition
 
 # -------------------------------------------
 subcode: parse_condition_map(or)
     $if $param=~/\$map\s+(.*),\s+(.*)/
-	my $template=$1
-	my @or_list=split /\|/, $2
+        my $template=$1
+        my @or_list=split /\|/, $2
 
-	my @segs
-	$foreach $a in @or_list
-	    my $t=$template
-	    $t=~s/\$1/$a/g
-	    push @segs, $t
-	my $sep=" $(or) "
-	return $pre . join($sep, @segs)
+        my @segs
+        $foreach $a in @or_list
+            my $t=$template
+            $t=~s/\$1/$a/g
+            push @segs, $t
+        my $sep=" $(or) "
+        return $pre . join($sep, @segs)
 
 #---------------------------------------- 
 #- utility subcode
 
 subcode: warn(@msg)
     $(if:msg~")
-	$(set:msg=$(msg:strip))
+        $(set:msg=$(msg:strip))
     my $curfile=MyDef::compileutil::curfile_curline()
     $print "[$curfile]$yellow $(msg)" 
 
@@ -258,8 +264,8 @@ subcode: each_subcode(type)
     my $codes=$MyDef::def->{codes}
     my @tlist
     $while my ($k, $v)= each %$codes
-	$if $v->{type} eq "$(type)"
-	    push @tlist, $k
+        $if $v->{type} eq "$(type)"
+            push @tlist, $k
     $if @tlist
         @tlist=sort { $codes->{$a}->{index} <=> $codes->{$b}->{index} } @tlist
         $foreach $name in @tlist

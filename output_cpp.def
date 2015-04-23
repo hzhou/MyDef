@@ -13,18 +13,18 @@ subcode:: on_dumpout
     my $cnt_std=0
     # $while my ($k, $t)=each %$(C)includes
     $foreach $k in sort {$b cmp $a} keys(%$(C)includes)
-	$if $k=~/<(iostream|string|bitset|deque|list|map|queue|set|stack|vector)>/
-	    push @$f, "#include <$1>\n"
-	    $cnt_std++
-	$elif $k=~/<(stdio|stdlib|string|math|time|errno)\.h>/
-	    push @$f, "#include <c$1>\n"
-	$else
-	    push @$f, "#include $k\n"
-	$cnt++
+        $if $k=~/<(iostream|string|bitset|deque|list|map|queue|set|stack|vector)>/
+            push @$f, "#include <$1>\n"
+            $cnt_std++
+        $elif $k=~/<(stdio|stdlib|string|math|time|errno)\.h>/
+            push @$f, "#include <c$1>\n"
+        $else
+            push @$f, "#include $k\n"
+        $cnt++
     $if $cnt>0
-	$if $cnt_std>0
-	    push @$f, "using namespace std;\n"
-	push @$f, "\n"
+        $if $cnt_std>0
+            push @$f, "using namespace std;\n"
+        push @$f, "\n"
 
     %$(C)includes=()
 
@@ -34,7 +34,7 @@ subcode:: on_dumpout
     $$(C)dump_classes=\@class_dump
 
     $foreach $name in @$(C)struct_list
-	$call dump_struct
+        $call dump_struct
 
     @$(C)struct_list=()
 
@@ -44,29 +44,29 @@ subcode: dump_struct
     my $s_hash=$$(C)structs{$name}->{hash}
     my $i=0;
     $foreach $p in @$s_list
-	$i++;
-	$if $s_hash->{$p} eq "function"
-	    push @class_dump, "\t".$$(C)fntype{$p}.";\n";
-	$else
-	    push @class_dump, "\t$s_hash->{$p} $p;\n";
+        $i++;
+        $if $s_hash->{$p} eq "function"
+            push @class_dump, "\t".$$(C)fntype{$p}.";\n";
+        $else
+            push @class_dump, "\t$s_hash->{$p} $p;\n";
     $call dump_struct_constructor
     push @class_dump, "};\n\n";
 
 subcode: dump_struct_constructor
     my ($param, $init)=$(C)get_struct_constructor($name)
     $if defined $init
-	my $param_line=join(", ", @$param)
-	my @init_list
-	$foreach $a in @$init
-	    $if $a=~/(\w+)=(.*)/
-		push @init_list, "$1($2)"
-	my $init_line=join(", ", @init_list)
-	push @class_dump, "\t$name($param_line) : $init_line {}\n";
+        my $param_line=join(", ", @$param)
+        my @init_list
+        $foreach $a in @$init
+            $if $a=~/(\w+)=(.*)/
+                push @init_list, "$1($2)"
+        my $init_line=join(", ", @init_list)
+        push @class_dump, "\t$name($param_line) : $init_line {}\n";
 
     my $s_exit=$s_hash->{"-exit"}
     $if $s_exit and @$s_exit
-	push @class_dump, "\t~$name(){\n";
-	$foreach $l in @$s_exit
-	    push @class_dump, "\t    $l\n";
-	push @class_dump, "\t}\n";
+        push @class_dump, "\t~$name(){\n";
+        $foreach $l in @$s_exit
+            push @class_dump, "\t    $l\n";
+        push @class_dump, "\t}\n";
 

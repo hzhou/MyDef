@@ -46,7 +46,7 @@ subcode: c_sqrt(br, bi)
     f_ar=sqrt(f_br^2+f_bi^2)
     f_ai=sqrt((f_ar-f_br)/2)
     $if f_bi<0.0
-	f_ai=-f_ai
+        f_ai=-f_ai
     f_ar=sqrt((f_ar+f_br)/2)
     
 

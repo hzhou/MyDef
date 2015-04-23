@@ -1,43 +1,43 @@
 page: test
     htmlcode: main
-	$call php_process
-	$call page_css
-	HTML_START
-	$div #header
-	    $h1 h1_class
-		MyDef output_php Testing Page
-	$table layout
-	    $tr
-		$td #left
-		    left column
-		$td #mid
-		    middle column
-		$td #right
-		    right column
-	$div #footer
-	    $call php_message
-	HTML_END
+        $call php_process
+        $call page_css
+        HTML_START
+        $div #header
+            $h1 h1_class
+                MyDef output_php Testing Page
+        $table layout
+            $tr
+                $td #left
+                    left column
+                $td #mid
+                    middle column
+                $td #right
+                    right column
+        $div #footer
+            $call php_message
+        HTML_END
 
     subcode: page_css
-	CSS: .h1_class {font-family: sans-serif; text-align: center; font-size: 14pt; color: maroon}
-	CSS: #header {width: 80%; height: 100px;margin: auto; border: solid 1px black}
-	CSS: #footer {width: 80%; height: 100px;margin: auto; border: solid 1px black}
-	CSS: table.layout {height: 600px; width: 80%; margin: auto; text-align: center}
-	CSS: #left {  width: 100px; background-color: yellowgreen;border: solid 1px black}
-	CSS: #right {width: 20%;background-color: yellow; border: solid 1px black}
+        CSS: .h1_class {font-family: sans-serif; text-align: center; font-size: 14pt; color: maroon}
+        CSS: #header {width: 80%; height: 100px;margin: auto; border: solid 1px black}
+        CSS: #footer {width: 80%; height: 100px;margin: auto; border: solid 1px black}
+        CSS: table.layout {height: 600px; width: 80%; margin: auto; text-align: center}
+        CSS: #left {  width: 100px; background-color: yellowgreen;border: solid 1px black}
+        CSS: #right {width: 20%;background-color: yellow; border: solid 1px black}
 
     #----------------------------------------------
     subcode: php_process
-	$name=$_GET["name"]
-	
+        $name=$_GET["name"]
+        
     subcode: php_message
-	$if $name
-	    PRINT Hello $name!
-	$else
-	    PRINT Hello NoName.
-	# ----
-	$form
-	    PRINT test form, input name, submit 
-	    $input name
-	    PRINT &nbsp;
-	    $button submit
+        $if $name
+            PRINT Hello $name!
+        $else
+            PRINT Hello NoName.
+        # ----
+        $form
+            PRINT test form, input name, submit 
+            $input name
+            PRINT &nbsp;
+            $button submit

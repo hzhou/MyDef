@@ -5,7 +5,7 @@ subcode: basic_frame
 
     $call @global
     $(if:hascode:main2)
-	$list main2
+        $list main2
 
 #---- stl containers ---------------
 subcode:: _autoload
@@ -18,7 +18,7 @@ subcode:: _autoload
 subcode: vector_push(v, @list)
     $include <vector>
     $(for:t in $(list))
-	$(v).push_back($(t))
+        $(v).push_back($(t))
 
 subcode: stl_iterator(m)
     $get_type(type) $(m)
@@ -30,29 +30,29 @@ subcode: map_has(m, key)
     $call stl_iterator, $(m)
     got=$(m).find($(key))
     $if got!=$(m).end()
-	$(set:value=got->second)
-	BLOCK
+        $(set:value=got->second)
+        BLOCK
 
 subcode: set_has(m, key)
     $(allow_recurse:10)
     $call stl_iterator, $(m)
     got=$(m).find($(key))
     $if got!=$(m).end()
-	BLOCK
+        BLOCK
 
 #---- stl iteration ----
 subcode: map_iter(m)
     $call stl_iterator, $(m)
     $for got=$(m).begin();got!=$(m).end();++got
-	$(set:key=got->first)
-	$(set:value=got->second)
-	BLOCK
+        $(set:key=got->first)
+        $(set:value=got->second)
+        BLOCK
 
 subcode: set_iter(m)
     $call stl_iterator, $(m)
     $for got=$(m).begin();got!=$(m).end();++got
-	$(set:item=(*got))
-	BLOCK
+        $(set:item=(*got))
+        BLOCK
 
 #---- stl initilization ----
 subcode: vector_append(vec, val)     

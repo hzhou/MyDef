@@ -3,7 +3,7 @@ include: c/lex.def
 subcode: local_input(s)
     $get_var_attr $(s), strlen
     $(if:!strlen)
-	$(set:strlen=strlen($(s)))
+        $(set:strlen=strlen($(s)))
     $local struct input_buffer local_input_buffer
 
     $local input

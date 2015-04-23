@@ -18,7 +18,7 @@ subcode: fifo_create(b, size)
 
 subcode: fifo_create_static(b, buf, size, allocate)
     $(if:allocate=allocate)
-	$allocate $(b)
+        $allocate $(b)
     $(b)->buffer=$(buf)
     $(b)->n_size=$(size)
     #-- buffer is already filled
@@ -32,7 +32,7 @@ subcode:: on_fifo_create
 #-----
 subcode: fifo_delete(b)
     $if !$(b)->buffer_is_static
-	free($(b)->buffer)
+        free($(b)->buffer)
     free($(b))
 
 # -----------------------------------
@@ -54,18 +54,18 @@ subcode: fifo_copy(mem, size)
 subcode: fifo_check_space(b, more, typesize)
     $(set:space=$(b)->n_size-$(b)->n_end)
     $if $(space)<$(more)
-	$if $(b)->n_start>0
-	    $call fifo_shift, $(b), $(typesize)
-	$if $(space) <  $(more) + 1
-	    $call fifo_realloc, $(b), $(more), $(typesize)
+        $if $(b)->n_start>0
+            $call fifo_shift, $(b), $(typesize)
+        $if $(space) <  $(more) + 1
+            $call fifo_realloc, $(b), $(more), $(typesize)
 
 subcode: fifo_shift(b, typesize)
     tn_size=$(b)->n_end-$(b)->n_start
     $if tn_size>0
-	$(if:typesize=1)
-	    memmove($(b)->buffer, $(b)->buffer+$(b)->n_start, tn_size )
-	$(else)
-	    memmove($(b)->buffer, $(b)->buffer+$(b)->n_start, tn_size*$(typesize) )
+        $(if:typesize=1)
+            memmove($(b)->buffer, $(b)->buffer+$(b)->n_start, tn_size )
+        $(else)
+            memmove($(b)->buffer, $(b)->buffer+$(b)->n_start, tn_size*$(typesize) )
     $(b)->n_end-=$(b)->n_start
     # input_buffer.def (line, col) support
     $call @on_fifo_shift
@@ -74,8 +74,8 @@ subcode: fifo_shift(b, typesize)
 subcode: fifo_realloc(b, more, typesize)
     tn_size=$(b)->n_end-$(b)->n_start + $(more) + 128
     $(if:typesize=1)
-	$(b)->buffer=realloc($(b)->buffer, tn_size )
+        $(b)->buffer=realloc($(b)->buffer, tn_size )
     $(else)
-	$(b)->buffer=realloc($(b)->buffer, tn_size*$(typesize))
+        $(b)->buffer=realloc($(b)->buffer, tn_size*$(typesize))
     $(b)->n_size=tn_size
 

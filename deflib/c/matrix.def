@@ -18,17 +18,17 @@ fncode: f_matrix_print(pf_A, m, n)
     $(set:M=pf_A[$1*n+$2])
     $(mset:limit=8, skip=3, skip2=5)
     $for i=0:m
-	$if m>$(limit) && i==$(skip)
-	    $print "      ... ..."
-	    i+=m-$(skip2)
-	$else
-	    $for j=0:n
-		$if n>$(limit) && j==$(skip)
-		    printf "  ...  "
-		    j+=n-$(skip2)
-		$else
-		    printf " %6g ", $(M:i,j)
-	    $print
+        $if m>$(limit) && i==$(skip)
+            $print "      ... ..."
+            i+=m-$(skip2)
+        $else
+            $for j=0:n
+                $if n>$(limit) && j==$(skip)
+                    printf "  ...  "
+                    j+=n-$(skip2)
+                $else
+                    printf " %6g ", $(M:i,j)
+            $print
 
 #---------------------------------------- 
 subcode: vector_print(v)
@@ -40,20 +40,20 @@ fncode: f_vector_print(pf_V, m)
     $(set:V=pf_V[$1])
     $print "%g-", $(V:0)
     $for i=1:m
-	$if i>20
-	    $print " ... -"
-	    i=m-2
-	$else
-	    $print ", %g-", $(V:i)
+        $if i>20
+            $print " ... -"
+            i=m-2
+        $else
+            $print ", %g-", $(V:i)
     $print
 
 #---------------------------------------- 
 subcode: matrix_init(var, scope, @init)
     $call parse_matrix_init, $(init)
     $(if:use_double)
-	$$(scope) double $(var)[$(dimension)]={$(init_str)}
+        $$(scope) double $(var)[$(dimension)]={$(init_str)}
     $(else)
-	$$(scope) float $(var)[$(dimension)]={$(init_str)}
+        $$(scope) float $(var)[$(dimension)]={$(init_str)}
     $call set_matrix, $(var), $(dim1), $(dim2)
 
 perlcode: parse_matrix_init
@@ -63,13 +63,13 @@ perlcode: parse_matrix_init
     my @t
     my $n_cols
     $foreach $r in @rows
-	my @cols=split /\s*,\s*/, $r
-	$if !$n_cols
-	    $n_cols=@cols
-	$else
-	    $if $n_cols != @cols
-		$print "parse_matrix_init: uneven rows [$param]\n"
-	push @t, @cols
+        my @cols=split /\s*,\s*/, $r
+        $if !$n_cols
+            $n_cols=@cols
+        $else
+            $if $n_cols != @cols
+                $print "parse_matrix_init: uneven rows [$param]\n"
+        push @t, @cols
     my $init_str=join(",", @t)
     my $dimension=$n_rows*$n_cols
     MyDef::compileutil::set_current_macro("dim1", $n_rows)
@@ -82,42 +82,42 @@ perlcode: parse_matrix_init
 subcode: matrix_LU(var)
     $get_var_attr $(var), dim1, dim2
     $(if:!P)
-	$(export:P=$(var)_P)
-	$local int * $(P)
-	$allocate($(dim1)) $(P)
-	$set_var_attr $(P), exit=free
+        $(export:P=$(var)_P)
+        $local int * $(P)
+        $allocate($(dim1)) $(P)
+        $set_var_attr $(P), exit=free
 
-	$(export:work=$(var)_work)
-	$get_pointer_type(type) $(var)
-	$local $(type) * $(work)
-	$allocate($(dim1)) $(work)
-	$set_var_attr $(work), exit=free
+        $(export:work=$(var)_work)
+        $get_pointer_type(type) $(var)
+        $local $(type) * $(work)
+        $allocate($(dim1)) $(work)
+        $set_var_attr $(work), exit=free
 
-	$fcall f_matrix_LU($(var), $(P), $(work), $(dim1), $(dim2))
+        $fcall f_matrix_LU($(var), $(P), $(work), $(dim1), $(dim2))
 
 fncode: f_matrix_LU(pf_A, int * P, pf_work, m, n)
     $for i=0:m
-	P[i]=i
+        P[i]=i
 
     #$(set:M=pf_A[P[$1]*n+$2])
     $(set:M=pf_A[$1*n+$2])
     tn_row_size=n*sizeof(pf_A[0])
 
     $for i=0:m
-	$my tf_max
-	$(if:!skip_pivot)
-	    $call matrix_LU_find_pivot
-	    $if tn_pivot>i
-		$call swap, P[i], P[tn_pivot]
-	    $call matrix_row_swap, i, tn_pivot
-	    # $dump tn_pivot, tf_max
-	$(else)
-	    tf_max=$(M:i,i)
-	$for j=i+1:m
-	    $my tf_l=$(M:j,i)/tf_max
-	    $(M:j,i) = tf_l
-	    $for k=i+1:n
-		$(M:j,k)-=tf_l*$(M:i,k)
+        $my tf_max
+        $(if:!skip_pivot)
+            $call matrix_LU_find_pivot
+            $if tn_pivot>i
+                $call swap, P[i], P[tn_pivot]
+            $call matrix_row_swap, i, tn_pivot
+            # $dump tn_pivot, tf_max
+        $(else)
+            tf_max=$(M:i,i)
+        $for j=i+1:m
+            $my tf_l=$(M:j,i)/tf_max
+            $(M:j,i) = tf_l
+            $for k=i+1:n
+                $(M:j,k)-=tf_l*$(M:i,k)
 
 subcode: matrix_row_swap(i,j)
     $include string
@@ -129,24 +129,24 @@ subcode: matrix_LU_find_pivot
     $my tn_pivot=i
     tf_max=$(M:i,i)
     $for j=i+1:m
-	$if tf_max<fabs($(M:j,i))
-	    tn_pivot=j
-	    tf_max=fabs($(M:j,i))
+        $if tf_max<fabs($(M:j,i))
+            tn_pivot=j
+            tf_max=fabs($(M:j,i))
 
 subcode: clear_pivots(var)
     $(if:P)
-	free($(P))
-	$set_var_attr $(P), exit=--
-	$(unset:P)
-	
-	free($(work))
-	$set_var_attr $(work), exit=--
+        free($(P))
+        $set_var_attr $(P), exit=--
+        $(unset:P)
+        
+        free($(work))
+        $set_var_attr $(work), exit=--
 
 fncode: f_pivot_vector(pf_V, int * P, pf_work, m)
     $include string
     memcpy(pf_work, pf_V, m*sizeof(pf_V[0]))
     $for i=0:m
-	pf_V[i]=pf_work[P[i]]
+        pf_V[i]=pf_work[P[i]]
 
 #---------------------------------------- 
 subcode: matrix_det(var)
@@ -157,11 +157,11 @@ subcode: matrix_det(var)
     $my tf_det
     tf_det=1.0
     $for i=0:$(dim1)
-	tf_det *= $(var)[i*$(dim1)+i]
+        tf_det *= $(var)[i*$(dim1)+i]
 
     $list f_permutation_parity
     $if f_permutation_parity($(P), $(dim1))
-	tf_det=-tf_det
+        tf_det=-tf_det
 
     $yield tf_det
 
@@ -169,20 +169,20 @@ fncode: f_permutation_parity(int * P, m)
     $local_allocate(m, 0) pn_check
     tn_count=0
     $while 1
-	tn_start=-1
-	$for i=0:m
-	    $if pn_check[i]==0
-		tn_start=i
-		break
-	$if tn_start<0
-	    break
+        tn_start=-1
+        $for i=0:m
+            $if pn_check[i]==0
+                tn_start=i
+                break
+        $if tn_start<0
+            break
 
-	i=tn_start
-	pn_check[i]=1
-	$while P[i]!=tn_start
-	    i=P[i]
-	    pn_check[i]=1
-	    tn_count++
+        i=tn_start
+        pn_check[i]=1
+        $while P[i]!=tn_start
+            i=P[i]
+            pn_check[i]=1
+            tn_count++
     return tn_count%2
 #---------------------------------------- 
 subcode: matrix_solve(var, b)
@@ -196,14 +196,14 @@ subcode: matrix_solve(var, b)
 
     #--- forward elimination ----
     $for i=0:$(dim1)-1
-	$for j=i+1:$(dim1)
-	    $(V:j)-=$(V:i)*$(M:j,i)
+        $for j=i+1:$(dim1)
+            $(V:j)-=$(V:i)*$(M:j,i)
     # $call vector_print, $(b)
     #--- backward substitution ----
     $for i=$(dim1):0
-	$(V:i) /= $(M:i,i)
-	$for j=i:0
-	    $(V:j) -= $(V:i)*$(M:j,i)
+        $(V:i) /= $(M:i,i)
+        $for j=i:0
+            $(V:j) -= $(V:i)*$(M:j,i)
 
 #---------------------------------------- 
 subcode: matrix_inv(var)
@@ -212,7 +212,7 @@ subcode: matrix_inv(var)
     $get_var_attr $(var), dim1, dim2
     $fcall f_matrix_LU_invert($(var), $(dim1))
     $for i=0:$(dim1)
-	$fcall f_pivot_vector($(var)+i*$(dim1), $(P), $(work), $(dim1))
+        $fcall f_pivot_vector($(var)+i*$(dim1), $(P), $(work), $(dim1))
 
 
 fncode: f_matrix_LU_invert(pf_A, n)
@@ -220,24 +220,24 @@ fncode: f_matrix_LU_invert(pf_A, n)
 
     #--- forward elimination ----
     $for i=1:n
-	k=i-1
-	$(M:i,k)=-$(M:i,k)
-	$for j=k:0
-	    $(M:i,j)=-$(M:i,j)+$(M:i,j+1)*$(M:i-1,j)
+        k=i-1
+        $(M:i,k)=-$(M:i,k)
+        $for j=k:0
+            $(M:i,j)=-$(M:i,j)+$(M:i,j+1)*$(M:i-1,j)
     #--- backward substitution ----
     $for i=0:n
-	$(M:i,i)=1.0/$(M:i,i)
-	$for j=0:i
-	    $(M:i,j) *= $(M:i,i)
-	$for j=i+1:n
-	    $(M:i,j) *= $(M:i,i)
+        $(M:i,i)=1.0/$(M:i,i)
+        $for j=0:i
+            $(M:i,j) *= $(M:i,i)
+        $for j=i+1:n
+            $(M:i,j) *= $(M:i,i)
 
-	$for k=0:i
-	    $for j=0:i
-		$(M:k,j) -= $(M:k,i)*$(M:i,j)
-	    $for j=i+1:n
-		$(M:k,j) -= $(M:k,i)*$(M:i,j)
-	    $(M:k,i) = -$(M:k,i)*$(M:i,i)
+        $for k=0:i
+            $for j=0:i
+                $(M:k,j) -= $(M:k,i)*$(M:i,j)
+            $for j=i+1:n
+                $(M:k,j) -= $(M:k,i)*$(M:i,j)
+            $(M:k,i) = -$(M:k,i)*$(M:i,i)
 
 #---------------------------------------- 
 #- Normalized symmetric matrix A=LDL'
@@ -247,39 +247,39 @@ fncode: f_matrix_cholesky(pf_A, n)
     # $call set_matrix, A, n, n
     #---- LDL' ----
     $for i=0:n
-	tf_pivot=$(M:i,i)
-	$for j=i+1:n
-	    $my tf_l=$(M:j,i)/tf_pivot
-	    $(M:j,i) = tf_l
-	    $for k=i+1:n
-		$(M:j,k)-=tf_l*$(M:i,k)
+        tf_pivot=$(M:i,i)
+        $for j=i+1:n
+            $my tf_l=$(M:j,i)/tf_pivot
+            $(M:j,i) = tf_l
+            $for k=i+1:n
+                $(M:j,k)-=tf_l*$(M:i,k)
     #---- split D ----
     $for i=0:n
-	$(M:i,i)=sqrt($(M:i,i))
-	$for j=i+1:n
-	    $(M:i,j)=$(M:j,i)
+        $(M:i,i)=sqrt($(M:i,i))
+        $for j=i+1:n
+            $(M:i,j)=$(M:j,i)
 
 #- inv(A) = inv(L)' inv(D) inv(L)
 fncode: f_matrix_cholesky_inverse(pf_A, n)
     $(set:M=pf_A[$1*n+$2])
     $for i=1:n
-	k=i-1
-	$(M:i,k)=-$(M:i,k)
-	$for j=k:0
-	    $(M:i,j)=-$(M:i,j)+$(M:i,j+1)*$(M:i-1,j)
+        k=i-1
+        $(M:i,k)=-$(M:i,k)
+        $for j=k:0
+            $(M:i,j)=-$(M:i,j)+$(M:i,j+1)*$(M:i-1,j)
     $for i=0:n
-	$(M:i,i)=1.0/$(M:i,i)
-	$for j=i+1:n
-	    $(M:i,j)=$(M:j,i)
+        $(M:i,i)=1.0/$(M:i,i)
+        $for j=i+1:n
+            $(M:i,j)=$(M:j,i)
 
 #- V = inv(sqrt(D)) inv(L)' V
 fncode: f_matrix_cholesky_inverse_transform(pf_A, n, pf_V)
     $(set:M=pf_A[$1*n+$2])
     $for i=0:n
-	tf_sum=pf_V[i]
-	$for j=i+1:n
-	    tf_sum+=$(M:j,i)*pf_V[j]
-	pf_V[i]=tf_sum*$(M:i,i)
+        tf_sum=pf_V[i]
+        $for j=i+1:n
+            tf_sum+=$(M:j,i)*pf_V[j]
+        pf_V[i]=tf_sum*$(M:i,i)
 
 #---------------------------------------- 
 #- Lapack routines

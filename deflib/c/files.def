@@ -7,11 +7,11 @@ subcode: open_r_line(file)
     $if file_in==NULL
         fprintf(stderr, "Can't open %s\n", $(f))
     $else
-	$my string line
-	line.$resize(1000)
-	$while fgets(line, 1000, file_in)
-	    $(set:l=line)
-	    BLOCK
+        $my string line
+        line.$resize(1000)
+        $while fgets(line, 1000, file_in)
+            $(set:l=line)
+            BLOCK
         fclose(file_in)
 
 #---------------------------------------- 
@@ -33,7 +33,7 @@ subcode: stat_file(file)
 subcode: if_exist(file)
     $call stat_file, $(file)
     $if $(exist)
-	BLOCK
+        BLOCK
 
 #---------------------------------------- 
 subcode: fmt_filename(file)

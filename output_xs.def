@@ -2,12 +2,12 @@ include: output.def
 
 /*
     xscode: xs_main 
-	-- DUMP_STUB xs_start on XS_START
-	    ---- dumps xs_globals
+        -- DUMP_STUB xs_start on XS_START
+            ---- dumps xs_globals
     on_init:
     on_parsecode:
     on_dumpout:
-	process_function_xs
+        process_function_xs
 */
 
 page: output_xs, inherit_c
@@ -29,11 +29,11 @@ subcode: on_dumpout
     my $funclist=\@$(C)function_list
     my $funchash=\%$(C)list_function_hash
     $foreach $func in @$funclist
-	# $print funclist : $func->{name}
-	$if $funchash->{$func->{name}}
-	    $call process_function_xs
-	    $func->{skip_declare}=1
-	    $func->{processed}=1
+        # $print funclist : $func->{name}
+        $if $funchash->{$func->{name}}
+            $call process_function_xs
+            $func->{skip_declare}=1
+            $func->{processed}=1
 
     # ---- xs globals ----------------
     $global @xs_globals
@@ -41,16 +41,16 @@ subcode: on_dumpout
     my $cnt
     my $ghash=$$(C)global_hash
     $foreach $name in @$$(C)global_list
-	my $type=$ghash->{$name}->{type}
-	# $print  var $name, type $type
-	$if $type=~/^[SHA]V/
-	    my $decl = $(C)var_declare($ghash->{$name})
-	    push @xs_globals, "$decl;\n";
-	    $cnt++
-	$else
-	    push @t, $name
+        my $type=$ghash->{$name}->{type}
+        # $print  var $name, type $type
+        $if $type=~/^[SHA]V/
+            my $decl = $(C)var_declare($ghash->{$name})
+            push @xs_globals, "$decl;\n";
+            $cnt++
+        $else
+            push @t, $name
     $if $cnt>0
-	@$$(C)global_list=@t
+        @$$(C)global_list=@t
 
     # ---- xs_start -------------------
     $call init_xs
@@ -64,7 +64,7 @@ subcode: init_xs
     push @$block, "#include \"ppport.h\"\n";
     push @$block, "\n";
     $foreach my $l in @xs_globals
-	push @$block, $l;
+        push @$block, $l;
     push @$block, "\n";
     my $pagename=$(Cpage)->{pagename}
     push @$block, "MODULE = $pagename\t\tPACKAGE = $pagename\n";
@@ -74,133 +74,133 @@ subcode: init_xs
 subcode: on_parsecode
     my $out=$(Cout)
     $if $l=~/^XS_START/
-	#---- flush out C functions ----
-	$(C)parsecode("NOOP POST_MAIN")
-	%$(C)list_function_hash=()
-	#---- 
-	$l= "DUMP_STUB xs_start"
+        #---- flush out C functions ----
+        $(C)parsecode("NOOP POST_MAIN")
+        %$(C)list_function_hash=()
+        #---- 
+        $l= "DUMP_STUB xs_start"
     $elif $l=~/^\s*(\$if|while|elif|elsif|elseif)\s*(.*)/
-	$l="$1 ".translate_perl_cond($2, $out);
+        $l="$1 ".translate_perl_cond($2, $out);
     $elsif $l=~/^\$foreach\s+(\w+)\s+in\s+(av_\w+)/
-	my $v_i=$1;
-	my $v_av=$2;
-	my $v_idx=$2."_index"
-	$(C)func_add_var($v_idx, "int")
-	$(C)func_add_var($v_i)
-	my $vartype=$(C)get_var_type($v_i);
-	$(C)func_add_var("t_psv")
-	my @pre;
-	push @pre, "for($v_idx=0; $v_idx<=av_len($v_av); $v_idx++){"
-	push @pre, "INDENT"
-	push @pre, "t_psv=av_fetch($v_av, $v_idx, 0);"
-	translate_scalar(\@pre, $v_i, $vartype, "*t_psv")
-	my @post
-	push @post, "DEDENT"
-	push @post, "}"
-	return $(C)single_block_pre_post(\@pre, \@post)
+        my $v_i=$1;
+        my $v_av=$2;
+        my $v_idx=$2."_index"
+        $(C)func_add_var($v_idx, "int")
+        $(C)func_add_var($v_i)
+        my $vartype=$(C)get_var_type($v_i);
+        $(C)func_add_var("t_psv")
+        my @pre;
+        push @pre, "for($v_idx=0; $v_idx<=av_len($v_av); $v_idx++){"
+        push @pre, "INDENT"
+        push @pre, "t_psv=av_fetch($v_av, $v_idx, 0);"
+        translate_scalar(\@pre, $v_i, $vartype, "*t_psv")
+        my @post
+        push @post, "DEDENT"
+        push @post, "}"
+        return $(C)single_block_pre_post(\@pre, \@post)
     $elsif $l=~/^\$foreach\s+\((\w+),\s*(\w+)\)\s+in\s+(hv_\w+)/
-	my ($v_name, $v_val, $v_hv)=($1, $2, $3);
-	my $tn=$(C)temp_add_var("tn", "I32");
-	$(C)protect_var($tn)
-	$(C)func_add_var($v_name);
-	$(C)func_add_var($v_val);
-	my $vartype=$(C)get_var_type($v_val);
-	$(C)func_add_var("t_sv");
-	my @pre;
-	push @pre, "$tn=hv_iterinit($v_hv);"
-	push @pre, "while((t_sv=hv_iternextsv($v_hv, &$v_name, &$tn))){";
-	push @pre, "INDENT"
-	translate_scalar(\@pre,$v_val,$vartype,"t_sv")
-	my @post
-	push @post, "DEDENT"
-	push @post, "}"
-	push @post, "PARSE:\$unprotect_var $tn"
-	return $(C)single_block_pre_post(\@pre, \@post)
+        my ($v_name, $v_val, $v_hv)=($1, $2, $3);
+        my $tn=$(C)temp_add_var("tn", "I32");
+        $(C)protect_var($tn)
+        $(C)func_add_var($v_name);
+        $(C)func_add_var($v_val);
+        my $vartype=$(C)get_var_type($v_val);
+        $(C)func_add_var("t_sv");
+        my @pre;
+        push @pre, "$tn=hv_iterinit($v_hv);"
+        push @pre, "while((t_sv=hv_iternextsv($v_hv, &$v_name, &$tn))){";
+        push @pre, "INDENT"
+        translate_scalar(\@pre,$v_val,$vartype,"t_sv")
+        my @post
+        push @post, "DEDENT"
+        push @post, "}"
+        push @post, "PARSE:\$unprotect_var $tn"
+        return $(C)single_block_pre_post(\@pre, \@post)
     $elsif $l=~/^\$getparam\s+(.*)/
-	my @vlist=split /,\s+/, $1;
-	my $j=0;
-	$foreach $v in @vlist
-	    $(C)func_add_var($v);
-	    my $vartype=$(C)get_var_type($v);
-	    translate_scalar($out, $v, $vartype, "ST($j)");
-	    $j++;
-	return
+        my @vlist=split /,\s+/, $1;
+        my $j=0;
+        $foreach $v in @vlist
+            $(C)func_add_var($v);
+            my $vartype=$(C)get_var_type($v);
+            translate_scalar($out, $v, $vartype, "ST($j)");
+            $j++;
+        return
     $elif $l=~/(\S+)=(\w+)->\{(.*)\}/
-	my ($var, $hv, $key)=($1, $2, $3);
-	$if $key=~/^['"](.*)['"]/
-	    $key=$1;
-	my $keylen=length($key);
+        my ($var, $hv, $key)=($1, $2, $3);
+        $if $key=~/^['"](.*)['"]/
+            $key=$1;
+        my $keylen=length($key);
 
-	$call infer_var
+        $call infer_var
 
-	$(C)func_add_var("t_psv", "SV**");
-	push @$out, "t_psv=hv_fetch($hv, \"$key\", $keylen, 0);";
-	translate_tpsv($out, $var, $vartype);
-	return 
+        $(C)func_add_var("t_psv", "SV**");
+        push @$out, "t_psv=hv_fetch($hv, \"$key\", $keylen, 0);";
+        translate_tpsv($out, $var, $vartype);
+        return 
     $elif $l=~/(\S+)=(\w+)->\[(.*)\]/
-	my ($var, $av, $key)=($1, $2, $3);
+        my ($var, $av, $key)=($1, $2, $3);
 
-	$call infer_var
+        $call infer_var
 
-	$(C)func_add_var("t_psv", "SV**");
-	push @$out, "t_psv=av_fetch($av, $key, 0);";
-	translate_tpsv($out, $var, $vartype);
-	return
+        $(C)func_add_var("t_psv", "SV**");
+        push @$out, "t_psv=av_fetch($av, $key, 0);";
+        translate_tpsv($out, $var, $vartype);
+        return
 
 subcode: infer_var
     $if $var=~/^\w+$/
-	$(C)auto_add_var($var)
+        $(C)auto_add_var($var)
     my $vartype=$(C)get_var_type($var);
 
 
 subcode:: support_subs
     # ---- Perl XS Specific -----------------------
     $sub translate_scalar($out, $var, $vartype, $sv)
-	#print "$var, $vartype\n";
-	$if $vartype eq "int"
-	    push @$out, "$var = SvIV($sv);";
-	$elsif $vartype eq "double" or $vartype eq "float"
-	    push @$out, "$var = SvNV($sv);";
-	$elsif $vartype eq "char *"
-	    $(C)func_add_var("t_strlen", "STRLEN");
-	    push @$out, "$var = SvPV($sv, t_strlen);";
-	    push @$out, "$var\[t_strlen\] = '\\0';";
-	$elsif $vartype =~ /^([SAH]V\*)/
-	    push @$out, "$var = ($1)SvRV($sv);";
-	$else
-	    print "translate_scalar: unhandled $var - $vartype\n";
+        #print "$var, $vartype\n";
+        $if $vartype eq "int"
+            push @$out, "$var = SvIV($sv);";
+        $elsif $vartype eq "double" or $vartype eq "float"
+            push @$out, "$var = SvNV($sv);";
+        $elsif $vartype eq "char *"
+            $(C)func_add_var("t_strlen", "STRLEN");
+            push @$out, "$var = SvPV($sv, t_strlen);";
+            push @$out, "$var\[t_strlen\] = '\\0';";
+        $elsif $vartype =~ /^([SAH]V\*)/
+            push @$out, "$var = ($1)SvRV($sv);";
+        $else
+            print "translate_scalar: unhandled $var - $vartype\n";
 
     $sub translate_null($out, $var, $vartype)
-	$if $vartype !~/int|float|double/
-	    push @$out, "    $var = NULL;";
-	$elif $vartype eq "int"
-	    push @$out, "    $var = 0;";
-	$else
-	    push @$out, "    $var = 0.0;";
+        $if $vartype !~/int|float|double/
+            push @$out, "    $var = NULL;";
+        $elif $vartype eq "int"
+            push @$out, "    $var = 0;";
+        $else
+            push @$out, "    $var = 0.0;";
 
     $sub translate_tpsv($out, $var, $vartype)
-	push @$out, "if(t_psv){";
-	push @$out, "INDENT";
-	translate_scalar($out, $var, $vartype, "*t_psv");
-	push @$out, "DEDENT";
-	push @$out, "}";
-	$if !MyDef::compileutil::get_macro("DONOTSET_UNDEF")
-	    push @$out, "else{";
-	    translate_null($out, $var, $vartype);
-	    push @$out, "}";
+        push @$out, "if(t_psv){";
+        push @$out, "INDENT";
+        translate_scalar($out, $var, $vartype, "*t_psv");
+        push @$out, "DEDENT";
+        push @$out, "}";
+        $if !MyDef::compileutil::get_macro("DONOTSET_UNDEF")
+            push @$out, "else{";
+            translate_null($out, $var, $vartype);
+            push @$out, "}";
 
     $sub translate_perl_cond($l, $out)
-	$if $l=~/^\s*(\w+)->\{(.+)\}\s*$/
-	    my ($hv, $key)=($1, $2);
-	    my $keylen=length($key);
-	    my $tl="hv_exists($hv, \"$key\", $keylen)";
-	    return $tl;
-	$elif $l=~/^\s*(\w+)->\[(.+)\]\s*$/
-	    my ($hv, $key)=($1, $2);
-	    my $tl="SvTRUE(*(av_fetch($hv, $key, 0)))";
-	    return $tl;
-	$else
-	    return $l;
+        $if $l=~/^\s*(\w+)->\{(.+)\}\s*$/
+            my ($hv, $key)=($1, $2);
+            my $keylen=length($key);
+            my $tl="hv_exists($hv, \"$key\", $keylen)";
+            return $tl;
+        $elif $l=~/^\s*(\w+)->\[(.+)\]\s*$/
+            my ($hv, $key)=($1, $2);
+            my $tl="SvTRUE(*(av_fetch($hv, $key, 0)))";
+            return $tl;
+        $else
+            return $l;
 
 ################################################
 subcode: process_function_xs
@@ -217,24 +217,24 @@ subcode: process_function_xs
     my $paramlist=$func->{'param_list'};
     my @param_name_list;
     $foreach $p in @$paramlist
-	$if $p=~/(\w+)\s*$/
-	    push @param_name_list, $1
+        $if $p=~/(\w+)\s*$/
+            push @param_name_list, $1
     my $param_name_list_str=join(",", @param_name_list);
 
     push @$open, "$ret_type";
     push @$open, "$name($param_name_list_str)";
     push @$open, "INDENT";
     $if @$paramlist
-	push @$open, "INDENT";
-	$foreach my $p in @$paramlist
-	    push @$open, "$p;";
-	push @$open, "DEDENT";
+        push @$open, "INDENT";
+        $foreach my $p in @$paramlist
+            push @$open, "$p;";
+        push @$open, "DEDENT";
 
     #---- Local Variables ---------------------------
     my $var_list=$func->{var_list}
     $if @$var_list
-	push @$open, "PREINIT:";
-	#---- actual variable declaration in preblock ----- 
+        push @$open, "PREINIT:";
+        #---- actual variable declaration in preblock ----- 
     push @$pre, "DEDENT";
     push @$pre, "PPCODE:";
     push @$pre, "INDENT";
