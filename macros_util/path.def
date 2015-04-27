@@ -18,6 +18,8 @@ fncode: add_path($dir)
             $if -d $t
                 $path{$t}=1
                 push @path, $t
+            $else
+                warn "add_path: [$t] not a directory\n"
 
 fncode: find_file($file)
     $if -f $file

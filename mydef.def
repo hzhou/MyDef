@@ -107,3 +107,5 @@ fncode: import_config($file)
     $if $var->{output_path} and !$var->{output_dir}
         $var->{output_dir}=$var->{output_path}
 
+    $print config output_dir: [$var->{output_dir}]
+

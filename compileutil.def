@@ -123,6 +123,7 @@ subcode: output_outdir
     my $outdir=".";
     $if $MyDef::var->{output_dir}
         $outdir=$MyDef::var->{output_dir};
+    $print compile outdir: [$outdir][$MyDef::var->{output_dir}]
     $if $page->{output_dir}
         $if $page->{output_dir}=~/^[\/\.]/
             $outdir=$page->{output_dir};
