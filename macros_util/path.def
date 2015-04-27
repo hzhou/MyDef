@@ -1,0 +1,50 @@
+
+fncode: add_path($dir)
+    $if !$dir
+        return
+
+    $global  @path, %path
+    my $deflib=$ENV{MYDEFLIB}
+    my $defsrc=$ENV{MYDEFSRC}
+
+    $if $dir=~/\$\(MYDEFSRC\)/
+        $if !$defsrc
+            die "MYDEFSRC not defined (in environment)!\n"
+        $dir=~s/\$\(MYDEFSRC\)/$defsrc/g
+
+    my @tlist = split /:/, $dir
+    $foreach $t in @tlist
+        $if !$path{$t}
+            $if -d $t
+                $path{$t}=1
+                push @path, $t
+
+fncode: find_file($file)
+    $if -f $file
+        return $file
+
+    $if @path
+        $foreach $dir in @path
+            $if -f "$dir/$file"
+                return "$dir/$file";
+    $if 1
+        warn "$file not found\n"
+        warn "  search path: ".join(":", @path)."\n"
+
+    return undef
+
+#----ref:  mydef_make ----------------------- 
+subcode: protect_path
+    my @save_path
+    BLOCK
+    $if @save_path
+        %path=()
+        @path=@save_path
+        $foreach $t in @path
+            $path{$t}=1
+        @save_path=()
+
+subcode: protect_add_path(f)
+    $if !@save_path
+        @save_path=@path
+    add_path($(f))
