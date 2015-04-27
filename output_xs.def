@@ -10,7 +10,7 @@ include: output.def
         process_function_xs
 */
 
-page: output_xs, inherit_c
+page: output_xs, inherit, c
     type: pm
     output_dir: lib/MyDef
     ext: xs
@@ -18,16 +18,16 @@ page: output_xs, inherit_c
     package: MyDef::output_xs
 
 subcode: on_init
-    $$(C)type_prefix{"hv"}= "HV*"
-    $$(C)type_prefix{"av"}= "AV*"
-    $$(C)type_prefix{"sv"}= "SV*"
+    $$(super:type_prefix){"hv"}= "HV*"
+    $$(super:type_prefix){"av"}= "AV*"
+    $$(super:type_prefix){"sv"}= "SV*"
 
 subcode: on_dumpout
     #---- process_function ------------------------
     #-- XS_START -> NOOP POST_MAIN -> flushes list_function_hash
     #--    so all that in list_function_hash is xs functions
-    my $funclist=\@$(C)function_list
-    my $funchash=\%$(C)list_function_hash
+    my $funclist=\@$(super:function_list)
+    my $funchash=\%$(super:list_function_hash)
     $foreach $func in @$funclist
         # $print funclist : $func->{name}
         $if $funchash->{$func->{name}}
@@ -39,18 +39,18 @@ subcode: on_dumpout
     $global @xs_globals
     my @t
     my $cnt
-    my $ghash=$$(C)global_hash
-    $foreach $name in @$$(C)global_list
+    my $ghash=$$(super:global_hash)
+    $foreach $name in @$$(super:global_list)
         my $type=$ghash->{$name}->{type}
         # $print  var $name, type $type
         $if $type=~/^[SHA]V/
-            my $decl = $(C)var_declare($ghash->{$name})
+            my $decl = $(super:var_declare)($ghash->{$name})
             push @xs_globals, "$decl;\n";
             $cnt++
         $else
             push @t, $name
     $if $cnt>0
-        @$$(C)global_list=@t
+        @$$(super:global_list)=@t
 
     # ---- xs_start -------------------
     $call init_xs
@@ -66,17 +66,16 @@ subcode: init_xs
     $foreach my $l in @xs_globals
         push @$block, $l;
     push @$block, "\n";
-    my $pagename=$(Cpage)->{pagename}
+    my $pagename=$$(super:page)->{pagename}
     push @$block, "MODULE = $pagename\t\tPACKAGE = $pagename\n";
     push @$block, "\n";
 
 # *** Custom syntax ***
 subcode: on_parsecode
-    my $out=$(Cout)
     $if $l=~/^XS_START/
         #---- flush out C functions ----
-        $(C)parsecode("NOOP POST_MAIN")
-        %$(C)list_function_hash=()
+        $(super:parsecode)("NOOP POST_MAIN")
+        %$(super:list_function_hash)=()
         #---- 
         $l= "DUMP_STUB xs_start"
     $elif $l=~/^\s*(\$if|while|elif|elsif|elseif)\s*(.*)/
@@ -85,10 +84,10 @@ subcode: on_parsecode
         my $v_i=$1;
         my $v_av=$2;
         my $v_idx=$2."_index"
-        $(C)func_add_var($v_idx, "int")
-        $(C)func_add_var($v_i)
-        my $vartype=$(C)get_var_type($v_i);
-        $(C)func_add_var("t_psv")
+        $(super:func_add_var)($v_idx, "int")
+        $(super:func_add_var)($v_i)
+        my $vartype=$(super:get_var_type)($v_i);
+        $(super:func_add_var)("t_psv")
         my @pre;
         push @pre, "for($v_idx=0; $v_idx<=av_len($v_av); $v_idx++){"
         push @pre, "INDENT"
@@ -97,15 +96,15 @@ subcode: on_parsecode
         my @post
         push @post, "DEDENT"
         push @post, "}"
-        return $(C)single_block_pre_post(\@pre, \@post)
+        return $(super:single_block_pre_post)(\@pre, \@post)
     $elsif $l=~/^\$foreach\s+\((\w+),\s*(\w+)\)\s+in\s+(hv_\w+)/
         my ($v_name, $v_val, $v_hv)=($1, $2, $3);
-        my $tn=$(C)temp_add_var("tn", "I32");
-        $(C)protect_var($tn)
-        $(C)func_add_var($v_name);
-        $(C)func_add_var($v_val);
-        my $vartype=$(C)get_var_type($v_val);
-        $(C)func_add_var("t_sv");
+        my $tn=$(super:temp_add_var)("tn", "I32");
+        $(super:protect_var)($tn)
+        $(super:func_add_var)($v_name);
+        $(super:func_add_var)($v_val);
+        my $vartype=$(super:get_var_type)($v_val);
+        $(super:func_add_var)("t_sv");
         my @pre;
         push @pre, "$tn=hv_iterinit($v_hv);"
         push @pre, "while((t_sv=hv_iternextsv($v_hv, &$v_name, &$tn))){";
@@ -115,13 +114,13 @@ subcode: on_parsecode
         push @post, "DEDENT"
         push @post, "}"
         push @post, "PARSE:\$unprotect_var $tn"
-        return $(C)single_block_pre_post(\@pre, \@post)
+        return $(super:single_block_pre_post)(\@pre, \@post)
     $elsif $l=~/^\$getparam\s+(.*)/
         my @vlist=split /,\s+/, $1;
         my $j=0;
         $foreach $v in @vlist
-            $(C)func_add_var($v);
-            my $vartype=$(C)get_var_type($v);
+            $(super:func_add_var)($v);
+            my $vartype=$(super:get_var_type)($v);
             translate_scalar($out, $v, $vartype, "ST($j)");
             $j++;
         return
@@ -133,7 +132,7 @@ subcode: on_parsecode
 
         $call infer_var
 
-        $(C)func_add_var("t_psv", "SV**");
+        $(super:func_add_var)("t_psv", "SV**");
         push @$out, "t_psv=hv_fetch($hv, \"$key\", $keylen, 0);";
         translate_tpsv($out, $var, $vartype);
         return 
@@ -142,15 +141,15 @@ subcode: on_parsecode
 
         $call infer_var
 
-        $(C)func_add_var("t_psv", "SV**");
+        $(super:func_add_var)("t_psv", "SV**");
         push @$out, "t_psv=av_fetch($av, $key, 0);";
         translate_tpsv($out, $var, $vartype);
         return
 
 subcode: infer_var
     $if $var=~/^\w+$/
-        $(C)auto_add_var($var)
-    my $vartype=$(C)get_var_type($var);
+        $(super:auto_add_var)($var)
+    my $vartype=$(super:get_var_type)($var);
 
 
 subcode:: support_subs
@@ -162,7 +161,7 @@ subcode:: support_subs
         $elsif $vartype eq "double" or $vartype eq "float"
             push @$out, "$var = SvNV($sv);";
         $elsif $vartype eq "char *"
-            $(C)func_add_var("t_strlen", "STRLEN");
+            $(super:func_add_var)("t_strlen", "STRLEN");
             push @$out, "$var = SvPV($sv, t_strlen);";
             push @$out, "$var\[t_strlen\] = '\\0';";
         $elsif $vartype =~ /^([SAH]V\*)/
@@ -204,7 +203,7 @@ subcode:: support_subs
 
 ################################################
 subcode: process_function_xs
-    $(C)process_function_std($func)
+    $(super:process_function_std)($func)
     my $open=$func->{openblock}
     my $close=$func->{closeblock}
     my $pre=$func->{preblock}

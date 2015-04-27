@@ -7,7 +7,6 @@ page: output_matlab, output_main
     ext: m
     init_mode: sub
     package: MyDef::output_matlab
-    interface_type: matlab
 
     subcode: init_page
         $global @func_input

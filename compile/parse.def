@@ -189,23 +189,28 @@ subcode: parse_line
             #     eg. output_apple.pm $method
             $callback_output=$msg;
             $idx=0;
-        $elsif $msg=~/^NEWBLOCK(.*)/
+        $elif $msg=~/^NEWBLOCK(.*)/
             # check the new output for blocks
             #     eg. cfunctions.pm single_block
             $callback_output=$out;
             $if $1=~/^-(.*)/
                 $callback_scope=$1
-        $elsif $msg=~/^SKIPBLOCK(.*)/
+        $elif $msg=~/^SKIPBLOCK(.*)/
             my $blk=grabblock($block, \$lindex)
             $if $1=~/^-(\w+)/
                 $named_blocks{$1}=$blk
             last
-        $elsif $msg=~/^SET:(\w+)=(.*)/
+        $elif $msg=~/^CALLBACK\b/
+            my $blk=grabblock($block, \$lindex)
+            $named_blocks{last_grab}=$blk
+            $f_parse->($msg)
+            $named_blocks{last_grab}=undef
+        $elif $msg=~/^SET:(\w+)=(.*)/
             # set/reset definitions
             #     eg. cfunctions.pm get_pointer_type
             $deflist->[-1]->{$1}=$2;
             last
-        $elsif $msg=~/^PARSE:(.*)/
+        $elif $msg=~/^PARSE:(.*)/
             $l=$1
             next
         # ---------------------------------

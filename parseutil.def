@@ -1,6 +1,7 @@
 include: macros_parse/indentation.def
 include: macros_parse/subcode.def
 include: macros_parse/debug.def
+include: macros_util/path.def
 include: macros_util/ogdl.def
 include: macros_util/debug.def
 include: perl/indentations.def
@@ -120,6 +121,8 @@ subcode: parse_level_0
                 push @$include_list, $1;
             $include_hash->{$1}=1;
             #print STDERR "    include $1\n";
+    $elif $line=~/^path:\s*(.+)/
+        add_path($1)
     $elif $line=~/^(sub)?page: (.*)/
         my ($subpage, $t)=($1, $2)
         $call start_page
@@ -203,6 +206,7 @@ subcode: start_page
     # ---- code
     my $code={};
     $if $maincode
+        #-- $maincode may include parameters
         $code->{main}={'type'=>'sub', 'source'=>["\$call $maincode"], 'params'=>[]};
 
     $page={pagename=>$pagename, codes=>$code};
@@ -391,21 +395,7 @@ fncode: get_lines($file)
         my @lines=<STDIN>
         return \@lines
     $else
-        my $filename="";
-        $if -f $file
-            $filename=$file;
-        $if !$filename and $MyDef::var->{'include_path'}
-            my @dirs=split /:/, $MyDef::var->{'include_path'};
-            $foreach $dir in @dirs
-                $if -f "$dir/$file"
-                    $filename="$dir/$file";
-                    last;
-        $if !-f $filename
-            warn "$file not found\n";
-            warn "  search path: $MyDef::var->{'include_path'}\n"
-        #print STDERR "Parsing Definition File: $filename\n";
-        open In, $filename or die "Can't open $file.\n";
-        my @lines=<In>;
-        close In;
+        my $filename=find_file($file)
+        $call get_file_lines, $filename
         return \@lines;
 

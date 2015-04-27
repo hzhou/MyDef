@@ -27,7 +27,7 @@ subcode: start_subcode
     # -------------------
     undef $code_prepend
 
-    $if $curindent==0 and $codes->{$name} and $codes->{$name}->{attr} ne "default"
+    $if $codes->{$name} and $codes->{$name}->{attr} ne "default"
         $t_code=$codes->{$name}
         # Subcode Already Exist --
         $if $dblcolon eq "@"

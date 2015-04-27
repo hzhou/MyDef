@@ -28,7 +28,7 @@
 :syntax match perlKey /^\s*\(push\|shift\|unshift\|pop\|print\|return\|goto\|last\|next\|break\|continue\)\>/
 
 :syntax match perlKey /^\s*\i\+:/
-:syntax match xInclude /^include:.*/
+:syntax match xInclude /^\(include\|path\):.*/
 :syntax match xCSS /CSS: .*/
 
 :syntax match perlVar /\(\$\|@\|%\)\i\+/

@@ -54,7 +54,7 @@ subcode: compile_main
 
 #################################################
 subcode:: package_global
-    $(set:interface=$f_init, $f_parse, $f_setout, $f_modeswitch, $f_dumpout, $interface_type)
+    $(set:interface=$f_init, $f_parse, $f_setout, $f_modeswitch, $f_dumpout)
     $global $(interface)
 
     $sub set_interface

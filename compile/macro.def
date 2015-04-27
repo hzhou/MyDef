@@ -79,19 +79,27 @@ subcode: set_macro_join
             my $pat=shift @tlist
             $map strip_quote, $sep, $pat
             my $subblock=grabblock($block, \$lindex)
-            my @tlist2
-            $call set_macro_join_pattern, @tlist
-            $foreach $t in @$subblock
-                $if $t!~/^SOURCE:/
-                    my @tlist3=MyDef::utils::proper_split($t)
-                    $call set_macro_join_pattern, @tlist3
-            $deflist->[-1]->{$name}= join($sep, @tlist2)
-            
-subcode: set_macro_join_pattern(tlist)
-    $foreach $t2 in $(tlist)
-        my $t3=$pat
-        $t3=~s/\*/$t2/g
-        push @tlist2, $t3
+            my @out_list
+            $if $pat
+                $call @join_pattern
+            $else
+                $call @join_direct
+            $deflist->[-1]->{$name}= join($sep, @out_list)
+    # ----------
+    subcode: join_pattern
+        $foreach $t in @$subblock
+            $if $t!~/^SOURCE:/
+                push @tlist, MyDef::utils::proper_split($t)
+        $foreach $t2 in @tlist
+            my $t3=$pat
+            $t3=~s/\*/$t2/g
+            push @out_list, $t3
+    # ----------
+    subcode: join_direct
+        $foreach $t in @$subblock
+            $if $t!~/^SOURCE:/
+                expand_macro(\$t)
+                push @out_list, $t
 
 #---------------------------------------- 
 subcode:: support_subs

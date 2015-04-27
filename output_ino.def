@@ -1,6 +1,6 @@
 include: output.def
 
-page: output_ino, inherit_c
+page: output_ino, inherit, c
     type: pm
     output_dir: lib/MyDef
     ext: ino

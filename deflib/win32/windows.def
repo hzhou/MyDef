@@ -109,14 +109,14 @@ perlcode: wndproc
     $if $param=~/(WndProc|DlgProc)_(\w+)/
         my ($type, $name)=($1, $2)
         my $funcname="$type\_$name"
-        my $context=$(C)start_function_block($funcname, "HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam")
+        my $context=$(super:start_function_block)($funcname, "HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam")
         $if $context
-            $$(C)cur_function->{ret_type}="LRESULT CALLBACK";
+            $$(super:cur_function)->{ret_type}="LRESULT CALLBACK";
             $call window_proc_core
-            $(C)finish_function_block($context)
+            $(super:finish_function_block)($context)
 
 subcode: window_proc_core
-    my $out=$$(C)out
+    my $out=$$(super:out)
     my $codes=$MyDef::def->{codes}
     # ---- process window msg ---------------
     MyDef::compileutil::call_sub("\@pre_WndProc_$name")

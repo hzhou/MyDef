@@ -17,16 +17,8 @@ subcode: mydef_main
 
     # ----------------------------------
     import_config("config");
-    my @include_path=split /:/, $var->{include_path}
-    $if $ENV{MYDEFLIB}
-        my $mydeflib=$ENV{MYDEFLIB}
-        my @t
-        $foreach $d in @include_path
-            $if $d=~/^\w+/ and -d "$mydeflib/$d"
-                push @t, "$mydeflib/$d"
-        $var->{include_path}.=":$ENV{MYDEFLIB}";
-        $if @t
-            $var->{include_path}.=":". join(":", @t)
+    MyDef::parseutil::add_path($var->{include_path})
+    MyDef::parseutil::add_path($ENV{MYDEFLIB})
 
     1;
 
@@ -73,6 +65,12 @@ subcode: check_module
     $map require_module, $(module_list)
     $else
         die "Undefined module type $module\n";
+    # --------------------------
+    subcode: require_module(name)
+        $elif $module eq "$(name)"
+            require MyDef::output_$(name);
+            MyDef::compileutil::set_interface(MyDef::output_$(name)::get_interface());
+
 
 #---------------------------------------- 
 fncode: addpath($path)
@@ -108,10 +106,4 @@ fncode: import_config($file)
     
     $if $var->{output_path} and !$var->{output_dir}
         $var->{output_dir}=$var->{output_path}
-
-################################################
-subcode: require_module(name)
-    $elif $module eq "$(name)"
-        require MyDef::output_$(name);
-        MyDef::compileutil::set_interface(MyDef::output_$(name)::get_interface());
 
