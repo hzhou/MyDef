@@ -90,7 +90,7 @@ subcode: create_config
         $config_outputdir=prompt("Please enter the path to compile into [out]: ");
         print Out "output_dir: $config_outputdir\n";
         $module=prompt("Please enter module type [perl]: ");
-    print Out "module: $module\n";
+        print Out "module: $module\n";
 
 #----
 subcode: read_config
@@ -267,7 +267,7 @@ subcode: read_def_file
     subcode: parse_inpage
         $if /^\s*output_dir: (\S+)/
             $call outputdir_inpage
-        $elif /^\s*\$include\s+(\S*) and $module ne "c"/
+        $elif /^\s*\$include\s+(\S*)/ and $module ne "c"
             $page->{include}->{$1}=1;
         $elif /^\s*type: (\w+)/
             $page->{type}=$1;
@@ -275,6 +275,9 @@ subcode: read_def_file
             $page->{type}="none"
         $elif /^\s*module:\s*(\w+)/
             $page->{module}=$1;
+        $elif /^\s*package:/
+            $if $module eq "perl"
+                $page->{type}="pm"
         $elif /^\s*depend:\s+(.*)/
             $page->{depend}=$1
         $elif /^\s*cmd:\s+(.*)/
@@ -504,6 +507,8 @@ fncode: prompt($msg)
             return $t
         $elif $msg=~/\[(.*)\]: $/
             return $1
+        $else
+            die "Must reply $msg\n"
 
 subcode: _autoload
     $global %macros
