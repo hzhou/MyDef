@@ -267,7 +267,7 @@ subcode: read_def_file
     subcode: parse_inpage
         $if /^\s*output_dir: (\S+)/
             $call outputdir_inpage
-        $elif /^\s*\$include\s+(\S*)/ and $module ne "c"
+        $elif /^\s*\$include\s+(\S*)/ and $module ne "c" and -f $1
             $page->{include}->{$1}=1;
         $elif /^\s*type: (\w+)/
             $page->{type}=$1;

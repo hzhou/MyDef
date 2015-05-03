@@ -242,7 +242,11 @@ fncode: get_macro($s, $nowarn)
                     return $tlist[$1]
             $else
                 #--INLINE macro -- $(macro:p1,p2,p3)
-                my @plist=MyDef::utils::proper_split($p)
+                my @plist
+                $if $p=~/:/
+                    @plist=split /:/, $p
+                $else
+                    @plist=MyDef::utils::proper_split($p)
                 my $i=1;
                 $foreach $pp in @plist
                     $t=~s/\$$i/$pp/g

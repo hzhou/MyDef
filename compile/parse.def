@@ -109,7 +109,7 @@ subcode: parse_stack_pop
     my $idx=$blk->{index}
     $if $blk->{scope}
         # SUBBLOCK messages to enable block scopes ------
-        $f_parse->("SUBBLOCK END $blk->{index} $blk->{scopes}")
+        $f_parse->("SUBBLOCK END $blk->{index} $blk->{scope}")
     pop @block_stack
 
     $cur_file=$blk->{file}

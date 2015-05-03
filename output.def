@@ -44,13 +44,9 @@ subcode: output_main
     $sub parsecode($l)
         $if $debug eq "parse"
             $call dump_line, parsecode
-        $if $l=~/^DEBUG (\w+)/
-            $if $1 eq "OFF"
-                $debug=0
-            $else
-                $debug=$1
-            return
-        $elif $l=~/^\$warn (.*)/
+
+        #-------------------
+        $if $l=~/^\$warn (.*)/
             $call warn, $1
             return
         $elif $l=~/^\$template\s*(.*)/
@@ -61,6 +57,7 @@ subcode: output_main
                 $call @parsecode_template
                 push @$out, $a
             return
+        $call parsecode_debug
         $call parsecode_eval
         $call parsecode
 
@@ -104,6 +101,7 @@ subcode: inherit(M)
         return $page->{init_mode}
 
     $sub parsecode($l)
+        $call parsecode_debug
         $call parsecode_eval
         $call @on_parsecode
         return $(super:parsecode)($l)
@@ -130,6 +128,18 @@ subcode: parsecode_eval
         $param=~s/^\s*,\s*//
         $call parsecode_run_eval, $codename
         return
+
+subcode: parsecode_debug
+    $case $l=~/^DEBUG (\w+)/
+        $global $debug
+        $if $1 eq "OFF"
+            $debug=0
+        $else
+            $debug=$1
+        $(if:super)
+            return $(super:parsecode)($l)
+        $(else)
+            return
 
 #---------------------------------------- 
 subcode: parsecode_common

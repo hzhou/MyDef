@@ -47,9 +47,7 @@ subcode: parse_preproc
         my $i=0
         $foreach $t in @tlist
             #-- new layer of macro context -------------
-            my $macro={$vname=>$t}
-            $if $vname ne "i"
-                $macro->{i}=$i
+            my $macro={$vname=>$t, _i=>$i}
             push @$deflist, $macro;
             parseblock({source=>$subblock, name=>"\${for}"})
             pop @$deflist;
