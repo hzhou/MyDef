@@ -28,6 +28,7 @@ subcode: parse_frame(@mode)
             $(else)
                 $l=~/\G./gc
 
+        process:
         # print_token($cur)
         $call @process
 
@@ -47,6 +48,10 @@ subcode: parse_frame(@mode)
     return $stack[0]
 
     # ---- routines for match ---------------- 
+    subcode: if_lex(@pat)
+        $elif $l=~/\G$(pat)/gc
+            BLOCK
+
     subcode: skip(@pat)
         $elif $l=~/\G$(pat)/gc
             next
@@ -55,12 +60,24 @@ subcode: parse_frame(@mode)
         $elif $l=~/\G($(pat))/gc
             $cur = [$1, $1]
 
+    subcode: token(type, @pat)
+        $elif $l=~/\G($(pat))/gc
+            $cur = [$1, $(type)]
+
     subcode: bracket
         $elif $l=~/\G([\(\[\{])/gc
             #-- %prec '('=>-1, 't('=>100, ...
             $cur = [$1, "t$1"]
         $elif $l=~/\G([\)\]\}])/gc
             $cur = [$1, $1]
+
+    subcode: brace
+        $elif $l=~/\G(\{)/gc
+            #-- %prec '('=>-1, 't('=>100, ...
+            $cur = [$1, "t$1"]
+        $elif $l=~/\G(\})/gc
+            $cur = [$1, $1]
+
 
     # ---- routines for process -----------
     # -- check_precedence, reduce_stack
