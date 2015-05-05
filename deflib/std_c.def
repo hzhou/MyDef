@@ -101,6 +101,31 @@ subcode: mmap(filename, strname, strsize)
     munmap($(strname), $(strsize))
     close(tn_fd)
 
+fncode: get_file_s(s_file, pn_size)
+    $include sys/stat
+    $include fcntl
+    $include unistd
+    tn_fd=open(s_file, O_RDONLY)
+    $if tn_fd<0
+        $print get_file_s error
+        exit(-1)
+    struct stat st
+    fstat(tn_fd, &st)
+    n=st.st_size
+    $local s
+    $allocate(n+1) s
+    n_read=0
+    $while n_read<n
+        tn_temp = read(tn_fd, s+n_read, n-n_read)
+        $if tn_temp<=0
+            break
+        $else
+            n_read+=tn_temp
+    s[n_read]='\0'
+    $if pn_size
+        *pn_size=n
+    return s
+
 # --------------------------------
 subcode: open_w(file)
     $include stdio
@@ -175,6 +200,15 @@ subcode: print_time(type)
         printf("%d/%d %02d:%02d ", p_now->tm_mon+1, p_now->tm_mday, p_now->tm_hour, p_now->tm_min)
     $(else)
         printf("%d/%d %02d:%02d ", p_now->tm_mon+1, p_now->tm_mday, p_now->tm_hour, p_now->tm_min)
+
+subcode: bench(n)
+    $include time
+    $local double time_start, double time_finish
+    time_start = (double)clock()/CLOCKS_PER_SEC
+    $for i_bench_iter=0:$(n)
+        BLOCK
+    time_finish = (double)clock()/CLOCKS_PER_SEC
+    $print "Bench %d iterations, average %f sec/iter.", $(n), (time_finish-time_start)/$(n)
 
 # ---- sort -------------------------------------
 subcode: qsort(list, size, type)

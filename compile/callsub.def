@@ -196,7 +196,8 @@ subcode: call_sub_normal_setup_macro
                     $pline=~s/^\s*//
                     $plist[$n0]=$pline
                 $else
-                    warn "    [$cur_file:$cur_line] Code $codename parameter mismatch ($n_pre + $n2) != $n3. [pline:$pline]\n";
+                    my $param=join(', ', @$codeparams)
+                    warn "    [$cur_file:$cur_line] Code $codename parameter mismatch ($n_pre + $n2) != $n3. [pline:$pline]($param)\n";
 
         subcode: pre_plist
             $for $i=0:$n_pre

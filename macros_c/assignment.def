@@ -54,7 +54,7 @@ subcode: check_tuple_assignment
             $else
                 $call warn, tuple assigned to scalar
                 do_assignment($left, $right_list[0])
-        $elif @right_list=1
+        $elif @right_list==1
             my $type=get_var_type($right)
             $if $type=~/^struct (\w+)$/
                 $call assign_from_struct, $1, 0

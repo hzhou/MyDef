@@ -163,7 +163,7 @@ subcode: track_result(cond1, cond0, back)
     $else
         push @output, "if($(cond0)){"
     push @output, "INDENT"
-    push @output, "    $(back)"
+    push @output, "$(back)"
     $if $r->{0}
         push @output, "$r->{0}"
     push @output, "DEDENT"

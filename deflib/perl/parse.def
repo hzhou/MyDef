@@ -1,0 +1,97 @@
+
+#---------------------------------------- 
+#- used inside a parse function
+#-   e.g. fncode: parse_expr($l, ...)
+
+#- calls: init, match, process, post
+
+subcode: parse_frame(@mode)
+    macros:
+        type: $stack[$1]->[1]
+        atom: $stack[$1]->[0]
+        cur_type: $cur->[1]
+
+    my @stack
+    $call @init
+    &call parse_loop, $l
+    $while 1
+        my $cur
+        $if $l=~/\G$/gc
+            $cur = [undef, "eof"]
+        $call @match
+        $else NoWarn
+            $(if:mode=strict)
+                my $i=pos($l)
+                my $a=substr($l, 0, $i)
+                my $b=substr($l, $i)
+                die "parse error: [$a][$b]\n"
+            $(else)
+                $l=~/\G./gc
+
+        # print_token($cur)
+        $call @process
+
+        $if $(cur_type) eq "eof"
+            last
+        $else
+            push @stack, $cur
+    $call @post
+    $if @stack!=1
+        my $n=@stack
+        $print "---- dump stack [$n] ----\n"
+        $foreach $t in @stack
+            print_token($t)
+        die "Unreduced expresion [$l].\n"
+    $if $debug
+        print_token($stack[0], "    ret: ")
+    return $stack[0]
+
+    # ---- routines for match ---------------- 
+    subcode: skip(@pat)
+        $elif $l=~/\G$(pat)/gc
+            next
+
+    subcode: symbol(@pat)
+        $elif $l=~/\G($(pat))/gc
+            $cur = [$1, $1]
+
+    subcode: bracket
+        $elif $l=~/\G([\(\[\{])/gc
+            #-- %prec '('=>-1, 't('=>100, ...
+            $cur = [$1, "t$1"]
+        $elif $l=~/\G([\)\]\}])/gc
+            $cur = [$1, $1]
+
+    # ---- routines for process -----------
+    # -- check_precedence, reduce_stack
+
+    # ---- debug ---------------------------- 
+    subcode: debug_stack
+        $print "debug_stack:\n"
+        $foreach $t in @$stack
+            print_token($t)
+
+#---------------------------------------- 
+fncode: print_token($t, $pre, $post)
+    $if defined $pre
+        print $pre
+    $if ref($t->[0]) eq "ARRAY"
+        print "  ( "
+        $foreach $t2 in @{$t->[0]}
+            print_token($t2)
+            print "  "
+        print ", $t->[1] )"
+    $elif ref($t->[0]) eq "HASH"
+        print "  ( "
+        $foreach %{$t->[0]}
+            print "$k=>"
+            print_token($v)
+            print ", "
+        print ", $t->[1] )"
+    $else
+        print "  ( $t->[0], $t->[1] )"
+    $if defined $post
+        print $post
+    $else
+        print "\n"
+

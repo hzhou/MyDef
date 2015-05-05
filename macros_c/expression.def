@@ -288,7 +288,7 @@ subcode: check_exp_callsub
         $call_line=~s/^\s*//
         $call exp_callsub
 
-    $call warn, Method \$$method not defined
+    $call warn, Method \$$method not defined [$l]
     $call exp_push, "\$$method", "atom-unknown"
 
 subcode: exp_callsub

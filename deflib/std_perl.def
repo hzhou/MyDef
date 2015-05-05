@@ -62,6 +62,15 @@ subcode: get_file_lines(name)
         close In
 
 #---------------------------------------- 
+subcode: bench(n)
+    use Time::HiRes
+    my $time_start=Time::HiRes::clock()
+    $for $i_bench=0:$(n)
+        BLOCK
+    my $time_finish=Time::HiRes::clock()
+    printf "bench $(n) iterations: %f sec/iter\n", ($time_finish-$time_start)/$(n)
+
+#---------------------------------------- 
 #-- similar to HERE document -----------
 perlcode: print_block
     my $codelist=MyDef::compileutil::get_named_block("last_grab")
@@ -83,6 +92,7 @@ subcode: topdown_loop(name, top)
             BLOCK
 
 # -- Parser -------------------
+# deprecated, ref perl/parse.def
 subcode: parse_loop(l)
     $while 1
         $if $(l)=~/\G$/gc

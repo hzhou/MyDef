@@ -73,6 +73,7 @@ subcode: var_declare(scope)
 
 #----
 subcode: parsecode
+    $(set:parse_condition=1)
     $call parsecode_scope
     $call parsecode_case_support, if, elsif, c_style
     $if $l=~/^\s*\$(\w+)\s*(.*)$/
@@ -126,6 +127,13 @@ subcode: parsecode
     push @$out, $l
 
     return 0;
+
+fncode: parse_condition($t)
+    $if $t=~/[!=]~/
+        # ok
+    $elif $t=~/[^!=><]=[^="]/
+       $call warn, assignment in condition [$t]? 
+    return $t
 
 #---------------------------------------- 
 subcode: define_loop_var

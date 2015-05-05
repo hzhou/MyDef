@@ -8,7 +8,7 @@ subcode: parsecode_case_support(if, elif, style)
     $if $l=~/^\$(if|elif|elsif|elseif|case)\s+(.*)$/
         my $cond=$2
         my $case=$case_if
-        $call @check_case_if
+        $call check_case_if
         $(if:parse_condition)
             $cond=parse_condition($cond)
         $call case_$(style)
@@ -16,8 +16,7 @@ subcode: parsecode_case_support(if, elif, style)
         return "NEWBLOCK-if"
     $elif $l=~/^\$else/
         $if !$case_state and $l!~/NoWarn/i
-            my $pos=MyDef::compileutil::curfile_curline()
-            print "[$pos]Dangling \$else \n"
+            $call warn, Dangling \$else
         $call else_$(style)
         $call case_push, undef
         return "NEWBLOCK-else"
