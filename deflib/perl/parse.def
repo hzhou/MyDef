@@ -9,11 +9,11 @@ subcode: parse_frame(@mode)
     macros:
         type: $stack[$1]->[1]
         atom: $stack[$1]->[0]
+        cur_atom: $cur->[0]
         cur_type: $cur->[1]
 
     my @stack
     $call @init
-    &call parse_loop, $l
     $while 1
         my $cur
         $if $l=~/\G$/gc
@@ -43,13 +43,11 @@ subcode: parse_frame(@mode)
         $foreach $t in @stack
             print_token($t)
         die "Unreduced expresion [$l].\n"
-    $if $debug
-        print_token($stack[0], "    ret: ")
     return $stack[0]
 
     # ---- routines for match ---------------- 
     subcode: if_lex(@pat)
-        $elif $l=~/\G$(pat)/gc
+        $case $l=~/\G$(pat)/gc
             BLOCK
 
     subcode: skip(@pat)
@@ -62,7 +60,7 @@ subcode: parse_frame(@mode)
 
     subcode: token(type, @pat)
         $elif $l=~/\G($(pat))/gc
-            $cur = [$1, $(type)]
+            $cur = [$1, "$(type)"]
 
     subcode: bracket
         $elif $l=~/\G([\(\[\{])/gc
@@ -95,14 +93,13 @@ fncode: print_token($t, $pre, $post)
     $if ref($t->[0]) eq "ARRAY"
         print "  ( "
         $foreach $t2 in @{$t->[0]}
-            print_token($t2)
-            print "  "
-        print ", $t->[1] )"
+            print_token($t2, "", ", ")
+        print " $t->[1] )"
     $elif ref($t->[0]) eq "HASH"
         print "  ( "
         $foreach %{$t->[0]}
             print "$k=>"
-            print_token($v)
+            print_token($v, "", "")
             print ", "
         print ", $t->[1] )"
     $else
