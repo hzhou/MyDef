@@ -37,6 +37,8 @@ page: mydef_run
     my $cmd
     $if $module eq "perl" and $page_name
         $cmd="mydef_page -mperl $def_file && perl $page_name.pl"
+    $elif $module eq "plot" and $page_name
+        $cmd="mydef_page -mplot $def_file && perl $page_name.pl"
     $elif $module eq "c"
         $cmd="mydef_page -mc $def_file && gcc -o $page_name $page_name.c && ./$page_name"
         $if @uselib

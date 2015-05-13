@@ -5,6 +5,11 @@ page: utils
     subcode: main
         1;
 
+#----------------------------------------------
+#-- proper_split($param) 
+#-- expand_macro($line, $sub) 
+#-- uniq_name($name, hash)
+
 #-------------------------------------------------
 fncode: proper_split($param)
     my @tlist

@@ -33,8 +33,10 @@ subcode: parse_frame(@mode)
         $call @process
 
         $if $(cur_type) eq "eof"
+            $call @process_eof
             last
         $else
+            $call @prepush
             push @stack, $cur
     $call @post
     $if @stack!=1
@@ -51,26 +53,26 @@ subcode: parse_frame(@mode)
             BLOCK
 
     subcode: skip(@pat)
-        $elif $l=~/\G$(pat)/gc
+        $case $l=~/\G$(pat)/gc
             next
 
     subcode: symbol(@pat)
-        $elif $l=~/\G($(pat))/gc
+        $case $l=~/\G($(pat))/gc
             $cur = [$1, $1]
 
     subcode: token(type, @pat)
-        $elif $l=~/\G($(pat))/gc
+        $case $l=~/\G($(pat))/gc
             $cur = [$1, "$(type)"]
 
     subcode: bracket
-        $elif $l=~/\G([\(\[\{])/gc
+        $case $l=~/\G([\(\[\{])/gc
             #-- %prec '('=>-1, 't('=>100, ...
             $cur = [$1, "t$1"]
         $elif $l=~/\G([\)\]\}])/gc
             $cur = [$1, $1]
 
     subcode: brace
-        $elif $l=~/\G(\{)/gc
+        $case $l=~/\G(\{)/gc
             #-- %prec '('=>-1, 't('=>100, ...
             $cur = [$1, "t$1"]
         $elif $l=~/\G(\})/gc

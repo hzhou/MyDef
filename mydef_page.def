@@ -12,6 +12,8 @@ page: mydef_page
                 $config{module} = $1
             $elif $a =~/^-o(\S+)/
                 $config{output_dir} = $1
+            $elif $a =~/^-f(\S+)/
+                $config{find} = $1
             $elif $a=~/\.def$/
                 $if $def_file
                     die "Multiple def source files not supported\n"
@@ -34,18 +36,53 @@ page: mydef_page
             my $module=$MyDef::var->{module}
             MyDef::import_data($def_file)
 
-            my $pages=$MyDef::def->{pages}
-            my $pagelist=$MyDef::def->{pagelist}
+            $if $config{find}
+                $call find_subcode
+            $else
+                $call compile_pages
 
-            $foreach $t in @$pagelist
-                my $p=$pages->{$t}
-                $if $p->{subpage}
-                    next
+    #---------------------------------------- 
+    subcode: compile_pages
+        my $pages=$MyDef::def->{pages}
+        my $pagelist=$MyDef::def->{pagelist}
 
-                my $t_module=$default_module
-                $if $p->{module} 
-                    $t_module=$p->{module}
-                $if $t_module and ($t_module ne $module)
-                    next
+        $foreach $t in @$pagelist
+            my $p=$pages->{$t}
+            $if $p->{subpage}
+                next
 
-                MyDef::createpage($t);
+            my $t_module=$default_module
+            $if $p->{module} 
+                $t_module=$p->{module}
+            $if $t_module and ($t_module ne $module)
+                $print "skip page $t: module mismatch [page:$t_module][config:$module]"
+                next
+
+            MyDef::createpage($t);
+
+    #---------------------------------------- 
+    subcode: find_subcode
+        my $def=$MyDef::def
+        my $name=$config{find}
+        $if $def->{codes}->{$name}
+            my $code=$def->{codes}->{$name}
+            $call dump_code
+        $elif $def->{macros}->{$name}
+            $print macro: $name: $def->{macros}->{$name}
+        $else
+            $print name: $name not found.
+
+        subcode: dump_code
+            my $type=$code->{type}
+            my $param=join ", ", @{$code->{params}}
+            my $source=$code->{source}
+            my $indent=1
+            print $type, "code: $name($param)\n"
+            $foreach $l in @$source
+                $if $l=~/^SOURCE_INDENT/
+                    $indent++
+                $elif $l=~/^SOURCE_DEDENT/
+                    $indent--
+                $else
+                    print "    "x$indent, $l, "\n"
+
