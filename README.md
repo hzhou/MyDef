@@ -19,17 +19,17 @@ INSTALL
 
 1. MyDef currently is in perl. First setup a custome installation environment:
 
-    PATH=$PATH:$HOME/bin
-    LIBRARY_PATH=$HOME/lib
-    PERL5LIB=$HOME/lib/perl5
-    MYDEFLIB=$HOME/lib/MyDef
-    export PATH PERL5LIB MYDEFLIB
+        PATH=$PATH:$HOME/bin
+        LIBRARY_PATH=$HOME/lib
+        PERL5LIB=$HOME/lib/perl5
+        MYDEFLIB=$HOME/lib/MyDef
+        export PATH PERL5LIB MYDEFLIB
 
     The purpose is to install into one's home directory rather than system folders. I assume you will know how to change it into any installation destination.
 
 2. Now install it:
 
-    sh bootstrap.sh
+        sh bootstrap.sh
 
 3. If you haven't, read the documentation: http://huizhou.gitbooks.io/programming-with-mydef
 
@@ -37,8 +37,8 @@ INSTALL
 
 5. If you use vim, there is simple mydef syntax.
 
-    vim ~/.vim/filetype.vim
-	augroup filetypedetect
-	au BufNewFile,BufRead *.def setf mydef
-	augroup END
-    ln -s /path/to/MyDef/docs/mydef.vim ~/.vim/syntax/
+        vim ~/.vim/filetype.vim
+            augroup filetypedetect
+            au BufNewFile,BufRead *.def setf mydef
+            augroup END
+        ln -s /path/to/MyDef/docs/mydef.vim ~/.vim/syntax/
