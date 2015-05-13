@@ -78,6 +78,39 @@ subcode: parse_frame(@mode)
         $elif $l=~/\G(\})/gc
             $cur = [$1, $1]
 
+    # ---- routines for grab ---------------- 
+    subcode: grab_brace
+        $(set:o={)
+        $(set:c=})
+        $call grab_group
+
+    subcode: grab_bracket
+        $(set:o=[)
+        $(set:c=])
+        $call grab_group
+
+    subcode: grab_brace
+        $(set:o=()
+        $(set:c=))
+        $call grab_group
+
+    subcode: grab_group
+        $(if:type=brace)
+        my $t
+        &call if_lex, \s*\$(o)
+            my $level=1
+            $while 1
+                &call if_lex, (\\.|[^\\]+)
+                    $t.=$1
+                &call if_lex, \$(o)
+                    $level++
+                    $t.='$(o)'
+                &call if_lex, \$(c)
+                    $level--
+                    $if $level>0
+                        $t.='$(c)'
+                    $else
+                        break
 
     # ---- routines for process -----------
     # -- check_precedence, reduce_stack
