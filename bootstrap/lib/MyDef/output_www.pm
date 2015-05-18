@@ -1,6 +1,6 @@
 use strict;
 package MyDef::output_www;
-our $debug;
+our $debug=0;
 our $out;
 our $mode;
 our $page;
@@ -62,8 +62,7 @@ sub parse_tag_attributes {
 
 use Term::ANSIColor qw(:constants);
 sub get_interface {
-    my $interface_type="general";
-    return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout, $interface_type);
+    return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
 }
 sub init_page {
     my ($t_page)=@_;
@@ -142,16 +141,7 @@ sub parsecode {
         my $normal="\033[0m";
         print "$yellow parsecode: [$l]$normal\n";
     }
-    if($l=~/^DEBUG (\w+)/){
-        if($1 eq "OFF"){
-            $debug=0;
-        }
-        else{
-            $debug=$1;
-        }
-        return;
-    }
-    elsif($l=~/^\$warn (.*)/){
+    if($l=~/^\$warn (.*)/){
         my $curfile=MyDef::compileutil::curfile_curline();
         print "[$curfile]\x1b[33m $1\n\x1b[0m";
         return;
@@ -162,6 +152,15 @@ sub parsecode {
         close In;
         foreach my $a (@all){
             push @$out, $a;
+        }
+        return;
+    }
+    elsif($l=~/^DEBUG (\w+)/){
+        if($1 eq "OFF"){
+            $debug=0;
+        }
+        else{
+            $debug=$1;
         }
         return;
     }
@@ -353,6 +352,10 @@ sub parsecode {
                         return single_block("$func($param){", "}");
                     }
                 }
+                elsif($func eq "print"){
+                    push @$out, "console.log($param);";
+                    return 0;
+                }
             }
             elsif($cur_mode eq "php"){
                 if($func =~/^if(\w*)/){
@@ -506,7 +509,7 @@ sub dumpout {
     my ($f, $out, $pagetype)=@_;
     my $dump={out=>$out,f=>$f, module=>"output_www"};
     $dump->{custom}=\&custom_dump;
-    if($MyDef::page->{type} eq "css"){
+    if($MyDef::page->{type} && $MyDef::page->{type} eq "css"){
         foreach my $k (@style_key_list){
             my %attr;
             my @attr;

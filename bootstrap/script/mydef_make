@@ -1,23 +1,104 @@
 #!/usr/bin/perl
 use strict;
+use warnings;
+our %macros;
+our @master_config;
 our $config_outputdir;
 our $config_outputdir_make=0;
 our $config_filetype;
 our @include_default;
+our %make_targets;
+our %h_copylist;
+our @make_folders;
+our @path;
+our %path;
 
-my @master_config;
-my $module="perl";
-my %module_type=(perl=>"pl", www=>"html", win32=>"c", apple=>"m", general=>"txt", matlab=>"m", cpp=>"cpp");
-my %macros;
-my @include_folders;
+sub prompt {
+    my ($msg) = @_;
+    while(1){
+        print "$msg\n";
+        my $t=<STDIN>;
+        chomp $t;
+        if($t){
+            return $t;
+        }
+        elsif($msg=~/\[(.*)\]: $/){
+            return $1;
+        }
+        else{
+            die "Must reply $msg\n";
+        }
+    }
+}
+
+sub expand_macros {
+    my ($t) = @_;
+    if($t=~/\$\((\w+)\)/){
+        if($macros{$1}){
+            $t=$`.$macros{$1}.$';
+        }
+        else{
+            die "Unknown Macro in $t\n";
+        }
+    }
+    return $t;
+}
+
+sub add_path {
+    my ($dir) = @_;
+    if(!$dir){
+        return;
+    }
+    my $deflib=$ENV{MYDEFLIB};
+    my $defsrc=$ENV{MYDEFSRC};
+    if($dir=~/\$\(MYDEFSRC\)/){
+        if(!$defsrc){
+            die "MYDEFSRC not defined (in environment)!\n";
+        }
+        $dir=~s/\$\(MYDEFSRC\)/$defsrc/g;
+    }
+    my @tlist = split /:/, $dir;
+    foreach my $t (@tlist){
+        if(!$path{$t}){
+            if(-d $t){
+                $path{$t}=1;
+                push @path, $t;
+            }
+            else{
+                warn "add_path: [$t] not a directory\n";
+            }
+        }
+    }
+}
+
+sub find_file {
+    my ($file) = @_;
+    if(-f $file){
+        return $file;
+    }
+    if(@path){
+        foreach my $dir (@path){
+            if(-f "$dir/$file"){
+                return "$dir/$file";
+            }
+        }
+    }
+    if(1){
+        warn "$file not found\n";
+        warn "  search path: ".join(":", @path)."\n";
+    }
+    return undef;
+}
+
 my $script=$0;
 my $nosub=0;
-if($ARGV[0] eq 'nosub'){
+if(@ARGV and $ARGV[0] eq 'nosub'){
     shift @ARGV;
     $nosub=1;
 }
-my @master_config;
-if(-d $ARGV[0]){
+my $module="perl";
+my %module_type=(perl=>"pl", www=>"html", win32=>"c", apple=>"m", general=>"txt", matlab=>"m", cpp=>"cpp");
+if(@ARGV and -d $ARGV[0]){
     my $d=$ARGV[0];
     open In, "config";
     @master_config=<In>;
@@ -25,12 +106,11 @@ if(-d $ARGV[0]){
     chdir $d or die "can't chdir $d\n";
 }
 if(!-f "config"){
-    open Out, ">config" or die "Can't write config\n";
+    open Out, ">config" or die "Can't write config.\n";
     if(@master_config){
         foreach my $l (@master_config){
             if($l=~/^include_path:\s*(\S+)/){
-                my $t=$1;
-                my @t=split /:/, $t;
+                my @t=split /:/, $1;
                 my @tt;
                 push @tt, "..";
                 foreach my $s (@t){
@@ -41,7 +121,8 @@ if(!-f "config"){
                         push @tt, $s;
                     }
                 }
-                print Out "include_path: ", join(":", @tt), "\n";
+                my $path=join(":", @tt);
+                print Out "include_path: $path\n";
             }
             else{
                 print Out $l;
@@ -68,34 +149,22 @@ while(<In>){
         $config_filetype=$1;
     }
     elsif(/^include_path:\s*(\S+)/){
-        my $t=$1;
-        @include_folders=split /:/, $t;
+        add_path($1);
     }
     elsif(/^include:\s*(\S+)/){
         my $t=$1;
         @include_default=split /[:,]\s*/, $t;
+    }
+    elsif(/^make-(\w+):\s*(.*\S)/){
+        $make_targets{$1}=$2;
     }
     elsif(/^macro_(\w+):\s*(.*\S)/){
         $macros{$1}=$2;
     }
 }
 close In;
-if($ENV{MYDEFLIB}){
-    my @t;
-    my $lib=$ENV{MYDEFLIB};
-    foreach my $d (@include_folders){
-        if($d=~/^\w+/ and -d "$lib/$d"){
-            push @t, "$lib/$d";
-        }
-    }
-    push @include_folders, $ENV{MYDEFLIB};
-    if(@t){
-        push @include_folders, @t;
-    }
-}
-print STDERR "    output_dir: $config_outputdir\n";
-my @make_folders;
-my %h_copylist;
+add_path($ENV{MYDEFLIB});
+print "    output_dir: $config_outputdir\n";
 if(-f "copylist"){
     my $location;
     open In, "copylist" or die "Can't open copylist.\n";
@@ -169,8 +238,21 @@ while(my $f=pop @files){
     if(!$h_def{$f} or $h_def{$f} == 1){
         my $deplist=[];
         $h_def{$f}=$deplist;
+        if(@include_default){
+            foreach my $i (@include_default){
+                my $f=find_file($i);
+                if($f){
+                    push @$deplist, $f;
+                    if(!$h_def{$f}){
+                        push @files, $f;
+                            $h_def{$f}=1;
+                    }
+                }
+            }
+        }
+        my @save_path;
         my $inpage=0;
-        open In, $f or warn "Can't open $f\n";
+        open In, "$f" or die "Can't open $f.\n";
         while(<In>){
             if($inpage){
                 if(/^\s*output_dir: (\S+)/){
@@ -188,7 +270,7 @@ while(my $f=pop @files){
                     }
                     $page->{in_var}=$dir;
                 }
-                elsif(/^\s*\$include\s+(\S*) and $module ne "c"/){
+                elsif(/^\s*\$include\s+(\S*)/ and $module ne "c" and -f $1){
                     $page->{include}->{$1}=1;
                 }
                 elsif(/^\s*type: (\w+)/){
@@ -200,50 +282,37 @@ while(my $f=pop @files){
                 elsif(/^\s*module:\s*(\w+)/){
                     $page->{module}=$1;
                 }
+                elsif(/^\s*package:/){
+                    if($module eq "perl"){
+                        $page->{type}="pm";
+                    }
+                }
                 elsif(/^\s*depend:\s+(.*)/){
                     $page->{depend}=$1;
                 }
                 elsif(/^\s*cmd:\s+(.*)/){
                     $page->{cmd}=$1;
                 }
-                elsif(/^\S/){
+                elsif(/\S/){
                     $inpage=0;
                 }
             }
             if(!$inpage){
-                if(@include_default){
-                    foreach my $i (@include_default){
-                        my $f=$i;
-                        if(! -f $f){
-                            foreach my $d (@include_folders){
-                                if(-f "$d/$f"){
-                                    $f="$d/$f";
-                                    last;
-                                }
-                            }
-                        }
+                if(/^include:?\s*(\S+\.def)/){
+                    my $f=find_file($1);
+                    if($f){
                         push @$deplist, $f;
                         if(!$h_def{$f}){
                             push @files, $f;
-                            $h_def{$f}=1;
+                                $h_def{$f}=1;
                         }
                     }
                 }
-                if(/^include:?\s*(\S+\.def)/){
-                    my $f=$1;
-                    if(! -f $f){
-                        foreach my $d (@include_folders){
-                            if(-f "$d/$f"){
-                                $f="$d/$f";
-                                last;
-                            }
-                        }
+                elsif(/^path:\s*(.+)/){
+                    if(!@save_path){
+                        @save_path=@path;
                     }
-                    push @$deplist, $f;
-                    if(!$h_def{$f}){
-                        push @files, $f;
-                        $h_def{$f}=1;
-                    }
+                    add_path($1);
                 }
                 elsif(/^page: .*\$\d.*/){
                     $inpage=1;
@@ -269,6 +338,14 @@ while(my $f=pop @files){
             }
         }
         close In;
+        if(@save_path){
+            %path=();
+            @path=@save_path;
+            foreach my $t (@path){
+                $path{$t}=1;
+            }
+            @save_path=();
+        }
         if($output_dir){
             foreach my $page (@page_list){
                 if(!$page->{output_dir}){
@@ -410,7 +487,10 @@ while(my ($p, $h)=each %h_page){
     my $def=$h->{def};
     my $inc=$h->{include};
     my $inc_dep=join(" ", keys %$inc);
-    my $extra_dep=$h->{depend};
+    my $extra_dep='';
+    if($h->{depend}){
+        $extra_dep=$h->{depend};
+    }
     if($h->{path}){
         my @t;
         my $l=$h_def{$def};
@@ -442,6 +522,11 @@ if(@make_folders){
         }
     }
     print Out "force_look:\n\ttrue\n";
+}
+while (my ($k, $v) = each %make_targets){
+    print Out "$k:\n";
+    print Out "\t$v\n";
+    print Out "\n";
 }
 close Out;
 if($config_outputdir){
@@ -507,30 +592,4 @@ foreach my $f (keys(%folder)){
         print "Create output folder $f ...\n";
         system "mkdir -p $f";
     }
-}
-sub prompt {
-    my $msg=shift;
-    while(1){
-        print "$msg\n";
-        my $t=<STDIN>;
-        chomp $t;
-        if($t){
-            return $t;
-        }
-        elsif($msg=~/\[(.*)\]: $/){
-            return $1;
-        }
-    }
-}
-sub expand_macros {
-    my $t=shift;
-    if($t=~/\$\((\w+)\)/){
-        if($macros{$1}){
-            $t=$`.$macros{$1}.$';
-        }
-        else{
-            die "Unknown Macro in $t\n";
-        }
-    }
-    return $t;
 }

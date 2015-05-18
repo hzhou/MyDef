@@ -1,13 +1,12 @@
 use strict;
 package MyDef::output_general;
-our $debug;
+our $debug=0;
 our $out;
 our $mode;
 our $page;
 
 sub get_interface {
-    my $interface_type="general";
-    return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout, $interface_type);
+    return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
 }
 sub init_page {
     my ($t_page)=@_;
@@ -30,16 +29,7 @@ sub parsecode {
         my $normal="\033[0m";
         print "$yellow parsecode: [$l]$normal\n";
     }
-    if($l=~/^DEBUG (\w+)/){
-        if($1 eq "OFF"){
-            $debug=0;
-        }
-        else{
-            $debug=$1;
-        }
-        return;
-    }
-    elsif($l=~/^\$warn (.*)/){
+    if($l=~/^\$warn (.*)/){
         my $curfile=MyDef::compileutil::curfile_curline();
         print "[$curfile]\x1b[33m $1\n\x1b[0m";
         return;
@@ -50,6 +40,15 @@ sub parsecode {
         close In;
         foreach my $a (@all){
             push @$out, $a;
+        }
+        return;
+    }
+    elsif($l=~/^DEBUG (\w+)/){
+        if($1 eq "OFF"){
+            $debug=0;
+        }
+        else{
+            $debug=$1;
         }
         return;
     }

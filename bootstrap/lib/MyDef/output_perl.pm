@@ -3,7 +3,7 @@ package MyDef::output_perl;
 our @scope_stack;
 our $cur_scope;
 our $global_scope;
-our $debug;
+our $debug=0;
 our $out;
 our $mode;
 our $page;
@@ -19,6 +19,27 @@ our $case_wrap;
 our $case_flag="\$b_flag_case";
 our $fn_block=[];
 our $loop_idx;
+
+sub parse_condition {
+    my ($t) = @_;
+    if($t=~/[!=]~/){
+    }
+    elsif($t=~/[^!=><]=[^="]/){
+        my $curfile=MyDef::compileutil::curfile_curline();
+        print "[$curfile]\x1b[33m assignment in condition [$t]?\n\x1b[0m";
+    }
+    elsif($t=~/\$(?:eq|ne)/){
+        if($t=~/(.*?)(\S+)\s+(\$eq|\$ne)\s+(.*)/){
+            if($3 eq '$eq'){
+                $t=$1."$2 && $2 eq $4";
+            }
+            else{
+                $t=$1."!$2 || $2 ne $4";
+            }
+        }
+    }
+    return $t;
+}
 
 sub inject_function {
     my ($name, $params, $source) = @_;
@@ -272,8 +293,7 @@ sub find_var {
     return undef;
 }
 sub get_interface {
-    my $interface_type="perl";
-    return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout, $interface_type);
+    return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
 }
 sub init_page {
     my ($t_page)=@_;
@@ -283,7 +303,7 @@ sub init_page {
     if($page->{package} and !$page->{type}){
         MyDef::set_page_extension("pm");
     }
-    elsif(!$page->{package} and $page->{type} eq "pm"){
+    elsif(!$page->{package} and $page->{type} && $page->{type} eq "pm"){
         $page->{package}=$page->{pagename};
     }
     @globals=();
@@ -306,16 +326,7 @@ sub parsecode {
         my $normal="\033[0m";
         print "$yellow parsecode: [$l]$normal\n";
     }
-    if($l=~/^DEBUG (\w+)/){
-        if($1 eq "OFF"){
-            $debug=0;
-        }
-        else{
-            $debug=$1;
-        }
-        return;
-    }
-    elsif($l=~/^\$warn (.*)/){
+    if($l=~/^\$warn (.*)/){
         my $curfile=MyDef::compileutil::curfile_curline();
         print "[$curfile]\x1b[33m $1\n\x1b[0m";
         return;
@@ -326,6 +337,15 @@ sub parsecode {
         close In;
         foreach my $a (@all){
             push @$out, $a;
+        }
+        return;
+    }
+    elsif($l=~/^DEBUG (\w+)/){
+        if($1 eq "OFF"){
+            $debug=0;
+        }
+        else{
+            $debug=$1;
         }
         return;
     }
@@ -377,6 +397,7 @@ sub parsecode {
         else{
             $case=$case_elif;
         }
+        $cond=parse_condition($cond);
         single_block("$case($cond){", "}");
         push @$out, "PARSE:CASEPOP";
         push @case_stack, {state=>"if", wrap=>$case_wrap};
@@ -390,8 +411,8 @@ sub parsecode {
     }
     elsif($l=~/^\$else/){
         if(!$case_state and $l!~/NoWarn/i){
-            my $pos=MyDef::compileutil::curfile_curline();
-            print "[$pos]Dangling \$else \n";
+            my $curfile=MyDef::compileutil::curfile_curline();
+            print "[$curfile]\x1b[33m Dangling \$else\n\x1b[0m";
         }
         single_block("else{", "}");
         push @$out, "PARSE:CASEPOP";
@@ -476,8 +497,12 @@ sub parsecode {
                         $var->{"dim$i"}=$t;
                     }
                 }
-                if(!$globals{$v}){
-                    $globals{$v}=1;
+                my $t_name=$v;
+                if($v=~/^(\S+)\s*=/){
+                    $t_name=$1;
+                }
+                if(!$globals{$t_name}){
+                    $globals{$t_name}=1;
                     push @globals, $v;
                 }
                 if($var){
@@ -521,8 +546,12 @@ sub parsecode {
             $param=~s/\s*;\s*$//;
             my @tlist=MyDef::utils::proper_split($param);
             foreach my $v (@tlist){
-                if(!$uses{$v}){
-                    $uses{$v}=1;
+                my $t_name=$v;
+                if($v=~/^(\S+)\s*=/){
+                    $t_name=$1;
+                }
+                if(!$uses{$t_name}){
+                    $uses{$t_name}=1;
                     push @uses, $v;
                 }
             }
@@ -623,6 +652,18 @@ sub parsecode {
                 return single_block("while (my ($k, $v)=each $hash){", "}", "foreach");
             }
         }
+        elsif($func eq "boolhash"){
+            if($param=~/^\((.*?)\)\s*(.*)/){
+                my $v = $1;
+                my @plist=split /,\s*/, $2;
+                my @tlist;
+                foreach my $t (@plist){
+                    push @tlist, "$t=>1";
+                }
+                push @$out, "$v= (".join(', ', @tlist).");";
+            }
+            return 0;
+        }
         elsif($func eq "sumcode" or $func eq "loop" or $func eq "sum"){
             if($param=~/^\((.*?)\)\s+(.*)/){
                 my $dimstr=$1;
@@ -665,7 +706,7 @@ sub parsecode {
                     }
                 }
                 $left=join '', @segs;
-                $left=~s/\b([ijkl])\b/\$i_\1/g;
+                $left=~s/\b([ijkl])\b/\$i_$1/g;
                 if($right){
                     my @segs=split /(\[[ijkl,]*?\])/, $right;
                     foreach my $s (@segs){
@@ -682,7 +723,7 @@ sub parsecode {
                         }
                     }
                     $right=join '', @segs;
-                    $right=~s/\b([ijkl])\b/\$i_\1/g;
+                    $right=~s/\b([ijkl])\b/\$i_$1/g;
                 }
                 $h->{left}=$left;
                 $h->{left_idx}=\@left_idx;
@@ -773,7 +814,7 @@ sub parsecode {
                     }
                 }
                 $left=join '', @segs;
-                $left=~s/\b([ijkl])\b/\$i_\1/g;
+                $left=~s/\b([ijkl])\b/\$i_$1/g;
                 if($right){
                     my @segs=split /(\w+\[[ijkl,]*?\])/, $right;
                     foreach my $s (@segs){
@@ -830,7 +871,7 @@ sub parsecode {
                         }
                     }
                     $right=join '', @segs;
-                    $right=~s/\b([ijkl])\b/\$i_\1/g;
+                    $right=~s/\b([ijkl])\b/\$i_$1/g;
                 }
                 $h->{left}=$left;
                 $h->{left_idx}=\@left_idx;

@@ -1,4 +1,5 @@
 use strict;
+use warnings;
 use MyDef::utils;
 use MyDef::parseutil;
 use MyDef::compileutil;
@@ -84,6 +85,10 @@ sub init {
         require MyDef::output_cpp;
         MyDef::compileutil::set_interface(MyDef::output_cpp::get_interface());
     }
+    elsif($module eq "plot"){
+        require MyDef::output_plot;
+        MyDef::compileutil::set_interface(MyDef::output_plot::get_interface());
+    }
     else{
         die "Undefined module type $module\n";
     }
@@ -166,6 +171,10 @@ sub pipe_page {
         require MyDef::output_cpp;
         MyDef::compileutil::set_interface(MyDef::output_cpp::get_interface());
     }
+    elsif($module eq "plot"){
+        require MyDef::output_plot;
+        MyDef::compileutil::set_interface(MyDef::output_plot::get_interface());
+    }
     else{
         die "Undefined module type $module\n";
     }
@@ -228,18 +237,6 @@ sub import_config {
 }
 
 import_config("config");
-my @include_path=split /:/, $var->{include_path};
-if($ENV{MYDEFLIB}){
-    my $mydeflib=$ENV{MYDEFLIB};
-    my @t;
-    foreach my $d (@include_path){
-        if($d=~/^\w+/ and -d "$mydeflib/$d"){
-            push @t, "$mydeflib/$d";
-        }
-    }
-    $var->{include_path}.=":$ENV{MYDEFLIB}";
-    if(@t){
-        $var->{include_path}.=":". join(":", @t);
-    }
-}
+MyDef::parseutil::add_path($var->{include_path});
+MyDef::parseutil::add_path($ENV{MYDEFLIB});
 1;

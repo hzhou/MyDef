@@ -1,8 +1,11 @@
 use strict;
+use warnings;
 package MyDef::parseutil;
-our $debug;
+our $debug=0;
 our $defname="default";
 our $code_index=0;
+our @path;
+our %path;
 our @indent_stack=(0);
 
 sub import_data {
@@ -32,10 +35,12 @@ sub import_data {
     my $stdinc="std_".$MyDef::var->{module}.".def";
     push @standard_includes, $stdinc;
     while(1){
-        if(my $file=shift(@includes)){
+        if(@includes){
+            my $file=shift(@includes);
             import_file($file, $def, \@includes,\%includes, "include");
         }
-        elsif(my $file=shift(@standard_includes)){
+        elsif(@standard_includes){
+            my $file=shift(@standard_includes);
             import_file($file, $def, \@includes,\%includes, "standard_include");
         }
         else{
@@ -60,8 +65,7 @@ sub import_data {
 sub import_file {
     my ($f, $def, $include_list, $include_hash, $file_type) = @_;
     my $page;
-    my $macros;
-    my $curindent;
+    my $curindent=0;
     my $codetype = "top";
     my $codeindent = 0;
     my $codeitem = $def;
@@ -126,6 +130,19 @@ sub import_file {
             ($codetype, $codeindent, $codeitem) = @$t;
             if($codetype eq "code"){
                 $lastindent = $codeindent;
+                $source = $codeitem->{source};
+                my $src_location="SOURCE: $cur_file - $cur_line";
+                push @$source, $src_location;
+            }
+        }
+        if($codeindent>0 and $codetype eq "code"){
+            while($curindent>$lastindent){
+                $lastindent++;
+                push @$source, "SOURCE_INDENT";
+            }
+            while($curindent<$lastindent){
+                $lastindent--;
+                push @$source, "SOURCE_DEDENT";
             }
         }
         if($line=~/^\w+code:/ && $curindent == $codeindent and $codetype ne "macro"){
@@ -153,7 +170,7 @@ sub import_file {
                 my $src_location="SOURCE: $cur_file - $cur_line";
                 $source=[$src_location];
                 undef $code_prepend;
-                if($curindent==0 and $codes->{$name} and $codes->{$name}->{attr} ne "default"){
+                if($codes->{$name} and (!$codes->{$name}->{attr} or $codes->{$name}->{attr} ne "default")){
                     $t_code=$codes->{$name};
                     if($dblcolon eq "@"){
                     }
@@ -165,7 +182,7 @@ sub import_file {
                         $code_prepend=$t_code->{source};
                         $t_code->{source} = $source;
                     }
-                    elsif($t_code->{attr} eq "optional"){
+                    elsif($codes->{$name}->{attr} and $codes->{$name}->{attr} eq "optional"){
                         $t_code->{attr}=undef;
                         $source=$t_code->{source};
                         push @$source, $src_location;
@@ -219,14 +236,6 @@ sub import_file {
             $codeitem   = $macros;
         }
         elsif($codeindent>0 and $codetype eq "code"){
-            while($curindent>$lastindent){
-                $lastindent++;
-                push @$source, "SOURCE_INDENT";
-            }
-            while($curindent<$lastindent){
-                $lastindent--;
-                push @$source, "SOURCE_DEDENT";
-            }
             push @$source, $line;
         }
         elsif($codeindent>0 and $codetype eq "macro"){
@@ -235,7 +244,7 @@ sub import_file {
                 expand_macro(\$v, $macros);
                 if($macros->{$k}){
                     if($dblcolon){
-                        $macros->{$k}.=", ", $v;
+                        $macros->{$k}.=", $v";
                     }
                     elsif($debug){
                         print "Denied overwriting macro $k\n";
@@ -254,6 +263,9 @@ sub import_file {
                     }
                     $include_hash->{$1}=1;
                 }
+            }
+            elsif($line=~/^path:\s*(.+)/){
+                add_path($1);
             }
             elsif($line=~/^(sub)?page: (.*)/){
                 my ($subpage, $t)=($1, $2);
@@ -417,26 +429,13 @@ sub get_lines {
         return \@lines;
     }
     else{
-        my $filename="";
-        if(-f $file){
-            $filename=$file;
+        my $filename=find_file($file);
+        my @lines;
+        {
+            open In, "$filename" or die "Can't open $filename.\n";
+            @lines=<In>;
+            close In;
         }
-        if(!$filename and $MyDef::var->{'include_path'}){
-            my @dirs=split /:/, $MyDef::var->{'include_path'};
-            foreach my $dir (@dirs){
-                if(-f "$dir/$file"){
-                    $filename="$dir/$file";
-                    last;
-                }
-            }
-        }
-        if(!-f $filename){
-            warn "$file not found\n";
-            warn "  search path: $MyDef::var->{'include_path'}\n";
-        }
-        open In, $filename or die "Can't open $file.\n";
-        my @lines=<In>;
-        close In;
         return \@lines;
     }
 }
@@ -492,6 +491,52 @@ sub debug_code {
             debug_code($v);
         }
     }
+}
+
+sub add_path {
+    my ($dir) = @_;
+    if(!$dir){
+        return;
+    }
+    my $deflib=$ENV{MYDEFLIB};
+    my $defsrc=$ENV{MYDEFSRC};
+    if($dir=~/\$\(MYDEFSRC\)/){
+        if(!$defsrc){
+            die "MYDEFSRC not defined (in environment)!\n";
+        }
+        $dir=~s/\$\(MYDEFSRC\)/$defsrc/g;
+    }
+    my @tlist = split /:/, $dir;
+    foreach my $t (@tlist){
+        if(!$path{$t}){
+            if(-d $t){
+                $path{$t}=1;
+                push @path, $t;
+            }
+            else{
+                warn "add_path: [$t] not a directory\n";
+            }
+        }
+    }
+}
+
+sub find_file {
+    my ($file) = @_;
+    if(-f $file){
+        return $file;
+    }
+    if(@path){
+        foreach my $dir (@path){
+            if(-f "$dir/$file"){
+                return "$dir/$file";
+            }
+        }
+    }
+    if(1){
+        warn "$file not found\n";
+        warn "  search path: ".join(":", @path)."\n";
+    }
+    return undef;
 }
 
 sub get_indent {

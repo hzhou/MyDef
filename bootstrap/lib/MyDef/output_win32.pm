@@ -1,8 +1,17 @@
 use strict;
-package MyDef::output_win32;
 use MyDef::output_c;
+
+package MyDef::output_win32;
+our $out;
+our $debug;
+
 sub get_interface {
-    return (\&init_page, \&parsecode, \&MyDef::output_c::set_output, \&modeswitch, \&dumpout);
+    return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
+}
+sub set_output {
+    my ($newout)=@_;
+    $out = $newout;
+    MyDef::output_c::set_output($newout);
 }
 sub modeswitch {
     my ($mode, $in)=@_;
@@ -19,7 +28,16 @@ sub init_page {
 }
 sub parsecode {
     my ($l)=@_;
-    if($l=~/^\$eval\s+(\w+)(.*)/){
+    if($l=~/^DEBUG (\w+)/){
+        if($1 eq "OFF"){
+            $debug=0;
+        }
+        else{
+            $debug=$1;
+        }
+        return MyDef::output_c::parsecode($l);
+    }
+    elsif($l=~/^\$eval\s+(\w+)(.*)/){
         my ($codename, $param)=($1, $2);
         $param=~s/^\s*,\s*//;
         my $t=MyDef::compileutil::eval_sub($codename);
@@ -39,6 +57,7 @@ sub dumpout {
     my $extern;
     my $winmain=$MyDef::output_c::functions{"WinMain"};
     if($winmain){
+        $MyDef::output_c::has_main=1;
         $winmain->{skip_declare}=1;
         $winmain->{ret_type}="int APIENTRY";
         $winmain->{param_list}=["HINSTANCE hInst", "HINSTANCE hPrev", "LPSTR s_cmdline", "int n_cmdshow"];
@@ -56,8 +75,10 @@ sub dumpout {
     push @$f, "#include <windows.h>\n";
     foreach my $i (keys %MyDef::output_c::objects){
         if($i=~/^lib(.*)/){
-            push @$f, "#pragma comment(lib, \"$1\")\n";
-            $MyDef::output_c::objects{$i}=undef;
+            if($1 ne "m"){
+                push @$f, "#pragma comment(lib, \"$1\")\n";
+                $MyDef::output_c::objects{$i}=undef;
+            }
         }
     }
     MyDef::output_c::dumpout($f, $out, $pagetype);
