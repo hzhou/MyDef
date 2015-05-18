@@ -82,7 +82,7 @@ subcode: sumcode_get_idx(left)
                 $var_hash{$s}=$t
                 $s=$t
     $$(left)=join '', @segs
-    $$(left)=~s/\b([ijkl])\b/$(i)_\1/g
+    $$(left)=~s/\b([ijkl])\b/$(i)_$1/g
 
 subcode: sumcode_var
     my $t
@@ -178,7 +178,7 @@ subcode: sumcode_simple_get_idx(left)
                     push @k_list, $k
                 $s="[$(k)_$k\]"
     $$(left)=join '', @segs
-    $$(left)=~s/\b([ijkl])\b/$(i)_\1/g
+    $$(left)=~s/\b([ijkl])\b/$(i)_$1/g
 
 subcode: sumcode_simple_generate
     my @code

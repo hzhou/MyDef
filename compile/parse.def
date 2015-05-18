@@ -8,7 +8,7 @@ fncode: parseblock($code)
     $call @parseblock_init
 
     my $indent=0
-    $call parse_stack_push
+    parse_stack_push($code)
 
     my @last_line
     my $lindex=0;
@@ -33,8 +33,9 @@ fncode: parseblock($code)
             $call parse_line
         $else
             $call compile_line
-    $call parse_stack_pop
+    parse_stack_pop()
 
+#----------------------------------------------
 subcode: compile_line
     # -- handle preproc and out-of-switch
     $if !$l
@@ -74,22 +75,126 @@ subcode: compile_line
                 my $subblock=grabblock($block, \$lindex)
                 parseblock({source=>$subblock, name=>"MAKE_STRING"})
                 push @$out, "POP_STRING"
+            $elif defined $parse_capture
+                push @$parse_capture, $l
             $else
                 $call parse_line
             last
 
-subcode:: support_subs
-    $sub curfile_curline
-        return "$cur_file:$cur_line"
+######## Parsing routines  ######################################
+subcode: parse_filter_meta
+    # -- maintain indent level
+    $if $l eq "SOURCE_INDENT" 
+        $indent++; 
+    $elif $l eq "SOURCE_DEDENT" 
+        $indent-- if $indent>0; 
 
-    $sub protect_key($key)
-        $foreach $blk in @block_stack
-            $if $blk->{$key}
-                die "[$cur_file:$cur_line] Block Key Collision: [$key]\n"
-        $block_stack[-1]->{$key}=1
+subcode: parse_catch_meta
+    $if $l =~ /^DEBUG (\w+)/
+        $if $1 eq "OFF"
+            $call debug_off
+        $elif $1 eq "MACRO"
+            $call dump_deflist
+        $else
+            $call debug_on, $1
+        next
+    $elif $l =~ /^BLOCK RELEASE/i
+        $block_stack[-1]->{eindex}=$block_stack[-2]->{eindex}
+        next
+    $elif $l =~/^SOURCE: (.*) - (\d+)$/
+        $cur_file=$1
+        $cur_line=$2
+        next
+
+subcode: parse_line
+    undef $callback_output
+    my $callback_scope
+
+    my $idx=$#$out+1;
+    $global $parse_line_count=0
+    $parse_line_count++
+    my $msg=$f_parse->($l);
+    $if $msg
+        $if ref($msg) eq "ARRAY"
+            # output is held until post processing
+            #     eg. output_apple.pm $method
+            $callback_output=$msg;
+            $idx=0;
+        $elif $msg=~/^NEWBLOCK(.*)/
+            # check the new output for blocks
+            #     eg. cfunctions.pm single_block
+            $callback_output=$out;
+            $if $1=~/^-(.*)/
+                $callback_scope=$1
+        $elif $msg=~/^SKIPBLOCK(.*)/
+            my $blk=grabblock($block, \$lindex)
+            $if $1=~/^-(\w+)/
+                $named_blocks{$1}=$blk
+            last
+        $elif $msg=~/^CALLBACK\b/
+            my $blk=grabblock($block, \$lindex)
+            $(if:1)
+                $global $parse_capture
+                $parse_capture=[]
+                parseblock({source=>$blk, name=>"capture"})
+                $named_blocks{last_grab}=$parse_capture
+                undef $parse_capture
+            $(else)
+                $named_blocks{last_grab}=$blk
+            $f_parse->($msg)
+            $named_blocks{last_grab}=undef
+        $elif $msg=~/^SET:(\w+)=(.*)/
+            # set/reset definitions
+            #     eg. cfunctions.pm get_pointer_type
+            $deflist->[-1]->{$1}=$2;
+            last
+        $elif $msg=~/^PARSE:(.*)/
+            $l=$1
+            next
+        # ---------------------------------
+        # single_block and $method
+        $if $callback_output
+            $call check_callback
+
+    # ---------------------
+    subcode: check_callback
+        my $n=new_output()
+        my $subblock=grabblock($block, \$lindex)
+        $call parse_callback_block, $n, $subblock
+
+        my $n_end_parse=0
+        $for $i=$idx:$#$callback_output+1
+            $if $callback_output->[$i]=~/^BLOCK$/
+                $callback_output->[$i]="BLOCK_$n"
+            $elif $callback_output->[$i]=~/^PARSE:(.*)/
+                $n_end_parse++
+                $f_parse->($1)
+                $callback_output->[$i]="NOOP"
+
+        $if $n_end_parse==0
+            $call hack_case_wrap
+
+        # ------------
+        subcode: parse_callback_block(n, subblock)
+            my $temp=$out;
+            set_output($output_list[$(n)])
+            #$f_parse->("SCOPE: CALLBACK");
+            parseblock({source=>$(subblock), name=>"BLOCK_$(n)", scope=>$callback_scope})
+            #$f_parse->("SCOPE: NONE");
+            set_output($temp)
+
+        subcode: hack_case_wrap
+            # case wrap 
+            #     $for ..
+            #         $if ...
+            # need wrap at the end of $for
+            my $temp=$out;
+            set_output($output_list[$n])
+            $f_parse->("NOOP")
+            set_output($temp)
 
 ######## Parse Output Stacks ######################################
-subcode: parse_stack_push
+fncode: parse_stack_push($code)
     $global $block_index=0
     $global @block_stack
     # ---- protect $out context
@@ -104,7 +209,7 @@ subcode: parse_stack_push
         $f_parse->("SUBBLOCK BEGIN $idx $scope")
         push @$out, "DUMP_STUB block$idx\_pre"
 
-subcode: parse_stack_pop
+fncode: parse_stack_pop
     my $blk=$block_stack[-1]
     my $idx=$blk->{index}
     $if $blk->{scope}
@@ -146,110 +251,13 @@ subcode: debug_off
         $debug=0
         $f_parse->("DEBUG OFF");
 
-######## Parsing routines  ######################################
-subcode: parse_filter_meta
-    # -- maintain indent level
-    $if $l eq "SOURCE_INDENT" 
-        $indent++; 
-    $elif $l eq "SOURCE_DEDENT" 
-        $indent-- if $indent>0; 
+#---------------------------------------- 
+fncode: curfile_curline
+    return "$cur_file:$cur_line"
 
-subcode: parse_catch_meta
-    $if $l =~ /^DEBUG (\w+)/
-        $if $1 eq "OFF"
-            $call debug_off
-        $elif $1 eq "MACRO"
-            $call dump_deflist
-        $else
-            $call debug_on, $1
-        next
-    $elif $l =~ /^BLOCK RELEASE/i
-        $block_stack[-1]->{eindex}=$block_stack[-2]->{eindex}
-        next
-    $elif $l =~/^SOURCE: (.*) - (\d+)$/
-        $cur_file=$1
-        $cur_line=$2
-        next
-
-subcode: parse_line_progress
-    $if $parse_line_count % 100 == 0
-        print "\tcompiling $parse_line_count ...\n"
-
-subcode: parse_line
-    undef $callback_output
-    my $callback_scope
-
-    my $idx=$#$out+1;
-    $global $parse_line_count=0
-    $parse_line_count++
-    my $msg=$f_parse->($l);
-    $if $msg
-        $if ref($msg) eq "ARRAY"
-            # output is held until post processing
-            #     eg. output_apple.pm $method
-            $callback_output=$msg;
-            $idx=0;
-        $elif $msg=~/^NEWBLOCK(.*)/
-            # check the new output for blocks
-            #     eg. cfunctions.pm single_block
-            $callback_output=$out;
-            $if $1=~/^-(.*)/
-                $callback_scope=$1
-        $elif $msg=~/^SKIPBLOCK(.*)/
-            my $blk=grabblock($block, \$lindex)
-            $if $1=~/^-(\w+)/
-                $named_blocks{$1}=$blk
-            last
-        $elif $msg=~/^CALLBACK\b/
-            my $blk=grabblock($block, \$lindex)
-            $named_blocks{last_grab}=$blk
-            $f_parse->($msg)
-            $named_blocks{last_grab}=undef
-        $elif $msg=~/^SET:(\w+)=(.*)/
-            # set/reset definitions
-            #     eg. cfunctions.pm get_pointer_type
-            $deflist->[-1]->{$1}=$2;
-            last
-        $elif $msg=~/^PARSE:(.*)/
-            $l=$1
-            next
-        # ---------------------------------
-        # single_block and $method
-        $if $callback_output
-            $call check_callback
-
-subcode: check_callback
-    my $n=new_output()
-    my $subblock=grabblock($block, \$lindex)
-    $call parse_callback_block, $n, $subblock
-
-    my $n_end_parse=0
-    $for $i=$idx:$#$callback_output+1
-        $if $callback_output->[$i]=~/^BLOCK$/
-            $callback_output->[$i]="BLOCK_$n"
-        $elif $callback_output->[$i]=~/^PARSE:(.*)/
-            $n_end_parse++
-            $f_parse->($1)
-            $callback_output->[$i]="NOOP"
-
-    $if $n_end_parse==0
-        $call hack_case_wrap
-
-subcode: parse_callback_block(n, subblock)
-    my $temp=$out;
-    set_output($output_list[$(n)])
-    #$f_parse->("SCOPE: CALLBACK");
-    parseblock({source=>$(subblock), name=>"BLOCK_$(n)", scope=>$callback_scope})
-    #$f_parse->("SCOPE: NONE");
-    set_output($temp)
-
-subcode: hack_case_wrap
-    # case wrap 
-    #     $for ..
-    #         $if ...
-    # need wrap at the end of $for
-    my $temp=$out;
-    set_output($output_list[$n])
-    $f_parse->("NOOP")
-    set_output($temp)
+fncode: protect_key($key)
+    $foreach $blk in @block_stack
+        $if $blk->{$key}
+            die "[$cur_file:$cur_line] Block Key Collision: [$key]\n"
+    $block_stack[-1]->{$key}=1
 

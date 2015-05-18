@@ -28,6 +28,8 @@ page: mydef_page
             die "Please supply data definition file.";
 
         $if $def_file eq "-pipe"
+            #-- reads from STDIN
+            #-- dump to STDOUT
             MyDef::pipe_page($config{module})
         $else
             $config{def_file}=$def_file

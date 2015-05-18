@@ -5,7 +5,9 @@
 
 #- calls: init, match, process, post
 
-subcode: parse_frame(@mode)
+#- $(set:strict=1）if strict mode is desired
+
+subcode: parse_frame
     macros:
         type: $stack[$1]->[1]
         atom: $stack[$1]->[0]
@@ -20,13 +22,14 @@ subcode: parse_frame(@mode)
             $cur = [undef, "eof"]
         $call @match
         $else NoWarn
-            $(if:mode=strict)
+            $(if:strict)
                 my $i=pos($l)
                 my $a=substr($l, 0, $i)
                 my $b=substr($l, $i)
                 die "parse error: [$a][$b]\n"
             $(else)
-                $l=~/\G./gc
+                $l=~/\G(.)/gc
+                $cur = [$1, "extra"]
 
         process:
         # print_token($cur)
@@ -63,6 +66,15 @@ subcode: parse_frame(@mode)
     subcode: token(type, @pat)
         $case $l=~/\G($(pat))/gc
             $cur = [$1, "$(type)"]
+
+    # --------------
+    subcode: double_quote
+        $case $l=~/\G("(?:[^\\]+|\\.)*")/gc
+            $cur = [$1, '"']
+
+    subcode: single_quote
+        $case $l=~/\G('(?:[^\\]+|\\.)*')/gc
+            $cur = [$1, "'"]
 
     subcode: bracket
         $case $l=~/\G([\(\[\{])/gc

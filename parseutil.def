@@ -11,7 +11,7 @@ page: parseutil
     output_dir: lib/MyDef
     package: MyDef::parseutil
     subcode: main
-        $global $debug
+        $global $debug=0
         # $call support_subs
         $call support_eachfile
         $call support_ogdl
@@ -43,9 +43,11 @@ fncode: import_data($file)
     import_file($file, $def, \@includes,\%includes, "main")
     $call load_standard_includes
     $while 1
-        $if my $file=shift(@includes)
+        $if @includes
+            my $file=shift(@includes)
             import_file($file, $def, \@includes,\%includes, "include")
-        $elif my $file=shift(@standard_includes)
+        $elif @standard_includes
+            my $file=shift(@standard_includes)
             import_file($file, $def, \@includes,\%includes, "standard_include")
         $else
             last
@@ -227,9 +229,6 @@ subcode: add_page
     push @$pagelist, $pagename
 
 #---- macros ------------------------------------ 
-subcode:: import_file_init
-    my $macros
-
 subcode: macros_start
     $if !$codeitem->{macros}
         $codeitem->{macros}={}
@@ -241,7 +240,7 @@ subcode: process_macros
         expand_macro(\$v, $macros);
         $if $macros->{$k}
             $if $dblcolon
-                $macros->{$k}.=", ", $v
+                $macros->{$k}.=", $v"
             $elif $debug
                 $print "Denied overwriting macro $k"
         $else

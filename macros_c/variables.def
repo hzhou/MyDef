@@ -108,7 +108,7 @@ subcode:: c_support_subs
 
     $sub temp_add_var($name, $type, $value)
         my $var=parse_var($name, $type, $value)
-        my $name=$var->{name}
+        $name=$var->{name}
 
         my $macro_name=$name
         $name=MyDef::utils::uniq_name($name, \%protected_var)
@@ -117,7 +117,7 @@ subcode:: c_support_subs
             print "temp_var $macro_name -> $name of $var->{type}\n"
 
         my $hash=$cur_scope->{var_hash}
-        my $type=$var->{type}
+        $type=$var->{type}
         $if $hash->{$name} and $hash->{$name}->{temptype} ne $type
             my $i=2
             $if $name=~/[0-9_]/
@@ -145,7 +145,7 @@ subcode: check_var_collision(exist)
 
 subcode: add_var(hash, list)
     my $var=parse_var($name, $type, $value)
-    my $name=$var->{name}
+    $name=$var->{name}
     $if $(hash)->{$name}
         $call check_var_collision, $(hash)->{$name}
         return $name

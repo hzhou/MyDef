@@ -437,7 +437,7 @@ phpcode: old
         my $rlink=$MyDef::compileutil::deflist->[-1]->{rlink}
         my $attr="class=\\\"\$tdclass\\\""
         $if $rlink
-            $rlink=~s/\$\[(.*?)\]/{\$i$suffix\['\1']}/g
+            $rlink=~s/\$\[(.*?)\]/{\$i$suffix\['$1']}/g
             $attr.=" onclick=\\\"window.location.href='$rlink'\\\""
         push @$out, "    print \"<tr $attr>\";";
         # !!!!!! Note that the former foreach loop changed the $flist values

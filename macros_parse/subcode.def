@@ -27,7 +27,9 @@ subcode: start_subcode
     # -------------------
     undef $code_prepend
 
-    $if $codes->{$name} and $codes->{$name}->{attr} ne "default"
+    $(set:code=$codes->{$name})
+    $(set:attr=$(code)->{attr})
+    $if $(code) and (!$(attr) or $(attr) ne "default")
         $t_code=$codes->{$name}
         # Subcode Already Exist --
         $if $dblcolon eq "@"
@@ -40,7 +42,7 @@ subcode: start_subcode
             # -- prepend
             $code_prepend=$t_code->{source}
             $t_code->{source} = $source
-        $elif $t_code->{attr} eq "optional"
+        $elif $(attr) and $(attr) eq "optional"
             # -- append and finalize
             $t_code->{attr}=undef
             $source=$t_code->{source}

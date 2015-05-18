@@ -41,6 +41,9 @@ subcode: js_parse_func
         return single_block("else{", "}")
     $elif $func eq "for" or $func eq "foreach"
         $call js_parse_for
+    $elif $func eq "print"
+        push @$out, "console.log($param);"
+        return 0
 
 subcode: js_parse_for
     $if $param=~/(\w+)=(.*?):(.*?)(:.*)?$/

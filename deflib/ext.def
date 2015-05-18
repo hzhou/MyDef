@@ -64,3 +64,17 @@ subcode: filter_codelist
         $foreach $l in @source
             $print [$l]
 
+#---------------------------------------- 
+#-- used in perl prgrams
+subcode: grab_block
+    my $codelist = $MyDef::compileutil::named_blocks{"last_grab"} 
+    push @$out, "my \@source=(\n"
+    $foreach $l in @$codelist
+        $if $l=~/^SOURCE_INDENT/
+            push @$out, "    'INDENT',"
+        $elif $l=~/^SOURCE_DEDENT/
+            push @$out, "    'DEDENT',"
+        $elif $l!~/^SOURCE/
+            $l=~s/'/\\'/g
+            push @$out, "    '$l',"
+    push @$out, ");"

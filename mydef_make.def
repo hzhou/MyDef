@@ -36,8 +36,8 @@ page: mydef_make
 
     # ---------------------------------------- 
     subcode: sub_make
-        my @master_config;
-        $if -d $ARGV[0]
+        $global @master_config;
+        $if @ARGV and -d $ARGV[0]
             my $d=$ARGV[0];
             open In, "config";
             @master_config=<In>;
@@ -52,7 +52,6 @@ page: mydef_make
 
 
 subcode:: package_global
-    my @master_config;
     my $module="perl";
     my %module_type=($(module_type))
 
@@ -282,7 +281,7 @@ subcode: read_def_file
             $page->{depend}=$1
         $elif /^\s*cmd:\s+(.*)/
             $page->{cmd}=$1
-        $elif /^\S/
+        $elif /\S/ 
             $inpage=0;
         # ----
         subcode: outputdir_inpage
@@ -411,7 +410,9 @@ subcode: write_rule_pages
         my $def=$h->{def};
         my $inc=$h->{include};
         my $inc_dep=join(" ", keys %$inc);
-        my $extra_dep=$h->{depend}
+        my $extra_dep=''
+        $if $h->{depend}
+            $extra_dep=$h->{depend}
         $if $h->{path}
             my @t;
             my $l=$h_def{$def};
@@ -431,7 +432,7 @@ subcode: write_rule_pages
 #---------------------------------------- 
 subcode: _autoload
     my $nosub=0;
-    $if $ARGV[0] eq 'nosub'
+    $if @ARGV and $ARGV[0] eq 'nosub'
         shift @ARGV;
         $nosub=1;
 

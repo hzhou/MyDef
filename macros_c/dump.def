@@ -56,11 +56,9 @@ fncode: add_include($l)
             push @include_list, $key
 
 subcode: dump_includes
-    my $cnt=0
-    $foreach $k in @include_list
-        push @$dump_out, "#include $k\n";
-        $cnt++
-    $if $cnt>0
+    $if @include_list
+        $foreach $k in @include_list
+            push @$dump_out, "#include $k\n";
         push @$dump_out, "\n";
 
 # ---- Defines ----
@@ -78,16 +76,14 @@ fncode: add_define($name, $var)
         $defines{$name}=$var
 
 subcode: dump_defines
-    my $cnt=0
     $if $page->{use_bool}
         push @$dump_out, "typedef int bool;\n"
         push @$dump_out, "#define true 1\n"
         push @$dump_out, "#define false 0\n"
-        $cnt++
-    $foreach $k in @define_list
-        $call dump_define, $k
-        $cnt++
-    $if $cnt>0
+        push @$dump_out, "\n";
+    $if @define_list
+        $foreach $k in @define_list
+            $call dump_define, $k
         push @$dump_out, "\n";
 
 subcode: dump_define(k)
@@ -128,29 +124,25 @@ subcode:: c_init
     @enum_list=()
 
 subcode: dump_enums
-    my $cnt=0
-    $foreach $name in @enum_list
-        my $t=$enums{$name};
-        $if $name=~/^ANONYMOUS/
-            push @$dump_out, "enum {$t};\n";
-        $elif $name=~/^,\s*(\w+)/ 
-            push @$dump_out, "enum {$t} $1;\n";
-        $else
-            push @$dump_out, "enum $name {$t};\n";
-        $cnt++
-    $if $cnt>0
+    $if @enum_list
+        $foreach $name in @enum_list
+            my $t=$enums{$name};
+            $if $name=~/^ANONYMOUS/
+                push @$dump_out, "enum {$t};\n";
+            $elif $name=~/^,\s*(\w+)/ 
+                push @$dump_out, "enum {$t} $1;\n";
+            $else
+                push @$dump_out, "enum $name {$t};\n";
         push @$dump_out, "\n";
 
 # ---- Global Variables ----
 subcode: dump_globals
-    my $cnt=0
-    $foreach $name in @$global_list
-        my $v=$global_hash->{$name}
-        my $decl=var_declare($v)
-        $if $decl
-            push @$dump_out, "$decl;\n";
-        $cnt++
-    $if $cnt>0
+    $if @$global_list
+        $foreach $name in @$global_list
+            my $v=$global_hash->{$name}
+            my $decl=var_declare($v)
+            $if $decl
+                push @$dump_out, "$decl;\n";
         push @$dump_out, "\n";
 
 #---- Function Delcares ----
@@ -159,13 +151,11 @@ subcode:: c_init
     @function_declare_list=()
 
 subcode: dump_function_declares
-    my $cnt=0
     $foreach $t in @function_declare_list
         my $func=$functions{$t}
         $if !$func->{skip_declare}
             $call declare, $func
-            $cnt++
-    $if $cnt>0
+    $if $dump_out->[-1] ne "\n"
         push @$dump_out, "\n";
 
     # ---------------------
@@ -227,7 +217,6 @@ subcode: dump_structs
 
 #---- Simple Constructors/Destructors ----------------------------------------
 subcode: dump_structs_functions
-    my $cnt=0
     $foreach $name in @struct_list
         my ($param, $init)=get_struct_constructor($name)
         $if defined $init
@@ -240,7 +229,6 @@ subcode: dump_structs_functions
             $foreach $l in @$init
                 push @$dump_out, "    p->$l;\n"
             push @$dump_out, "}\n";
-            $cnt++
         #------------------------------
         my $s_list=$structs{$name}->{list}
         my $s_hash=$structs{$name}->{hash}
@@ -250,9 +238,8 @@ subcode: dump_structs_functions
             $foreach $l in @$s_exit
                 push @$dump_out, "    $l\n";
             push @$dump_out, "}\n";
-            $cnt++
         # ------------------------
-    $if $cnt>0
+    $if $dump_out->[-1] ne "\n"
         push @$dump_out, "\n";
 
 # ---- Init codes ----

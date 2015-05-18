@@ -1,5 +1,5 @@
 subcode:: import_file_init
-    my $curindent;
+    my $curindent=0
 
     my $codetype = "top"
     my $codeindent = 0

@@ -71,7 +71,7 @@ subcode:: package_global
 
     # ---------------------------------------------------
     $global $deflist, %misc_vars
-    $global $debug
+    $global $debug=0
 
 subcode: compile
     my $mode=$f_init->($page);
@@ -143,4 +143,10 @@ subcode: output_outdir
             if(!$tdir){next;}
             $if ! -d $tdir
                 mkdir $tdir or die "Can't create output directory: $tdir\n";
+
+#---- utils ------------------------------------ 
+subcode: warn(@msg)
+    $(if:msg~")
+        $(set:msg=$(msg:strip))
+    $print "[$cur_file:$cur_line]$green $(msg)" 
 

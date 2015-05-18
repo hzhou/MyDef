@@ -1,7 +1,8 @@
 include: perl/html.def
 
 subcode:: dumpout
-    $if $MyDef::page->{type} eq "css"
+    $(set:t=$MyDef::page->{type})
+    $if $(t) && $(t) eq "css"
         $call dump_style_list, css
     $else
         my $metablock=MyDef::compileutil::get_named_block("meta")

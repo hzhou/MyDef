@@ -10,7 +10,7 @@ macros:
     callsub: MyDef::compileutil::callsub($1)
 
 subcode: output_main
-    $global $debug
+    $global $debug=0
     $global $out
     $global $mode
     $global $page

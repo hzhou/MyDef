@@ -165,24 +165,25 @@ subcode: check_paren_stack
 
 # ----
 subcode: concat_atoms(type)
-    my $type="seq"
-    $(if:type=group)
-        $type=$paren_stack[-1]->{type}
-    my $atom
-    my $n=@$atoms
-    $if $n==0
-        warn "regex_parse: empty $(type)\n"
-        $atom=undef
-    $elif $type ne "seq"
-        $atom={type=>$type, n=>$n, list=>$atoms}
-        $atoms=[]
-    $else
-        $if $n==1
-            $atom=pop @$atoms
-        $else
-            $atom={type=>"seq", n=>$n, list=>$atoms}
+    &call block
+        my $type="seq"
+        $(if:type=group)
+            $type=$paren_stack[-1]->{type}
+        my $n=@$atoms
+        $if $n==0
+            warn "regex_parse: empty $(type)\n"
+            push @$alts, undef
+        $elif $type ne "seq"
+            push @$alts, {type=>$type, n=>$n, list=>$atoms}
             $atoms=[]
-    push @$alts, $atom
+        $else
+            my $atom
+            $if $n==1
+                $atom=pop @$atoms
+            $else
+                $atom={type=>"seq", n=>$n, list=>$atoms}
+                $atoms=[]
+            push @$alts, $atom
 
 subcode: concat_alts
     my $atom

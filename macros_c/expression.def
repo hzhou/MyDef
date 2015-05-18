@@ -13,33 +13,35 @@ subcode:: parsecode_func_other
 
 #----------------------------------------------- 
 fncode: check_expression($l, $context)
-    #---- Note: if $l is already terminated with ';', it simply returns $l ----
+    #-- Note: if $l is already terminated with ';'
+    #--   it is bypassed: parsing.def:parsecode_other
     # $if $debug eq "expression"
     #     $print "check_expression: $l [$context]"
-    $call @check_statement
-    my ($assign, $left, $right)
-    $call @check_expression_init
-    $while 1
-        $call check_expression_parse, $l
-        $call check_expression_push
-    $if @stack==1 and $types[0] eq "atom-("
-        $right=substr($stack[0], 1, -1)
+    $call check_statement
     $else
-        $right=join("", @stack)
-
-    $if $assign
-        $if $assign eq "="
-            $if $context eq "condition"
-                $if $right!~/^\w+\(.*\)$/
-                    $call warn,  Assignment in [$left = $right], possible bug?
-                return "$left = $right"
-            $else
-                do_assignment($left, $right)
-                return
+        my ($assign, $left, $right)
+        $call @check_expression_init
+        $while 1
+            $call check_expression_parse
+            $call check_expression_push
+        $if @stack==1 and $types[0] eq "atom-("
+            $right=substr($stack[0], 1, -1)
         $else
-            $right= "$left $assign $right"
-    $call process_expression_cache, $right
-    return $right
+            $right=join("", @stack)
+
+        $if $assign
+            $if $assign eq "="
+                $if $context && $context eq "condition"
+                    $if $right!~/^\w+\(.*\)$/
+                        $call warn,  Assignment in [$left = $right], possible bug?
+                    return "$left = $right"
+                $else
+                    do_assignment($left, $right)
+                    return
+            $else
+                $right= "$left $assign $right"
+        $call process_expression_cache, $right
+        return $right
 
     # ---------------------------
     subcode: check_statement
@@ -55,8 +57,13 @@ fncode: check_expression($l, $context)
             # -- vanila C statement ---
             return $l
 
+    macros:
+        type1: @types>0 && $types[-1]
+        type2: @types>1 && $types[-2]
+        atom1: @stack>0 && $stack[-1]
+        atom2: @stack>1 && $stack[-2]
     # ---------------------------------------- 
-    subcode: check_expression_parse(l)
+    subcode: check_expression_parse
         macros:
             exponent: (?:[eE]-?\d+)
             dot_pow: \.\d+$(exponent)?
@@ -65,32 +72,32 @@ fncode: check_expression($l, $context)
             float: ($(dot_pow)|$(dec_pow)|$(int_pow))
 
         my ($token, $type)
-        $if $(l)=~/\G$/gc
+        $if $l=~/\G$/gc
             last
         #----  atom ------
-        $elif $(l)=~/\G("([^"\\]|\\.)*")/gc
+        $elif $l=~/\G("([^"\\]|\\.)*")/gc
             $token=$1
             $type="atom-string"
-        $elif $(l)=~/\G('([^'\\]|\\.)*')/gc
+        $elif $l=~/\G('([^'\\]|\\.)*')/gc
             $token=$1
             $type="atom-char"
-        $elif $(l)=~/\G($(float)f?)/gc
+        $elif $l=~/\G($(float)f?)/gc
             $token=$1
             $type="atom-number-float"
-            $if $types[-1] =~/^atom/ and $token=~/^\.(\d+)/
+            $if $(type1) =~/^atom/ and $token=~/^\.(\d+)/
                 $token=$1
                 $call check_exp_tuple_member
-        $elif $(l)=~/\G(\d[0-9a-zA-Z]*)/gc
+        $elif $l=~/\G(\d[0-9a-zA-Z]*)/gc
             $token=$1
             $type="atom-number"
-            $if $stack[-1] eq "^" and $token<10 and $token>1
+            $if $(atom1) eq "^" and $token<10 and $token>1
                 $call check_exp_exponential
-        $elif $(l)=~/\G(\w+)/gc
+        $elif $l=~/\G(\w+)/gc
             $token=$1
             $type="atom-identifier"
             $call check_exp_member
         #---- special --------
-        $elif $(l)=~/\G\$(\w+)/gc
+        $elif $l=~/\G\$(\w+)/gc
             my $method=$1
             $if $method=~/^(eq|ne|le|ge|lt|gt)$/
                 $token=$1
@@ -98,26 +105,26 @@ fncode: check_expression($l, $context)
             $else
                 $call check_exp_callsub
         #----  bracket ------
-        $elif $(l)=~/\G([\(\[\{])/gc
-            $call exp_push, $1, undef
+        $elif $l=~/\G([\(\[\{])/gc
+            $call exp_push, $1, $1
             next
-        $elif $(l)=~/\G([\)\]\}])/gc
+        $elif $l=~/\G([\)\]\}])/gc
             $call check_exp_bracket
         #---- skip ----
-        $elif $(l)=~/\G(\s+)/gc
+        $elif $l=~/\G(\s+)/gc
             # skip
             next
         #---- operator ----
-        $elif $(l)=~/\G=([~=])?/gc
-            $if $1 eq '~'
+        $elif $l=~/\G(=[~=]?)/gc
+            $if $1 eq '=~'
                 $call check_exp_regex
             $else
-                $token="=$1"
+                $token="$1"
                 $type="operator"
-        $elif $(l)=~/\G([=+\-\*\/%\^\&\|><\?,\.!~:]+)/gc
+        $elif $l=~/\G([=+\-\*\/%\^\&\|><\?,\.!~:]+)/gc
             $token=$1
             $type="operator"
-        $elif $(l)=~/\G;/
+        $elif $l=~/\G;/
             #---- semicolon marks vanilla C statement ----
             return $l
         $else
@@ -164,8 +171,8 @@ fncode: check_expression($l, $context)
                     $call process_expression_cache, $left
         # -----------------
         subcode: is_atom
-            $if $types[-1] =~/^op/
-                $if $types[-2] !~/^atom/
+            $if $(type1) =~/^op/
+                $if $(type2) !~/^atom/
                     #---- unary -------------
                     $call exp_pop, $op
                     $token=$op.$token
@@ -180,13 +187,13 @@ fncode: check_expression($l, $context)
                     $elif $stack[-1]=~/^\S+$/ && $stack[-1] ne "::"
                         $stack[-1]=" $stack[-1] "
                     $call exp_push, $token, $type
-            $elif $types[-1] =~/^atom/
+            $elif $(type1) =~/^atom/
                 $if $stack[-1]=~/\w$/
                     #---- e.g. unsigned int, struct something
                     $stack[-1].=" $token"
                 $else
                     $stack[-1].=$token
-                    $if $types[-1] eq "atom-("
+                    $if $(type1) eq "atom-("
                         #---- type cast ---- 
                         $types[-1] = "atom"
             $else
@@ -204,7 +211,7 @@ subcode: check_exp_bracket
         $open='{'
 
     &call find_open_bracket
-        $if $types[-1] =~/^atom/ and $stack[-1]!~/^[0-9'"]/ and $stack[-1]=~/(\w+)$/
+        $if $(type1) =~/^atom/ and $stack[-1]!~/^[0-9'"]/ and $stack[-1]=~/(\w+)$/
             $call id_bracket
         $else
             $token=$open.$exp.$close
@@ -242,7 +249,7 @@ subcode: check_exp_bracket
             $token=$primary.$open.$exp.$close
     # ---------------------
     subcode: error_unbalanced
-        $call warn, Error checking expression $(l), unbalanced brackets
+        $call warn, Error checking expression $l, unbalanced brackets
         print join(" -- ", @stack), "\n"
         $token=join("", @stack)
         $type="atom-broken"
@@ -255,8 +262,8 @@ subcode: check_exp_exponential
     $type="atom-exp"
 
 subcode: check_exp_member
-    $if $types[-1] =~/^op/ && ($stack[-1] eq "." or $stack[-1] eq "->")
-        $if $types[-2] !~/^atom/
+    $if $(type1) =~/^op/ && ($stack[-1] eq "." or $stack[-1] eq "->")
+        $if $(type2) !~/^atom/
             #error
         $token=join("", splice(@stack, -2)).$token
         $type="atom-exp"
@@ -273,7 +280,7 @@ subcode: check_exp_callsub
         #---- darray.$push -----
         my $varname=$stack[-2]
         my $arg=$'
-        &call if_lex, \((.*)\)
+        $if $l=~/\G\((.*)\)/gc
             $arg=$1
         my $var=find_var($varname)
         $if $var->{class}
@@ -332,7 +339,7 @@ subcode: check_exp_fcall(primary, token)
 
 subcode: check_exp_subscript(primary, token)
     # print "subscript: $(primary)  $(token)\n"
-    $if $(token)<0
+    $if $(token)=~/^-/
         my $var=find_var($(primary))
         $if $var and $var->{dimension}
             $token=$(primary).'['.$var->{dimension}."$(token)".']'
@@ -379,7 +386,7 @@ subcode: check_exp_string_op
     $call exp_pop, $op
     $call exp_pop, $exp
     my %str_op=(eq=>"==", ne=>"!=", lt=>"<", gt=>">", le=>"<=", ge=>">=")
-    my $op=$str_op{$op}
+    $op=$str_op{$op}
     $if $type eq "atom-string"
         $if $token=~/^"(.*)"/
             my $len=length($1)
@@ -398,14 +405,14 @@ subcode: check_exp_string_op
 
 #---------------------------------------- 
 subcode: check_exp_regex
-    $if $types[-1] =~/^atom/
+    $if $(type1) =~/^atom/
         $call exp_pop, $atom
         my $func="regex"
         my $pat
         $(set:pat=(?:[^\/\\]|\\.)*)
-        $if $(l)=~/\G\s*(\/$(pat)\/\w*)/gc
+        $if $l=~/\G\s*(\/$(pat)\/\w*)/gc
             $pat=$1
-        $elif $(l)=~/\G\s*(s\/$(pat)\/$(pat)\/\w*)/gc
+        $elif $l=~/\G\s*(s\/$(pat)\/$(pat)\/\w*)/gc
             $pat=$1
         $else
             $call warn, =~ missing regex pattern

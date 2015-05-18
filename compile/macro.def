@@ -144,10 +144,12 @@ subcode:: support_subs
             $if $t2=~/\$\(.*\)/
                 expand_macro(\$t2)
             $m->{$t1}=$t2
-        $elif my $t=get_def($p)
-            $m->{$p}=$t
         $else
-            warn "[$cur_file:$cur_line] compileutil::set_macro parse error: [$p]\n"
+            my $t=get_def($p)
+            $if defined $t
+                $m->{$p}=$t
+            $else
+                $call warn,  set_macro parse error: [$p]
 
     $sub set_current_macro($name, $val)
         $deflist->[-1]->{$name}=$val

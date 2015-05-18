@@ -107,11 +107,11 @@ subcode: call_sub_frame(type)
         subcode: check_codelib
             $if !$codelib
                 set_current_macro("notfound", 1)
-                $if $attr ne '@'
+                $if !$attr or $attr ne '@'
                     $print [$cur_file:$cur_line] Code $codename not found!
             $else
                 set_current_macro("notfound", 0)
-                $if $codelib->{recurse}>5
+                $if $codelib->{recurse} and $codelib->{recurse}>5
                     $if $codelib->{allow_recurse} < $codelib->{recurse}
                         die "Recursive subcode: $codename [$codelib->{recurse}]\n"
     # ----------------------

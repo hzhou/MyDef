@@ -48,6 +48,8 @@ fncode: createpage($pagename)
     MyDef::compileutil::output($plines)
 
 fncode: pipe_page($module)
+    #-- reads from STDIN
+    #-- dump to STDOUT
     $var->{module}=$module
     $call check_module
     $def = MyDef::parseutil::import_data("-pipe")
