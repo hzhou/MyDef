@@ -217,7 +217,7 @@ subcode:: c_support_subs
             return "\%p";
         $elsif $type=~/^(float|double)/
             return "\%g"
-        $elsif $type=~/(int|long|bool)\s*$/
+        $elsif $type=~/(int|long|bool|u?int\d+_t)\s*$/
             return "\%d";
         $elsif $type=~/^unsigned char/
             return "\%d";
