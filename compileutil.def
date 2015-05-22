@@ -43,6 +43,7 @@ subcode: compile_main
             &call open_w, $outname
                 $foreach $l in @$plines
                     print Out $l;
+            $page->{outname}=$outname
 
     $sub parse_code($code)
         modepush($code->{type});
