@@ -21,7 +21,6 @@ fncode: call_sub($param)
     $call call_sub_frame, normal
 
 fncode: list_sub($codelib)
-    $codelib->{"scope"}="list_sub"
     &call parseblock_with_macro
         $call call_sub_list_setup_macro
 

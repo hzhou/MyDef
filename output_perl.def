@@ -242,6 +242,7 @@ subcode: list_functions
         $if $#$params>=0
             my $pline=join(", ", @$params)
             push @$out, "my ($pline) = \@_;"
+        $code->{scope}="list_sub"
         MyDef::compileutil::list_sub($code)
         push @$out, "DEDENT"
         push @$out, "}"
