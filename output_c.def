@@ -110,7 +110,7 @@ page: output_c, output_main
                 push @liblist, "-l$1"
             $elif $i=~/(.*\.o)/
                 push @objlist, "$i"
-        my ($lib_list, $obj_list)
+        my (@lib_list, @obj_list)
         $if @lib_list
             $lib_list=join(" ", @liblist)
             $page->{lib_list}=$lib_list
