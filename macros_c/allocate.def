@@ -6,7 +6,7 @@ subcode:: parsecode_func_param_other
         allocate($param1, $param2, "realloc")
         return
     $elif $func eq "local_allocate"
-        local_allocate($param1, $param2, "auto")
+        allocate($param1, $param2, "auto")
         return
 
 subcode:: parsecode_func_other
