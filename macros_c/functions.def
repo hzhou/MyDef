@@ -126,17 +126,35 @@ subcode:: parsecode_func_other
         return 1
 
 # -----------------------------------------------------------------
-subcode:: c_support_subs
-    $sub func_return($t)
-        MyDef::compileutil::trigger_block_post()
+fncode: func_return($t)
+    MyDef::compileutil::trigger_block_post()
 
-        $if !$cur_function->{ret_type}
-            $if $t
-                $cur_function->{ret_var}=$t
-                $cur_function->{ret_type}=infer_c_type($t)
-            $else
-                $cur_function->{ret_type}="void";
-            # print "Check ret_type: $cur_function->{name} [$t] -> $cur_function->{ret_type}\n";
+    $if !$cur_function->{ret_type}
+        # print "func_return: $cur_function->{name} [$t]\n";
+        $if $t=~/,/
+            $cur_function->{ret_type}="void";
+            $call set_return_tuple
+        $elif $t
+            $cur_function->{ret_var}=$t
+            $cur_function->{ret_type}=infer_c_type($t)
+            return "return $t"
+        $else
+            $cur_function->{ret_type}="void";
+            return "return"
+    # ---------------------------
+    subcode: set_return_tuple
+        my @tlist=split /,\s*/, $t
+        my $param_list=$cur_function->{param_list}
+        my @rlist
+        my $i=0
+        $foreach $t in @tlist
+            $i++
+            my $type=infer_c_type($t)
+            push @$param_list, "$type * T$i"
+            push @rlist, "*T$i = $t"
+        $cur_function->{return_tuple}=$i
+        push @rlist, "return"
+        return join("; ", @rlist)
 
 # -----------------------------------------------------------------
 subcode:: support_subs

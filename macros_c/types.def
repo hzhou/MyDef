@@ -111,6 +111,13 @@ subcode:: c_support_subs
         $elif $val=~/(\w+)(.*)/
             my $type=get_var_type($val)
             return $type
+        $elif $val=~/^\((.+)\)$/
+            my @vlist=split /,\s*/, $1
+            my @plist
+            $foreach $v in @vlist
+                push @plist, infer_c_type($v)
+            my $tuple_name=declare_tuple(join(", ", @plist))
+            return "struct $tuple_name"
 
     $sub type_default($type)
         $if $type=~/\*$/

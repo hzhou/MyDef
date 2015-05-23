@@ -56,18 +56,21 @@ fncode: do_assignment($left, $right)
                     $call warn, tuple assigned to scalar
                     do_assignment($left, $right_list[0])
             $elif @right_list==1
-                my $type=get_var_type($right)
-                $if $type=~/^struct (\w+)$/
-                    $call assign_from_struct, $1, 0
-                $elif $type=~/^struct (\w+)\s*\*$/
-                    $call assign_from_struct, $1, 1
-                $elif $type=~/^(.*?)\s*\*$/ 
-                    $for $i=0:@right_list
-                        do_assignment($left_list[$i], "$right\[$i\]")
+                $if $right=~/^(\w+)\((.*)\)/
+                    $call assign_from_function_tuple, $1, $2
                 $else
-                    $call warn, scalar assigned to tuple
-                    $for $i=0:@right_list
-                        do_assignment($left_list[$i], $right)
+                    my $type=get_var_type($right)
+                    $if $type=~/^struct (\w+)$/
+                        $call assign_from_struct, $1, 0
+                    $elif $type=~/^struct (\w+)\s*\*$/
+                        $call assign_from_struct, $1, 1
+                    $elif $type=~/^(.*?)\s*\*$/ 
+                        $for $i=0:@right_list
+                            do_assignment($left_list[$i], "$right\[$i\]")
+                    $else
+                        $call warn, scalar assigned to tuple
+                        $for $i=0:@right_list
+                            do_assignment($left_list[$i], $right)
             $else
                 $for $i=0:@left_list
                     do_assignment($left_list[$i], $right_list[$i])
@@ -97,3 +100,13 @@ fncode: do_assignment($left, $right)
                     $(else)
                         do_assignment($left_list[$i], "$right.$p")
                     $i++
+
+        subcode: assign_from_function_tuple(fname, param)
+            #-- maybe push the check to the end
+            my ($f, $p)=($(fname), $(param))
+            $foreach $t in @left_list
+                $p.=", \&$t"
+            push @$out, "$f($p);"
+
+
+

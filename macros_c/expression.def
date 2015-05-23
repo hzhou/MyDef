@@ -47,12 +47,10 @@ fncode: check_expression($l, $context)
     subcode: check_statement
         $if $l=~/^return\b\s*(.*)/
             $if length($1)<=0
-                func_return()
-                return "return"
+                return func_return()
             $else
                 my $t=check_expression($1, $context)
-                func_return($t)
-                return "return $t"
+                return func_return($t)
         $elif $l=~/^\s*(if|for|while|switch)/
             # -- vanila C statement ---
             return $l

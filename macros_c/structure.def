@@ -28,7 +28,7 @@ fncode: declare_tuple($param)
     my $s_hash={}
     $structs{$name}={list=>$s_list, hash=>$s_hash}
     push @struct_list, $name
-    my @plist=split /,\s+/, $param;
+    my @plist=split /,\s*/, $param;
     my $i=0
     $foreach $p in @plist
         $i++
