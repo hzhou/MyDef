@@ -67,7 +67,9 @@ fncode: allocate($dim, $param2, $alloc_type)
                 $foreach $d in @parts
                     $i++
                     $var->{"dim$i"}=$d
-                $if $i==2
+                $if $i==2 and !$var->{class}
+                    $if $debug
+                        $print setting matrix class: $p
                     $var->{"class"}="matrix"
     # ------------------------------------------ 
     subcode: allocate_init

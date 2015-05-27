@@ -39,7 +39,10 @@ subcode:: parsecode_func_other
         my $var=find_var($name)
         $if $var
             $foreach $a in @plist
-                MyDef::compileutil::set_current_macro($a, $var->{$a})
+                $if $a=~/^(\w+)\((\w+)\)/
+                    MyDef::compileutil::set_current_macro($2, $var->{$1})
+                $else
+                    MyDef::compileutil::set_current_macro($a, $var->{$a})
         return
 
 subcode: each_param_v
@@ -63,7 +66,8 @@ subcode: check_var_special
             my $scope=$func
             my ($class, $param)=($1, $2)
             my $initname=$class."_init"
-            # $print "$red{$class} - $param"
+            $if $debug eq "type"
+                $print "$red{$class} - $param"
             $if $param=~/^(\w+)\s*$/
                 $if $(hascode:$initname)
                     MyDef::compileutil::call_sub("$initname, $1, $scope, default")

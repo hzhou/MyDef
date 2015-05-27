@@ -281,7 +281,9 @@ subcode: check_exp_callsub
         $if $l=~/\G\((.*)\)/gc
             $arg=$1
         my $var=find_var($varname)
-        $if $var->{class}
+        $if !$var
+            $call warn, Variable $varname not found
+        $elif $var->{class}
             my $subname=$var->{class}."_".$method
             my $call_line="$subname, $varname"
             $arg=~s/^\s+//
@@ -293,7 +295,7 @@ subcode: check_exp_callsub
         $call_line=~s/^\s*//
         $call exp_callsub
 
-    $call warn, Method \$$method not defined [$l]
+    $call warn, Method $method not defined [$l]
     $call exp_push, "\$$method", "atom-unknown"
 
 subcode: exp_callsub

@@ -180,8 +180,9 @@ subcode:: c_support_subs
         $elif $type eq "bool"
             $page->{use_bool}=1
         #----------------------------------------  
-        $if $type_include{$type}
-            add_include($type_include{$type})
+        $if $type=~/^(\w+)/
+            $if $type_include{$1}
+                add_include($type_include{$1})
         # --
         $while $name=~/\[.*?\]/g
             $type=pointer_type($type);

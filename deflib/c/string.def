@@ -2,7 +2,6 @@ subcode:: _autoload
     $class string
 #---------------------------------------- 
 macros:
-    string_param: 
     string_ref: $1, &$1_len, &$1_size
 
 subcode: libstring
@@ -22,6 +21,7 @@ subcode: string_init(var, scope, @type)
     $set_var_attr $(var), strlen=$(var)_len
     $$(scope) int $(var)_len=0
     $$(scope) int $(var)_size=0
+    #---- init with values -------------
     $(if:type!=default)
         $call string_add, $(var), $(type)
 

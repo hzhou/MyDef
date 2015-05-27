@@ -8,6 +8,12 @@ subcode: basic_frame
     $(if:hascode:main2)
         $list main2
 
+#---------------------------------------- 
+macros:
+    pi: 3.14159265359
+    to_rad: 0.0174532925199
+    to_deg: 57.2957795131  
+
 ###############################################################
 ## Utility
 subcode: assert(check)
