@@ -1,0 +1,72 @@
+#------------------------------------------
+#-- 1..n permutation --
+subcode: permute(n)
+    $(set:perm=pn_counter)
+    $local_allocate($(n)) $(perm)
+    #-- initialize to ascending -----
+    $for i=0:$(n)
+	$(perm)[i]=i
+    $while 1
+	BLOCK
+	$call permute_inc
+
+    # -------------------
+    subcode: permute_inc
+        # $call debug_perm
+        tn_max=-1
+        $for i=$(n):0
+            $if tn_max<$(perm)[i]
+                tn_max=$(perm)[i]
+            $else
+                #-- found the lead of tail descending sequence
+                $for j=$(n):0
+                    #-- swap with the least bigger one
+                    $if $(perm)[j]>$(perm)[i]
+                        $call swap, $(perm)[i], $(perm)[j]
+                        $print "swap %d, %d", $(perm)[i], $(perm)[j]
+                        break
+                #-- the new tail sequence is still descending
+                #-- swap into ascending, --> lead to recursive permutation
+                j=i+1
+                k=$(n)-1
+                $while j<k
+                    $call swap, $(perm)[j], $(perm)[k]
+                    j++
+                    k--
+                break
+        $if i<0
+            break
+
+
+#------------------------------------------
+#-- counts up n-digit in k-base --
+subcode: permute_simple(n, k)
+    $(set:perm=pn_counter)
+    $local_allocate($(n), 0) $(perm)
+
+    $while 1
+	BLOCK
+	$call permute_inc_simple
+
+    # -----------------
+    subcode: permute_inc_simple
+        i=0
+        #-- inc counter, the loop performs carry over
+        $while i<$(n)
+            $(perm)[i]++
+            $if $(perm)[i]==$(k)
+                #-- carry over
+                $(perm)[i]=0
+                i++
+            $else
+                #-- done carry over
+                break
+        $if i==$(n)
+            #-- carry over overflow
+            break
+
+#---------------------------------------- 
+subcode: debug_perm
+    $for i=0:$(n)
+        printf " %d ", $(perm)[i]
+    $print
