@@ -126,6 +126,10 @@ subcode: parsecode
                 $call parsecode_sum_support, perl
         $elif $func eq "print"
             $call parsecode_print
+        $elif $func eq "print_to"
+            $global $print_target
+            $print_target = $param
+            return 0
         $elif $func eq "source-$param"
             return "SKIPBLOCK"
     $elif $l=~/^NOOP POST_MAIN/
@@ -337,5 +341,8 @@ subcode: parsecode_print
     $if $n_escape
         push @fmt_list, "\\x1b[0m"
 
-    push @$out, 'print "'.join('',@fmt_list).'";'
+    my $p = "print"
+    $if $print_target
+        $p.=" $print_target"
+    push @$out, "$p \"".join('',@fmt_list).'";'
     return

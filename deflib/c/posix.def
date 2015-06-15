@@ -33,11 +33,12 @@ fncode: readn(int fd, void * p, n)
     return n-tn_remain
 
 fncode: writen(int fd, void * p, n)
+    $return_type int
     tn_remain=n
     $while tn_remain>0
         tn_written=write(fd, p, tn_remain)
         $if tn_written<=0
-            $if tn_written<0 && error==EINTR
+            $if tn_written<0 && errno==EINTR
                 tn_written==0
             $else
                 return -1
@@ -72,7 +73,7 @@ subcode: tcp_connect(host, port)
         $if tn_ret==0
             break
         $else
-            print Failed to connect.
+            $print Failed to connect.
             close(tn_socket)
             ai_p=ai_p->ai_next
             continue
@@ -100,7 +101,7 @@ subcode: socket_server(port)
     server.$listen
 
     $while 1
-        print "Accepting connection at port $(port)"
+        $print "Accepting connection at port $(port)"
         server.$accept client_addr
         $if tn_socket>=0
             BLOCK
@@ -117,9 +118,9 @@ subcode: fork_server
 
 subcode: print_client_address
     $local ts_ip_buffer[16]
-    ts_ip=(char *)inet_ntop(AF_INET, &inet_addr.sin_addr, ts_ip_buffer, 16)
+    ts_ip=(char *)inet_ntop(AF_INET, &client_addr.sin_addr, ts_ip_buffer, 16)
     $call assert, ts_ip
-    tn_port=ntohs(inet_addr.sin_port)
+    tn_port=ntohs(client_addr.sin_port)
     printf("Connection from %s:%d\n", ts_ip, tn_port)
 
 subcode: sig_child
@@ -259,12 +260,12 @@ subcode: run_thread(subname)
 
 subcode: debug_errno(label)
     # /usr/include/asm-generic/errno.h
-    print "$(label): errno = %d ", errno
+    $print "$(label): errno = %d ", errno
     $map debug_errno_code, EAGAIN, EWOULDBLOCK, EBADF, EFAULT, EINTR, EINVAL, EIO, EISDIR, ECONNRESET
     $else
-        print "Unknown\n"
+        $print "Unknown\n"
 
 subcode: debug_errno_code(code)
     $case errno==$(code)
-        print "$(code)\n"
+        $print "$(code)\n"
 

@@ -69,6 +69,8 @@ subcode:: c_support_subs
                         push @group, $1
                 &call if_lex, reset
                     push @fmt_list, "\\x1b[0m"
+                &call if_lex, clear
+                    push @fmt_list, "\\x1b[H\\x1b[J"
                 &call if_lex, (\w+)
                     #---------------------------------------- 
                     my $v=$1

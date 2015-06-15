@@ -34,7 +34,7 @@ subcode: image_set_size(var, w, h)
     $allocate($(w)*$(h)) $(var)
 
 subcode: image_clear(var)
-    delete($(var))
+    free($(var))
     $(var)_w=0
     $(var)_h=0
     $(var)=NULL

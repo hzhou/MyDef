@@ -104,3 +104,16 @@ subcode: if_lex(@pattern)
     $case $(l)=~/\G$(pattern)/gc
         BLOCK
 
+#---------------------------------------- 
+subcode: init_debug_console
+    use Socket
+    $global $debug_console
+    socket($debug_console, PF_INET, SOCK_STREAM, 0) or die "socket $!"
+    my $port = 1300
+    connect($debug_console, pack_sockaddr_in($port, inet_aton("localhost"))) or die "connect: $!"
+    $print_to $debug_console
+    {
+        my $ofh = select $debug_console
+        $|=1
+        select $ofh
+    }

@@ -183,7 +183,7 @@ subcode:: support_subs
         translate_scalar($out, $var, $vartype, "*t_psv");
         push @$out, "DEDENT";
         push @$out, "}";
-        $if !MyDef::compileutil::get_macro("DONOTSET_UNDEF")
+        $if !MyDef::compileutil::get_macro("DONOTSET_UNDEF", 1)
             push @$out, "else{";
             translate_null($out, $var, $vartype);
             push @$out, "}";

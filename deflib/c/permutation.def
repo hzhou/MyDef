@@ -42,12 +42,20 @@ subcode: permute(n)
 #-- counts up n-digit in k-base --
 subcode: permute_simple(n, k)
     $(set:perm=pn_counter)
-    $local_allocate($(n), 0) $(perm)
+    $(if:number:n)
+        $local $(perm)[$(n)]
+    $(else)
+        $allocate($(n)) $(perm)
+
+    $for i=0:$(n)
+        $(perm)[i]=0
 
     $while 1
 	BLOCK
 	$call permute_inc_simple
 
+    $(if:!number:n)
+        free($(perm))
     # -----------------
     subcode: permute_inc_simple
         i=0

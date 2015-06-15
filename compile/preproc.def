@@ -188,12 +188,6 @@ subcode:: support_subs
                 return 1
             $elif $test eq "number" and $t=~/^\d+/
                 return 1
-        $elsif $cond=~/,/
-            my @nlist=split /,/, $cond;
-            $foreach $n in @nlist
-                $if !testcondition($n)
-                    return 0;
-            return 1;
         $elsif $cond=~/^\s*(\w+)(.*)/
             my $t=get_def($1);
             $if !$2
