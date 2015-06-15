@@ -141,6 +141,9 @@ fncode: func_return($t)
         $else
             $cur_function->{ret_type}="void";
             return "return"
+    $else
+        return "return $t"
+
     # ---------------------------
     subcode: set_return_tuple
         my @tlist=split /,\s*/, $t

@@ -30,7 +30,8 @@ subcode: on_dumpout
     my $funchash=\%$(super:list_function_hash)
     $foreach $func in @$funclist
         # $print funclist : $func->{name}
-        $if $funchash->{$func->{name}}
+        # $if $funchash->{$func->{name}}
+        $if !$c_function_hash{$func->{name}}
             $call process_function_xs
             $func->{skip_declare}=1
             $func->{processed}=1
@@ -75,7 +76,9 @@ subcode: on_parsecode
     $if $l=~/^XS_START/
         #---- flush out C functions ----
         $(super:parsecode)("NOOP POST_MAIN")
-        %$(super:list_function_hash)=()
+        $global %c_function_hash
+        %c_function_hash = %$(super:list_function_hash)
+        # %$(super:list_function_hash)=()
         #---- 
         $l= "DUMP_STUB xs_start"
     $elif $l=~/^\s*(\$if|while|elif|elsif|elseif)\s*(.*)/
