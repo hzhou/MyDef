@@ -137,6 +137,11 @@ page: mydef_run
             $cmd="perl $page->{outname}"
         $elif $page->{outname}=~/\.c$/
             $cmd="gcc -o$pagename $page->{outname} $page->{lib_list} && ./$pagename"
+        $elif $page->{outname}=~/\.java$/
+            my $name=$page->{outname}
+            $name=~s/\//./g
+            $name=~s/\.java$//
+            $cmd="javac $page->{outname} && java $name"
 
         $if $cmd
             $print $cmd

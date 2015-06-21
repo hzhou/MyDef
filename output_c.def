@@ -3,7 +3,7 @@ include: macros_c/parsing.def
 include: macros_c/structure.def
 include: macros_c/functions.def
 include: macros_c/variables.def
-# include: macros_c/hash_and_list.def
+
 include: macros_c/types.def
 include: macros_c/dump.def
 
@@ -71,7 +71,7 @@ page: output_c, output_main
     subcode: dumpout
         # ----  Main Function -------------------
         my $mainfunc=$functions{"main"};
-        $if $mainfunc
+        $if $mainfunc and !$mainfunc->{processed}
             $global $has_main
             $has_main=1
             $mainfunc->{skip_declare}=1;
@@ -118,7 +118,7 @@ page: output_c, output_main
             $obj_list=join(" ", @objlist)
 
     subcode: dump_Makefile
-        $if $mainfunc
+        $if $mainfunc and !$mainfunc->{skip_makefile}
             my $ofile=$page->{outdir}."/Makefile"
             $if !-f $ofile or $page->{makefile}
                 print "  ---> $ofile\n"
