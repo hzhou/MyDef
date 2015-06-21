@@ -151,6 +151,7 @@ fncode: parse_condition($t)
     $elif $t=~/[^!=><]=[^="]/
        $call warn, assignment in condition [$t]? 
     $elif $t=~/\$(?:eq|ne)/
+        #-- to supress warning ----
         $if $t=~/(.*?)(\S+)\s+(\$eq|\$ne)\s+(.*)/
             $if $3 eq '$eq'
                 $t=$1."$2 && $2 eq $4"
