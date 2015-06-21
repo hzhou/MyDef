@@ -53,23 +53,23 @@ subcode: on_dumpout
     $if $cnt>0
         @$$(super:global_list)=@t
 
-    # ---- xs_start -------------------
     $call init_xs
 
-subcode: init_xs
-    my $block=MyDef::compileutil::get_named_block("xs_start")
-    push @$block, "#include \"EXTERN.h\"\n";
-    push @$block, "#include \"perl.h\"\n";
-    push @$block, "#include \"XSUB.h\"\n";
-    push @$block, "\n";
-    push @$block, "#include \"ppport.h\"\n";
-    push @$block, "\n";
-    $foreach my $l in @xs_globals
-        push @$block, $l;
-    push @$block, "\n";
-    my $pagename=$$(super:page)->{pagename}
-    push @$block, "MODULE = $pagename\t\tPACKAGE = $pagename\n";
-    push @$block, "\n";
+    # -------------
+    subcode: init_xs
+        my $block=MyDef::compileutil::get_named_block("xs_start")
+        push @$block, "#include \"EXTERN.h\"\n";
+        push @$block, "#include \"perl.h\"\n";
+        push @$block, "#include \"XSUB.h\"\n";
+        push @$block, "\n";
+        push @$block, "#include \"ppport.h\"\n";
+        push @$block, "\n";
+        $foreach my $l in @xs_globals
+            push @$block, $l;
+        push @$block, "\n";
+        my $pagename=$$(super:page)->{pagename}
+        push @$block, "MODULE = $pagename\t\tPACKAGE = $pagename\n";
+        push @$block, "\n";
 
 # *** Custom syntax ***
 subcode: on_parsecode

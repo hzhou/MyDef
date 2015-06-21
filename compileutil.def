@@ -23,7 +23,6 @@ subcode: compile_main
         my $page=$MyDef::page
         my $pagename=$page->{pagename}
         $call output_outdir
-        $page->{outdir}=$outdir
         $call compile
 
     $sub output($plines)
@@ -144,6 +143,8 @@ subcode: output_outdir
             if(!$tdir){next;}
             $if ! -d $tdir
                 mkdir $tdir or die "Can't create output directory: $tdir\n";
+    #---------------------
+    $page->{outdir}=$outdir
 
 #---- utils ------------------------------------ 
 subcode: warn(@msg)

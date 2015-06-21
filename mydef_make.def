@@ -281,7 +281,7 @@ subcode: read_def_file
             $page->{depend}=$1
         $elif /^\s*cmd:\s+(.*)/
             $page->{cmd}=$1
-        $elif /\S/ 
+        $elif /^\S/ 
             $inpage=0;
         # ----
         subcode: outputdir_inpage
@@ -474,11 +474,11 @@ subcode: module_specific
                         $if $h->{type} eq "pm"
                             $pm_count++
                     $if $pm_count>0
-                        print "Running h2xs -X $config_outputdir... ...\n";
-                        system "h2xs -X $config_outputdir";
+                        print "Running h2xs -X $name ... ...\n";
+                        system "h2xs -X $name";
                 $else
-                    print "Running h2xs -n $config_outputdir... ...\n";
-                    system "h2xs -n $config_outputdir";
+                    print "Running h2xs -n $name ... ...\n";
+                    system "h2xs -n $name";
 
 subcode: create_outputdir
     $if $config_outputdir
