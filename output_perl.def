@@ -22,19 +22,6 @@ subcode: init_page
     $map dbl_list, globals, uses
 
 #---------------------------------------- 
-subcode: dbl_list(name)
-    $global @$(name), %$(name)
-    @$(name)=()
-    %$(name)=()
-
-subcode: dbl_push(name, v)
-    my $t_name=$(v)
-    $if $(v)=~/^(\S+)\s*=/
-        $t_name=$1
-    $if !$$(name){$t_name}
-        $$(name){$t_name}=1
-        push @$(name), $(v)
-
 subcode: dbl_push_list(name, list)
     $(list)=~s/\s*;\s*$//
     my @tlist=MyDef::utils::proper_split($(list))

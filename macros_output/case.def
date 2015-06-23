@@ -81,14 +81,33 @@ subcode: case_reset
         push @$out, @$case_wrap
         undef $case_wrap
 
-# -----
+#----- c style ----------------------
+#-- $call parsecode_case_support, if, else if, c_style
 subcode: case_c_style
     single_block("$case($cond){", "}")
 
 subcode: else_c_style
     single_block("else{", "}")
 
-# -----
+#---- sh style ----------------
+#-- $call parsecode_case_support, if, elif, sh_style
+subcode: case_sh_style
+    push @$out, "$case $cond then"
+    push @$out, "INDENT"
+    push @$out, "BLOCK"
+    push @$out, "DEDENT"
+    $if $case eq "if"
+        $if !$case_wrap
+            $case_wrap=[]
+        push @$case_wrap, "fi"
+
+subcode: else_sh_style
+    push @$out, "else"
+    push @$out, "INDENT"
+    push @$out, "BLOCK"
+    push @$out, "DEDENT"
+
+#----- support &case ---------------
 subcode: case_flag_if
     $(if:hascode:case_flag_if_$(style))
         $call case_flag_if_$(style)

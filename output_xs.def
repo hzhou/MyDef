@@ -159,7 +159,7 @@ subcode:: support_subs
     # ---- Perl XS Specific -----------------------
     $sub translate_scalar($out, $var, $vartype, $sv)
         #print "$var, $vartype\n";
-        $if $vartype eq "int"
+        $if $vartype =~ /int/
             push @$out, "$var = SvIV($sv);";
         $elsif $vartype eq "double" or $vartype eq "float"
             push @$out, "$var = SvNV($sv);";

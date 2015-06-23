@@ -91,6 +91,20 @@ subcode: topdown_loop(name, top)
             $$(name)_hash{$$(name)}=1
             BLOCK
 
+# -- dbl_list ----------------
+subcode: dbl_list(name)
+    $global @$(name), %$(name)
+    @$(name)=()
+    %$(name)=()
+
+subcode: dbl_push(name, v)
+    my $t_name=$(v)
+    $if $(v)=~/^(\S+)\s*=/
+        $t_name=$1
+    $if !$$(name){$t_name}
+        $$(name){$t_name}=1
+        push @$(name), $(v)
+
 # -- Parser -------------------
 # deprecated, ref perl/parse.def
 subcode: parse_loop(l)
