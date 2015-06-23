@@ -89,11 +89,11 @@ subcode: parsecode
         $elif $func =~ /^(while)$/
             $if $param=~/\/.*\/\w*\s*$/
                 #-- regex
-                return single_block("$1($param){", "}")
+                return single_block("while($param){", "}")
             $elif $param=~/^(.*?);\s*(.*?)\s*$/
                 return single_block_pre_post(["while($1){", "INDENT"], ["$2;", "DEDENT", "}"])
             $else
-                return single_block("$1($param){", "}")
+                return single_block("while($param){", "}")
         $elif $func eq "for"
             $call parsecode_for_support, c_style
         $elif $func eq "foreach"
@@ -141,6 +141,7 @@ fncode: parse_condition($t)
     $elif $t=~/[^!=><]=[^="]/
        $call warn, assignment in condition [$t]? 
     $elif $t=~/\$(?:eq|ne)/
+        #-- to supress warning ----
         $if $t=~/(.*?)(\S+)\s+(\$eq|\$ne)\s+(.*)/
             $if $3 eq '$eq'
                 $t=$1."$2 && $2 eq $4"
