@@ -26,16 +26,27 @@ page: output_c, output_main
 
     subcode: init_page
         $call @c_init
-        $if $MyDef::def->{"macros"}->{"use_double"} or $page->{"use_double"}
-            $type_name{f}="double";
-            $type_prefix{f}="double";
-        $elif $page->{"use_libmydef"}
+        $call check_default_data_size
+        $if $page->{"use_libmydef"}
             $call load_autodecl, c/libmydef.inc
-        $elif $page->{autodecl}
+        $if $page->{autodecl}
             my @tlist=split /,\s*/, $page->{autodecl}
             $foreach $f in @tlist
                 $call load_autodecl, $f
         $call @autolist_functions
+
+        # -------------
+        subcode: check_default_data_size
+            $if $MyDef::def->{"macros"}->{"use_double"} or $page->{"use_double"}
+                $type_name{f}="double";
+                $type_prefix{f}="double";
+
+            $if $MyDef::def->{"macros"}->{"use_int64"} or $page->{"use_int64"}
+                $(for:i in i,j,k,l)
+                    $type_name{$(i)}="int64_t";
+                $type_prefix{i}="int64_t";
+                $type_prefix{n}="int64_t";
+                $type_prefix{u}="uint64_t";
 
     subcode: parsecode
         $(set:parse_condition=1)

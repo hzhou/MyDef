@@ -80,7 +80,7 @@ fncode: allocate($dim, $param2, $alloc_type)
                 $else
                     push @$out, "memset($p, 0, $dim*sizeof($type));"
             $else
-                func_add_var("i", "int");
+                temp_add_var("i", $type_name{i})
                 push @$out, "for(i=0;i<$dim;i++){";
                 push @$out, "    $p\[i]=$init_value;";
                 push @$out, "}";

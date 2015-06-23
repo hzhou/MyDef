@@ -22,9 +22,9 @@ subcode: for_i0_i1_step
         $step= "+=$step"
 
     $if !$var
-        $var=temp_add_var("i", "int")
+        $var=temp_add_var("i", $type_name{i})
     $else
-        $var=my_add_var($var, "int")
+        $var=my_add_var($var, $type_name{i})
     protect_var($var)
 
     $param="$var=$i0; $var$i1; $var$step"
@@ -51,7 +51,7 @@ subcode: foreach_array
    
 subcode: foreach_single(range)
     my $type=pointer_type($var->{type})
-    my $i=temp_add_var("i", "int")
+    my $i=temp_add_var("i", $type_name{i})
     protect_var($i)
     MyDef::compileutil::set_current_macro("t", "$v\[$i\]")
     my $end="PARSE:\$unprotect_var $i"
