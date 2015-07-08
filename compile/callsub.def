@@ -116,15 +116,34 @@ subcode: call_sub_frame(type)
     # ----------------------
     subcode: split_param
         my $codeparams=$codelib->{params};
-        my (@pre_plist, $pline, @plist);
-        $if $param=~/^\(([^\)]*)\)/
-            $param=$';
-            @pre_plist=MyDef::utils::proper_split($1)
-        $param=~s/^\s*,?\s*//;
-        $pline=$param;
-        @plist=MyDef::utils::proper_split($param)
-        my $n_pre=@pre_plist;
         my $n_param = @$codeparams
+        $(if:type=map)
+            $call split_param_map
+        $(else)
+            $call split_param_call
+
+        subcode: split_param_call
+            my $pline=$param
+            my @plist
+            $param=~s/^\s*,?\s*//;
+            $if $n_param==1 and $codeparams->[0]=~/^@/
+                push @plist, $param
+            $else
+                @plist=MyDef::utils::proper_split($param)
+
+            my @pre_plist
+            my $n_pre=0
+
+
+        subcode: split_param_map
+            my (@pre_plist, $pline, @plist);
+            $if $param=~/^\(([^\)]*)\)/
+                $param=$';
+                @pre_plist=MyDef::utils::proper_split($1)
+            $param=~s/^\s*,?\s*//;
+            $pline=$param;
+            @plist=MyDef::utils::proper_split($param)
+            my $n_pre=@pre_plist;
 
     # ---------------------------------------- 
     subcode: call_sub_block

@@ -29,7 +29,7 @@ fncode: parse_regex($re)
             $if !@$atoms
                 die "REGEX $re: Empty '$c'\n";
             $if substr($re, $i, 1) eq "?"
-                $call warn, Non-Greedy quantifier not supported!
+                $print Non-Greedy quantifier not supported!
                 # non-greedy
                 $c.='?'
                 $i++
@@ -173,17 +173,34 @@ subcode: concat_atoms(type)
         $if $n==0
             warn "regex_parse: empty $(type)\n"
             push @$alts, undef
-        $elif $type ne "seq"
-            push @$alts, {type=>$type, n=>$n, list=>$atoms}
-            $atoms=[]
         $else
-            my $atom
-            $if $n==1
-                $atom=pop @$atoms
-            $else
-                $atom={type=>"seq", n=>$n, list=>$atoms}
+            $call @combin_chars
+            $if $type ne "seq"
+                push @$alts, {type=>$type, n=>$n, list=>$atoms}
                 $atoms=[]
-            push @$alts, $atom
+            $else
+                my $atom
+                $if $n==1
+                    $atom=pop @$atoms
+                $else
+                    $atom={type=>"seq", n=>$n, list=>$atoms}
+                    $atoms=[]
+                push @$alts, $atom
+    # ---------------------
+    subcode: combin_chars
+        my @tlist
+        my $last
+        push @$atoms, {type=>"end"}
+        $foreach $t in @$atoms
+            $if !$last
+                $last=$t
+            $elif $t->{type} ne "char" or $last->{type} ne "char"
+                push @tlist, $last
+                $last=$t
+            $else
+                $last->{char}.=$t->{char}
+        $atoms=\@tlist
+        $n=@$atoms
 
 subcode: concat_alts
     my $atom

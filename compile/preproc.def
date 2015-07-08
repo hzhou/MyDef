@@ -14,13 +14,6 @@ subcode: parse_preproc
             my $subblock=grabblock($block, \$lindex);
             $call foreach_p
         $call @preproc_elifs
-        $elif $preproc=~/^index_name:(\w+)/
-            $global %index_name_hash
-            $if !$index_name_hash{$1}
-                $index_name_hash{$1}=1
-            $else
-                $index_name_hash{$1}+=1
-            $deflist->[-1]->{index_name}="$1_$index_name_hash{$1}"
         $elsif $preproc=~/^allow_recurse:(\d+)/
             my $code=$block_stack[-1]->{code}
             $if $code->{allow_recurse}
@@ -28,6 +21,11 @@ subcode: parse_preproc
             $else
                 $code->{allow_recurse}=$1
                 $deflist->[-1]->{recurse}=0
+        $elif $preproc=~/^_init_block$/
+            my $idx=$block_stack[-1]->{eindex}
+            push @$out, "DUMP_STUB _init_$idx"
+            my $page=$deflist->[2]
+            $page->{_init_block}="_init_$idx"
         $elsif $preproc=~/^block:\s*(\w+)/
             my $name=$1;
             my $subblock=grabblock($block, \$lindex);

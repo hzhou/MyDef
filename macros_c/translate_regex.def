@@ -1,25 +1,37 @@
-include: perl/parse_regex.def
-
 #--  requires DefParser/lex.def 
 
 fncode: translate_regex($re, $option)
-    $global %re_hash
-    my $pat="/$re/$option"
-    $if $re_hash{$pat}
-        return $re_hash{$pat}
-    $else
-        my $r=parse_regex($re)
+    $call check_cache
+    $call parse_regex
+
+    $call inject_match_function
+
+    return $re_hash{$pat}
+
+    # ------------------------
+    subcode: parse_regex
+        my $r=MyDef::utils::parse_regex($re)
         $if $debug
             $print translate_regex: [$re]
-            debug_regex($r)
+            MyDef::utils::debug_regex($r)
+
         my $opt={group_idx=>0}
         $if $option=~/i/
             $opt->{i}=1
+
+    subcode: check_cache
+        $global %re_hash
+        my $pat="/$re/$option"
+        $if $re_hash{$pat}
+            return $re_hash{$pat}
+
         $global $re_index=0
         $re_index++
         my $name="match_re_$re_index"
         $re_hash{$pat}="$name(input)"
 
+    # ----------------------------
+    subcode: inject_match_function
         my @output
         my $t_code={'type'=>"fn", 'source'=>\@output}
         $t_code->{params}=["input"]
@@ -40,9 +52,6 @@ fncode: translate_regex($re, $option)
             my $subout=translate_regex_atom($r, $opt, 1)
             push @output, "input->s[0]=input->n_pos"
             push @output, @$subout
-
-        #--------------------------
-        return $re_hash{$pat}
 
 fncode: translate_regex_atom($r, $opt, $level)
     my ($condition, @output)
@@ -84,6 +93,7 @@ fncode: translate_regex_atom($r, $opt, $level)
             $call track_result, $v_res, !$v_res, input->n_pos = $v_pos
 
     $elif $r->{type} eq "*"
+        #-- greedy, keep matching until not, then break ------
         my $t=$r->{atom}
         $t->{1}=""
         $t->{0}="break;"

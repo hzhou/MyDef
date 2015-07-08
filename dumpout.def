@@ -83,8 +83,7 @@ subcode: dumpout
         $elif $l=~/^NOOP/
             # messages from compileutil.pm
         $elif $l=~/^MAKE_STRING:(.*)/
-            my $t=$1
-            $call start_make_string
+            $call start_make_string, $1
         $elif $l =~/^POP_STRING/
             $call pop_make_string
         $elif $l =~/^(.*)=\s*\[(strings?)_from_file:\s*(\S+)\]\s*;/
@@ -122,9 +121,9 @@ subcode: print_line_string
         push @$string_list, "    "x$(indent) . $l
 
 #---------------------------------------- 
-subcode: start_make_string
+subcode: start_make_string(line)
     $string_list=[]
-    push @make_string_stack, {quote=>'"', join=>'\n', line=>$t, list=>$string_list, indent=>$indentation}
+    push @make_string_stack, {quote=>'"', join=>'\n', line=>$(line), list=>$string_list, indent=>$indentation}
 
 subcode: pop_make_string
     my $h=pop @make_string_stack

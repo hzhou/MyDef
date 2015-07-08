@@ -65,8 +65,8 @@ subcode: compile_line
         NormalParse:
         expand_macro(\$l);
         $while 1
-            # -- parse_line could return a new $l
-            # -- otherwise, last in the end breaks the loop
+            #-- parse_line could return a new $l
+            #-- otherwise, last in the end breaks the loop
             $if $l=~/^(&call|\$call|\$map|\$call-PRINT)\s+(.*)$/
                 my ($func, $param)=($1, $2);
                 $call parse_call_sub

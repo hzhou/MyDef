@@ -26,8 +26,9 @@
 :syntax region sString start=/'/ skip=/\\'/ end=/'/  oneline
 
 :syntax match perlKey /^\s*\(push\|shift\|unshift\|pop\|print\|return\|goto\|last\|next\|break\|continue\)\>/
+:syntax match pythonKey /^\s*\(if\|elif\|else\|while\|for\|def\|class\)\>/
 
-:syntax match perlKey /^\s*\i\+:/
+:syntax match xLabel /^\s*\i\S\+:/ contains=xCode,xStage
 :syntax match xInclude /^\(include\|path\):.*/
 :syntax match xCSS /CSS: .*/
 
@@ -47,11 +48,13 @@
 
 " :highlight link xInclude Include
 :highlight xInclude term=underline cterm=bold ctermfg=81 guifg=#ff80ff
+:highlight xLabel term=bold cterm=bold
 
 :highlight link xHTML Special
 
 :highlight link perlVar Comment
 :highlight link perlKey Statement
+:highlight link pythonKey Type
 :highlight link perlRegex String
 
 " :highlight link xPrefix Keyword

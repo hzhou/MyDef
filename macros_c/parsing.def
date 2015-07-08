@@ -167,11 +167,7 @@ include: macros_c/translate_regex.def
 
 subcode:: c_support_subs
     $sub parse_condition($param)
-        $if $param=~/(\$map\b.*)/
-            my $pre=$`
-            $param=$1
-            $call parse_condition_map, ||
-        $elif $param=~/^\$(\w+)\s+(.*)/
+        $if $param=~/^\$(\w+)\s+(.*)/
             my ($func, $param)=($1, $2)
             $call parse_condition_check_plugin
         $elif $param=~/^\/(.*)\/(i?)\s*$/

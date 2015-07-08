@@ -1,9 +1,0 @@
-include: output.def
-
-page: output_ino, inherit, c
-    type: pm
-    output_dir: lib/MyDef
-    ext: ino
-    init_mode: sub
-    package: MyDef::output_ino
-

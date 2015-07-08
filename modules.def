@@ -1,3 +1,3 @@
 macros:
-    module_list: php, www, c, xs, apple, win32, win32rc, perl, general, glsl, make, ino, matlab, cpp, plot, java, autoit
-    module_type: perl=>"pl", www=>"html", win32=>"c", apple=>"m", general=>"txt", matlab=>"m", cpp=>"cpp", java=>"java", autoit=>"au3"
+    module_list: php, www, c, xs, apple, win32, win32rc, perl, general, glsl, make, ino, matlab, cpp, plot, java, autoit, python
+    module_type: perl=>"pl", www=>"html", win32=>"c", apple=>"m", general=>"txt", matlab=>"m", cpp=>"cpp", java=>"java", autoit=>"au3", python=>"py"

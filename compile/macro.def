@@ -22,6 +22,13 @@ subcode:: preproc_elifs
     $elif $preproc=~/autoinc:\s*(\w+)/
         my $page=$deflist->[2]
         $page->{$1}++
+    $elif $preproc=~/^index_name:(\w+)/
+        $global %index_name_hash
+        $if !$index_name_hash{$1}
+            $index_name_hash{$1}=1
+        $else
+            $index_name_hash{$1}+=1
+        $deflist->[-1]->{index_name}="$1_$index_name_hash{$1}"
     $elif $preproc=~/^export:\s*(.*)/
         my $t=$1;
         $if $t=~/^\w+,/
@@ -67,6 +74,7 @@ subcode:: preproc_elifs
             $deflist->[-1]->{"p_$i"}=$tlist[$i-1]
 
 #---------------------------------------- 
+#- $(set:name) join, sep, pattern, listitem1, ...
 subcode: set_macro_join
     $if !$tail
         $deflist->[-1]->{$name}=""
@@ -170,7 +178,7 @@ fncode: expand_macro($lref)
             last
 
 fncode: get_macro($s, $nowarn)
-    $if $s=~/^((rep|perl|map)\b.*)/
+    $if $s=~/^((rep|perl|map|or|and)\b.*)/
         my $t=$1
         $if $t=~/^rep\[(.*?)\](\d+):(.*)/
             $if $2>1
@@ -199,13 +207,23 @@ fncode: get_macro($s, $nowarn)
                 $p=~s/\$1/$t/g
                 push @segs, $p
             return join(" $sep ", @segs)
+        $elif $t =~ /^(or|and):\s*(.*?):\s*(.*)/
+            my $sep=" $1 "
+            my $pat=$2
+            my @tlist=split /,\s*/, $3
+            my @segs
+            $foreach $t in @tlist
+                my $tt=$pat
+                $tt=~s/\*/$t/g
+                push @segs, $tt
+            return join($sep, @segs)
         $else
-            warn "syntax error: [$s]\n"
+            warn " [$cur_file:$cur_line] syntax error: [$s]\n"
             return undef
     $elif $s=~/^(\w+):(.*)/
         #---- all kinds of annotations --------
         my $p=$2;
-        my $t=get_macro($1)
+        my $t=get_macro_word($1, $nowarn)
         $if $t
             $if $p=~/(\d+)-(\d+)/
                 #-- substr, e.g. $(macro:0-3) ----
@@ -270,11 +288,13 @@ fncode: get_macro($s, $nowarn)
             return join(" $sep ", @tlist)
     $elif $s=~/^(.+)/
         #---- straight macro ----
-        $for $j=$#$deflist:-1:-1
-            my $macros=$deflist->[$j]
-            $if exists($macros->{$1})
-                return $macros->{$1}
-        $if !$nowarn
-            warn "[$cur_file:$cur_line] Macro $1 not defined in $s\n"
-        return undef
+        return get_macro_word($1)
 
+fncode: get_macro_word($name, $nowarn) 
+    $for $j=$#$deflist:-1:-1
+        my $macros=$deflist->[$j]
+        $if exists($macros->{$name})
+            return $macros->{$name}
+    $if !$nowarn
+        warn "[$cur_file:$cur_line] Macro $name not defined\n"
+    return undef

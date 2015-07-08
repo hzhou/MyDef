@@ -135,6 +135,8 @@ page: mydef_run
         my $cmd
         $if $page->{outname}=~/\.pl$/
             $cmd="perl $page->{outname}"
+        $elif $page->{outname}=~/\.py$/
+            $cmd="python $page->{outname}"
         $elif $page->{outname}=~/\.c$/
             $cmd="gcc -o$pagename $page->{outname} $page->{lib_list} && ./$pagename"
         $elif $page->{outname}=~/\.java$/

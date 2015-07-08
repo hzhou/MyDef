@@ -105,7 +105,7 @@ page: output_c, output_main
 
         $call process_extern_binary
         $call process_link_objects
-        $call dump_Makefile
+        # $call dump_Makefile
 
         # ---- Header stuff --------------------------
         $if !$page->{has_stub_global_init}
@@ -128,32 +128,4 @@ page: output_c, output_main
             $page->{lib_list}=$lib_list
         $if @objlist
             $obj_list=join(" ", @objlist)
-
-    subcode: dump_Makefile
-        $if $mainfunc and !$mainfunc->{skip_makefile}
-            my $ofile=$page->{outdir}."/Makefile"
-            $if !-f $ofile or $page->{makefile}
-                print "  ---> $ofile\n"
-                my $pagename=$page->{pagename}
-                open Subfile, ">$ofile" or die "Can't write $ofile\n"
-                $call set_make_macro, CC, gcc
-                $call set_make_macro, CFLAGS, -
-                $call set_make_macro, INC, -
-                $call set_make_macro, LIB, -
-                $if $page->{makefile} eq "debug"
-                    print Subfile "CFLAGS+= -g"
-                print Subfile "\n"
-                print Subfile "$pagename: $pagename.o $obj_list\n";
-                print Subfile "\t\$\(CC) \$\(LIB) $lib_list -o $pagename \$^\n"
-                print Subfile "\n"
-                print Subfile "%.o: %.c\n"
-                print Subfile "\t\$\(CC) -c \$\(CFLAGS) \$\(INC) -o \$@ \$<\n"
-                close Subfile
-
-subcode: set_make_macro(name, default)
-    $if $page->{$(name)}
-        print Subfile "$(name)=$page->{$(name)}\n"
-    $(if:default!=-)
-        $else
-            print Subfile "$(name)=$(default)\n"
 

@@ -53,6 +53,9 @@ subcode:: support_subs
             $else
                 $idx=$block_stack[-$2]->{eindex}
             $name="block$idx\_$1"
+        $elif $name=~/^_init_block$/
+            my $page=$deflist->[2]
+            $name=$page->{_init_block}
 
         $if !$named_blocks{$name}
             $named_blocks{$name}=[]
