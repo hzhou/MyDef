@@ -49,16 +49,20 @@ subcode: grab_file(f, name)
         push @t, "#---- $1: $pat ----\n"
     my $flag
     $if open In, $file 
-        $while <In>
-            $if /^\#----\s*$pat\s*----/
-                $flag=1
-            $elif /^\#----.*----/
-                $flag=0
-            $elif !$flag and /^\s*#\s*--\s*$pat\s*--/
-                $flag=2
-            $elif $flag==2 and /^\s*#\s*--.*--/
-                $flag=0
-            $elif $flag
+        $if $pat
+            $while <In>
+                $if /^\#----\s*$pat\s*----/
+                    $flag=1
+                $elif /^\#----.*----/
+                    $flag=0
+                $elif !$flag and /^\s*#\s*--\s*$pat\s*--/
+                    $flag=2
+                $elif $flag==2 and /^\s*#\s*--.*--/
+                    $flag=0
+                $elif $flag
+                    push @t, $_
+        $else
+            $while <In>
                 push @t, $_
         close In
     $else
@@ -92,11 +96,14 @@ subcode: global_pattern(name, p)
 
 #---------------------------------------- 
 subcode: code_filter
+    $(set:span=<span class=\"mydef-$1\">$2</span>)
     $t=~s/&#35;/#/g
     $t=~s/&(?!call)/&amp;/g
     $t=~s/</&lt;/g
     $if $type eq "mydef"
         $call mydef_filter
+    $elif $type eq "python"
+        $call python_filter
 
 #---------------------------------------- 
 subcode: mydef_filter
@@ -105,23 +112,36 @@ subcode: mydef_filter
         $call global_pattern, quote, ".*?"
         $call global_pattern, macro, \$\(.*?\) 
 
-    $(set:span=<span class=\"mydef-$1\">$2</span>)
     $if $t=~/^(\s*)((#|&#35;).*)/
         $t="$1$(span:comment, $2)"
     $elif $t=~/(.*)(\s(#|&#35;)\s.*)/
         $t="$1$(span:comment, $2)"
     $elif $t=~/^(\s*)(page|\w+code)(:.?\s*)(\w+)(.*)/
         $t="$1$(span:label, $2)$3$(span:label, $4)$5"
+    $elif $t=~/^(\s*)(macros):/
+        $t="$1$(span:label, $2):"
     $elif $t=~/^(\s*)(\$call|\$map|\&call)\s*(\S+)(.*)/
         $t="$1$(span:keyword, $2) <strong>$3</strong>$4"
     $elif $t=~/^(\s*)(CSS|include):\s*(.*)/
         $t="$1$(span:preproc, $2): $(span:preproc, $3)"
-    $elif $t=~/^(\s*)\$(if|while|switch|for|elif|elsif|else|function)\b(.*)/
+    $elif $t=~/^(\s*)\$(if|while|do|switch|for|elif|elsif|else|function|if_match)\b(.*)/
         $t="$1$(span:keyword,\$$2)$3"
+    $elif $t=~/^(\s*)(return|throw|break|continue)/
+        $t="$1$(span:label, $2)"
 
 subcode: sh_filter
-    $(set:span=<span class=\"mydef-$1\">$2</span>)
     $if $t=~/^(\s*)((#|&#35;).*)/
         $t="$1$(span:comment, $2)"
     $elif $t=~/^\$ (.*)/
         $t="<span class=\"mydef-keyword\">\$ </span><b>$1</b>"
+
+subcode: python_filter
+    $call global_pattern, quote, ".*?"
+    $if $t=~/^(\s*)((#|&#35;).*)/
+        $t="$1$(span:comment, $2)"
+    $elif $t=~/^(\s*)(import)\s*(.*)/
+        $t="$1$(span:preproc, $2): $(span:preproc, $3)"
+    $elif $t=~/^(\s*)(if|while|do|switch|for|elif|else|def|case)\b(.*)/
+        $t="$1$(span:keyword,$2)$3"
+    $elif $t=~/^(\s*)(return|throw|break|continue)/
+        $t="$1$(span:label, $2)"
