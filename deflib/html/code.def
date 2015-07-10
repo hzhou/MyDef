@@ -107,6 +107,7 @@ subcode: code_filter
 
 #---------------------------------------- 
 subcode: mydef_filter
+    $(set:span=<span class=\"mydef-$1\">$2</span>)
     #print "mydef_filter [$t]\n"
     $if $t!~/</ 
         $call global_pattern, quote, ".*?"
@@ -126,8 +127,8 @@ subcode: mydef_filter
         $t="$1$(span:preproc, $2): $(span:preproc, $3)"
     $elif $t=~/^(\s*)\$(if|while|do|switch|for|elif|elsif|else|function|if_match)\b(.*)/
         $t="$1$(span:keyword,\$$2)$3"
-    $elif $t=~/^(\s*)(return|throw|break|continue)/
-        $t="$1$(span:label, $2)"
+    $elif $t=~/^(\s*)(return|throw|break|continue)(.*)/
+        $t="$1$(span:label, $2)$3"
 
 subcode: sh_filter
     $if $t=~/^(\s*)((#|&#35;).*)/

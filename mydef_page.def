@@ -132,18 +132,20 @@ page: mydef_run
 
     subcode: run
         my $page=$MyDef::page
+        my $name=$page->{outname}
         my $cmd
-        $if $page->{outname}=~/\.pl$/
-            $cmd="perl $page->{outname}"
-        $elif $page->{outname}=~/\.py$/
-            $cmd="python $page->{outname}"
-        $elif $page->{outname}=~/\.c$/
-            $cmd="gcc -o$pagename $page->{outname} $page->{lib_list} && ./$pagename"
-        $elif $page->{outname}=~/\.java$/
-            my $name=$page->{outname}
+        $if $name=~/\.pl$/
+            $cmd="perl $name"
+        $elif $name=~/\.py$/
+            $cmd="python $name"
+        $elif $name=~/\.c$/
+            $cmd="gcc -o$pagename $name $page->{lib_list} && ./$pagename"
+        $elif $name=~/\.java$/
             $name=~s/\//./g
             $name=~s/\.java$//
-            $cmd="javac $page->{outname} && java $name"
+            $cmd="javac $name && java $name"
+        $elif $name=~/\.tex$/
+            $cmd="pdflatex $name"
 
         $if $cmd
             $print $cmd
