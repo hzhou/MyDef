@@ -135,6 +135,10 @@ subcode:: support_subs
                 if($a > $b){ return 1;}
             $elsif $op eq "<"
                 if($a < $b){ return 1;}
+            $elsif $op eq ">="
+                if($a >= $b){ return 1;}
+            $elsif $op eq "<="
+                if($a <= $b){ return 1;}
             $elsif $op eq "~"
                 if($a=~/^$b/){ return 1;}
             $else
