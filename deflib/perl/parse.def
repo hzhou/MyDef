@@ -42,13 +42,17 @@ subcode: parse_frame
             $call @prepush
             push @stack, $cur
     $call @post
-    $if @stack!=1
-        my $n=@stack
-        $print "---- dump stack [$n] ----\n"
-        $foreach $t in @stack
-            print_token($t)
-        die "Unreduced expresion [$l].\n"
-    return $stack[0]
+    $call return_stack
+
+    # -----
+    subcode: return_stack
+        $if @stack!=1
+            my $n=@stack
+            $print "---- dump stack [$n] ----\n"
+            $foreach $t in @stack
+                print_token($t)
+            die "Unreduced expresion [$l].\n"
+        return $stack[0]
 
     # ---- routines for match ---------------- 
     subcode: if_lex(@pat)

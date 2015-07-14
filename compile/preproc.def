@@ -180,8 +180,9 @@ subcode:: support_subs
             return 1;
         $elsif $cond=~/^([01])$/
             return $1
-        $elsif $cond=~/^hascode:(.*)/
-            $if $MyDef::def->{codes}->{$1} or $MyDef::page->{codes}->{$1}
+        $elsif $cond=~/^hascode:\s*(\w+)/
+            my $codelib = get_def_attr("codes", $1)
+            $if $codelib
                 return 1
         $elsif $cond=~/^(string|number):(.*)/
             my $test=$1
