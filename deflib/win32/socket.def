@@ -126,14 +126,15 @@ subcode: socket_connect(host, port)
 # ----
 subcode: socket_select(socket, data)
     $(allow_recurse:10)
-    $(index_name:socket_select)
-    $call add_select_fn, $(socket), $(index_name), $(data)
+    $(autoinc:socket_select_index)
+    $(set:funcname=socket_select_$(socket_select_index))
+    $call add_select_fn, $(socket), $(funcname), $(data)
     tn_msg=WM_NETEVENT;
     tn_events=(FD_CONNECT | FD_READ | FD_WRITE | FD_OOB | FD_CLOSE | FD_ACCEPT);
     tn_ret=WSAAsyncSelect($(socket), hwnd_main, tn_msg, tn_events)
     $call assert, tn_ret!=SOCKET_ERROR
     $(block:global_init)
-        $function $(index_name)(void * data, tn_event, tn_err)
+        $function $(funcname)(void * data, tn_event, tn_err)
             BLOCK
 
 subcode: clear_select(socket)

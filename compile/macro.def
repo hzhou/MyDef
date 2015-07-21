@@ -22,13 +22,12 @@ subcode:: preproc_elifs
     $elif $preproc=~/autoinc:\s*(\w+)/
         my $page=$deflist->[2]
         $page->{$1}++
-    $elif $preproc=~/^index_name:(\w+)/
-        $global %index_name_hash
-        $if !$index_name_hash{$1}
-            $index_name_hash{$1}=1
-        $else
-            $index_name_hash{$1}+=1
-        $deflist->[-1]->{index_name}="$1_$index_name_hash{$1}"
+    $elif $preproc=~/^enuminc:(.+)/
+        $global %enuminc_hash=("_base_"=>0)
+        $if !$enuminc_hash{$1}
+            $enuminc_hash{"_base_"}++
+            $enuminc_hash{$1}=$enuminc_hash{"_base_"}
+        $deflist->[-1]->{enum}=$enuminc_hash{$1}
     $elif $preproc=~/^export:\s*(.*)/
         my $t=$1;
         $if $t=~/^\w+,/
