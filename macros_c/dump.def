@@ -72,8 +72,8 @@ fncode: add_define($name, $var)
     $if !defined $defines{$name}
         push @define_list, $name
     $else
-            warn "Duplicate define $name: [$defines{$name}] -> [$var]\n"
-        $defines{$name}=$var
+        warn "Duplicate define $name: [$defines{$name}] -> [$var]\n"
+    $defines{$name}=$var
 
 subcode: dump_defines
     $if $page->{use_bool}
