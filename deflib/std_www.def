@@ -2,6 +2,7 @@ macros:
     a: <a href="$2">$1</a>
     url: <a href="$1">$1</a>
     link: <a href="$($1)">$1</a>
+    anchor: <a name="$1"></a>
 
     img: <img src="$1" />
     code: <code>$1</code>
