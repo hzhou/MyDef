@@ -210,8 +210,7 @@ subcode: call_sub_normal_setup_macro
                     # Last single param slurp, we work with original pline to preserve any ',' and space ----------
                     # will not work with ' | ' seperated list
                     my $n0=$n3-$n_pre-1;
-                    $if $debug
-                        $print check_last_slurp: pline[$pline], n0=$n0, n_param=$n_param, nlist=$n2
+                    # $print check_last_slurp: pline[$pline], n0=$n0, n_param=$n_param, nlist=$n2
                     $for $i=0:$n0
                         $pline=~s/^[^,]*,//
                     $pline=~s/^\s*//
