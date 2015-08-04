@@ -189,6 +189,18 @@ fncode: translate_class($r)
     $foreach $c in @$r
         $if $c=~/(\w+)-(\w+)/
             push @tlist, "tn_c>='$1' && tn_c<='$2'"
+        $elif $c eq "\\s"
+            push @tlist, "isspace(tn_c)" 
+        $elif $c eq "\\S"
+            push @tlist, "!isspace(tn_c)"
+        $elif $c eq "\\d"
+            push @tlist, "isdigit(tn_c)"
+        $elif $c eq "\\D"
+            push @tlist, "!isdigit(tn_c)"
+        $elif $c eq "\\w"
+            push @tlist, "(isalnum(tn_c) || tn_c=='_')"
+        $elif $c eq "\\W"
+            push @tlist, "!isalnum(tn_c) && tn_c!='_'"
         $else
             push @tlist, "tn_c=='$c'"
 

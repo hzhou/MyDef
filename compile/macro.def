@@ -22,12 +22,15 @@ subcode:: preproc_elifs
     $elif $preproc=~/autoinc:\s*(\w+)/
         my $page=$deflist->[2]
         $page->{$1}++
-    $elif $preproc=~/^enuminc:(.+)/
-        $global %enuminc_hash=("_base_"=>0)
-        $if !$enuminc_hash{$1}
-            $enuminc_hash{"_base_"}++
-            $enuminc_hash{$1}=$enuminc_hash{"_base_"}
-        $deflist->[-1]->{enum}=$enuminc_hash{$1}
+    $elif $preproc=~/^enuminc:\s*(\w+)/
+        my $page=$deflist->[2]
+        $if !$page->{$1}
+            my $key = $1
+            my $base = "_enumbase_"
+            $if $key=~/^([^_]+)_/
+                $base = $1
+            $page->{$base}++
+            $page->{$key}=$page->{$base}
     $elif $preproc=~/^export:\s*(.*)/
         my $t=$1;
         $if $t=~/^\w+,/
@@ -177,7 +180,7 @@ fncode: expand_macro($lref)
             last
 
 fncode: get_macro($s, $nowarn)
-    $if $s=~/^((rep|perl|map|or|and)\b.*)/
+    $if $s=~/^((rep|perl|map|or|and|sym)\b.+)/
         my $t=$1
         $if $t=~/^rep\[(.*?)\](\d+):(.*)/
             $if $2>1
@@ -216,6 +219,8 @@ fncode: get_macro($s, $nowarn)
                 $tt=~s/\*/$t/g
                 push @segs, $tt
             return join($sep, @segs)
+        $elif $t =~ /^sym:(.+)/
+            return MyDef::utils::string_symbol_name($1)
         $else
             warn " [$cur_file:$cur_line] syntax error: [$s]\n"
             return undef

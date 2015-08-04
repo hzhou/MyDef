@@ -127,3 +127,63 @@ fncode: uniq_name($name, $hash)
             $i++
         return "$name$i"
 
+#---------------------------------------- 
+fncode: string_symbol_name($s)
+    my $n=length($s)
+    my $name=""
+    $for $i=0:$n
+        my $c = substr($s, $i, 1)
+        $if $c=~/\w/
+            $name.=$c
+        $elif $c eq "+"
+            $name.="Plus"
+        $elif $c eq "-"
+            $name.="Minus"
+        $elif $c eq "*"
+            $name.="Mult"
+        $elif $c eq "/"
+            $name.="Div"
+        $elif $c eq "="
+            $name.="Eq"
+        $elif $c eq "!"
+            $name.="Not"
+        $elif $c eq "^"
+            $name.="Ctrl"
+        $elif $c eq "%"
+            $name.="Mod"
+        $elif $c eq ">"
+            $name.="Gt"
+        $elif $c eq "<"
+            $name.="Lt"
+        $elif $c eq "|"
+            $name.="Or"
+        $elif $c eq "&"
+            $name.="And"
+        $elif $c eq "("
+            $name.="Lp"
+        $elif $c eq ")"
+            $name.="Rp"
+        $elif $c eq "["
+            $name.="Lb"
+        $elif $c eq "]"
+            $name.="Rb"
+        $elif $c eq "{"
+            $name.="Lc"
+        $elif $c eq "}"
+            $name.="Rc"
+        $elif $c eq "\""
+            $name.="Dq"
+        $elif $c eq "'"
+            $name.="Sq"
+        $elif $c eq ","
+            $name.="Comma"
+        $elif $c eq "."
+            $name.="Dot"
+        $elif $c eq ":"
+            $name.="Colon"
+        $elif $c eq ";"
+            $name.="Semi"
+        $else
+            die "string_symbol_name: [$c] not defined\n"
+
+    return $name

@@ -130,6 +130,8 @@ subcode: parse_escape_normal
 subcode: parse_escape_inclass
     $if $c=~/[0aefnrt]/
         $call escape_char
+    $elif $c=~/[sSdDwW]/
+        $c = "\\$c"
     push @class, $c
 
 # ----
