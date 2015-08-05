@@ -67,7 +67,7 @@ subcode: compile_line
         $while 1
             #-- parse_line could return a new $l
             #-- otherwise, last in the end breaks the loop
-            $if $l=~/^(&call|\$call|\$map|\$call-PRINT)\s+(.*)$/
+            $if $l=~/^(&call|\$call|\$map|\$nest|\$call-PRINT)\s+(.*)$/
                 my ($func, $param)=($1, $2);
                 $call parse_call_sub
             $elif $l=~/^\$-:\s*(.*)/

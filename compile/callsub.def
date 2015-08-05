@@ -9,6 +9,23 @@ subcode: parse_call_sub
     $elif $func eq "\&call"
         my $subblock=grabblock($block, \$lindex)
         call_back($param, $subblock)
+    $elif $func eq "\$nest"
+        my $subblock=grabblock($block, \$lindex)
+        my @tlist = MyDef::utils::proper_split($param)
+        my $codename=shift @tlist
+        my $param_0 = shift @tlist
+
+        my @t_block
+        my $n = @tlist
+        $foreach $t in @tlist
+            push @t_block, "&call $codename, $t"
+            push @t_block, "SOURCE_INDENT"
+        $foreach $l in @$subblock
+            push @t_block, $l
+        $for $i=0:$n
+            push @t_block, "SOURCE_DEDENT"
+
+        call_back("$codename, $param_0", \@t_block)
 
 #---------------------------------------- 
 fncode: call_back($param, $subblock)
@@ -73,19 +90,22 @@ subcode: call_sub_frame(type)
         $call @map_subcode_list
         $foreach $item in @plist
             &call parseblock_with_macro
+                # instead of call_sub_normal_setup_macro
                 $macro->{$codeparams->[$n_pre]}=$item
                 $if $n_pre
                     $for $i=0:$n_pre
                         $macro->{$codeparams->[$i]}=$pre_plist[$i];
-    # -----------------------
-    subcode: map_subcode_list
-        $if $plist[0]=~/^subcode:(.*)/
-            my $prefix=$1
-            @plist=()
-            my $codes=$MyDef::def->{codes}
-            $foreach $k in sort(keys(%$codes))
-                $if $k=~/^$prefix(\w+)/
-                    push @plist, $1
+        # ---------
+        subcode: map_subcode_list
+            # collect all subcode name with certain prefix
+            $if $plist[0]=~/^subcode:(.*)/
+                my $prefix=$1
+                @plist=()
+                my $codes=$MyDef::def->{codes}
+                $foreach $k in sort(keys(%$codes))
+                    $if $k=~/^$prefix(\w+)/
+                        push @plist, $1
+
     # -----------------------
     subcode: perl_block_call
         #---- e.g. html/code.def --
@@ -111,9 +131,10 @@ subcode: call_sub_frame(type)
                     $print [$cur_file:$cur_line] Code $codename not found!
             $else
                 set_current_macro("notfound", 0)
-                $if $codelib->{recurse} and $codelib->{recurse}>5
-                    $if $codelib->{allow_recurse} < $codelib->{recurse}
-                        die "Recursive subcode: $codename [$codelib->{recurse}]\n"
+                $(if:type!=callback)
+                    $if $codelib->{recurse} and $codelib->{recurse}>5
+                        $if $codelib->{allow_recurse} < $codelib->{recurse}
+                            die "Recursive subcode: $codename [$codelib->{recurse}]\n"
     # ----------------------
     subcode: split_param
         my $codeparams=$codelib->{params};
