@@ -129,6 +129,8 @@ subcode: dump_enums
             my $t=$enums{$name};
             $if $name=~/^ANONYMOUS/
                 push @$dump_out, "enum {$t};\n";
+            $elif $name=~/^typedef,\s*(\w+)/
+                push @$dump_out, "typedef enum {$t} $1;\n";
             $elif $name=~/^,\s*(\w+)/ 
                 push @$dump_out, "enum {$t} $1;\n";
             $else

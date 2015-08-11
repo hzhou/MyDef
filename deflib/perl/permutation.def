@@ -35,7 +35,7 @@ subcode: permute(n, k)
                 break
 
     subcode: reverse_tail(lead)
-        $(if:k!=$(n))
+        $(if:lead!=$(n))
             my $j=$(lead)
             my $k=$(n)-1
             $while $j<$k
@@ -47,4 +47,34 @@ subcode: permute(n, k)
         my $_t = $(a)
         $(a) = $(b)
         $(b) = $_t
+
+#---------------------------------------- 
+subcode: permute_count(n, k)
+    my (@perm, @check)
+    $for $i=0:$(k)
+        $perm[$i]=$i
+        $check[$i]=1
+    PERMUTE:
+    $while 1
+        BLOCK
+        $call permute_inc
+
+    subcode: permute_inc
+        my $pos=$(k)-1
+        $check[$perm[$pos]]=0
+        $while 1
+            $perm[$pos]++
+            $if $perm[$pos]>=$(n)
+                $perm[$pos]=-1
+                $pos--
+                $check[$perm[$pos]]=0
+                $if $pos<0
+                    last PERMUTE
+            $elif !$check[$perm[$pos]]
+                $check[$perm[$pos]]=1
+                $if $pos<$(k)-1
+                    $pos++
+                $else
+                    last
+
 

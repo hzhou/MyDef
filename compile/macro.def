@@ -264,6 +264,10 @@ fncode: get_macro($s, $nowarn)
                     return scalar(@tlist)
                 $elif $idx=~/(\d+)/
                     return $tlist[$1]
+                $elif $idx=~/(.*)\*(.*)/
+                    $foreach $t in @tlist
+                        $t = "$1$t$2"
+                    return join(", ", @tlist)
             $else
                 #--INLINE macro -- $(macro:p1,p2,p3)
                 my @plist
