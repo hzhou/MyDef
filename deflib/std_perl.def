@@ -22,6 +22,15 @@ subcode: block
         BLOCK
     }
 
+# -- DATA -------------------------
+subcode: set_hash(hash, @plist)
+    $(if:hash~%)
+        $(set:h=$$(hash:1:strip))
+    $(else)
+        $(set:h=$(hash)->)
+    $(foreach:p)
+        $(h){$(p)}=1
+
 # -- IO -------------------------
 subcode: open_r(name)
     $(if:name~")

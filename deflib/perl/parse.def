@@ -1,4 +1,4 @@
-
+# deprecated, currently used in output_plot, parse_tex
 #---------------------------------------- 
 #- used inside a parse function
 #-   e.g. fncode: parse_expr($l, ...)

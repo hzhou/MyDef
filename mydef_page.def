@@ -22,6 +22,8 @@ page: mydef_page
 
             $if $config{find}
                 $call find_subcode
+            $elif $config{dump}
+                $call dump_source
             $else
                 $call compile_pages
 
@@ -34,6 +36,8 @@ page: mydef_page
                 $config{output_dir} = $1
             $elif $a =~/^-f(\S+)/
                 $config{find} = $1
+            $elif $a =~/^-dump/
+                $config{dump} = 1
             $elif $a=~/\.def$/
                 $if $def_file
                     die "Multiple def source files not supported\n"
@@ -46,6 +50,25 @@ page: mydef_page
 
         $if !$def_file
             die "Please supply data definition file.";
+
+    # ---------------------------------------- 
+    subcode: compile_pages
+        my $pages=$MyDef::def->{pages}
+        my $pagelist=$MyDef::def->{pagelist}
+
+        $foreach $t in @$pagelist
+            my $p=$pages->{$t}
+            $if $p->{subpage}
+                next
+
+            my $t_module=$default_module
+            $if $p->{module} 
+                $t_module=$p->{module}
+            $if $t_module and ($t_module ne $module)
+                $print "skip page $t: module mismatch [page:$t_module][config:$module]"
+                next
+
+            MyDef::createpage($t);
 
     # ---------------------------------------- 
     subcode: find_subcode
@@ -73,25 +96,10 @@ page: mydef_page
                 $else
                     print "    "x$indent, $l, "\n"
 
-    # ---------------------------------------- 
-    subcode: compile_pages
-        my $pages=$MyDef::def->{pages}
-        my $pagelist=$MyDef::def->{pagelist}
-
-        $foreach $t in @$pagelist
-            my $p=$pages->{$t}
-            $if $p->{subpage}
-                next
-
-            my $t_module=$default_module
-            $if $p->{module} 
-                $t_module=$p->{module}
-            $if $t_module and ($t_module ne $module)
-                $print "skip page $t: module mismatch [page:$t_module][config:$module]"
-                next
-
-            MyDef::createpage($t);
-
+    # ------------------------------------
+    subcode: dump_code
+        my $def=$MyDef::def
+        
 ########################################
 #---- Run the mydef scripts directly 
 

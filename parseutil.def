@@ -198,18 +198,18 @@ subcode:: import_file_init
     my $page
 
 subcode: start_page
-    my ($pagename, $maincode)
+    my ($pagename, $framecode)
     # ---- name
     $if $t=~/([a-zA-Z0-9_\-\$]+),\s*(\w.*)/
         $pagename=$1;
-        $maincode=$2;
+        $framecode=$2;
     $elif $t=~/([a-zA-Z0-9_\-\$]+)/
         $pagename=$1;
     # ---- code
     my $code={};
-    $if $maincode
-        #-- $maincode may include parameters
-        $code->{main}={'type'=>'sub', 'source'=>["\$call $maincode"], 'params'=>[]};
+    $if $framecode
+        #-- $framecode may include parameters
+        $code->{main}={'type'=>'sub', 'source'=>["\$call $framecode"], 'params'=>[]};
 
     $page={pagename=>$pagename, codes=>$code};
     $if $subpage

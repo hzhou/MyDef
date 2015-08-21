@@ -20,12 +20,10 @@ subcode: start_code_indent(type, indent, item)
     $codetype   = "$(type)"
     $codeindent = $(indent)
     $codeitem   = $(item)
-    $(if:type=code)
-        # check source indent
-        $lastindent = $(indent)
-        # prevent starting empty line triger dedent
-        $curindent=$(indent)
 
+    # prevent starting empty line triger dedent
+    $curindent=$(indent)
+    $lastindent = $curindent
 
 subcode: check_end_codeindent
     $while $curindent <$codeindent
@@ -34,8 +32,8 @@ subcode: check_end_codeindent
             $call @check_subcode_end
         my $t = pop @indent_stack
         ($codetype, $codeindent, $codeitem) = @$t
+        $lastindent = $codeindent
         $if $codetype eq "code"
-            $lastindent = $codeindent
             $source = $codeitem->{source}
             my $src_location="SOURCE: $cur_file - $cur_line";
             push @$source, $src_location
