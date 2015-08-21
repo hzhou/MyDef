@@ -1,0 +1,223 @@
+#---------------------------------------- 
+#- used inside a parse function
+#-   e.g. fncode: parse_expr($src, ...)
+#-            $call parse_frame_full
+#-            subcode:: match
+#-            subcode:: reduce
+#-        subcode: precedence
+#-        subcode: parse_setup
+
+
+subcode: _autoload
+    $global %precedence
+    $-: %precedence = (STRING[,]);
+        'boc'=>0
+        '('=>0
+        ')'=>0
+        $call @precedence
+        'unary'=>99
+
+    $global %boc_type=('('=>1, 'boc'=>1)
+    $global %atom_type, %unary_type
+    $global %non_stmt_boc
+    $call set_hash, %atom_type, empty
+    $call @parse_setup
+
+subcode: parse_frame_full
+    macros:
+        type: $stack[$1]->[0]
+        atom: $stack[$1]->[1]
+        cur_type: $cur->[0]
+        cur_atom: $cur->[1]
+
+    my @stack=(['boc', 'global'])
+    $call init_context
+    PARSELOOP:
+    $while 1
+        my $cur
+        $call lex_loop
+
+        $call reduce_loop
+
+        $call @post_process
+
+        $if $(cur_atom) eq "eof" and $(cur_type) eq ")"
+            last PARSELOOP
+        $else
+            push @stack, $cur
+
+    $(if:hascode:return)
+        $call return
+    $(else)
+        $call default_return
+
+    # --------------------------
+    subcode: lex_loop
+        LEXLOOP:
+        $while 1
+            $call match_eof
+            $call @match
+            $call match_error
+            last
+
+        subcode: match_eof
+            $if $src=~/\G$/gc
+                $cur = [")", "eof"]
+                last
+
+        subcode: match_error
+            $call error, "unrecognized token"
+
+        subcode: skip_unmatched_char
+            $src=~/\G(.)/gc
+            $cur = ["extra", $1]
+
+    # --------------------------
+    subcode: reduce_loop
+        REDUCELOOP:
+        $while 1
+            $call @on_cur_token
+            $if $atom_type{$(cur_type)}
+                #- atom ----------------
+                $if $atom_type{$(type:-1)}
+                    # atom atom ----
+                    $call @reduce_atom_atom
+                    $call error, "two adjacent atoms"
+            $else
+                #- operator ----------------
+                $if !$atom_type{$(type:-1)}
+                    # op op ----
+                    $if $unary_type{$(cur_type)}
+                        $(cur_atom)=$(cur_type)
+                        $(cur_type)="unary"
+                        last
+                    $elif $boc_type{$(cur_type)}
+                        last
+                    $elif $(type:-1) eq 'boc' or $(type:-1) eq '('
+                        # empty statement/brackets
+                        push @stack, ['empty', undef]
+                    $else
+                        $call error, "operator in wrong context"
+
+                #- check precedence --------------
+                $if @stack<=1
+                    last
+
+                $(if:hascode:less_precedence)
+                    $(set:cond=less_precedence($(cur_type), $(type:-2)))
+                $(else)
+                    $(set:p0=$precedence{$(cur_type)})
+                    $(set:p1=$precedence{$(type:-2)})
+                    $(set:cond=$(p0)<=$(p1))
+
+                    $if !defined $(p0)
+                        die "operator $(cur_type) not defined\n"
+                    $elif !defined $(p1)
+                        die "operator $(type:-2) not defined\n"
+
+                $if $(cond)
+                    $if $(type:-2) eq "("
+                        splice @stack, -2, 2, $stack[-1]
+                        next PARSELOOP
+                    $elif $(type:-2) eq "boc"
+                        $if $cur_context->{expect} eq "$(cur_atom)"
+                            $if $(cur_atom) eq "eof"
+                                last
+                            $call @reduce_context
+                            next PARSELOOP
+                        $else
+                            $call @reduce_context_mismatch
+                            $call error, "context mismatch"
+                    $else
+                        $call @reduce
+                    next
+            last
+
+    # --------------------------
+    subcode: default_return
+        return $stack[1]
+
+    # ----- contexts ------------------------
+    subcode: init_context
+        my @context_stack
+        my $cur_context = {type=>"global", expect=>"eof", statements=>[]}
+        my $last_context
+
+    subcode: start_context(type, expect)
+        push @context_stack, $cur_context
+        $cur_context = {type=>"$(type)", expect=>"$(expect)"}
+        push @stack, ["boc", "$(type)"]
+
+    subcode: restart_context(type, expect)
+        push @context_stack, $cur_context
+        $cur_context = $last_context
+        $cur_context{type}="$(type)"
+        $cur_context{expect}="$(expect)"
+        push @stack, ["boc", "$(type)"]
+
+    subcode: pop_context
+        $last_context = $cur_context
+        $cur_context = pop @context_stack
+
+    # ---- error ---------------------------
+    subcode: error(msg)
+        $call debug_stack
+        print "cur: [", $cur->[0], ", ", $cur->[1], "]\n"
+        my $i=pos($src)
+        my $i0 = $i-40
+        my $c0=40
+        $if $i0<0
+            $i0=0
+            $c0=$i
+        print "src: [", substr($src, $i0, $c0), "][", substr($src, $i, 40), "]\n"
+        die $(msg). "\n"
+
+    # ---- routines for match ---------------- 
+    subcode: if_match_break(@pat)
+        $case $src=~/\G$(pat)/gc
+            BLOCK
+            last
+
+    subcode: if_match_continue(@pat)
+        $case $src=~/\G$(pat)/gc
+            BLOCK
+            next
+
+    # ---- debug ---------------------------- 
+    subcode: debug_stack
+        $print "debug_stack:\n"
+        $foreach $t in @stack
+            print_token($t)
+
+#---------------------------------------- 
+fncode: print_token($t, $pre, $post)
+    $if defined $pre
+        print $pre
+
+    $if ref($t) ne "ARRAY"
+        print $t
+    $else
+        print "( "
+        print_token($t->[0], "", "")
+        $for $i=1:@$t
+            print_token($t->[$i], ", ", "")
+        print " )"
+
+    $if defined $post
+        print $post
+    $else
+        print "\n"
+
+fncode: print_ast($t, $indent)
+    print "    "x$indent
+
+    $if ref($t) eq "ARRAY" and ref($t->[1]) eq "HASH"
+        my $statements = $t->[1]->{statements}
+        $if $statements
+            print $t->[0], ":\n"
+            $foreach $stmt in @$statements
+                print_ast($stmt, $indent+1)
+        $else
+            print $t->[0], "\n"
+    $else
+        print_token($t)
