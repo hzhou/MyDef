@@ -74,8 +74,14 @@ subcode: parse_frame_full
 
     # --------------------------
     subcode: reduce_loop
+        my $i_reduce=0
         REDUCELOOP:
         $while 1
+            $(if:1)
+                $i_reduce++
+                $if $i_reduce>10
+                    $call error, "REDUCELOOP not reduced?"
+
             $call @on_cur_token
             $if $atom_type{$(cur_type)}
                 #- atom ----------------
@@ -97,7 +103,7 @@ subcode: parse_frame_full
                         # empty statement/brackets
                         push @stack, ['empty', undef]
                     $else
-                        $call error, "operator in wrong context"
+                        $call error, "operator in wrong context: is \"$(type:-1)\"  or \"$(cur_type)\" an atom type?"
 
                 #- check precedence --------------
                 $if @stack<=1
@@ -173,6 +179,10 @@ subcode: parse_frame_full
         die $(msg). "\n"
 
     # ---- routines for match ---------------- 
+    subcode: if_match(@pat)
+        $case $src=~/\G$(pat)/gc
+            BLOCK
+
     subcode: if_match_break(@pat)
         $case $src=~/\G$(pat)/gc
             BLOCK
