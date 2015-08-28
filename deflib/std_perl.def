@@ -122,10 +122,9 @@ subcode: parse_loop(l)
             last
         BLOCK
 
-subcode: if_lex(@pattern)
-    $(allow_recurse:10)
-    $case $(l)=~/\G$(pattern)/gc
-        BLOCK
+    subcode: if_lex(@pattern)
+        $case $(l)=~/\G$(pattern)/gc
+            BLOCK
 
 #---------------------------------------- 
 subcode: init_debug_console

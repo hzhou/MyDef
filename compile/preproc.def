@@ -64,7 +64,7 @@ subcode: parse_preproc
                 pop @$deflist;
                 $i++
         $else
-            warn "[$cur_file:$cur_line]\$(foreach:p) missing \$(plist)\n"
+            warn "[$cur_file:$cur_line]\x24(foreach:p) missing \x24(plist)\n"
 
 #---------------------------------------- 
 subcode:: parseblock_init

@@ -112,7 +112,7 @@ subcode: html_parse_func
 #---------------------------------------- 
 /*
 subcode: html_parsecode_other
-    $if $l=~/\$(a|img|span)\[(.*?)\](\{(.*?)\})?/
+    $if $l=~/\x24(a|img|span)\[(.*?)\](\{(.*?)\})?/
         my $t
         $if $1 eq "a" or $1 eq "link"
             $t=html_link($2, $4)

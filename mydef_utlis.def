@@ -13,6 +13,13 @@ page: utils
 #-- uniq_name($name, hash)
 
 #-------------------------------------------------
+fncode: smart_split($param, $n)
+    my @tlist = split /,\s*/, $param
+    $if $n==@tlist
+        return @tlist
+    $else
+        return proper_split($param)
+
 fncode: proper_split($param)
     my @tlist
     $if $param eq "0"
@@ -81,19 +88,9 @@ fncode: expand_macro($line, $sub)
     my $segs=[]
     &call parse_loop, $line
         &call if_lex, \$\(
-            $if @$segs && substr($segs->[-1], -1, 1) eq "\\"
-                #-- escaped ----
-                $if !@paren_stack
-                    push @$segs, "\$("
-                $else
-                    push @$segs, "\$"
-                    push @paren_stack, $segs
-                    $segs=[]
-                    push @paren_stack, "("
-            $else
-                push @paren_stack, $segs
-                $segs=[]
-                push @paren_stack, "\$\("
+            push @paren_stack, $segs
+            $segs=[]
+            push @paren_stack, "\$\("
         $elif !@paren_stack
             &call if_lex, ([^\$]|\$(?!\())+
                 push @$segs, $&
@@ -108,7 +105,7 @@ fncode: expand_macro($line, $sub)
                 my $open=pop @paren_stack
                 $segs=pop @paren_stack
                 $if $open eq "(" or $t!~/^\w/
-                    push @$segs, "($t)"
+                    push @$segs, "$open$t)"
                 $else
                     push @$segs, $sub->($t)
             &call if_lex, ([^\$()]|\$(?!\())+

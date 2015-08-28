@@ -210,7 +210,9 @@ fncode: print_token($t, $pre, $post)
         print "( "
         print_token($t->[0], "", "")
         $for $i=1:@$t
-            print_token($t->[$i], ", ", "")
+            my $s=$t->[$i]
+            $s=~s/\n/\\n/g
+            print_token($s, ", ", "")
         print " )"
 
     $if defined $post

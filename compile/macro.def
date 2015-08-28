@@ -172,8 +172,14 @@ subcode:: support_subs
 
 # ------------------------------------------------------
 fncode: expand_macro($lref)
-    $$lref=~s/\$\.(?=\w)/\$(this)/g
-    $while $$lref=~/(?<!\\)\$\(\w/
+    #- a hack -- $.property 
+    $$lref=~s/(?<=\$)\.(?=\w)/(this)/g
+
+    #- if literal $(word) is needed 
+    #-     * use literal bypass: [$: literal source ...]
+    #-     * encode $ (if supported):  &#36;  \x24  \044
+    #-     $(\W...) is safe though
+    $while $$lref=~/\$\(\w/
         my $t=$$lref
         $$lref=MyDef::utils::expand_macro($t, \&get_macro)
         $if $t eq $$lref

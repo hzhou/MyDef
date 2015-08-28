@@ -149,10 +149,13 @@ page: mydef_run
         $elif $name=~/\.py$/
             $cmd="python $name"
         $elif $name=~/\.c$/
+            my $cflags
+            $if $page->{CFLAGS}
+                $cflags = $page->{CFLAGS}
             $if $config{debug}
-                $cmd="gcc -g -o$pagename $name $page->{lib_list} && gdb ./$pagename"
+                $cmd="gcc -g $cflags -o$pagename $name $page->{lib_list} && gdb ./$pagename"
             $else
-                $cmd="gcc -o$pagename $name $page->{lib_list} && ./$pagename"
+                $cmd="gcc $cflags -o$pagename $name $page->{lib_list} && ./$pagename"
         $elif $name=~/\.java$/
             $name=~s/\//./g
             $name=~s/\.java$//
