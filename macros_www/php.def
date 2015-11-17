@@ -48,12 +48,12 @@ subcode: php_parse_func_param
 include: macros_output/for.def
 subcode: php_parse_func
     $if $func =~/^if(\w*)/
-        $if $1
+        $if $1 and $param!~/^!/
             $param=test_var($param, $1 eq 'z')
         return single_block("if($param){", "}")
     $elif $func =~ /^(el|els|else)if(\w*)$/
-        $if $1
-            $param=test_var($param, $1 eq 'z')
+        $if $2 and $param!~/^!/
+            $param=test_var($param, $2 eq 'z')
         return single_block("elseif($param){", "}")
     $elif $func eq "else"
         return single_block("else{", "}")

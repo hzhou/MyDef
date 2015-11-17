@@ -75,6 +75,10 @@ htmlcode: input_submit(label)
 htmlcode: input_option(value)
     <option value="$(value)">$(value)</option>
 
+# ----
+htmlcode: form_input_one(name)
+    $call form_input, $(name), $(name)
+
 ## JavaScript -----------------------------------------------------
 macros:
     id: document.getElementById('$1')

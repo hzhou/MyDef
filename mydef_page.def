@@ -153,9 +153,9 @@ page: mydef_run
             $if $page->{CFLAGS}
                 $cflags = $page->{CFLAGS}
             $if $config{debug}
-                $cmd="gcc -g $cflags -o$pagename $name $page->{lib_list} && gdb ./$pagename"
+                $cmd="gcc -g $cflags -o$pagename $name $cflags $page->{lib_list} && gdb ./$pagename"
             $else
-                $cmd="gcc $cflags -o$pagename $name $page->{lib_list} && ./$pagename"
+                $cmd="gcc -o$pagename $name $cflags $page->{lib_list} && ./$pagename"
         $elif $name=~/\.java$/
             $name=~s/\//./g
             $name=~s/\.java$//

@@ -1,6 +1,6 @@
 subcode: parse_preproc
     expand_macro(\$preproc)
-    # $print "parse_preproc: $preproc"
+    # $print "parse_preproc: $preproc [$tail] [$l]"
     my $flag_done
     $call parse_preproc_switch
 

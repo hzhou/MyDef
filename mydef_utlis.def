@@ -110,7 +110,16 @@ fncode: expand_macro($line, $sub)
                     push @$segs, $sub->($t)
             &call if_lex, ([^\$()]|\$(?!\())+
                 push @$segs, $&
+    $call check_paren_stack
     return join('', @$segs)
+
+    subcode: check_paren_stack
+        $while @paren_stack
+            my $t = join('', @$segs)
+            my $open = pop @paren_stack
+            $segs = pop @paren_stack
+            push @$segs, $open
+            push @$segs, $t
 
 #---------------------------------------------
 fncode: uniq_name($name, $hash)

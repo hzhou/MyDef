@@ -3,12 +3,17 @@
 #  $deflist=[$MyDef::def, $MyDef::def->{macros}, $page];
 
 subcode: strip_quote(v)
-    $if $(v)=~/^"(.*)"$/
+    $if $(v)=~/^["'](.*)["']$/
         $(v)=$1
 
 subcode:: preproc_elifs
     $elif $preproc=~/^set:\s*(\w+)$/
         my $name=$1
+        $call set_macro_join
+    $elif $preproc=~/^set:\s*(\w+)\)/
+        my $name=$1
+        $if $l=~/^\$\(set:\s*\w+\)(.*)/
+            $tail=$1
         $call set_macro_join
     $elif $preproc=~/^set:\s*(.*)/
         # immediate macros
@@ -66,10 +71,18 @@ subcode:: preproc_elifs
         my ($t1,$t2)=($1,$2)
         expand_macro(\$t2)
         $deflist->[-1]->{$t1}=eval($t2)
-    $elif $preproc=~/^split:\s*(\w+)/
+    $elif $preproc=~/^split:\s*(\w+)$/
         my $p="\$($1)"
         expand_macro(\$p)
         my @tlist=MyDef::utils::proper_split($p)
+        my $n=@tlist
+        $deflist->[-1]->{p_n}=$n
+        $for $i=1:$n+1
+            $deflist->[-1]->{"p_$i"}=$tlist[$i-1]
+    $elif $preproc=~/^split:([^:]+):\s*(\w+)/
+        my $p="\$($2)"
+        expand_macro(\$p)
+        my @tlist=split /$1/, $p
         my $n=@tlist
         $deflist->[-1]->{p_n}=$n
         $for $i=1:$n+1
