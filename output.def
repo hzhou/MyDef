@@ -251,9 +251,23 @@ subcode: push_indent_block
     BLOCK
     push @$out, "DEDENT"
 
+subcode: inherit_macros(code)
+    my $macro={}
+    $if $(code)->{macros}
+        $foreach %{$(code)->{macros}}
+            $macro->{$k}=$v
+    $if $(code)->{codes}
+        $macro->{"codes"}=$(code)->{codes}
+    push @{$MyDef::compileutil::deflist}, $macro
+    BLOCK
+    pop @{$MyDef::compileutil::deflist}
+
 #--------
 subcode: each_subcode(type)
     my $codes=$MyDef::def->{codes}
+    $call iter_subcodes, $(type)
+
+subcode: iter_subcodes(type)
     my @tlist
     $while my ($k, $v)= each %$codes
         $if $v->{type} eq "$(type)"

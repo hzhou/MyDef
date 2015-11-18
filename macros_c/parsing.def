@@ -86,7 +86,7 @@ subcode: parsecode_func
             $param=parse_condition($param)
             return single_block("do{", "}while($param);")
         $else
-            return single_block("do{", "}while(0);")
+            return single_block("while(1){", "break;}")
     #---------------------------------------- 
     $elif $func eq "pack"
         data_pack($param)

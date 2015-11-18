@@ -5,7 +5,7 @@ subcode: parsecode_case_support(if, elif, style)
     $global $case_state, $case_wrap
     $call debug_case_l
 
-    $if $l=~/^\$(if|elif|elsif|elseif|case)\s+(.*)$/
+    $if $l=~/^\x24(if|elif|elsif|elseif|case)\s+(.*)$/
         my $cond=$2
         my $case=$case_if
         $call check_case_if

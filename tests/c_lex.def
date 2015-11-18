@@ -5,6 +5,7 @@ page: test, basic_frame
     #-- string constants are not modifiable, 
     #--   it will segfaut @ with_ts_group
     s=strdup("0x101f 378 (nested (brackets)) 2x (tail)")
+    # s="0x101f 378 (nested (brackets)) 2x (tail)"
     $call local_input, s
 
     #-- regex here are merely syntax sugur ------

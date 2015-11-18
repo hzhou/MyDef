@@ -19,8 +19,26 @@ fncode: check_expression($l, $context)
     #     $print "check_expression: $l [$context]"
     $call check_statement
     $else
+        $call parse_frame
+
+    # ---------------------------
+    subcode: check_statement
+        $if $l=~/^return\b\s*(.*)/
+            $if length($1)<=0
+                return func_return()
+            $else
+                my $t=check_expression($1, $context)
+                return func_return($t)
+        $elif $l=~/^\s*(if|for|while|switch)/
+            # -- vanila C statement ---
+            return $l
+
+    # --------------------------
+    subcode: parse_frame
         my ($assign, $left, $right)
         $call @check_expression_init
+        my @stack
+        my @types
         $while 1
             $call check_expression_parse
             $call check_expression_push
@@ -43,19 +61,8 @@ fncode: check_expression($l, $context)
         $call process_expression_cache, $right
         return $right
 
-    # ---------------------------
-    subcode: check_statement
-        $if $l=~/^return\b\s*(.*)/
-            $if length($1)<=0
-                return func_return()
-            $else
-                my $t=check_expression($1, $context)
-                return func_return($t)
-        $elif $l=~/^\s*(if|for|while|switch)/
-            # -- vanila C statement ---
-            return $l
-
     macros:
+        type: 
         type1: @types>0 && $types[-1]
         type2: @types>1 && $types[-2]
         atom1: @stack>0 && $stack[-1]
@@ -183,7 +190,8 @@ fncode: check_expression($l, $context)
                     $elif $stack[-1]=~/^(eq|ne|lt|le|gt|ge)$/
                         $call check_exp_string_op
                     $elif $stack[-1]=~/^\S+$/ && $stack[-1] ne "::"
-                        $stack[-1]=" $stack[-1] "
+                        $if @stack>1 and $stack[-2]!~/^[\(\[\{]$/
+                            $stack[-1]=" $stack[-1] "
                     $call exp_push, $token, $type
             $elif $(type1) =~/^atom/
                 $if $stack[-1]=~/\w$/
@@ -429,10 +437,6 @@ subcode: check_exp_regex
         $call warn, =~ missing string variable
 
 #--------------------------------------
-subcode:: check_expression_init
-    my @stack
-    my @types
-
 subcode: exp_push(exp, type)
     push @stack, $(exp)
     push @types, $(type)

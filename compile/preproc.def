@@ -1,6 +1,6 @@
 subcode: parse_preproc
     expand_macro(\$preproc)
-    # $print "parse_preproc: $preproc"
+    # $print "parse_preproc: $preproc [$tail] [$l]"
     my $flag_done
     $call parse_preproc_switch
 
@@ -64,7 +64,7 @@ subcode: parse_preproc
                 pop @$deflist;
                 $i++
         $else
-            warn "[$cur_file:$cur_line]\$(foreach:p) missing \$(plist)\n"
+            warn "[$cur_file:$cur_line]\x24(foreach:p) missing \x24(plist)\n"
 
 #---------------------------------------- 
 subcode:: parseblock_init
@@ -180,8 +180,9 @@ subcode:: support_subs
             return 1;
         $elsif $cond=~/^([01])$/
             return $1
-        $elsif $cond=~/^hascode:(.*)/
-            $if $MyDef::def->{codes}->{$1} or $MyDef::page->{codes}->{$1}
+        $elsif $cond=~/^hascode:\s*(\w+)/
+            my $codelib = get_def_attr("codes", $1)
+            $if $codelib
                 return 1
         $elsif $cond=~/^(string|number):(.*)/
             my $test=$1

@@ -101,9 +101,6 @@ subcode: parsecode_special
         $elif $t=~/(\S*\.css)/
             push @$style_sheets, $1
         return
-    $elif $l=~/^\s*\$(title|charset)\s+(.*)/
-        $page->{$1}=$2
-        return
     $elif $l=~/^\s*PRINT\s+(.*)/
         my $P="PRINT-$cur_mode"
         push @$out, "$P $1"
@@ -129,6 +126,9 @@ subcode: parsecode_func
         return "NEWBLOCK"
     $elif $func eq "script_end"
         MyDef::compileutil::modepop()
+        return
+    $elif $func=~/^(title|charset)/
+        $page->{$1}=$2
         return
     $elif $cur_mode eq "js"
         $call @js_parse_func

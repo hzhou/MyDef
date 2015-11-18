@@ -48,6 +48,8 @@ subcode: grab_codelist
                     push @t, ("    "x$indent) . $t
                 $else
                     push @t, $t
+        $while $t[-1]=~/^\s*$/
+            pop @t
         $codelist = \@t
 
 

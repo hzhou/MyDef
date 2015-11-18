@@ -83,72 +83,73 @@ perlcode: sqlrun
     $else
         push @$out, "\$sql=\"$param\";";
         MyDef::compileutil::call_sub("sqlexec")
+    #---------------------------------------- 
+    subcode: sql_update
+        my @sqlsegs
+        $foreach $f in split /,\s*/, $param
+            $if $f=~/(.*)=(.*)/
+                push @sqlsegs, $f;
+            $else
+                $call sql_parse_var, $f
+                my $sqlval=sql_value($varname, $colname)
+                push @sqlsegs, "$colname=$sqlval"
+        push @$out, "\$sql = \"$action ".join(', ', @sqlsegs)." $where\";"
+        MyDef::compileutil::call_sub("sqlexec")
 
-perlcode: sql_parse_var(f)
+    subcode: sql_insert
+        my @sqlnames
+        my @sqlsegs
+        $foreach $f in split /,\s*/, $param
+            $if $f=~/(.*)=(.*)/
+                push @sqlnames, $1
+                push @sqlsegs, $2
+            $else
+                $call sql_parse_var, $f
+                my $sqlval=sql_value($varname, $colname)
+                push @sqlnames, $colname
+                push @sqlsegs, $sqlval
+        push @$out, "\$sql = \"$action (".join(', ', @sqlnames).") VALUES (".join(', ', @sqlsegs).")\";";
+        MyDef::compileutil::call_sub("sqlexec")
+
+    subcode: sql_select
+        subcode: sql_select_exec
+            my @sqlnames
+            my @varnames
+            $foreach $f in split /,\s*/, $param
+                $call sql_parse_var, $f
+                push @sqlnames, $colname
+                push @varnames, $varname
+            push @$out, "\$sql = \"SELECT ".join(', ', @sqlnames). " $where\";";
+            MyDef::compileutil::call_sub("sqlexec")
+
+        $call sql_select_exec
+        my $fetchtype
+        $if $type eq "_LIST"
+            $fetchtype="list"
+        $elif $type eq "_ARRAY"
+            $if @sqlnames!=1
+                warn "SELECT_ARRAY with more than one columns!\n"
+            my $var='$'.$varnames[0]."_list"
+            MyDef::compileutil::call_sub("sql_fetch_array, $var")
+        $elif $type eq "_HASH"
+            $if @sqlnames!=2
+                warn "SELECT_HASH not with two columns!\n"
+            my $var='$'.$varnames[1]."_list"
+            MyDef::compileutil::call_sub("sql_fetch_hash, $var")
+        $else
+            $fetchtype="one"
+        $if $fetchtype
+            my @subblock
+            $for $i=0:@sqlnames
+                push @subblock, "\$call sql_fetch_$fetchtype\_i, $varnames[$i], $i"
+            MyDef::compileutil::call_back("sql_fetch_$fetchtype", \@subblock)
+
+
+subcode: sql_parse_var(f)
     my ($varname, $colname)=($(f), $(f))
     $if $(f)=~/^([^(]*)\((.*)\)$/
         $varname=$1
         $colname=$2
-
-perlcode: sql_update
-    my @sqlsegs
-    $foreach $f in split /,\s*/, $param
-        $if $f=~/(.*)=(.*)/
-            push @sqlsegs, $f;
-        $else
-            $call sql_parse_var, $f
-            my $sqlval=sql_value($varname, $colname)
-            push @sqlsegs, "$colname=$sqlval"
-    push @$out, "\$sql = \"$action ".join(', ', @sqlsegs)." $where\";"
-    MyDef::compileutil::call_sub("sqlexec")
-
-perlcode: sql_insert
-    my @sqlnames
-    my @sqlsegs
-    $foreach $f in split /,\s*/, $param
-        $if $f=~/(.*)=(.*)/
-            push @sqlnames, $1
-            push @sqlsegs, $2
-        $else
-            $call sql_parse_var, $f
-            my $sqlval=sql_value($varname, $colname)
-            push @sqlnames, $colname
-            push @sqlsegs, $sqlval
-    push @$out, "\$sql = \"$action (".join(', ', @sqlnames).") VALUES (".join(', ', @sqlsegs).")\";";
-    MyDef::compileutil::call_sub("sqlexec")
-
-perlcode: sql_select_exec
-    my @sqlnames
-    my @varnames
-    $foreach $f in split /,\s*/, $param
-        $call sql_parse_var, $f
-        push @sqlnames, $colname
-        push @varnames, $varname
-    push @$out, "\$sql = \"SELECT ".join(', ', @sqlnames). " $where\";";
-    MyDef::compileutil::call_sub("sqlexec")
-
-perlcode: sql_select
-    $call sql_select_exec
-    my $fetchtype
-    $if $type eq "_LIST"
-        $fetchtype="list"
-    $elif $type eq "_ARRAY"
-        $if @sqlnames!=1
-            warn "SELECT_ARRAY with more than one columns!\n"
-        my $var='$'.$varnames[0]."_list"
-        MyDef::compileutil::call_sub("sql_fetch_array, $var")
-    $elif $type eq "_HASH"
-        $if @sqlnames!=2
-            warn "SELECT_HASH not with two columns!\n"
-        my $var='$'.$varnames[1]."_list"
-        MyDef::compileutil::call_sub("sql_fetch_hash, $var")
-    $else
-        $fetchtype="one"
-    $if $fetchtype
-        my @subblock
-        $for $i=0:@sqlnames
-            push @subblock, "\$call sql_fetch_$fetchtype\_i, $varnames[$i], $i"
-        MyDef::compileutil::call_back("sql_fetch_$fetchtype", \@subblock)
 
 # ---------------------------------------------------------------------
 perlcode: sql_createtable
@@ -259,8 +260,8 @@ perlcode: sql_createtable
         }
     }
     return join '', @out;
-}
 
+############################################################
 phpcode: old
     sub sql_quote {
         my ($type, $v)=@_;

@@ -1,6 +1,6 @@
 #-----------------------------------------
 #-- parse regex pattern
-fncode: parse_regex($re)
+fncode: parse_regex($re, $flag_combine_chars)
     $call @parse_regex_vars
     my $has_Any=0
 
@@ -130,6 +130,8 @@ subcode: parse_escape_normal
 subcode: parse_escape_inclass
     $if $c=~/[0aefnrt]/
         $call escape_char
+    $elif $c=~/[sSdDwW]/
+        $c = "\\$c"
     push @class, $c
 
 # ----
@@ -174,7 +176,8 @@ subcode: concat_atoms(type)
             warn "regex_parse: empty $(type)\n"
             push @$alts, undef
         $else
-            $call @combin_chars
+            $if $flag_combine_chars
+                $call combine_chars
             $if $type ne "seq"
                 push @$alts, {type=>$type, n=>$n, list=>$atoms}
                 $atoms=[]
@@ -187,7 +190,7 @@ subcode: concat_atoms(type)
                     $atoms=[]
                 push @$alts, $atom
     # ---------------------
-    subcode: combin_chars
+    subcode: combine_chars
         my @tlist
         my $last
         push @$atoms, {type=>"end"}

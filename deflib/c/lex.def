@@ -19,12 +19,19 @@ subcode: get_ts_group(i)
     ts_group=input->buffer+input->s[$(i)]
 
 subcode: with_ts_group(i)
+    #- group as null-terminated string 
     ts_group=input->buffer+input->s[$(i)]
     tn_c=input->buffer[input->e[$(i)]]
     input->buffer[input->e[$(i)]] = 0
     BLOCK
     input->buffer[input->e[$(i)]] = tn_c
 
+subcode: get_group(i)
+    $local string g$(i)
+    g$(i) = input->buffer+input->s[$(i)]
+    g$(i)_len = input->e[$(i)] - input->s[$(i)]
+
+#-----------------------
 subcode: sub_input(vs, ve)
     $(vs)=input->e[1]
     $(ve)=input->n_end

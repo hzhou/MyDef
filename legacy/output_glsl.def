@@ -63,7 +63,7 @@ subcode: on_dumpout
         $func->{finish}=["DUMP_STUB main_exit"];
 
 subcode: on_parsecode
-    $if $l=~/^\$(attribute|uniform|varying)\s*(.*)/
+    $if $l=~/^\x24(attribute|uniform|varying)\s*(.*)/
         my $a=$1;
         my @vlist=split /,\s+/, $2
         my $ghash=$MyDef::output_c::global_hash

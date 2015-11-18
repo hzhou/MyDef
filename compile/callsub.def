@@ -9,6 +9,23 @@ subcode: parse_call_sub
     $elif $func eq "\&call"
         my $subblock=grabblock($block, \$lindex)
         call_back($param, $subblock)
+    $elif $func eq "\$nest"
+        my $subblock=grabblock($block, \$lindex)
+        my @tlist = MyDef::utils::proper_split($param)
+        my $codename=shift @tlist
+        my $param_0 = shift @tlist
+
+        my @t_block
+        my $n = @tlist
+        $foreach $t in @tlist
+            push @t_block, "&call $codename, $t"
+            push @t_block, "SOURCE_INDENT"
+        $foreach $l in @$subblock
+            push @t_block, $l
+        $for $i=0:$n
+            push @t_block, "SOURCE_DEDENT"
+
+        call_back("$codename, $param_0", \@t_block)
 
 #---------------------------------------- 
 fncode: call_back($param, $subblock)
@@ -73,19 +90,22 @@ subcode: call_sub_frame(type)
         $call @map_subcode_list
         $foreach $item in @plist
             &call parseblock_with_macro
+                # instead of call_sub_normal_setup_macro
                 $macro->{$codeparams->[$n_pre]}=$item
                 $if $n_pre
                     $for $i=0:$n_pre
                         $macro->{$codeparams->[$i]}=$pre_plist[$i];
-    # -----------------------
-    subcode: map_subcode_list
-        $if $plist[0]=~/^subcode:(.*)/
-            my $prefix=$1
-            @plist=()
-            my $codes=$MyDef::def->{codes}
-            $foreach $k in sort(keys(%$codes))
-                $if $k=~/^$prefix(\w+)/
-                    push @plist, $1
+        # ---------
+        subcode: map_subcode_list
+            # collect all subcode name with certain prefix
+            $if $plist[0]=~/^subcode:(.*)/
+                my $prefix=$1
+                @plist=()
+                my $codes=$MyDef::def->{codes}
+                $foreach $k in sort(keys(%$codes))
+                    $if $k=~/^$prefix(\w+)/
+                        push @plist, $1
+
     # -----------------------
     subcode: perl_block_call
         #---- e.g. html/code.def --
@@ -97,6 +117,7 @@ subcode: call_sub_frame(type)
         my ($codename, $attr, $codelib)
         $if $param=~/^(@)?(\w+)(.*)/
             ($codename, $attr, $param)=($2, $1, $3)
+            $param=~s/^\s*,\s*//
             $codelib=get_def_attr("codes", $codename)
             $call @check_codelib
         $else
@@ -110,9 +131,10 @@ subcode: call_sub_frame(type)
                     $print [$cur_file:$cur_line] Code $codename not found!
             $else
                 set_current_macro("notfound", 0)
-                $if $codelib->{recurse} and $codelib->{recurse}>5
-                    $if $codelib->{allow_recurse} < $codelib->{recurse}
-                        die "Recursive subcode: $codename [$codelib->{recurse}]\n"
+                $(if:type!=callback)
+                    $if $codelib->{recurse} and $codelib->{recurse}>5
+                        $if $codelib->{allow_recurse} < $codelib->{recurse}
+                            die "Recursive subcode: $codename [$codelib->{recurse}]\n"
     # ----------------------
     subcode: split_param
         my $codeparams=$codelib->{params};
@@ -129,7 +151,7 @@ subcode: call_sub_frame(type)
             $if $n_param==1 and $codeparams->[0]=~/^@/
                 push @plist, $param
             $else
-                @plist=MyDef::utils::proper_split($param)
+                @plist=MyDef::utils::smart_split($param, $n_param)
 
             my @pre_plist
             my $n_pre=0
@@ -209,6 +231,7 @@ subcode: call_sub_normal_setup_macro
                     # Last single param slurp, we work with original pline to preserve any ',' and space ----------
                     # will not work with ' | ' seperated list
                     my $n0=$n3-$n_pre-1;
+                    # $print check_last_slurp: pline[$pline], n0=$n0, n_param=$n_param, nlist=$n2
                     $for $i=0:$n0
                         $pline=~s/^[^,]*,//
                     $pline=~s/^\s*//

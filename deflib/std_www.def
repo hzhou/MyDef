@@ -2,6 +2,7 @@ macros:
     a: <a href="$2">$1</a>
     url: <a href="$1">$1</a>
     link: <a href="$($1)">$1</a>
+    anchor: <a name="$1"></a>
 
     img: <img src="$1" />
     code: <code>$1</code>
@@ -73,6 +74,10 @@ htmlcode: input_submit(label)
 
 htmlcode: input_option(value)
     <option value="$(value)">$(value)</option>
+
+# ----
+htmlcode: form_input_one(name)
+    $call form_input, $(name), $(name)
 
 ## JavaScript -----------------------------------------------------
 macros:

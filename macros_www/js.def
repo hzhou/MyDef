@@ -33,7 +33,7 @@ subcode: js_parse_func
         return
     $elif $func =~ /^(function)$/
         return single_block("$1 $param\{", "}")
-    $elif $func =~ /^(if|while|switch)$/
+    $elif $func =~ /^(if|while|switch|with)$/
         return single_block("$1($param){", "}")
     $elif $func =~ /^(el|els|else)if$/
         return single_block("else if($param){", "}")

@@ -1,0 +1,80 @@
+subcode: permute(n, k)
+    my @perm
+    $for $i=0:$(n)
+        $perm[$i]=$i
+    $call reverse_tail, $(k)
+
+    $while 1
+        BLOCK
+        $call permute_inc
+
+    subcode: permute_inc
+        &call find_tail_descending
+            $call swap_least_bigger
+            $call reverse_tail, $i+1
+            $call reverse_tail, $(k)
+
+    subcode: find_tail_descending
+        my $max=-1
+        my $i=$(n)-1
+        $while $i>=0
+            $if $max < $perm[$i]
+                $max = $perm[$i]
+            $else
+                break
+            $i--
+        $if $i<0
+            break
+        $else
+            BLOCK
+
+    subcode: swap_least_bigger
+        $for $j=$(n):0
+            $if $perm[$j]>$perm[$i]
+                $call swap, $perm[$j], $perm[$i]
+                break
+
+    subcode: reverse_tail(lead)
+        $(if:lead!=$(n))
+            my $j=$(lead)
+            my $k=$(n)-1
+            $while $j<$k
+                $call swap, $perm[$j], $perm[$k]
+                $j++
+                $k--
+
+    subcode: swap(a, b)
+        my $_t = $(a)
+        $(a) = $(b)
+        $(b) = $_t
+
+#---------------------------------------- 
+subcode: permute_count(n, k)
+    my (@perm, @check)
+    $for $i=0:$(k)
+        $perm[$i]=$i
+        $check[$i]=1
+    PERMUTE:
+    $while 1
+        BLOCK
+        $call permute_inc
+
+    subcode: permute_inc
+        my $pos=$(k)-1
+        $check[$perm[$pos]]=0
+        $while 1
+            $perm[$pos]++
+            $if $perm[$pos]>=$(n)
+                $perm[$pos]=-1
+                $pos--
+                $check[$perm[$pos]]=0
+                $if $pos<0
+                    last PERMUTE
+            $elif !$check[$perm[$pos]]
+                $check[$perm[$pos]]=1
+                $if $pos<$(k)-1
+                    $pos++
+                $else
+                    last
+
+

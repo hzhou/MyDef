@@ -1,5 +1,6 @@
 include: c/socket.def
 subcode:: _autoload
+    $include unistd
     $include string
 
 #---- Read/Write Wrapper --------------------------------
@@ -39,7 +40,7 @@ fncode: writen(int fd, void * p, n)
         tn_written=write(fd, p, tn_remain)
         $if tn_written<=0
             $if tn_written<0 && errno==EINTR
-                tn_written==0
+                tn_written=0
             $else
                 return -1
         $else
@@ -117,6 +118,7 @@ subcode: fork_server
         exit(0)
 
 subcode: print_client_address
+    $include <arpa/inet.h>
     $local ts_ip_buffer[16]
     ts_ip=(char *)inet_ntop(AF_INET, &client_addr.sin_addr, ts_ip_buffer, 16)
     $call assert, ts_ip

@@ -22,6 +22,15 @@ subcode: block
         BLOCK
     }
 
+# -- DATA -------------------------
+subcode: set_hash(hash, @plist)
+    $(if:hash~%)
+        $(set:h=$$(hash:1:strip))
+    $(else)
+        $(set:h=$(hash)->)
+    $(foreach:p)
+        $(h){$(p)}=1
+
 # -- IO -------------------------
 subcode: open_r(name)
     $(if:name~")
@@ -106,17 +115,16 @@ subcode: dbl_push(name, v)
         push @$(name), $(v)
 
 # -- Parser -------------------
-# deprecated, ref perl/parse.def
+# for simple parsing; for more complicated cases, ref perl/parse.def
 subcode: parse_loop(l)
     $while 1
         $if $(l)=~/\G$/gc
             last
         BLOCK
 
-subcode: if_lex(@pattern)
-    $(allow_recurse:10)
-    $case $(l)=~/\G$(pattern)/gc
-        BLOCK
+    subcode: if_lex(@pattern)
+        $case $(l)=~/\G$(pattern)/gc
+            BLOCK
 
 #---------------------------------------- 
 subcode: init_debug_console

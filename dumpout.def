@@ -50,6 +50,8 @@ subcode: dumpout
         $elif $l =~ /^DUMP_STUB\s+(\w+)/
             my $source=$MyDef::compileutil::named_blocks{$1};
             # $print "DUMP_STUB $1 : $source"
+            # multiple DUMP_STUB with the same name is OK, only the first one will be in effect
+            #    that is because we did "$l= shift @$out"
             $if $source
                 push @source_stack, $out;
                 $out=$source;

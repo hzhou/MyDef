@@ -199,16 +199,23 @@ subcode: dumpout
         push @$f, "#!/usr/bin/perl\n"
 
     $if $pagetype ne "eval"
+        $(set:p=$MyDef::page->{$1})
         push @$f, "use strict;\n"
-        # push @$f, "use warnings;\n"
+        $(if:0)
+            push @$f, "use warnings;\n"
+            
+            $if !$(p:nowarn)
+                push @$f, "no warnings qw(uninitialized);\n"
+            $elif $(p:nowarn) ne "none"
+                push @$f, "no warnings qw($(p:nowarn));\n"
 
         $if @uses
             $foreach $v in @uses
                 push @$f, "use $v;\n"
             push @$f, "\n"
 
-        $if $MyDef::page->{package}
-            push @$f, "package ".$MyDef::page->{package}.";\n"
+        $if $(p:package)
+            push @$f, "package ".$(p:package).";\n"
         
         $if @globals
             $foreach $v in @globals

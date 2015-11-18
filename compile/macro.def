@@ -3,12 +3,17 @@
 #  $deflist=[$MyDef::def, $MyDef::def->{macros}, $page];
 
 subcode: strip_quote(v)
-    $if $(v)=~/^"(.*)"$/
+    $if $(v)=~/^["'](.*)["']$/
         $(v)=$1
 
 subcode:: preproc_elifs
     $elif $preproc=~/^set:\s*(\w+)$/
         my $name=$1
+        $call set_macro_join
+    $elif $preproc=~/^set:\s*(\w+)\)/
+        my $name=$1
+        $if $l=~/^\$\(set:\s*\w+\)(.*)/
+            $tail=$1
         $call set_macro_join
     $elif $preproc=~/^set:\s*(.*)/
         # immediate macros
@@ -22,13 +27,15 @@ subcode:: preproc_elifs
     $elif $preproc=~/autoinc:\s*(\w+)/
         my $page=$deflist->[2]
         $page->{$1}++
-    $elif $preproc=~/^index_name:(\w+)/
-        $global %index_name_hash
-        $if !$index_name_hash{$1}
-            $index_name_hash{$1}=1
-        $else
-            $index_name_hash{$1}+=1
-        $deflist->[-1]->{index_name}="$1_$index_name_hash{$1}"
+    $elif $preproc=~/^enuminc:\s*(\w+)/
+        my $page=$deflist->[2]
+        $if !$page->{$1}
+            my $key = $1
+            my $base = "_enumbase_"
+            $if $key=~/^([^_]+)_/
+                $base = $1
+            $page->{$base}++
+            $page->{$key}=$page->{$base}
     $elif $preproc=~/^export:\s*(.*)/
         my $t=$1;
         $if $t=~/^\w+,/
@@ -64,10 +71,18 @@ subcode:: preproc_elifs
         my ($t1,$t2)=($1,$2)
         expand_macro(\$t2)
         $deflist->[-1]->{$t1}=eval($t2)
-    $elif $preproc=~/^split:\s*(\w+)/
+    $elif $preproc=~/^split:\s*(\w+)$/
         my $p="\$($1)"
         expand_macro(\$p)
         my @tlist=MyDef::utils::proper_split($p)
+        my $n=@tlist
+        $deflist->[-1]->{p_n}=$n
+        $for $i=1:$n+1
+            $deflist->[-1]->{"p_$i"}=$tlist[$i-1]
+    $elif $preproc=~/^split:([^:]+):\s*(\w+)/
+        my $p="\$($2)"
+        expand_macro(\$p)
+        my @tlist=split /$1/, $p
         my $n=@tlist
         $deflist->[-1]->{p_n}=$n
         $for $i=1:$n+1
@@ -170,15 +185,21 @@ subcode:: support_subs
 
 # ------------------------------------------------------
 fncode: expand_macro($lref)
-    $$lref=~s/\$\.(?=\w)/\$(this)/g
-    $while $$lref=~/(?<!\\)\$\(\w/
+    #- a hack -- $.property 
+    $$lref=~s/(?<=\$)\.(?=\w)/(this)/g
+
+    #- if literal $(word) is needed 
+    #-     * use literal bypass: [$: literal source ...]
+    #-     * encode $ (if supported):  &#36;  \x24  \044
+    #-     $(\W...) is safe though
+    $while $$lref=~/\$\(\w/
         my $t=$$lref
         $$lref=MyDef::utils::expand_macro($t, \&get_macro)
         $if $t eq $$lref
             last
 
 fncode: get_macro($s, $nowarn)
-    $if $s=~/^((rep|perl|map|or|and)\b.*)/
+    $if $s=~/^((rep|perl|map|or|and|sym)\b.+)/
         my $t=$1
         $if $t=~/^rep\[(.*?)\](\d+):(.*)/
             $if $2>1
@@ -217,6 +238,8 @@ fncode: get_macro($s, $nowarn)
                 $tt=~s/\*/$t/g
                 push @segs, $tt
             return join($sep, @segs)
+        $elif $t =~ /^sym:(.+)/
+            return MyDef::utils::string_symbol_name($1)
         $else
             warn " [$cur_file:$cur_line] syntax error: [$s]\n"
             return undef
@@ -260,6 +283,10 @@ fncode: get_macro($s, $nowarn)
                     return scalar(@tlist)
                 $elif $idx=~/(\d+)/
                     return $tlist[$1]
+                $elif $idx=~/(.*)\*(.*)/
+                    $foreach $t in @tlist
+                        $t = "$1$t$2"
+                    return join(", ", @tlist)
             $else
                 #--INLINE macro -- $(macro:p1,p2,p3)
                 my @plist
