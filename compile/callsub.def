@@ -123,9 +123,9 @@ subcode: call_sub_frame(type)
             $call split_param_call
 
         subcode: split_param_call
-            my $pline=$param
-            my @plist
+            my ($pline, @plist)
             $param=~s/^\s*,?\s*//;
+            $pline=$param
             $if $n_param==1 and $codeparams->[0]=~/^@/
                 push @plist, $param
             $else

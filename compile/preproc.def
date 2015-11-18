@@ -125,7 +125,7 @@ subcode:: support_subs
             $test=$'
             $a=substr($a, 0, $1);
 
-        $if $test=~/\s*(~|=|!=|<|>)(.*)/
+        $if $test=~/\s*(~|=|!=|<=?|>=?)(.*)/
             my ($op, $b)=($1, $2)
             $if $op eq "="
                 if($a eq $b){ return 1;}
