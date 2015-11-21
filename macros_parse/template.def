@@ -7,7 +7,7 @@ fncode: parse_template($def, $codes, $template_file)
     my $sub_name = "TMP_$template_index"
     $template_index++
     $codes->{main}={type=>'sub', source=>["\$call $sub_name"], 'params'=>[]}
-    push @new_source, "subcode: $sub_name\n"
+    push @new_source, "subcode: $sub_name"
 
     my $t_idx = 0
     my $cur_source
@@ -21,7 +21,7 @@ fncode: parse_template($def, $codes, $template_file)
             $if /^\s*$/
                 push @$cur_grab, $_
             $elif /^(\s*)(.*)/
-                my $n= length($1)
+                my $n= get_indent_spaces($1)
                 $if $n <= $cur_grab_spaces
                     $if $start_grab eq "mydef"
                         $call insert_grab
@@ -45,11 +45,11 @@ fncode: parse_template($def, $codes, $template_file)
 
 
         $elif /^(\s*)(mydef):/
-            $cur_grab_spaces=length($1)
+            $cur_grab_spaces=get_indent_spaces($1)
             $start_grab = $2
             $cur_grab=[]
         $elif /^(\s*)template:\s*(\w+)/
-            $cur_grab_spaces=length($1)
+            $cur_grab_spaces=get_indent_spaces($1)
             $start_grab = "template"
             $cur_grab=[]
             $codes->{$2}={type=>"template", source=>$cur_grab, 'params'=>[]}

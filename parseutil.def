@@ -1,7 +1,7 @@
 include: macros_parse/indentation.def
 include: macros_parse/subcode.def
+include: macros_parse/template.def
 include: macros_parse/debug.def
-include: macros_parse/parse_template.def
 include: macros_util/path.def
 include: macros_util/ogdl.def
 include: macros_util/debug.def
