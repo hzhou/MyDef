@@ -1,6 +1,5 @@
 #!/usr/bin/perl
 use strict;
-use warnings;
 use MyDef;
 my $def_file;
 my %config;
@@ -14,6 +13,9 @@ foreach my $a (@ARGV){
     }
     elsif($a =~/^-f(\S+)/){
         $config{find} = $1;
+    }
+    elsif($a =~/^-dump/){
+        $config{dump} = 1;
     }
     elsif($a=~/\.def$/){
         if($def_file){
@@ -68,6 +70,20 @@ else{
         }
         else{
             print "name: $name not found.\n";
+        }
+    }
+    elsif($config{dump}){
+        my $def=$MyDef::def;
+        while (my ($k, $v) = each %{$def->{pages}}){
+            print "page: $k\n";
+            if($v->{codes}){
+                while(my ($k2, $v2) = each %{$v->{codes}}){
+                    print "    $v2->{type}code: $k2\n";
+                }
+            }
+        }
+        while (my ($k, $v) = each %{$def->{codes}}){
+            print "$v->{type}code: $k\n";
         }
     }
     else{

@@ -31,6 +31,8 @@ fncode: parseblock($code)
 
         $if $cur_mode eq "PRINT"
             $call parse_line
+        $elif $cur_mode eq "template"
+            push @$out, $l
         $else
             $call compile_line
     parse_stack_pop()
@@ -67,7 +69,7 @@ subcode: compile_line
         $while 1
             #-- parse_line could return a new $l
             #-- otherwise, last in the end breaks the loop
-            $if $l=~/^(&call|\$call|\$map|\$nest|\$call-PRINT)\s+(.*)$/
+            $if $l=~/^(&call|\$call|\$map|\$nest|\$call-PRINT|\$call-template)\s+(.*)$/
                 my ($func, $param)=($1, $2);
                 $call parse_call_sub
             $elif $l=~/^\$-:\s*(.*)/

@@ -77,7 +77,7 @@ sub declare_tuple {
     my $s_hash={};
     $structs{$name}={list=>$s_list, hash=>$s_hash};
     push @struct_list, $name;
-    my @plist=split /,\s+/, $param;
+    my @plist=split /,\s*/, $param;
     my $i=0;
     foreach my $p (@plist){
         $i++;
@@ -256,6 +256,41 @@ sub get_struct_constructor {
     }
     else{
         return (undef, undef);
+    }
+}
+
+sub func_return {
+    my ($t) = @_;
+    MyDef::compileutil::trigger_block_post();
+    if(!$cur_function->{ret_type}){
+        if($t=~/,/){
+            $cur_function->{ret_type}="void";
+            my @tlist=split /,\s*/, $t;
+            my $param_list=$cur_function->{param_list};
+            my @rlist;
+            my $i=0;
+            foreach my $t (@tlist){
+                $i++;
+                my $type=infer_c_type($t);
+                push @$param_list, "$type * T$i";
+                push @rlist, "*T$i = $t";
+            }
+            $cur_function->{return_tuple}=$i;
+            push @rlist, "return";
+            return join("; ", @rlist);
+        }
+        elsif($t){
+            $cur_function->{ret_var}=$t;
+            $cur_function->{ret_type}=infer_c_type($t);
+            return "return $t";
+        }
+        else{
+            $cur_function->{ret_type}="void";
+            return "return";
+        }
+    }
+    else{
+        return "return $t";
     }
 }
 
@@ -458,7 +493,10 @@ sub allocate {
                         $i++;
                         $var->{"dim$i"}=$d;
                     }
-                    if($i==2){
+                    if($i==2 and !$var->{class}){
+                        if($debug){
+                            print "setting matrix class: $p\n";
+                        }
                         $var->{"class"}="matrix";
                     }
                 }
@@ -487,7 +525,7 @@ sub allocate {
                     }
                 }
                 else{
-                    func_add_var("i", "int");
+                    temp_add_var("i", $type_name{i});
                     push @$out, "for(i=0;i<$dim;i++){";
                     push @$out, "    $p\[i]=$init_value;";
                     push @$out, "}";
@@ -501,13 +539,11 @@ sub check_expression {
     my ($l, $context) = @_;
     if($l=~/^return\b\s*(.*)/){
         if(length($1)<=0){
-            func_return();
-            return "return";
+            return func_return();
         }
         else{
             my $t=check_expression($1, $context);
-            func_return($t);
-            return "return $t";
+            return func_return($t);
         }
     }
     elsif($l=~/^\s*(if|for|while|switch)/){
@@ -580,7 +616,11 @@ sub check_expression {
                             $arg=$1;
                         }
                         my $var=find_var($varname);
-                        if($var->{class}){
+                        if(!$var){
+                            my $curfile=MyDef::compileutil::curfile_curline();
+                            print "[$curfile]\x1b[33m Variable $varname not found\n\x1b[0m";
+                        }
+                        elsif($var->{class}){
                             my $subname=$var->{class}."_".$method;
                             my $call_line="$subname, $varname";
                             $arg=~s/^\s+//;
@@ -622,7 +662,7 @@ sub check_expression {
                         }
                     }
                     my $curfile=MyDef::compileutil::curfile_curline();
-                    print "[$curfile]\x1b[33m Method \$$method not defined [$l]\n\x1b[0m";
+                    print "[$curfile]\x1b[33m Method $method not defined [$l]\n\x1b[0m";
                     push @stack, "\$$method";
                     push @types, "atom-unknown";
                 }
@@ -906,7 +946,9 @@ sub check_expression {
                             }
                         }
                         elsif($stack[-1]=~/^\S+$/ && $stack[-1] ne "::"){
-                            $stack[-1]=" $stack[-1] ";
+                            if(@stack>1 and $stack[-2]!~/^[\(\[\{]$/){
+                                $stack[-1]=" $stack[-1] ";
+                            }
                         }
                         push @stack, $token;
                         push @types, $type;
@@ -1028,45 +1070,54 @@ sub do_assignment {
             }
         }
         elsif(@right_list==1){
-            my $type=get_var_type($right);
-            if($type=~/^struct (\w+)$/){
-                if(!$structs{$1}){
-                    my $curfile=MyDef::compileutil::curfile_curline();
-                    print "[$curfile]\x1b[33m structure $1 not defined yet\n\x1b[0m";
+            if($right=~/^(\w+)\((.*)\)/){
+                my ($f, $p)=($1, $2);
+                foreach my $t (@left_list){
+                    $p.=", \&$t";
                 }
-                else{
-                    my $s_list=$structs{$1}->{list};
-                    my $i=0;
-                    foreach my $p (@$s_list){
-                        do_assignment($left_list[$i], "$right.$p");
-                        $i++;
-                    }
-                }
-            }
-            elsif($type=~/^struct (\w+)\s*\*$/){
-                if(!$structs{$1}){
-                    my $curfile=MyDef::compileutil::curfile_curline();
-                    print "[$curfile]\x1b[33m structure $1 not defined yet\n\x1b[0m";
-                }
-                else{
-                    my $s_list=$structs{$1}->{list};
-                    my $i=0;
-                    foreach my $p (@$s_list){
-                        do_assignment($left_list[$i], "$right->$p");
-                        $i++;
-                    }
-                }
-            }
-            elsif($type=~/^(.*?)\s*\*$/){
-                for(my $i=0; $i <@right_list; $i++){
-                    do_assignment($left_list[$i], "$right\[$i\]");
-                }
+                push @$out, "$f($p);";
             }
             else{
-                my $curfile=MyDef::compileutil::curfile_curline();
-                print "[$curfile]\x1b[33m scalar assigned to tuple\n\x1b[0m";
-                for(my $i=0; $i <@right_list; $i++){
-                    do_assignment($left_list[$i], $right);
+                my $type=get_var_type($right);
+                if($type=~/^struct (\w+)$/){
+                    if(!$structs{$1}){
+                        my $curfile=MyDef::compileutil::curfile_curline();
+                        print "[$curfile]\x1b[33m structure $1 not defined yet\n\x1b[0m";
+                    }
+                    else{
+                        my $s_list=$structs{$1}->{list};
+                        my $i=0;
+                        foreach my $p (@$s_list){
+                            do_assignment($left_list[$i], "$right.$p");
+                            $i++;
+                        }
+                    }
+                }
+                elsif($type=~/^struct (\w+)\s*\*$/){
+                    if(!$structs{$1}){
+                        my $curfile=MyDef::compileutil::curfile_curline();
+                        print "[$curfile]\x1b[33m structure $1 not defined yet\n\x1b[0m";
+                    }
+                    else{
+                        my $s_list=$structs{$1}->{list};
+                        my $i=0;
+                        foreach my $p (@$s_list){
+                            do_assignment($left_list[$i], "$right->$p");
+                            $i++;
+                        }
+                    }
+                }
+                elsif($type=~/^(.*?)\s*\*$/){
+                    for(my $i=0; $i <@right_list; $i++){
+                        do_assignment($left_list[$i], "$right\[$i\]");
+                    }
+                }
+                else{
+                    my $curfile=MyDef::compileutil::curfile_curline();
+                    print "[$curfile]\x1b[33m scalar assigned to tuple\n\x1b[0m";
+                    for(my $i=0; $i <@right_list; $i++){
+                        do_assignment($left_list[$i], $right);
+                    }
                 }
             }
         }
@@ -1078,7 +1129,7 @@ sub do_assignment {
         return;
     }
     my $type;
-    if($left=~/^([^\(\[]*)\s+(\S+)$/){
+    if($left=~/^(\w.*)\s+(\S+)$/){
         $type=$1;
         $left=$2;
     }
@@ -1103,169 +1154,167 @@ sub translate_regex {
     if($re_hash{$pat}){
         return $re_hash{$pat};
     }
+    $re_index++;
+    my $name="match_re_$re_index";
+    $re_hash{$pat}="$name(input)";
+    my $r=MyDef::utils::parse_regex($re);
+    if($debug){
+        print "translate_regex: [$re]\n";
+        MyDef::utils::debug_regex($r);
+    }
+    my $opt={group_idx=>0};
+    if($option=~/i/){
+        $opt->{i}=1;
+    }
+    my @output;
+    my $t_code={'type'=>"fn", 'source'=>\@output};
+    $t_code->{params}=["input"];
+    $t_code->{name}=$name;
+    $page->{codes}->{$name}=$t_code;
+    if(!$list_function_hash{$name}){
+        $list_function_hash{$name}=1;
+        push @list_function_list, $name;
+    }
     else{
-        my $r=parse_regex($re);
-        if($debug){
-            print "translate_regex: [$re]\n";
-            debug_regex($r);
-        }
-        my $opt={group_idx=>0};
-        if($option=~/i/){
-            $opt->{i}=1;
-        }
-        $re_index++;
-        my $name="match_re_$re_index";
-        $re_hash{$pat}="$name(input)";
-        my @output;
-        my $t_code={'type'=>"fn", 'source'=>\@output};
-        $t_code->{params}=["input"];
-        $t_code->{name}=$name;
-        $page->{codes}->{$name}=$t_code;
-        if(!$list_function_hash{$name}){
-            $list_function_hash{$name}=1;
-            push @list_function_list, $name;
+        $list_function_hash{$name}++;
+    }
+    push @output, "\$: // $pat ";
+    push @$out, "// $pat";
+    push @output, "\$return_type bool";
+    if($r->{has_Any}>0){
+        if($r->{has_Any}>1){
+            die "Lex Regex: too many '.*'\n";
         }
         else{
-            $list_function_hash{$name}++;
-        }
-        push @output, "\$: // $pat ";
-        push @$out, "// $pat";
-        push @output, "\$return_type bool";
-        if($r->{has_Any}>0){
-            if($r->{has_Any}>1){
-                die "Lex Regex: too many '.*'\n";
-            }
-            else{
-                if($r->{type}=~/^(group|seq)/){
-                    my $rlist=$r->{list};
-                    my $n=$r->{n};
-                    my $i=0;
-                    while($i<$n){
-                        my $t=$rlist->[$i];
-                        if($t->{type} eq "Any" or $t->{type} eq "group" && $t->{n}==1 && $t->{list}->[0]->{type} eq "Any"){
-                            last;
-                        }
-                        $i++;
+            if($r->{type}=~/^(group|seq)/){
+                my $rlist=$r->{list};
+                my $n=$r->{n};
+                my $i=0;
+                while($i<$n){
+                    my $t=$rlist->[$i];
+                    if($t->{type} eq "Any" or $t->{type} eq "group" && $t->{n}==1 && $t->{list}->[0]->{type} eq "Any"){
+                        last;
                     }
-                    my ($pre, $any, $post);
-                    if($i==1){
-                        $pre=$rlist->[0];
-                    }
-                    elsif($i>1){
-                        my @t1=@$rlist[0..($i-1)];
-                        $pre={type=>"seq", n=>$i, list=>\@t1};
-                    }
-                    if($rlist->[$i]->{type} eq "group"){
-                        $any=$rlist->[$i]->{list}->[0];
-                        $any->{capture}=1;
-                    }
-                    else{
-                        $any=$rlist->[$i];
-                    }
-                    if($n-($i+1)==1){
-                        $post=$rlist->[$i+1];
-                    }
-                    elsif($n-($i+1)>1){
-                        my @t1=@$rlist[($i+1)..($n-1)];
-                        $post={type=>"seq", n=>($n-$i-1), list=>\@t1};
-                    }
-                    if(!$post){
-                        die "Lex Regex: trailing .* not supported\n";
-                    }
-                    my ($gid0, $sub_pre, $gid, $sub_post);
-                    if($r->{type} eq "group"){
-                        $opt->{group_idx}++;
-                        $gid0=$opt->{group_idx};
-                    }
-                    if($pre){
-                        $pre->{0}="return false";
-                        $pre->{1}="";
-                        $sub_pre=translate_regex_atom($pre, $opt, 1);
-                    }
-                    if($any->{capture}){
-                        $opt->{group_idx}++;
-                        $gid=$opt->{group_idx};
-                    }
-                    if($post){
-                        $post->{0}="";
-                        $post->{1}="return true";
-                        if($gid0>0){
-                            $post->{1}="if(level==0){input->s[$gid0]=tn_pos_0;input->e[$gid0]=input->n_pos;} return true;";
-                        }
-                        $sub_post=translate_regex_atom($post, $opt, 1);
-                    }
-                    $re_hash{$pat}="$name(input, 0)";
-                    push @{$t_code->{params}}, "int level";
-                    push @output, "tn_pos_0 = input->n_pos";
-                    if(!$pre){
-                        if($gid>0){
-                            push @output, "\$if level==0";
-                            push @output, "SOURCE_INDENT";
-                            push @output, "input->s[$gid]=input->n_pos";
-                            push @output, "SOURCE_DEDENT";
-                        }
-                        push @output, "\$while 1";
-                        push @output, "SOURCE_INDENT";
-                        if($gid>0){
-                            push @output, "\$if level==0";
-                            push @output, "SOURCE_INDENT";
-                            push @output, "input->e[$gid]=input->n_pos";
-                            push @output, "SOURCE_DEDENT";
-                        }
-                        push @output, @$sub_post;
-                        push @output, "\$call input_get_c, tn_c";
-                        push @output, "\$if tn_c==-1";
-                        push @output, "SOURCE_INDENT";
-                        push @output, "input->n_pos=tn_pos_0";
-                        push @output, "return false";
-                        push @output, "SOURCE_DEDENT";
-                        push @output, "SOURCE_DEDENT";
-                        push @output, "return false";
-                    }
-                    else{
-                        push @output, @$sub_pre;
-                        if($gid>0){
-                            push @output, "\$if level==0";
-                            push @output, "SOURCE_INDENT";
-                            push @output, "input->s[$gid]=input->n_pos";
-                            push @output, "SOURCE_DEDENT";
-                        }
-                        push @output, "\$while 1";
-                        push @output, "SOURCE_INDENT";
-                        if($gid>0){
-                            push @output, "\$if level==0";
-                            push @output, "SOURCE_INDENT";
-                            push @output, "input->e[$gid]=input->n_pos";
-                            push @output, "SOURCE_DEDENT";
-                        }
-                        push @output, @$sub_post;
-                        push @output, "\$if !$name(input, level+1)";
-                        push @output, "SOURCE_INDENT";
-                        push @output, "\$call input_get_c, tn_c";
-                        push @output, "\$if tn_c==-1";
-                        push @output, "SOURCE_INDENT";
-                        push @output, "input->n_pos=tn_pos_0";
-                        push @output, "return false";
-                        push @output, "SOURCE_DEDENT";
-                        push @output, "SOURCE_DEDENT";
-                        push @output, "SOURCE_DEDENT";
-                        push @output, "return false";
-                    }
+                    $i++;
+                }
+                my ($pre, $any, $post);
+                if($i==1){
+                    $pre=$rlist->[0];
+                }
+                elsif($i>1){
+                    my @t1=@$rlist[0..($i-1)];
+                    $pre={type=>"seq", n=>$i, list=>\@t1};
+                }
+                if($rlist->[$i]->{type} eq "group"){
+                    $any=$rlist->[$i]->{list}->[0];
+                    $any->{capture}=1;
                 }
                 else{
-                    die "Lex Regex .* not supported\n";
+                    $any=$rlist->[$i];
+                }
+                if($n-($i+1)==1){
+                    $post=$rlist->[$i+1];
+                }
+                elsif($n-($i+1)>1){
+                    my @t1=@$rlist[($i+1)..($n-1)];
+                    $post={type=>"seq", n=>($n-$i-1), list=>\@t1};
+                }
+                if(!$post){
+                    die "Lex Regex: trailing .* not supported\n";
+                }
+                my ($gid0, $sub_pre, $gid, $sub_post);
+                if($r->{type} eq "group"){
+                    $opt->{group_idx}++;
+                    $gid0=$opt->{group_idx};
+                }
+                if($pre){
+                    $pre->{0}="return false";
+                    $pre->{1}="";
+                    $sub_pre=translate_regex_atom($pre, $opt, 1);
+                }
+                if($any->{capture}){
+                    $opt->{group_idx}++;
+                    $gid=$opt->{group_idx};
+                }
+                if($post){
+                    $post->{0}="";
+                    $post->{1}="return true";
+                    if($gid0>0){
+                        $post->{1}="if(level==0){input->s[$gid0]=tn_pos_0;input->e[$gid0]=input->n_pos;} return true;";
+                    }
+                    $sub_post=translate_regex_atom($post, $opt, 1);
+                }
+                $re_hash{$pat}="$name(input, 0)";
+                push @{$t_code->{params}}, "int level";
+                push @output, "tn_pos_0 = input->n_pos";
+                if(!$pre){
+                    if($gid>0){
+                        push @output, "\$if level==0";
+                        push @output, "SOURCE_INDENT";
+                        push @output, "input->s[$gid]=input->n_pos";
+                        push @output, "SOURCE_DEDENT";
+                    }
+                    push @output, "\$while 1";
+                    push @output, "SOURCE_INDENT";
+                    if($gid>0){
+                        push @output, "\$if level==0";
+                        push @output, "SOURCE_INDENT";
+                        push @output, "input->e[$gid]=input->n_pos";
+                        push @output, "SOURCE_DEDENT";
+                    }
+                    push @output, @$sub_post;
+                    push @output, "\$call input_get_c, tn_c";
+                    push @output, "\$if tn_c==-1";
+                    push @output, "SOURCE_INDENT";
+                    push @output, "input->n_pos=tn_pos_0";
+                    push @output, "return false";
+                    push @output, "SOURCE_DEDENT";
+                    push @output, "SOURCE_DEDENT";
+                    push @output, "return false";
+                }
+                else{
+                    push @output, @$sub_pre;
+                    if($gid>0){
+                        push @output, "\$if level==0";
+                        push @output, "SOURCE_INDENT";
+                        push @output, "input->s[$gid]=input->n_pos";
+                        push @output, "SOURCE_DEDENT";
+                    }
+                    push @output, "\$while 1";
+                    push @output, "SOURCE_INDENT";
+                    if($gid>0){
+                        push @output, "\$if level==0";
+                        push @output, "SOURCE_INDENT";
+                        push @output, "input->e[$gid]=input->n_pos";
+                        push @output, "SOURCE_DEDENT";
+                    }
+                    push @output, @$sub_post;
+                    push @output, "\$if !$name(input, level+1)";
+                    push @output, "SOURCE_INDENT";
+                    push @output, "\$call input_get_c, tn_c";
+                    push @output, "\$if tn_c==-1";
+                    push @output, "SOURCE_INDENT";
+                    push @output, "input->n_pos=tn_pos_0";
+                    push @output, "return false";
+                    push @output, "SOURCE_DEDENT";
+                    push @output, "SOURCE_DEDENT";
+                    push @output, "SOURCE_DEDENT";
+                    push @output, "return false";
                 }
             }
+            else{
+                die "Lex Regex .* not supported\n";
+            }
         }
-        else{
-            $r->{0}="return false;";
-            $r->{1}="input->e[0]=input->n_pos;return true;";
-            my $subout=translate_regex_atom($r, $opt, 1);
-            push @output, "input->s[0]=input->n_pos";
-            push @output, @$subout;
-        }
-        return $re_hash{$pat};
     }
+    else{
+        $r->{0}="return false;";
+        $r->{1}="input->e[0]=input->n_pos;return true;";
+        my $subout=translate_regex_atom($r, $opt, 1);
+        push @output, "input->s[0]=input->n_pos";
+        push @output, @$subout;
+    }
+    return $re_hash{$pat};
 }
 
 sub translate_regex_atom {
@@ -1488,6 +1537,24 @@ sub translate_class {
         if($c=~/(\w+)-(\w+)/){
             push @tlist, "tn_c>='$1' && tn_c<='$2'";
         }
+        elsif($c eq "\\s"){
+            push @tlist, "isspace(tn_c)";
+        }
+        elsif($c eq "\\S"){
+            push @tlist, "!isspace(tn_c)";
+        }
+        elsif($c eq "\\d"){
+            push @tlist, "isdigit(tn_c)";
+        }
+        elsif($c eq "\\D"){
+            push @tlist, "!isdigit(tn_c)";
+        }
+        elsif($c eq "\\w"){
+            push @tlist, "(isalnum(tn_c) || tn_c=='_')";
+        }
+        elsif($c eq "\\W"){
+            push @tlist, "!isalnum(tn_c) && tn_c!='_'";
+        }
         else{
             push @tlist, "tn_c=='$c'";
         }
@@ -1698,296 +1765,6 @@ sub sumcode_generate {
     return \@code;
 }
 
-sub parse_regex {
-    my ($re) = @_;
-    my @paren_stack;
-    my $atoms=[];
-    my $alts=[];
-    my $has_Any=0;
-    my $escape;
-    my $_recurse="[1]";
-    my $i=0;
-    while($i<length($re)){
-        my $c=substr($re, $i, 1);
-        $i++;
-        if(!$escape && $c eq "\\"){
-            $escape=1;
-            next;
-        }
-        elsif($escape){
-            my $atom;
-            if($c=~/[0aefnrt]/){
-                if($c eq "a"){
-                    $c= "\$(c)";
-                }
-                elsif($c eq "e"){
-                    $c= "\$(c)";
-                }
-                elsif($c eq "f"){
-                    $c= "\$(c)";
-                }
-                elsif($c eq "n"){
-                    $c= "\$(c)";
-                }
-                elsif($c eq "r"){
-                    $c= "\$(c)";
-                }
-                elsif($c eq "t"){
-                    $c= "\$(c)";
-                }
-                elsif($c eq "0"){
-                    $c= "\$(c)";
-                }
-                $atom={type=>"char", char=>$c};
-            }
-            elsif($c=~/[sSdDwW]/){
-                $atom={type=>"class", char=>$c};
-            }
-            else{
-                $atom={type=>"char", char=>$c};
-            }
-            push @$atoms, $atom;
-            $escape=0;
-        }
-        elsif($c eq '('){
-            push @paren_stack, {atoms=>$atoms, alts=>$alts, type=>"group"};
-            $atoms=[];
-            $alts=[];
-            if(substr($re, $i, 2) eq "?:"){
-                $paren_stack[-1]->{type}="seq";
-                $i+=2;
-            }
-            elsif(substr($re, $i, 2) eq "?="){
-                $paren_stack[-1]->{type}="?=";
-                $i+=2;
-            }
-            elsif(substr($re, $i, 2) eq "?!"){
-                $paren_stack[-1]->{type}="?!";
-                $i+=2;
-            }
-        }
-        elsif($c eq ')'){
-            {
-                my $type="seq";
-                $type=$paren_stack[-1]->{type};
-                my $n=@$atoms;
-                if($n==0){
-                    warn "regex_parse: empty group\n";
-                    push @$alts, undef;
-                }
-                elsif($type ne "seq"){
-                    push @$alts, {type=>$type, n=>$n, list=>$atoms};
-                    $atoms=[];
-                }
-                else{
-                    my $atom;
-                    if($n==1){
-                        $atom=pop @$atoms;
-                    }
-                    else{
-                        $atom={type=>"seq", n=>$n, list=>$atoms};
-                        $atoms=[];
-                    }
-                    push @$alts, $atom;
-                }
-            }
-            my $atom;
-            my $n=@$alts;
-            if($n==1){
-                $atom=pop @$alts;
-            }
-            elsif($n>1){
-                $atom={type=>"alt", n=>$n, list=>$alts};
-                $alts=[];
-            }
-            my $p=pop @paren_stack;
-            if(!$p){
-                die "REGEX $re: Unmatched parenthesis\n";
-            }
-            $atoms=$p->{atoms};
-            $alts=$p->{alts};
-            push @$atoms, $atom;
-        }
-        elsif($c eq '|'){
-            {
-                my $type="seq";
-                my $n=@$atoms;
-                if($n==0){
-                    warn "regex_parse: empty alt\n";
-                    push @$alts, undef;
-                }
-                elsif($type ne "seq"){
-                    push @$alts, {type=>$type, n=>$n, list=>$atoms};
-                    $atoms=[];
-                }
-                else{
-                    my $atom;
-                    if($n==1){
-                        $atom=pop @$atoms;
-                    }
-                    else{
-                        $atom={type=>"seq", n=>$n, list=>$atoms};
-                        $atoms=[];
-                    }
-                    push @$alts, $atom;
-                }
-            }
-        }
-        elsif($c eq '*' or $c eq '+' or $c eq '?'){
-            if(!@$atoms){
-                die "REGEX $re: Empty '$c'\n";
-            }
-            if(substr($re, $i, 1) eq "?"){
-                my $curfile=MyDef::compileutil::curfile_curline();
-                print "[$curfile]\x1b[33m Non-Greedy quantifier not supported!\n\x1b[0m";
-                $c.='?';
-                $i++;
-            }
-            my $t=pop @$atoms;
-            push @$atoms, {type=>$c, atom=>$t};
-        }
-        elsif($c eq '['){
-            my @class=();
-            my $escape;
-            my $_recurse="[2]";
-            while($i<length($re)){
-                my $c=substr($re, $i, 1);
-                $i++;
-                if(!$escape && $c eq "\\"){
-                    $escape=1;
-                    next;
-                }
-                elsif($escape){
-                    if($c=~/[0aefnrt]/){
-                        if($c eq "a"){
-                            $c= "\$(c)";
-                        }
-                        elsif($c eq "e"){
-                            $c= "\$(c)";
-                        }
-                        elsif($c eq "f"){
-                            $c= "\$(c)";
-                        }
-                        elsif($c eq "n"){
-                            $c= "\$(c)";
-                        }
-                        elsif($c eq "r"){
-                            $c= "\$(c)";
-                        }
-                        elsif($c eq "t"){
-                            $c= "\$(c)";
-                        }
-                        elsif($c eq "0"){
-                            $c= "\$(c)";
-                        }
-                    }
-                    push @class, $c;
-                    $escape=0;
-                }
-                elsif($c eq ']'){
-                    last;
-                }
-                else{
-                    if(@class>=2 and $class[-1] eq "-"){
-                        pop @class;
-                        $class[-1].="-$c";
-                    }
-                    else{
-                        push @class, $c;
-                    }
-                }
-            }
-            my $atom={type=>"class", list=>\@class};
-            push @$atoms, $atom;
-        }
-        elsif($c eq '.'){
-            my $atom={type=>"AnyChar"};
-            if(substr($re, $i, 1) eq "*"){
-                $atom->{type}="Any";
-                $has_Any++;
-                $i++;
-            }
-            push @$atoms, $atom;
-        }
-        else{
-            my $atom={type=>"char", char=>$c};
-            push @$atoms, $atom;
-        }
-    }
-    if(@paren_stack){
-        die "REGEX $re: Unmatched parenthesis\n";
-    }
-    {
-        my $type="seq";
-        my $n=@$atoms;
-        if($n==0){
-            warn "regex_parse: empty final\n";
-            push @$alts, undef;
-        }
-        elsif($type ne "seq"){
-            push @$alts, {type=>$type, n=>$n, list=>$atoms};
-            $atoms=[];
-        }
-        else{
-            my $atom;
-            if($n==1){
-                $atom=pop @$atoms;
-            }
-            else{
-                $atom={type=>"seq", n=>$n, list=>$atoms};
-                $atoms=[];
-            }
-            push @$alts, $atom;
-        }
-    }
-    my $atom;
-    my $n=@$alts;
-    if($n==1){
-        $atom=pop @$alts;
-    }
-    elsif($n>1){
-        $atom={type=>"alt", n=>$n, list=>$alts};
-        $alts=[];
-    }
-    if($has_Any){
-        $atom->{has_Any}=$has_Any;
-    }
-    return $atom;
-}
-
-sub debug_regex {
-    my ($r, $level) = @_;
-    if(!$level){
-        $level=0;
-    }
-    print '  ' x $level;
-    if($r->{type} eq "class"){
-        if($r->{list}){
-            print "[ ", join(" ", @{$r->{list}}), " ]\n";
-        }
-        else{
-            print "\\ $r->{char}\n";
-        }
-    }
-    elsif($r->{type} eq "char"){
-        print "$r->{char}\n";
-    }
-    elsif($r->{type} eq "AnyChar"){
-        print ".\n";
-    }
-    else{
-        print "$r->{type}\n";
-        if($r->{list}){
-            foreach my $t (@{$r->{list}}){
-                debug_regex($t, $level+1);
-            }
-        }
-        elsif($r->{atom}){
-            debug_regex($r->{atom}, $level+1);
-        }
-    }
-}
-
 $global_scope={var_list=>[], var_hash=>{}, name=>"global"};
 $cur_scope={var_list=>[], var_hash=>{}, name=>"default"};
 push @scope_stack, $global_scope;
@@ -2193,7 +1970,16 @@ sub init_page {
         $type_name{f}="double";
         $type_prefix{f}="double";
     }
-    elsif($page->{"use_libmydef"}){
+    if($MyDef::def->{"macros"}->{"use_int64"} or $page->{"use_int64"}){
+        $type_name{i}="int64_t";
+        $type_name{j}="int64_t";
+        $type_name{k}="int64_t";
+        $type_name{l}="int64_t";
+        $type_prefix{i}="int64_t";
+        $type_prefix{n}="int64_t";
+        $type_prefix{u}="uint64_t";
+    }
+    if($page->{"use_libmydef"}){
         my $lines=MyDef::parseutil::get_lines("c/libmydef.inc");
         my $struct_lines;
         foreach my $l (@$lines){
@@ -2220,7 +2006,7 @@ sub init_page {
             }
         }
     }
-    elsif($page->{autodecl}){
+    if($page->{autodecl}){
         my @tlist=split /,\s*/, $page->{autodecl};
         foreach my $f (@tlist){
             my $lines=MyDef::parseutil::get_lines("$f");
@@ -2323,12 +2109,19 @@ sub parsecode {
         print "[$curfile]\x1b[33m $1\n\x1b[0m";
         return;
     }
-    elsif($l=~/^\$template\s*(.*)/){
-        open In, $1 or die "Can't open template $1\n";
+    elsif($l=~/^\$template\s+(.*)/){
+        my $file = $1;
+        if($file !~ /^\.*\//){
+            my $dir = MyDef::compileutil::get_macro_word("TemplateDir", 1);
+            if($dir){
+                $file = "$dir/$file";
+            }
+        }
+        open In, $file or die "Can't open template $file\n";
         my @all=<In>;
         close In;
         foreach my $a (@all){
-            if($a=~/(\s*)\/\*\s*\$call\s*(.*)\s*\*\//){
+            if($a=~/(.*)\$call\s*(.*)\s*$/){
                 my ($spaces, $call_line)=($1, $2);
                 my $len=length($spaces);
                 my $n=int($len/4);
@@ -2379,7 +2172,7 @@ sub parsecode {
         my $level=@case_stack;
         print "        $level:[$case_state]$l\n";
     }
-    if($l=~/^\$(if|elif|elsif|elseif|case)\s+(.*)$/){
+    if($l=~/^\x24(if|elif|elsif|elseif|case)\s+(.*)$/){
         my $cond=$2;
         my $case=$case_if;
         if($1 eq "if"){
@@ -2743,7 +2536,7 @@ sub parsecode {
             return;
         }
         elsif($func eq "local_allocate"){
-            local_allocate($param1, $param2, "auto");
+            allocate($param1, $param2, "auto");
             return;
         }
     }
@@ -2784,7 +2577,7 @@ sub parsecode {
                     return single_block("do{", "}while($param);");
                 }
                 else{
-                    return single_block("do{", "}while(0);");
+                    return single_block("while(1){", "break;}");
                 }
             }
             elsif($func eq "pack"){
@@ -3069,6 +2862,9 @@ sub parsecode {
                         my $scope=$func;
                         my ($class, $param)=($1, $2);
                         my $initname=$class."_init";
+                        if($debug eq "type"){
+                            print "\x1b[31m$class\x1b[0m - $param\n";
+                        }
                         if($param=~/^(\w+)\s*$/){
                             if($MyDef::def->{codes}->{"$initname"} or $MyDef::page->{codes}->{"$initname"}){
                                 MyDef::compileutil::call_sub("$initname, $1, $scope, default");
@@ -3101,6 +2897,9 @@ sub parsecode {
                         my $scope=$func;
                         my ($class, $param)=($1, $2);
                         my $initname=$class."_init";
+                        if($debug eq "type"){
+                            print "\x1b[31m$class\x1b[0m - $param\n";
+                        }
                         if($param=~/^(\w+)\s*$/){
                             if($MyDef::def->{codes}->{"$initname"} or $MyDef::page->{codes}->{"$initname"}){
                                 MyDef::compileutil::call_sub("$initname, $1, $scope, default");
@@ -3159,7 +2958,12 @@ sub parsecode {
                 my $var=find_var($name);
                 if($var){
                     foreach my $a (@plist){
-                        MyDef::compileutil::set_current_macro($a, $var->{$a});
+                        if($a=~/^(\w+)\((\w+)\)/){
+                            MyDef::compileutil::set_current_macro($2, $var->{$1});
+                        }
+                        else{
+                            MyDef::compileutil::set_current_macro($a, $var->{$a});
+                        }
                     }
                 }
                 return;
@@ -3324,10 +3128,10 @@ sub parsecode {
                         $step= "+=$step";
                     }
                     if(!$var){
-                        $var=temp_add_var("i", "int");
+                        $var=temp_add_var("i", $type_name{i});
                     }
                     else{
-                        $var=my_add_var($var, "int");
+                        $var=my_add_var($var, $type_name{i});
                     }
                     protect_var($var);
                     $param="$var=$i0; $var$i1; $var$step";
@@ -3347,7 +3151,7 @@ sub parsecode {
                     }
                     if(defined $dim){
                         my $type=pointer_type($var->{type});
-                        my $i=temp_add_var("i", "int");
+                        my $i=temp_add_var("i", $type_name{i});
                         protect_var($i);
                         MyDef::compileutil::set_current_macro("t", "$v\[$i\]");
                         my $end="PARSE:\$unprotect_var $i";
@@ -3363,7 +3167,7 @@ sub parsecode {
                     }
                     if(defined $dim){
                         my $type=pointer_type($var->{type});
-                        my $i=temp_add_var("i", "int");
+                        my $i=temp_add_var("i", $type_name{i});
                         protect_var($i);
                         MyDef::compileutil::set_current_macro("t", "$v\[$i\]");
                         my $end="PARSE:\$unprotect_var $i";
@@ -3452,7 +3256,7 @@ sub dumpout {
     my ($f, $out, $pagetype)=@_;
     my $dump={out=>$out,f=>$f, module=>"output_c"};
     my $mainfunc=$functions{"main"};
-    if($mainfunc){
+    if($mainfunc and !$mainfunc->{processed}){
         $has_main=1;
         $mainfunc->{skip_declare}=1;
         $mainfunc->{ret_type}="int";
@@ -3514,40 +3318,13 @@ sub dumpout {
             push @objlist, "$i";
         }
     }
-    my $lib_list=join(" ", @liblist);
-    my $obj_list=join(" ", @objlist);
-    if($mainfunc){
-        my $ofile=$page->{outdir}."/Makefile";
-        if(!-f $ofile or $page->{makefile}){
-            print "  ---> $ofile\n";
-            my $pagename=$page->{pagename};
-            open Subfile, ">$ofile" or die "Can't write $ofile\n";
-            if($page->{CC}){
-                print Subfile "CC=$page->{CC}\n";
-            }
-            else{
-                print Subfile "CC=gcc\n";
-            }
-            if($page->{CFLAGS}){
-                print Subfile "CFLAGS=$page->{CFLAGS}\n";
-            }
-            if($page->{INC}){
-                print Subfile "INC=$page->{INC}\n";
-            }
-            if($page->{LIB}){
-                print Subfile "LIB=$page->{LIB}\n";
-            }
-            if($page->{makefile} eq "debug"){
-                print Subfile "CFLAGS+= -g";
-            }
-            print Subfile "\n";
-            print Subfile "$pagename: $pagename.o $obj_list\n";
-            print Subfile "\t\$\(CC) \$\(LIB) $lib_list -o $pagename \$^\n";
-            print Subfile "\n";
-            print Subfile "%.o: %.c\n";
-            print Subfile "\t\$\(CC) -c \$\(CFLAGS) \$\(INC) -o \$@ \$<\n";
-            close Subfile;
-        }
+    my ($lib_list, $obj_list);
+    if(@liblist){
+        $lib_list=join(" ", @liblist);
+        $page->{lib_list}=$lib_list;
+    }
+    if(@objlist){
+        $obj_list=join(" ", @objlist);
     }
     if(!$page->{has_stub_global_init}){
         unshift @$out, "DUMP_STUB global_init";
@@ -3583,6 +3360,9 @@ sub dumpout {
             my $t=$enums{$name};
             if($name=~/^ANONYMOUS/){
                 push @$dump_out, "enum {$t};\n";
+            }
+            elsif($name=~/^typedef,\s*(\w+)/){
+                push @$dump_out, "typedef enum {$t} $1;\n";
             }
             elsif($name=~/^,\s*(\w+)/){
                 push @$dump_out, "enum {$t} $1;\n";
@@ -3744,23 +3524,7 @@ sub single_block_pre_post {
 }
 sub parse_condition {
     my ($param)=@_;
-    if($param=~/(\$map\b.*)/){
-        my $pre=$`;
-        $param=$1;
-        if($param=~/\$map\s+(.*),\s+(.*)/){
-            my $template=$1;
-            my @or_list=split /\|/, $2;
-            my @segs;
-            foreach my $a (@or_list){
-                my $t=$template;
-                $t=~s/\$1/$a/g;
-                push @segs, $t;
-            }
-            my $sep=" || ";
-            return $pre . join($sep, @segs);
-        }
-    }
-    elsif($param=~/^\$(\w+)\s+(.*)/){
+    if($param=~/^\$(\w+)\s+(.*)/){
         my ($func, $param)=($1, $2);
         if($plugin_condition{$func}){
             my $condition;
@@ -3908,19 +3672,6 @@ sub open_function {
         $functions{$name}=$func;
     }
     return $func;
-}
-sub func_return {
-    my ($t)=@_;
-    MyDef::compileutil::trigger_block_post();
-    if(!$cur_function->{ret_type}){
-        if($t){
-            $cur_function->{ret_var}=$t;
-            $cur_function->{ret_type}=infer_c_type($t);
-        }
-        else{
-            $cur_function->{ret_type}="void";
-        }
-    }
 }
 sub global_add_symbol {
     my ($name, $type, $value)=@_;
@@ -4175,6 +3926,15 @@ sub infer_c_type {
         my $type=get_var_type($val);
         return $type;
     }
+    elsif($val=~/^\((.+)\)$/){
+        my @vlist=split /,\s*/, $1;
+        my @plist;
+        foreach my $v (@vlist){
+            push @plist, infer_c_type($v);
+        }
+        my $tuple_name=declare_tuple(join(", ", @plist));
+        return "struct $tuple_name";
+    }
 }
 sub type_default {
     my ($type)=@_;
@@ -4254,8 +4014,10 @@ sub get_c_type {
     elsif($type eq "bool"){
         $page->{use_bool}=1;
     }
-    if($type_include{$type}){
-        add_include($type_include{$type});
+    if($type=~/^(\w+)/){
+        if($type_include{$1}){
+            add_include($type_include{$1});
+        }
     }
     while($name=~/\[.*?\]/g){
         $type=pointer_type($type);
@@ -4310,7 +4072,7 @@ sub get_var_fmt {
     elsif($type=~/^(float|double)/){
         return "\%g";
     }
-    elsif($type=~/(int|long|bool)\s*$/){
+    elsif($type=~/(int|long|bool|u?int\d+_t)\s*$/){
         return "\%d";
     }
     elsif($type=~/^unsigned char/){
@@ -4375,6 +4137,9 @@ sub fmt_string {
             }
             elsif($str=~/\Greset/gc){
                 push @fmt_list, "\\x1b[0m";
+            }
+            elsif($str=~/\Gclear/gc){
+                push @fmt_list, "\\x1b[H\\x1b[J";
             }
             elsif($str=~/\G(\w+)/gc){
                 my $v=$1;

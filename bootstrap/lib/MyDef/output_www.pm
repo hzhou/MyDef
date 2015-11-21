@@ -146,8 +146,15 @@ sub parsecode {
         print "[$curfile]\x1b[33m $1\n\x1b[0m";
         return;
     }
-    elsif($l=~/^\$template\s*(.*)/){
-        open In, $1 or die "Can't open template $1\n";
+    elsif($l=~/^\$template\s+(.*)/){
+        my $file = $1;
+        if($file !~ /^\.*\//){
+            my $dir = MyDef::compileutil::get_macro_word("TemplateDir", 1);
+            if($dir){
+                $file = "$dir/$file";
+            }
+        }
+        open In, $file or die "Can't open template $file\n";
         my @all=<In>;
         close In;
         foreach my $a (@all){
@@ -208,10 +215,6 @@ sub parsecode {
         elsif($t=~/(\S*\.css)/){
             push @$style_sheets, $1;
         }
-        return;
-    }
-    elsif($l=~/^\s*\$(title|charset)\s+(.*)/){
-        $page->{$1}=$2;
         return;
     }
     elsif($l=~/^\s*PRINT\s+(.*)/){
@@ -289,6 +292,10 @@ sub parsecode {
                 MyDef::compileutil::modepop();
                 return;
             }
+            elsif($func=~/^(title|charset)/){
+                $page->{$1}=$2;
+                return;
+            }
             elsif($cur_mode eq "js"){
                 my $param1="";
                 my $param2=$param;
@@ -306,7 +313,7 @@ sub parsecode {
                 elsif($func =~ /^(function)$/){
                     return single_block("$1 $param\{", "}");
                 }
-                elsif($func =~ /^(if|while|switch)$/){
+                elsif($func =~ /^(if|while|switch|with)$/){
                     return single_block("$1($param){", "}");
                 }
                 elsif($func =~ /^(el|els|else)if$/){
@@ -359,14 +366,14 @@ sub parsecode {
             }
             elsif($cur_mode eq "php"){
                 if($func =~/^if(\w*)/){
-                    if($1){
+                    if($1 and $param!~/^!/){
                         $param=test_var($param, $1 eq 'z');
                     }
                     return single_block("if($param){", "}");
                 }
                 elsif($func =~ /^(el|els|else)if(\w*)$/){
-                    if($1){
-                        $param=test_var($param, $1 eq 'z');
+                    if($2 and $param!~/^!/){
+                        $param=test_var($param, $2 eq 'z');
                     }
                     return single_block("elseif($param){", "}");
                 }
@@ -687,14 +694,20 @@ sub custom_dump {
             elsif($t=~/^(\s*)(page|\w+code)(:.?\s*)(\w+)(.*)/){
                 $t="$1<span class=\"mydef-label\">$2</span>$3<span class=\"mydef-label\">$4</span>$5";
             }
+            elsif($t=~/^(\s*)(macros):/){
+                $t="$1<span class=\"mydef-label\">$2</span>:";
+            }
             elsif($t=~/^(\s*)(\$call|\$map|\&call)\s*(\S+)(.*)/){
                 $t="$1<span class=\"mydef-keyword\">$2</span> <strong>$3</strong>$4";
             }
             elsif($t=~/^(\s*)(CSS|include):\s*(.*)/){
                 $t="$1<span class=\"mydef-preproc\">$2</span>: <span class=\"mydef-preproc\">$3</span>";
             }
-            elsif($t=~/^(\s*)\$(if|while|switch|for|elif|elsif|else|function)\b(.*)/){
+            elsif($t=~/^(\s*)\\b(.*)/){
                 $t="$1<span class=\"mydef-keyword\">\$$2</span>$3";
+            }
+            elsif($t=~/^(\s*)(return|throw|break|continue)(.*)/){
+                $t="$1<span class=\"mydef-label\">$2</span>$3";
             }
             $$rl="PRINT $t";
         }
