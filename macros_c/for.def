@@ -21,13 +21,16 @@ subcode: for_i0_i1_step
     $else
         $step= "+=$step"
 
-    $if !$var
-        $var=temp_add_var("i", $type_name{i})
+    $if $page->{pageext} eq "cpp"
+        $param="int $var=$i0; $var$i1; $var$step"
     $else
-        $var=my_add_var($var, $type_name{i})
-    protect_var($var)
+        $if !$var
+            $var=temp_add_var("i", $type_name{i})
+        $else
+            $var=my_add_var($var, $type_name{i})
+        protect_var($var)
 
-    $param="$var=$i0; $var$i1; $var$step"
+        $param="$var=$i0; $var$i1; $var$step"
 
 subcode: for_c_style_protect
     $(if:type=asis)
