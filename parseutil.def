@@ -92,6 +92,7 @@ fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
             $call macros_start
             $call start_code_indent, macro, $curindent+1, $macros
         $elif $line=~/^template:/ && $(top_scope)
+            $call check_end_automain
             $call grab_template
         $elif $(in_code)
             push @$source, $line
