@@ -61,6 +61,10 @@ subcode: call_sub_frame(type)
                     $f_parse->("\$eval $codename, $param")
             $(else)
                 $f_parse->("\$eval $codename, $param")
+        $elif $codelib->{type} eq "template"
+            modepush("template")
+            parseblock($codelib)
+            modepop()
         $else
             $call split_param
             &call call_sub_block

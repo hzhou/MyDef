@@ -79,6 +79,6 @@ fncode: parse_template($def, $codes, $template_file)
         $t_idx++
         $cur_source=[]
         $codes->{"_T_$t_idx"} = {type=>'template', source=>$cur_source, 'params'=>[]}
-        push @new_source, "    \$call-template _T_$t_idx"
+        push @new_source, "    \$call _T_$t_idx"
         
             

@@ -16,7 +16,6 @@ page: parseutil
     subcode: main
         $global $debug=0
         # $call support_subs
-        $call support_ogdl
         1;
 
 #---------------------------------------- 
@@ -92,6 +91,8 @@ fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
         $elif $line=~/^macros:/ && $(top_scope)
             $call macros_start
             $call start_code_indent, macro, $curindent+1, $macros
+        $elif $line=~/^template:/ && $(top_scope)
+            $call grab_template
         $elif $(in_code)
             push @$source, $line
         $elif $(in_macro)
@@ -107,9 +108,9 @@ fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
                 # $print jump_to_main_code [$line]
                 $call jump_to_main_code
 
-fncode: import_lines()
 #---------------------------------------- 
 subcode: parse_loop
+    # sub-used in parsing multi-line comments and grabing templates/resources
     $(allow_recurse:2)
     $while $cur_line < @$plines
         my $line = $plines->[$cur_line]
@@ -191,8 +192,27 @@ subcode: grab_resource
         $else
             grab_ogdl($grab, \@grab)
             #print_ogdl($grab, 0)
+            last
     $cur_line--
 
+subcode: grab_template
+    $if !$codeitem->{codes}
+        $codeitem->{codes}={}
+    my $codes = $codeitem->{codes}
+
+    $if $line =~ /^template:\s*(\w+)/
+        my @grab
+        my $t_code = {type=>"template",source=>\@grab}
+        $codes->{$1}=$t_code
+
+        my $grab_indent=$curindent
+        &call parse_loop
+            $call get_indentation
+            $if $curindent>$grab_indent
+                push @grab, '    'x($curindent-$grab_indent-1) . $line
+            $else
+                last
+    $cur_line--
 
 # --------------------------------------------------------
 subcode:: import_file_init
