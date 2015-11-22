@@ -32,7 +32,19 @@ fncode: parseblock($code)
         $if $cur_mode eq "PRINT"
             $call parse_line
         $elif $cur_mode eq "template"
-            push @$out, $l
+            $if $l=~/^(\s*)\$call\s+(.+)/
+                my ($func, $param)=("\$call", $2);
+                my $len = MyDef::parseutil::get_indent_spaces($1)
+                my $n = int($len/4)
+                $if $len%4
+                    $n++
+                $for $i=0:$n
+                    push @$out, "INDENT"
+                $call parse_call_sub
+                $for $i=0:$n
+                    push @$out, "DEDENT"
+            $else
+                push @$out, $l
         $else
             $call compile_line
     parse_stack_pop()
