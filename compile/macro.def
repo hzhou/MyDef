@@ -251,7 +251,7 @@ fncode: get_macro($s, $nowarn)
             $if $p=~/(\d+)-(\d+)/
                 #-- substr, e.g. $(macro:0-3) ----
                 my $s=substr($t, $1, $2-$1+1);
-                $print $t:$1-$2 -> [$s]
+                # $print $t:$1-$2 -> [$s]
                 return $s
             $elif $p=~/(\d+):(\d+|word|number|strip)/
                 #-- substr with regex predicate ----
