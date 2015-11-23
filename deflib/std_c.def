@@ -3,10 +3,10 @@ subcode: basic_frame
     $include stdio
     $include stdlib
     $call @global
-    $(if:hascode:n_main)
-        $list n_main
-    $(if:hascode:main2)
-        $list main2
+    $list n_main
+
+fncode: n_main
+    $call main2
 
 #---------------------------------------- 
 macros:

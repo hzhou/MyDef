@@ -1,0 +1,84 @@
+subcode: _autoload
+    $global $template_index = 0
+
+fncode: parse_template($def, $codes, $template_file)
+    $call check_path
+    my @new_source
+    my $sub_name = "TMP_$template_index"
+    $template_index++
+    $codes->{main}={type=>'sub', source=>["\$call $sub_name"], 'params'=>[]}
+    push @new_source, "subcode: $sub_name"
+
+    my $t_idx = 0
+    my $cur_source
+    $call start_template
+
+    my $cur_grab_spaces
+    my $start_grab
+    my $cur_grab
+    &call open_r, $template_file
+        $if $start_grab
+            $if /^\s*$/
+                push @$cur_grab, $_
+            $elif /^(\s*)(.*)/
+                my $n= get_indent_spaces($1)
+                $if $n <= $cur_grab_spaces
+                    $if $start_grab eq "mydef"
+                        $call insert_grab
+                        $call start_template
+                        push @$cur_source, $_
+                    undef $start_grab
+                    next
+                $else
+                    my $new_spaces = $n-$cur_grab_spaces
+                    $if $start_grab eq "mydef"
+                        $if $new_spaces<4
+                            push @$cur_grab, "    $2\n"
+                        $else
+                            push @$cur_grab, ' 'x$new_spaces . "$2\n"
+                    $elif $start_grab eq "template"
+                        $if $new_spaces<4
+                            push @$cur_grab, "$2\n"
+                        $else
+                            $new_spaces-=4
+                            push @$cur_grab, ' 'x$new_spaces . "$2\n"
+
+
+        $elif /^(\s*)(mydef):/
+            $cur_grab_spaces=get_indent_spaces($1)
+            $start_grab = $2
+            $cur_grab=[]
+        $elif /^(\s*)template:\s*(\w+)/
+            $cur_grab_spaces=get_indent_spaces($1)
+            $start_grab = "template"
+            $cur_grab=[]
+            $codes->{$2}={type=>"template", source=>$cur_grab, 'params'=>[]}
+        $else
+            push @$cur_source, $_
+
+    return \@new_source
+
+    #---------------------------------------- 
+    subcode: check_path
+        $if $def->{macros}->{TemplateDir}
+            $if $template_file!~/^\.*\//
+                $template_file = $def->{macros}->{TemplateDir}.'/'.$template_file
+
+    subcode: insert_grab
+        my $len = $cur_grab_spaces
+        my $n=int($len/4)
+        $if $len % 4
+            $n++
+        $for $i=0:$n
+            push @new_source, "    INDENT"
+        push @new_source, @$cur_grab
+        $for $i=0:$n
+            push @new_source, "    DEDENT"
+
+    subcode: start_template
+        $t_idx++
+        $cur_source=[]
+        $codes->{"_T_$t_idx"} = {type=>'template', source=>$cur_source, 'params'=>[]}
+        push @new_source, "    \$call _T_$t_idx"
+        
+            

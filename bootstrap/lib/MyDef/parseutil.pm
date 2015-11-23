@@ -1,5 +1,4 @@
 use strict;
-use warnings;
 package MyDef::parseutil;
 our $debug=0;
 our $defname="default";
@@ -48,7 +47,6 @@ sub import_data {
         }
     }
     post_foreachfile($def);
-    post_matchblock($def);
     if($debug){
         foreach my $k (keys %$debug){
             if($k eq "def"){
@@ -128,8 +126,8 @@ sub import_file {
             }
             my $t = pop @indent_stack;
             ($codetype, $codeindent, $codeitem) = @$t;
+            $lastindent = $codeindent;
             if($codetype eq "code"){
-                $lastindent = $codeindent;
                 $source = $codeitem->{source};
                 my $src_location="SOURCE: $cur_file - $cur_line";
                 push @$source, $src_location;
@@ -206,11 +204,16 @@ sub import_file {
                         $t_code->{attr}="optional";
                     }
                     if($codetype eq "page" && $name eq "main"){
-                        if($page->{codes}->{main}){
-                            $page->{codes}->{'main2'}=$t_code;
+                        my $main_name = $page->{main_name};
+                        my $t_code;
+                        if($page->{codes}->{$main_name}){
+                            $t_code = $page->{codes}->{$main_name};
+                            $source = $t_code->{source};
                         }
                         else{
-                            $page->{codes}->{"main"}=$t_code;
+                            $source=[];
+                            $t_code={'type'=>"sub", 'source'=>$source, 'params'=>[], 'name'=>"main"};
+                            $page->{codes}->{$main_name}=$t_code;
                         }
                     }
                     else{
@@ -222,8 +225,8 @@ sub import_file {
             $codetype   = "code";
             $codeindent = $curindent+1;
             $codeitem   = $t_code;
-            $lastindent = $curindent+1;
             $curindent=$curindent+1;
+            $lastindent = $curindent;
         }
         elsif($line=~/^macros:/ && $curindent == $codeindent and $codetype ne "macro"){
             if(!$codeitem->{macros}){
@@ -234,6 +237,8 @@ sub import_file {
             $codetype   = "macro";
             $codeindent = $curindent+1;
             $codeitem   = $macros;
+            $curindent=$curindent+1;
+            $lastindent = $curindent;
         }
         elsif($codeindent>0 and $codetype eq "code"){
             push @$source, $line;
@@ -267,21 +272,28 @@ sub import_file {
             elsif($line=~/^path:\s*(.+)/){
                 add_path($1);
             }
-            elsif($line=~/^(sub)?page: (.*)/){
+            elsif($line=~/^(sub)?page:\s*(.*)/){
                 my ($subpage, $t)=($1, $2);
-                my ($pagename, $maincode);
+                my ($pagename, $framecode);
                 if($t=~/([a-zA-Z0-9_\-\$]+),\s*(\w.*)/){
                     $pagename=$1;
-                    $maincode=$2;
+                    $framecode=$2;
                 }
                 elsif($t=~/([a-zA-Z0-9_\-\$]+)/){
                     $pagename=$1;
                 }
-                my $code={};
-                if($maincode){
-                    $code->{main}={'type'=>'sub', 'source'=>["\$call $maincode"], 'params'=>[]};
+                my $codes={};
+                $page={pagename=>$pagename, codes=>$codes, main_name=>"main"};
+                if($framecode){
+                    $page->{main_name}="main2";
+                    if($framecode=~/^from\s+(\S+)/){
+                        parse_template($def, $codes, $1);
+                        $codes->{main}={type=>'sub', source=>["\$call-template _T_0"], 'params'=>[]};
+                    }
+                    else{
+                        $codes->{main}={'type'=>'sub', 'source'=>["\$call $framecode"], 'params'=>[]};
+                    }
                 }
-                $page={pagename=>$pagename, codes=>$code};
                 if($subpage){
                     $page->{subpage}=1;
                 }
@@ -301,6 +313,8 @@ sub import_file {
                 $codetype   = "page";
                 $codeindent = 1;
                 $codeitem   = $page;
+                $curindent=1;
+                $lastindent = $curindent;
             }
             elsif($line=~/^resource:\s+(\w+)(.*)/){
                 my $grab;
@@ -371,27 +385,33 @@ sub import_file {
                 next;
             }
             else{
-                my $src_location="SOURCE: $cur_file - $cur_line";
-                $source=[$src_location];
-                if($line=~/\S/){
-                    push @$source, $line;
-                }
-                my $t_code={'type'=>"sub", 'source'=>$source, 'params'=>[], 'name'=>"main"};
-                if($page->{codes}->{main}){
-                    $page->{codes}->{'main2'}=$t_code;
+                my $main_name = $page->{main_name};
+                my $t_code;
+                if($page->{codes}->{$main_name}){
+                    $t_code = $page->{codes}->{$main_name};
+                    $source = $t_code->{source};
                 }
                 else{
-                    $page->{codes}->{"main"}=$t_code;
+                    $source=[];
+                    $t_code={'type'=>"sub", 'source'=>$source, 'params'=>[], 'name'=>"main"};
+                    $page->{codes}->{$main_name}=$t_code;
                 }
                 push @indent_stack, [$codetype, $codeindent, $codeitem];
                 $codetype   = "code";
                 $codeindent = 1;
                 $codeitem   = $t_code;
-                $lastindent = 1;
                 $curindent=1;
+                $lastindent = $curindent;
+                push @$source, "SOURCE: $cur_file - $cur_line";
+                if($line=~/\S/){
+                    push @$source, $line;
+                }
             }
         }
     }
+}
+
+sub import_lines {
 }
 
 sub expand_macro {
@@ -493,6 +513,38 @@ sub debug_code {
     }
 }
 
+sub parse_template {
+    my ($def, $codes, $template_file) = @_;
+    if($def->{macros}->{TemplateDir}){
+        if($template_file!~/^\.*\//){
+            $template_file = $def->{macros}->{TemplateDir}.'/'.$template_file;
+        }
+    }
+    my @temp_source;
+    $codes->{"_T_0"} = {type=>'template', source=>\@temp_source, 'params'=>[]};
+    my $t_idx = 1;
+    my $cur_source=[];
+    $codes->{"_T_$t_idx"} = {type=>'template', source=>$cur_source, 'params'=>[]};
+    push @temp_source, "\$call-template _T_$t_idx";
+    my $cur_grab_spaces;
+    my $start_grab;
+    my $cur_grab;
+    open In, "$template_file" or die "Can't open $template_file.\n";
+    while(<In>){
+        if($start_grab){
+        }
+        elsif(/^(\s*)\$mydef/){
+            $cur_grab_spaces=length($1);
+            $start_grab = "mydef";
+            $cur_grab=[];
+        }
+        else{
+            push @$cur_source, $_;
+        }
+    }
+    close In;
+}
+
 sub add_path {
     my ($dir) = @_;
     if(!$dir){
@@ -591,27 +643,6 @@ sub post_foreachfile {
                 dupe_page($def, $p, $n, @pat_list);
             }
             delete $pages->{$name};
-        }
-    }
-}
-sub post_matchblock {
-    my $def=shift;
-    my $codes=$def->{codes};
-    my @codelist=keys(%$codes);
-    foreach my $name (@codelist){
-        if($name=~/^pre_(\w+)/ and !$codes->{"post_$1"}){
-            my $loopname=$1;
-            my $params=$codes->{$name}->{params};
-            my $type=$codes->{$name}->{type};
-            my $presource=$codes->{$name}->{source};
-            my $source=[];
-            my $t_code={'type'=>$type, 'source'=>$source, 'params'=>$params};
-            foreach my $l (@$presource){
-                if($l=~/\$openfor/){
-                    push @$source, "DEDENT }";
-                }
-            }
-            $codes->{"post_$loopname"}=$t_code;
         }
     }
 }

@@ -1,0 +1,90 @@
+subcode: _autoload
+    $call support_eachfile
+    # $call post_matchblock
+
+subcode:: post_parsing
+    post_foreachfile($def);
+    # post_matchblock($def);
+
+#---------------------------------------- 
+subcode: support_eachfile
+    # Hack for the following work:
+    #page: order$1
+    #    output_dir: sales
+    #    foreachfile: templates/order(*).php
+    #    htmlcode: main
+    #        $call basic_process
+    #        $include templates/order$1.php
+
+    $sub post_foreachfile
+        my $def=shift;
+        my $pages=$def->{pages};
+        my $pagelist=$def->{pagelist}
+        $while my ($name, $p)=each(%$pages)
+            $if $p->{foreachfile}
+                my $pat_glob=$p->{foreachfile};
+                my $pat_regex=$p->{foreachfile};
+                my $n;
+                $n=$pat_glob=~s/\(\*\)/\*/g;
+                $pat_regex=~s/\(\*\)/\(\.\*\)/g;
+                my @files=glob($pat_glob);
+                $foreach my $f in @files
+                    my @pat_list=($f=~/$pat_regex/);
+                    dupe_page($def, $p, $n, @pat_list);
+                delete $pages->{$name};
+
+    $sub dupe_page
+        my ($def, $orig, $n, @pat_list)=@_;
+        my $pagename=dupe_line($orig->{pagename}, $n, @pat_list);
+        print "    foreach file $pagename $n: ", join(",", @pat_list), "\n";
+        my $page={};
+        $while my ($k, $v)=each(%$orig)
+            $if $k eq "pagename"
+                $page->{pagename}=$pagename;
+            $elif $k eq "codes"
+                my $codes={};
+                $while my ($tk, $tv)=each(%$v)
+                    my $tcode={};
+                    $tcode->{type}=$tv->{type};
+                    $tcode->{params}=$tv->{params};
+                    my @source;
+                    my $tsource=$tv->{source};
+                    $foreach $l in @$tsource
+                        push @source, dupe_line($l, $n, @pat_list);
+                    $tcode->{source}=\@source;
+                    $codes->{$tk}=$tcode;
+                $page->{codes}=$codes;
+            $elif $k ne "foreachfile"
+                $page->{$k}=dupe_line($v);
+
+        my $pages=$def->{pages};
+        my $pagelist=$def->{pagelist}
+        $call add_page
+
+    $sub dupe_line
+        my ($l, $n, @pat_list)=@_;
+        $for my $i=1; $i<=$n; $i++
+            my $rep=$pat_list[$i-1];
+            $l=~s/\$$i/$rep/g;
+        return $l;
+
+#---------------------------------------- 
+subcode: post_matchblock
+    $sub post_matchblock
+        my $def=shift;
+        my $codes=$def->{codes};
+        my @codelist=keys(%$codes);
+        $foreach $name in @codelist
+            $if $name=~/^pre_(\w+)/ and !$codes->{"post_$1"}
+                my $loopname=$1;
+                #print "Adding subcode post_$1\n";
+                my $params=$codes->{$name}->{params};
+                my $type=$codes->{$name}->{type};
+                my $presource=$codes->{$name}->{source};
+                my $source=[];
+                my $t_code={'type'=>$type, 'source'=>$source, 'params'=>$params};
+                $foreach $l in @$presource
+                    $if $l=~/\$openfor/
+                        push @$source, "DEDENT }";
+                $codes->{"post_$loopname"}=$t_code;
+

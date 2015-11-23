@@ -1,5 +1,4 @@
 use strict;
-use warnings;
 use MyDef::utils;
 use MyDef::parseutil;
 use MyDef::compileutil;
@@ -89,6 +88,18 @@ sub init {
         require MyDef::output_plot;
         MyDef::compileutil::set_interface(MyDef::output_plot::get_interface());
     }
+    elsif($module eq "java"){
+        require MyDef::output_java;
+        MyDef::compileutil::set_interface(MyDef::output_java::get_interface());
+    }
+    elsif($module eq "autoit"){
+        require MyDef::output_autoit;
+        MyDef::compileutil::set_interface(MyDef::output_autoit::get_interface());
+    }
+    elsif($module eq "python"){
+        require MyDef::output_python;
+        MyDef::compileutil::set_interface(MyDef::output_python::get_interface());
+    }
     else{
         die "Undefined module type $module\n";
     }
@@ -174,6 +185,18 @@ sub pipe_page {
     elsif($module eq "plot"){
         require MyDef::output_plot;
         MyDef::compileutil::set_interface(MyDef::output_plot::get_interface());
+    }
+    elsif($module eq "java"){
+        require MyDef::output_java;
+        MyDef::compileutil::set_interface(MyDef::output_java::get_interface());
+    }
+    elsif($module eq "autoit"){
+        require MyDef::output_autoit;
+        MyDef::compileutil::set_interface(MyDef::output_autoit::get_interface());
+    }
+    elsif($module eq "python"){
+        require MyDef::output_python;
+        MyDef::compileutil::set_interface(MyDef::output_python::get_interface());
     }
     else{
         die "Undefined module type $module\n";

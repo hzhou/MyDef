@@ -78,9 +78,8 @@ sub dumpout {
         elsif($l=~/^NOOP/){
         }
         elsif($l=~/^MAKE_STRING:(.*)/){
-            my $t=$1;
             $string_list=[];
-            push @make_string_stack, {quote=>'"', join=>'\n', line=>$t, list=>$string_list, indent=>$indentation};
+            push @make_string_stack, {quote=>'"', join=>'\n', line=>$1, list=>$string_list, indent=>$indentation};
         }
         elsif($l =~/^POP_STRING/){
             my $h=pop @make_string_stack;
