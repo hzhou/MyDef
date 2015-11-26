@@ -225,6 +225,10 @@ subcode:: c_support_subs
             return "\%p";
         $elsif $type=~/^(float|double)/
             return "\%g"
+        $elif $type =~ /^int64_t/
+            return '" PRId64 "'
+        $elif $type =~ /^uint64_t/
+            return '" PRIu64 "'
         $elsif $type=~/(int|long|bool|u?int\d+_t)\s*$/
             return "\%d";
         $elsif $type=~/^unsigned char/
