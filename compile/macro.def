@@ -320,6 +320,5 @@ fncode: get_macro_word($name, $nowarn)
         $if exists($macros->{$name})
             return $macros->{$name}
     $if !$nowarn
-        $print get_macro_word $name [$nowarn]
         warn "[$cur_file:$cur_line] Macro $name not defined\n"
     return undef
