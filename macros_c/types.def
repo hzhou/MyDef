@@ -226,8 +226,10 @@ subcode:: c_support_subs
         $elsif $type=~/^(float|double)/
             return "\%g"
         $elif $type =~ /^int64_t/
+            add_include("<intypes.h>")
             return '%" PRId64 "'
         $elif $type =~ /^uint64_t/
+            add_include("<intypes.h>")
             return '%" PRIu64 "'
         $elsif $type=~/(int|long|bool|u?int\d+_t)\s*$/
             return "\%d";
