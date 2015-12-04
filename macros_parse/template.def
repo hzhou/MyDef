@@ -60,9 +60,15 @@ fncode: parse_template($def, $codes, $template_file)
 
     #---------------------------------------- 
     subcode: check_path
+        my $template_dir
         $if $def->{macros}->{TemplateDir}
+            $template_dir=$def->{macros}->{TemplateDir}
+        $elif $MyDef::var->{TemplateDir}
+            $template_dir=$MyDef::var->{TemplateDir}
+
+        $if $template_dir
             $if $template_file!~/^\.*\//
-                $template_file = $def->{macros}->{TemplateDir}.'/'.$template_file
+                $template_file = $template_dir.'/'.$template_file
 
     subcode: insert_grab
         my $len = $cur_grab_spaces

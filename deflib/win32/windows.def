@@ -106,6 +106,7 @@ subcode: cw_dim(x, v)
 #
 perlcode: wndproc
     $(set:C=MyDef::output_c::)
+    $(set:super=MyDef::output_c::$1)
     $if $param=~/(WndProc|DlgProc)_(\w+)/
         my ($type, $name)=($1, $2)
         my $funcname="$type\_$name"

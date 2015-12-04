@@ -160,10 +160,14 @@ page: mydef_run
             my $cflags
             $if $page->{CFLAGS}
                 $cflags = $page->{CFLAGS}
-            $if $config{debug}
-                $cmd="gcc -g $cflags -o$pagename $name $cflags $page->{lib_list} && gdb ./$pagename"
+            $if $config{module} eq "win32"
+                my $cc = "/usr/bin/x86_64-w64-mingw32-gcc"
+                $cmd = "$cc -o$pagename.exe $name $cflags $page->{lib_list} -Wl,--subsystem,windows"
             $else
-                $cmd="gcc -o$pagename $name $cflags $page->{lib_list} && ./$pagename"
+                $if $config{debug}
+                    $cmd="gcc -g $cflags -o$pagename $name $cflags $page->{lib_list} && gdb ./$pagename"
+                $else
+                    $cmd="gcc -o$pagename $name $cflags $page->{lib_list} && ./$pagename"
         $elif $name=~/\.java$/
             $name=~s/\//./g
             $name=~s/\.java$//
