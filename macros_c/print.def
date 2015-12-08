@@ -10,9 +10,9 @@ subcode:: parsecode_func_other
             push @$out, "puts(\"\");"
         $else
             $param=~s/^\s+//
-            $if $param=~/usesub:\s*(\w+)/
+            $if $param=~/^usesub:\s*(\w+)/
                 $print_type=$1
-            $elif $param=~/newline:\s*(\w+)/
+            $elif $param=~/^newline:\s*(\w+)/
                 $if $1 eq '0'
                     $print_newline=0
                 $else
