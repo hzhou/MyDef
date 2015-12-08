@@ -5,15 +5,21 @@ subcode:: parsecode_func_other
         MyDef::compileutil::set_current_macro("fmt", $fmt)
         return
     $elif $func eq "print"
+        $global $print_type=1, $print_newline=1
         $if !$param
             push @$out, "puts(\"\");"
         $else
             $param=~s/^\s+//
             $if $param=~/usesub:\s*(\w+)/
                 $print_type=$1
+            $elif $param=~/newline:\s*(\w+)/
+                $if $1 eq '0'
+                    $print_newline=0
+                $else
+                    $print_newline=1
             $else
                 #--- fmt_string, add newline
-                my ($n, $fmt)=fmt_string($param, 1)
+                my ($n, $fmt)=fmt_string($param, $print_newline)
                 $if $print_type==1
                     $if $n==0 and $fmt=~/^"(.*)\\n"/
                         push @$out, "puts(\"$1\");"

@@ -5,11 +5,6 @@ include: macros_c/print.def
 include: macros_c/assignment.def
 
 #---------------------------------------- 
-subcode:: package_globals
-    our $anonymous_count=0
-
-    our $print_type=1
-
 subcode:: parsecode_special
     $case $l=~/^NOOP POST_MAIN/
         $call parsecode_post
@@ -104,6 +99,7 @@ subcode: parsecode_func
         push @$out, "#define $param";
         return
     $elsif $func eq "enum"
+        $global $anonymous_count=0
         my $name="ANONYMOUS-$anonymous_count"
         $anonymous_count++
         push @enum_list, $name;
