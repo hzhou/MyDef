@@ -1,3 +1,4 @@
+# basic permutation is permute, n, n
 subcode: permute(n, k)
     my @perm
     $for $i=0:$(n)
