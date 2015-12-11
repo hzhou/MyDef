@@ -1,0 +1,20 @@
+macros:
+    pi:   3.1415926535897932
+    pi4:  3.1415927
+    e:    2.7182818284
+    sqrt2: 1.4142135623
+    phi:  1.61803398874
+
+    c:    299792458 # m/s
+    h:    6.62606957e-34  # J s
+    hbar: 1.054571726e-34 # J s
+    N:    6.02214129e23   # Avogadro's number (/mol)
+    k:    1.3806488e-23   # J/K
+
+    miu0: 1.256637061e-6  # N/A2 4pi e-7
+    eps0: 8.854187817e-12 # F/m  1/miu0/c2
+    q:    1.602176565e-19 # elementary charge (C)
+
+    m0:   9.10938291e-31   # electron mass (kg)
+    a0:   5.2917721092e-11 # Bohr radius   (m)
+    Eh:   4.35974434e-18   # Hartree energy (J)

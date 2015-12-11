@@ -76,7 +76,7 @@ subcode: parse_preproc
                 $if $l and $l!~/^SOURCE:/
                     $foreach $tlist in @tlist
                         my ($a, $b)=($tlist->[0], $tlist->[$i])
-                        $l=~s/\b$a\b/$b/g
+                        $l=~s/(\b|_)$a(\b|_)/\1$b\2/g
             parseblock({source=>\@block, name=>"\${for:list}"})
 
     # ---------------------------------------- 
