@@ -64,7 +64,6 @@ subcode: compile_line
     $elif $l=~/^BLOCK\s*$/
         $if $#callback_block_stack <0
             $print "[$cur_file:$cur_line] $yellow{BLOCK called out of context!}"
-            push @$out, $1
         $else
             my $block=pop @callback_block_stack
             my $depth=$#callback_block_stack+1
