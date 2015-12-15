@@ -134,7 +134,7 @@ subcode: parsecode
     return 0;
 
 fncode: parse_condition($t)
-    $if $t=~/[!=]~/
+    $if $t=~/[!=]~/ or $t=~/^\//
         # ok
     $elif $t=~/[^!=><]=[^="]/
        $call warn, assignment in condition [$t]? 
