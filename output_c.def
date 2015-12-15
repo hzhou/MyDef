@@ -55,7 +55,7 @@ page: output_c, output_main
         $call parsecode_common
 
     subcode: parsecode_template
-        $if $a=~/(\s*)\/\*\s*\$call\s*(.*)\s*\*\//
+        $if $a=~/(.*)\$call\s*(.*)\s*$/
             my ($spaces, $call_line)=($1, $2)
             my $len=length($spaces)
             my $n=int($len/4)

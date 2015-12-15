@@ -1,6 +1,5 @@
 #!/usr/bin/perl
 use strict;
-use warnings;
 our %macros;
 our @master_config;
 our $config_outputdir;
@@ -97,7 +96,7 @@ if(@ARGV and $ARGV[0] eq 'nosub'){
     $nosub=1;
 }
 my $module="perl";
-my %module_type=(perl=>"pl", www=>"html", win32=>"c", apple=>"m", general=>"txt", matlab=>"m", cpp=>"cpp");
+my %module_type=(perl=>"pl", www=>"html", win32=>"c", apple=>"m", general=>"txt", matlab=>"m", cpp=>"cpp", java=>"java", autoit=>"au3", python=>"py");
 if(@ARGV and -d $ARGV[0]){
     my $d=$ARGV[0];
     open In, "config";
@@ -209,7 +208,7 @@ foreach my $f (@allfiles){
         if(-e "$f/skipmake"){
             print "    Skip folder $f\n";
         }
-        elsif($f =~ /^(cmp|bootstrap|old|tests|macros|macros_.*)$/){
+        elsif($f =~ /^(cmp|bootstrap|old|tests|macros|deflib|macros_.*)$/){
             print "    Skip folder $f\n";
         }
         elsif($f eq $config_outputdir and -f "$f/Makefile"){
@@ -293,7 +292,7 @@ while(my $f=pop @files){
                 elsif(/^\s*cmd:\s+(.*)/){
                     $page->{cmd}=$1;
                 }
-                elsif(/\S/){
+                elsif(/^\S/){
                     $inpage=0;
                 }
             }
@@ -530,6 +529,35 @@ while (my ($k, $v) = each %make_targets){
 }
 close Out;
 if($config_outputdir){
+    if($module eq "c"){
+        if(!-d $config_outputdir){
+            mkdir $config_outputdir;
+        }
+        if((-d $config_outputdir) and (!-f "$config_outputdir/Makefile")){
+            print "Create $config_outputdir/Makefile\n";
+            open Out, ">$config_outputdir/Makefile" or die "Can't write $config_outputdir/Makefile.\n";
+            print Out "CC=gcc\n";
+            print Out "CFLAGS=\n";
+            print Out "INC=\n";
+            print Out "LIB=\n";
+            print Out "\n";
+            if($folder{toproot}){
+                my $tlist=$folder{toproot};
+                my $page=$h_page{$tlist->[0]};
+                my $name=$page->{path};
+                if($page->{path}=~/.*\/(.*)\.c/){
+                    $name=$1;
+                }
+                    my ($obj_list, $lib_list);
+                    print Out "$name: $name.o $obj_list\n";
+                    print Out "\t\$\(CC) \$\(LIB) $lib_list -o $name \$^\n";
+                    print Out "\n";
+                    print Out "%.o: %.c\n";
+                    print Out "\t\$\(CC) -c \$\(CFLAGS) \$\(INC) -o \$@ \$<\n";
+            }
+            close Out;
+        }
+    }
     if($module eq "win32"){
         if(!-d $config_outputdir){
             mkdir $config_outputdir;
@@ -561,13 +589,13 @@ if($config_outputdir){
                     }
                 }
                 if($pm_count>0){
-                    print "Running h2xs -X $config_outputdir... ...\n";
-                    system "h2xs -X $config_outputdir";
+                    print "Running h2xs -X $name ... ...\n";
+                    system "h2xs -X $name";
                 }
             }
             else{
-                print "Running h2xs -n $config_outputdir... ...\n";
-                system "h2xs -n $config_outputdir";
+                print "Running h2xs -n $name ... ...\n";
+                system "h2xs -n $name";
             }
         }
     }

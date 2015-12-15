@@ -34,8 +34,15 @@ sub parsecode {
         print "[$curfile]\x1b[33m $1\n\x1b[0m";
         return;
     }
-    elsif($l=~/^\$template\s*(.*)/){
-        open In, $1 or die "Can't open template $1\n";
+    elsif($l=~/^\$template\s+(.*)/){
+        my $file = $1;
+        if($file !~ /^\.*\//){
+            my $dir = MyDef::compileutil::get_macro_word("TemplateDir", 1);
+            if($dir){
+                $file = "$dir/$file";
+            }
+        }
+        open In, $file or die "Can't open template $file\n";
         my @all=<In>;
         close In;
         foreach my $a (@all){

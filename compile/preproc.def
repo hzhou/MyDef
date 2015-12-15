@@ -6,10 +6,17 @@ subcode: parse_preproc
 
     $if !$flag_done
         undef $switch_context
-        $if $preproc=~/^for:\s*(\S+)\s+in\s+(.*)/
-            my ($vname, $vparam)=($1,$2)
+        $if $preproc=~/^for:\s*(.*)/
+            my $t=$1
             my $subblock=grabblock($block, \$lindex);
-            $call for_in
+            $if $t=~/(\w+)\s+in\s+(.*)/
+                # $(for:x in x,y,z)
+                my ($vname, $vparam)=($1,$2)
+                $call for_in
+            $else
+                # $(for:x,y,z and 0,1,2)
+                my @vlist=split /\s+and\s+/, $t
+                $call for_list
         $elsif $preproc=~/^foreach:p/
             my $subblock=grabblock($block, \$lindex);
             $call foreach_p
@@ -50,6 +57,28 @@ subcode: parse_preproc
             parseblock({source=>$subblock, name=>"\${for}"})
             pop @$deflist;
             $i++
+
+    # ---------------------------------------- 
+    # $(for:x,y,z and 1,2,3 and r,g,b and i,j,k)
+    #     $print 1 r i: x = $x
+    subcode: for_list
+        my $n
+        my @tlist
+        $foreach $v in @vlist
+            my @t=split /,\s*/, $v
+            $if !$n
+                $n=@t
+            push @tlist, \@t
+        parseblock({source=>$subblock, name=>"\${for:list}"})
+        $for $i=1:$n
+            my @block = @$subblock
+            $foreach $l in @block
+                $if $l and $l!~/^SOURCE:/
+                    $foreach $tlist in @tlist
+                        my ($a, $b)=($tlist->[0], $tlist->[$i])
+                        $l=~s/(\b|_)$a(\b|_)/\1$b\2/g
+            parseblock({source=>\@block, name=>"\${for:list}"})
+
     # ---------------------------------------- 
     subcode: foreach_p
         my $plist=$deflist->[-1]->{plist}
@@ -125,7 +154,7 @@ subcode:: support_subs
             $test=$'
             $a=substr($a, 0, $1);
 
-        $if $test=~/\s*(~|=|!=|<|>)(.*)/
+        $if $test=~/\s*(~|=|!=|<=?|>=?)(.*)/
             my ($op, $b)=($1, $2)
             $if $op eq "="
                 if($a eq $b){ return 1;}

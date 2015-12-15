@@ -4,6 +4,7 @@ use MyDef::output_c;
 package MyDef::output_xs;
 our $out;
 our $debug;
+our %c_function_hash;
 our @xs_globals;
 
 sub get_interface {
@@ -54,7 +55,7 @@ sub parsecode {
     }
     if($l=~/^XS_START/){
         MyDef::output_c::parsecode("NOOP POST_MAIN");
-        %MyDef::output_c::list_function_hash=();
+        %c_function_hash = %MyDef::output_c::list_function_hash;
         $l= "DUMP_STUB xs_start";
     }
     elsif($l=~/^\s*(\$if|while|elif|elsif|elseif)\s*(.*)/){
@@ -141,7 +142,7 @@ sub dumpout {
     my $funclist=\@MyDef::output_c::function_list;
     my $funchash=\%MyDef::output_c::list_function_hash;
     foreach my $func (@$funclist){
-        if($funchash->{$func->{name}}){
+        if(!$c_function_hash{$func->{name}}){
             MyDef::output_c::process_function_std($func);
             my $open=$func->{openblock};
             my $close=$func->{closeblock};
@@ -217,7 +218,7 @@ sub dumpout {
 }
 sub translate_scalar {
     my ($out, $var, $vartype, $sv)=@_;
-    if($vartype eq "int"){
+    if($vartype =~ /int/){
         push @$out, "$var = SvIV($sv);";
     }
     elsif($vartype eq "double" or $vartype eq "float"){
@@ -254,7 +255,7 @@ sub translate_tpsv {
     translate_scalar($out, $var, $vartype, "*t_psv");
     push @$out, "DEDENT";
     push @$out, "}";
-    if(!MyDef::compileutil::get_macro("DONOTSET_UNDEF")){
+    if(!MyDef::compileutil::get_macro("DONOTSET_UNDEF", 1)){
         push @$out, "else{";
         translate_null($out, $var, $vartype);
         push @$out, "}";

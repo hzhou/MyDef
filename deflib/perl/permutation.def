@@ -1,3 +1,4 @@
+# basic permutation is permute, n, n
 subcode: permute(n, k)
     my @perm
     $for $i=0:$(n)
@@ -77,4 +78,24 @@ subcode: permute_count(n, k)
                 $else
                     last
 
+#---------------------------------------- 
+subcode: enum_count(n)
+    my @perm
+    $for $i=0:$(n)
+        $perm[$i]=0
 
+    $while 1
+        BLOCK
+        $call count_inc
+
+    subcode: count_inc
+        my $i=$n-1
+        $while $i>=0
+            $perm[$i]++
+            $if $perm[$i]>=$(n)
+                $perm[$i]=0
+                $i--
+            $else
+                last
+        $if $i<0
+            last

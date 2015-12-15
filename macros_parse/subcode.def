@@ -15,6 +15,7 @@ subcode: subcode_start
             $dblcolon=":"
         $call start_subcode
 
+#---------------------------------------- 
 subcode:: import_file_init
     my $source
     my $code_prepend
@@ -75,18 +76,22 @@ subcode: check_subcode_end
 
 #---------------------------------------- 
 subcode: jump_to_main_code
-    my $src_location="SOURCE: $cur_file - $cur_line";
-    $source=[$src_location]
-    $if $line=~/\S/
-        push @$source, $line
-    # -------------------
-    my $t_code={'type'=>"sub", 'source'=>$source, 'params'=>[], 'name'=>"main"};
     $call add_main_code
     $call start_code_indent, code, 1, $t_code
 
+    push @$source, "SOURCE: $cur_file - $cur_line";
+    $if $line=~/\S/
+        push @$source, $line
+
 subcode: add_main_code
-    $if $page->{codes}->{main}
-        $page->{codes}->{'main2'}=$t_code;
+    my $main_name = $page->{main_name}
+    # $print jump_to_main_code: "$main_name"
+    my $t_code
+    $if $page->{codes}->{$main_name}
+        $t_code = $page->{codes}->{$main_name}
+        $source = $t_code->{source}
     $else
-        $page->{codes}->{"main"}=$t_code;
+        $source=[]
+        $t_code={'type'=>"sub", 'source'=>$source, 'params'=>[], 'name'=>"main"};
+        $page->{codes}->{$main_name}=$t_code;
 

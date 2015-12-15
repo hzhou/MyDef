@@ -118,12 +118,12 @@ subcode: dbl_push(name, v)
 # for simple parsing; for more complicated cases, ref perl/parse.def
 subcode: parse_loop(l)
     $while 1
-        $if $(l)=~/\G$/gc
+        $if $(l)=~/\G$/sgc
             last
         BLOCK
 
     subcode: if_lex(@pattern)
-        $case $(l)=~/\G$(pattern)/gc
+        $case $(l)=~/\G$(pattern)/sgc
             BLOCK
 
 #---------------------------------------- 

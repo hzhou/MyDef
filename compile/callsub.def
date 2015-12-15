@@ -2,8 +2,8 @@ subcode: parse_call_sub
     $param=~s/\s*$//;
     $if $func eq "\$map"
         map_sub($param, $func);
-    $elif $func eq "\$call-PRINT"
-        print_sub($param)
+    $elif $func =~ "^\$call-(PRINT|template)"
+        special_sub($param, $1)
     $elif $func =~ /^\$call/
         call_sub($param)
     $elif $func eq "\&call"
@@ -41,12 +41,12 @@ fncode: list_sub($codelib)
     &call parseblock_with_macro
         $call call_sub_list_setup_macro
 
-fncode: print_sub($param)
+fncode: special_sub($param, $mode)
     $if $param=~/^(@)?(\w+)(.*)/
         my $codename=$1
         my $codelib=get_def_attr("codes", $codename)
         $if $codelib
-            modepush("PRINT")
+            modepush($mode)
             parseblock($codelib)
             modepop()
 
@@ -61,6 +61,10 @@ subcode: call_sub_frame(type)
                     $f_parse->("\$eval $codename, $param")
             $(else)
                 $f_parse->("\$eval $codename, $param")
+        $elif $codelib->{type} eq "template"
+            modepush("template")
+            parseblock($codelib)
+            modepop()
         $else
             $call split_param
             &call call_sub_block
@@ -145,9 +149,9 @@ subcode: call_sub_frame(type)
             $call split_param_call
 
         subcode: split_param_call
-            my $pline=$param
-            my @plist
+            my ($pline, @plist)
             $param=~s/^\s*,?\s*//;
+            $pline=$param
             $if $n_param==1 and $codeparams->[0]=~/^@/
                 push @plist, $param
             $else

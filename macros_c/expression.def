@@ -104,7 +104,7 @@ fncode: check_expression($l, $context)
         #---- special --------
         $elif $l=~/\G\$(\w+)/gc
             my $method=$1
-            $if $method=~/^(eq|ne|le|ge|lt|gt)$/
+            $if $method=~/^(eq|ne|le|ge|lt|gt)$/i
                 $token=$1
                 $type="operator"
             $else
@@ -187,7 +187,7 @@ fncode: check_expression($l, $context)
                     #---- binary -------------
                     $if $stack[-1] eq ","
                         $stack[-1]="$stack[-1] "
-                    $elif $stack[-1]=~/^(eq|ne|lt|le|gt|ge)$/
+                    $elif $stack[-1]=~/^(eq|ne|lt|le|gt|ge)$/i
                         $call check_exp_string_op
                     $elif $stack[-1]=~/^\S+$/ && $stack[-1] ne "::"
                         $if @stack>1 and $stack[-2]!~/^[\(\[\{]$/
@@ -394,11 +394,15 @@ subcode: check_exp_string_op
     $call exp_pop, $op
     $call exp_pop, $exp
     my %str_op=(eq=>"==", ne=>"!=", lt=>"<", gt=>">", le=>"<=", ge=>">=")
-    $op=$str_op{$op}
+    $op=$str_op{lc($op)}
     $if $type eq "atom-string"
         $if $token=~/^"(.*)"/
-            my $len=length($1)
-            $token= "strncmp($exp, $token, $len) $op 0"
+            $if ord($op) < 91
+                # upper case
+                $token= "strcmp($exp, $token) $op 0"
+            $else
+                my $len=length($1)
+                $token= "strncmp($exp, $token, $len) $op 0"
         $else
             $token= "strcmp($exp, $token) $op 0"
         $type="atom"

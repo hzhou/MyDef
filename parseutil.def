@@ -1,10 +1,13 @@
 include: macros_parse/indentation.def
 include: macros_parse/subcode.def
+include: macros_parse/template.def
 include: macros_parse/debug.def
 include: macros_util/path.def
 include: macros_util/ogdl.def
 include: macros_util/debug.def
 include: perl/indentations.def
+
+include: macros_parse/hacks.def
 
 page: parseutil
     type: pm
@@ -13,8 +16,6 @@ page: parseutil
     subcode: main
         $global $debug=0
         # $call support_subs
-        $call support_eachfile
-        $call support_ogdl
         1;
 
 #---------------------------------------- 
@@ -53,9 +54,7 @@ fncode: import_data($file)
             last
 
     # ---- End of Parsing ---------------------------
-    post_foreachfile($def);
-    post_matchblock($def);
-    # $call compile_perlcode
+    $call @post_parsing
     $if $debug
         $foreach $k in keys %$debug
             $if $k eq "def"
@@ -92,6 +91,9 @@ fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
         $elif $line=~/^macros:/ && $(top_scope)
             $call macros_start
             $call start_code_indent, macro, $curindent+1, $macros
+        $elif $line=~/^template:/ && $(top_scope)
+            $call check_end_automain
+            $call grab_template
         $elif $(in_code)
             push @$source, $line
         $elif $(in_macro)
@@ -109,6 +111,7 @@ fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
 
 #---------------------------------------- 
 subcode: parse_loop
+    # sub-used in parsing multi-line comments and grabing templates/resources
     $(allow_recurse:2)
     $while $cur_line < @$plines
         my $line = $plines->[$cur_line]
@@ -125,7 +128,7 @@ subcode: parse_level_0
             #print STDERR "    include $1\n";
     $elif $line=~/^path:\s*(.+)/
         add_path($1)
-    $elif $line=~/^(sub)?page: (.*)/
+    $elif $line=~/^(sub)?page:\s*(.*)/
         my ($subpage, $t)=($1, $2)
         $call start_page
         $call start_code_indent, page, 1, $page
@@ -190,8 +193,29 @@ subcode: grab_resource
         $else
             grab_ogdl($grab, \@grab)
             #print_ogdl($grab, 0)
+            last
     $cur_line--
 
+subcode: grab_template
+    $if !$codeitem->{codes}
+        $codeitem->{codes}={}
+    my $codes = $codeitem->{codes}
+
+    $if $line =~ /^template:\s*(\w+)/
+        my @grab
+        my $t_code = {type=>"template",source=>\@grab}
+        $codes->{$1}=$t_code
+
+        my $grab_indent=$curindent
+        &call parse_loop
+            $call get_indentation
+            $if $line eq ""
+                push @grab, $line
+            $elif $curindent>$grab_indent
+                push @grab, '    'x($curindent-$grab_indent-1) . $line
+            $else
+                last
+    $cur_line--
 
 # --------------------------------------------------------
 subcode:: import_file_init
@@ -206,12 +230,18 @@ subcode: start_page
     $elif $t=~/([a-zA-Z0-9_\-\$]+)/
         $pagename=$1;
     # ---- code
-    my $code={};
-    $if $framecode
-        #-- $framecode may include parameters
-        $code->{main}={'type'=>'sub', 'source'=>["\$call $framecode"], 'params'=>[]};
+    my $codes={};
+    $page={pagename=>$pagename, codes=>$codes, main_name=>"main"};
 
-    $page={pagename=>$pagename, codes=>$code};
+    $if $framecode
+        $if $framecode=~/^from\s+(\S+)/
+            my $lines = parse_template($def, $codes, $1)
+            push @$include_list, $lines
+        $else
+            #-- $framecode may include parameters
+            $codes->{main}={'type'=>'sub', 'source'=>["\$call $framecode"], 'params'=>[]};
+            $page->{main_name}="main2"
+
     $if $subpage
         $page->{subpage}=1;
     $if $file_type eq "main"
@@ -281,116 +311,11 @@ subcode: load_standard_includes
     my $stdinc="std_".$MyDef::var->{module}.".def"
     push @standard_includes, $stdinc
 
-subcode: support_eachfile
-    # Hack for the following work:
-    #page: order$1
-    #    output_dir: sales
-    #    foreachfile: templates/order(*).php
-    #    htmlcode: main
-    #        $call basic_process
-    #        $include templates/order$1.php
-
-    $sub post_foreachfile
-        my $def=shift;
-        my $pages=$def->{pages};
-        my $pagelist=$def->{pagelist}
-        $while my ($name, $p)=each(%$pages)
-            $if $p->{foreachfile}
-                my $pat_glob=$p->{foreachfile};
-                my $pat_regex=$p->{foreachfile};
-                my $n;
-                $n=$pat_glob=~s/\(\*\)/\*/g;
-                $pat_regex=~s/\(\*\)/\(\.\*\)/g;
-                my @files=glob($pat_glob);
-                $foreach my $f in @files
-                    my @pat_list=($f=~/$pat_regex/);
-                    dupe_page($def, $p, $n, @pat_list);
-                delete $pages->{$name};
-
-    $sub post_matchblock
-        my $def=shift;
-        my $codes=$def->{codes};
-        my @codelist=keys(%$codes);
-        $foreach $name in @codelist
-            $if $name=~/^pre_(\w+)/ and !$codes->{"post_$1"}
-                my $loopname=$1;
-                #print "Adding subcode post_$1\n";
-                my $params=$codes->{$name}->{params};
-                my $type=$codes->{$name}->{type};
-                my $presource=$codes->{$name}->{source};
-                my $source=[];
-                my $t_code={'type'=>$type, 'source'=>$source, 'params'=>$params};
-                $foreach $l in @$presource
-                    $if $l=~/\$openfor/
-                        push @$source, "DEDENT }";
-                $codes->{"post_$loopname"}=$t_code;
-
-    $sub dupe_page
-        my ($def, $orig, $n, @pat_list)=@_;
-        my $pagename=dupe_line($orig->{pagename}, $n, @pat_list);
-        print "    foreach file $pagename $n: ", join(",", @pat_list), "\n";
-        my $page={};
-        $while my ($k, $v)=each(%$orig)
-            $if $k eq "pagename"
-                $page->{pagename}=$pagename;
-            $elif $k eq "codes"
-                my $codes={};
-                $while my ($tk, $tv)=each(%$v)
-                    my $tcode={};
-                    $tcode->{type}=$tv->{type};
-                    $tcode->{params}=$tv->{params};
-                    my @source;
-                    my $tsource=$tv->{source};
-                    $foreach $l in @$tsource
-                        push @source, dupe_line($l, $n, @pat_list);
-                    $tcode->{source}=\@source;
-                    $codes->{$tk}=$tcode;
-                $page->{codes}=$codes;
-            $elif $k ne "foreachfile"
-                $page->{$k}=dupe_line($v);
-
-        my $pages=$def->{pages};
-        my $pagelist=$def->{pagelist}
-        $call add_page
-
-    $sub dupe_line
-        my ($l, $n, @pat_list)=@_;
-        $for my $i=1; $i<=$n; $i++
-            my $rep=$pat_list[$i-1];
-            $l=~s/\$$i/$rep/g;
-        return $l;
-
-# ---------------------------------------------------
-subcode: compile_perlcode
-    my $pages=$def->{pages}
-    my $pagelist=$def->{pagelist}
-    my $codes=$def->{codes}
-
-    my @perlcode_list;
-    $while my ($name, $code)= each %$codes
-        $if $code->{type} eq "perl"
-            $if $name ne "perl_global"
-                push @perlcode_list, $name
-
-    $if @perlcode_list
-        my $maincode=[];
-        my $page={pagename=>"perl-$defname", module=>"perl", type=>"pl", codes=>{main=>{type=>'sub', source=>$maincode, params=>[]}}};
-
-        push @$maincode, "\$call \@perl_global"
-        push @$maincode, "my (\$subname, \@alist)=\@ARGV"
-        $foreach $name in @perlcode_list
-            push @$maincode, "\$if \$subname eq \"$name\""
-            push @$maincode, "SOURCE_INDENT"
-            push @$maincode, "\$call $name"
-            push @$maincode, "SOURCE_DEDENT"
-
-        push @$pagelist, "perl-$defname"
-        $pages->{"perl-$defname"}=$page
-
-
 #---- utils ------------------------------------ 
 fncode: get_lines($file)
-    $if $file eq "-pipe"
+    $if ref($file) eq "ARRAY"
+        return $file
+    $elif $file eq "-pipe"
         my @lines=<STDIN>
         return \@lines
     $else

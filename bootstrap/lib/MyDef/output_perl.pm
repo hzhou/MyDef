@@ -17,6 +17,7 @@ our @case_stack;
 our $case_state;
 our $case_wrap;
 our $case_flag="\$b_flag_case";
+our $print_target;
 our $fn_block=[];
 our $loop_idx;
 
@@ -331,8 +332,15 @@ sub parsecode {
         print "[$curfile]\x1b[33m $1\n\x1b[0m";
         return;
     }
-    elsif($l=~/^\$template\s*(.*)/){
-        open In, $1 or die "Can't open template $1\n";
+    elsif($l=~/^\$template\s+(.*)/){
+        my $file = $1;
+        if($file !~ /^\.*\//){
+            my $dir = MyDef::compileutil::get_macro_word("TemplateDir", 1);
+            if($dir){
+                $file = "$dir/$file";
+            }
+        }
+        open In, $file or die "Can't open template $file\n";
         my @all=<In>;
         close In;
         foreach my $a (@all){
@@ -377,7 +385,7 @@ sub parsecode {
         my $level=@case_stack;
         print "        $level:[$case_state]$l\n";
     }
-    if($l=~/^\$(if|elif|elsif|elseif|case)\s+(.*)$/){
+    if($l=~/^\x24(if|elif|elsif|elseif|case)\s+(.*)$/){
         my $cond=$2;
         my $case=$case_if;
         if($1 eq "if"){
@@ -566,11 +574,14 @@ sub parsecode {
             }
         }
         elsif($func =~ /^(while)$/){
-            if($param=~/^(.*?);\s*(.*?);?\s*$/){
+            if($param=~/\/.*\/\w*\s*$/){
+                return single_block("while($param){", "}");
+            }
+            elsif($param=~/^(.*?);\s*(.*?)\s*$/){
                 return single_block_pre_post(["while($1){", "INDENT"], ["$2;", "DEDENT", "}"]);
             }
             else{
-                return single_block("$1($param){", "}");
+                return single_block("while($param){", "}");
             }
         }
         elsif($func eq "for"){
@@ -968,8 +979,16 @@ sub parsecode {
             if($n_escape){
                 push @fmt_list, "\\x1b[0m";
             }
-            push @$out, 'print "'.join('',@fmt_list).'";';
+            my $p = "print";
+            if($print_target){
+                $p.=" $print_target";
+            }
+            push @$out, "$p \"".join('',@fmt_list).'";';
             return;
+        }
+        elsif($func eq "print_to"){
+            $print_target = $param;
+            return 0;
         }
         elsif($func eq "source-$param"){
             return "SKIPBLOCK";
@@ -995,6 +1014,7 @@ sub parsecode {
                     my $pline=join(", ", @$params);
                     push @$out, "my ($pline) = \@_;";
                 }
+                $code->{scope}="list_sub";
                 MyDef::compileutil::list_sub($code);
                 push @$out, "DEDENT";
                 push @$out, "}";
