@@ -50,36 +50,8 @@ subcode: permute(n, k)
         $(b) = $_t
 
 #---------------------------------------- 
-subcode: permute_count(n, k)
-    my (@perm, @check)
-    $for $i=0:$(k)
-        $perm[$i]=$i
-        $check[$i]=1
-    PERMUTE:
-    $while 1
-        BLOCK
-        $call permute_inc
-
-    subcode: permute_inc
-        my $pos=$(k)-1
-        $check[$perm[$pos]]=0
-        $while 1
-            $perm[$pos]++
-            $if $perm[$pos]>=$(n)
-                $perm[$pos]=-1
-                $pos--
-                $check[$perm[$pos]]=0
-                $if $pos<0
-                    last PERMUTE
-            $elif !$check[$perm[$pos]]
-                $check[$perm[$pos]]=1
-                $if $pos<$(k)-1
-                    $pos++
-                $else
-                    last
-
-#---------------------------------------- 
-subcode: enum_count(n)
+#- n-digit count up (first digit at i=0)
+subcode: enum_count(n, k)
     my @perm
     $for $i=0:$(n)
         $perm[$i]=0
@@ -89,13 +61,25 @@ subcode: enum_count(n)
         $call count_inc
 
     subcode: count_inc
-        my $i=$n-1
-        $while $i>=0
+        my $i=0
+        $while $i<$(n)
             $perm[$i]++
-            $if $perm[$i]>=$(n)
+            $if $perm[$i]>=$(k)
                 $perm[$i]=0
-                $i--
+                $i++
             $else
                 last
-        $if $i<0
+        $if $i>=$(n)
             last
+
+#---------------------------------------- 
+#- n-digit @ limit[k]
+subcode: enum_limit(n, limit)
+    &call enum_count, $(limit)[$i]
+        BLOCK
+
+#---------------------------------------- 
+macros:
+    # 168 primes under 1000
+    prime_list: 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271, 277, 281, 283, 293, 307, 311, 313, 317, 331, 337, 347, 349, 353, 359, 367, 373, 379, 383, 389, 397, 401, 409, 419, 421, 431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487, 491, 499, 503, 509, 521, 523, 541, 547, 557, 563, 569, 571, 577, 587, 593, 599, 601, 607, 613, 617, 619, 631, 641, 643, 647, 653, 659, 661, 673, 677, 683, 691, 701, 709, 719, 727, 733, 739, 743, 751, 757, 761, 769, 773, 787, 797, 809, 811, 821, 823, 827, 829, 839, 853, 857, 859, 863, 877, 881, 883, 887, 907, 911, 919, 929, 937, 941, 947, 953, 967, 971, 977, 983, 991, 997 
+

@@ -235,8 +235,12 @@ subcode: start_page
 
     $if $framecode
         $if $framecode=~/^from\s+(\S+)/
+            #-- $lines defines a template subcode: TMP_##
+            #--    ... and sets the main code to call it
             my $lines = parse_template($def, $codes, $1)
             push @$include_list, $lines
+            #- 
+            $page->{main_name}="main2"
         $else
             #-- $framecode may include parameters
             $codes->{main}={'type'=>'sub', 'source'=>["\$call $framecode"], 'params'=>[]};
