@@ -20,22 +20,25 @@ page: parseutil
 
 #---------------------------------------- 
 fncode: import_data($file)
-    $global $defname="default";
-    $if $file=~/([^\/]+)\.def/
-        $defname=$1
-
     my $def={"resource"=>{}, 
             "pages"=>{}, 
             "pagelist"=>[],
             "codes"=>{}, 
             "macros"=>{},
-            "defname"=>$defname,
             };
 
+    # -------- file stat -------------
+    $if $file=~/([^\/]+)\.def/
+        $def->{name}=$1
+        $def->{file}=find_file($file)
+    $else
+        $def->{name}="default"
+
     # -------- global macros from config ---------
+    my $macros=$def->{macros}
     $while my ($k, $v)=each %$MyDef::var
         $if $k=~/macro_(\w+)/
-            $def->{macros}->{$1}=$v;
+            $macros->{$1}=$v;
     # -------- include files ---------
     my @includes;
     my %includes;

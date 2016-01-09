@@ -199,7 +199,7 @@ fncode: expand_macro($lref)
             last
 
 fncode: get_macro($s, $nowarn)
-    $if $s=~/^((rep|perl|map|or|and|sym)\b.+)/
+    $if $s=~/^((rep|perl|map|or|and|sym|def)\b.+)/
         my $t=$1
         $if $t=~/^rep\[(.*?)\](\d+):(.*)/
             $if $2>1
@@ -210,7 +210,7 @@ fncode: get_macro($s, $nowarn)
             my $outdir=".";
             $if $MyDef::var->{output_dir}
                 $outdir=$MyDef::var->{output_dir};
-            my $defname=$MyDef::def->{defname}
+            my $defname=$MyDef::def->{name}
             my $t=$1
             $t=~s/,/ /g
             $if open In, "perl $outdir/perl-$defname.pl $t|"
@@ -240,6 +240,22 @@ fncode: get_macro($s, $nowarn)
             return join($sep, @segs)
         $elif $t =~ /^sym:(.+)/
             return MyDef::utils::string_symbol_name($1)
+        $elif $t =~ /^def:(.+)/
+            my $t
+            $if $MyDef::def->{file}
+                my @t = stat($MyDef::def->{file})
+                $t=$t[9]
+            $else
+                $t = time
+            my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst)=localtime($t)
+            $if $1 eq "date"
+                return sprintf("%4d-%02d-%02d", $year+1900, $mon+1, $mday)
+            $elif $1 eq "datetime"
+                return sprintf("%4d-%02d-%02d %02d:%02d", $year+1900, $mon+1, $mday, $hour, $min)
+            $elif $1 eq "name"
+                return $MyDef::def->{name}
+            $else
+                return ""
         $else
             warn " [$cur_file:$cur_line] syntax error: [$s]\n"
             return undef

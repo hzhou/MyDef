@@ -168,21 +168,6 @@ jscode: load_css(src)
     document.getElementsByTagName("head")[0].appendChild(obj)
 
 #-- AJAX
-jscode: ajax_init
-    var xmlhttp
-    $if window.XMLHttpRequest
-        xmlhttp=new XMLHttpRequest()
-    $else
-        xmlhttp=new ActiveXObject("Microsoft.XMLHTTP")
-
-jscode: ajax_action
-    $call ajax_init
-    xmlhttp.onreadystatechange=function(){
-        $if xmlhttp.readyState==4 && xmlhttp.status==200
-            $(set:reply=xmlhttp.responseText)
-            BLOCK
-    };
-
 jscode: ajax_get(url)
     &call auto
         &call ajax_action
@@ -213,6 +198,22 @@ jscode: ajax_post_json(url, content)
         xmlhttp.open("POST", $(url), true)
         xmlhttp.setRequestHeader("Content-type", "application/json; charset=utf-8")
         xmlhttp.send($(content))
+
+# --
+jscode: ajax_action
+    $call ajax_init
+    xmlhttp.onreadystatechange=function(){
+        $if xmlhttp.readyState==4 && xmlhttp.status==200
+            $(set:reply=xmlhttp.responseText)
+            BLOCK
+    };
+    jscode: ajax_init
+        var xmlhttp
+        $if window.XMLHttpRequest
+            xmlhttp=new XMLHttpRequest()
+        $else
+            xmlhttp=new ActiveXObject("Microsoft.XMLHTTP")
+
 
 ## PHP  -----------------------------------------------------
 htmlcode: php_frame

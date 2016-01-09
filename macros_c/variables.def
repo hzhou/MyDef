@@ -1,5 +1,12 @@
 # subcode:: parsecode_func_param_other
 subcode:: parsecode_func_other
+    $elif $func eq "auto"
+        $if $param=~/(\w+)\s*=\s*(.*)/
+            my $type=get_c_type($1)
+            $param=~s/\s*;\s*$//
+            push @$out, "$type $param;"
+
+subcode:: parsecode_func_other
     $elif $func eq "global" or $func eq "symbol"
         $call check_var_special
 
@@ -101,7 +108,13 @@ subcode:: c_support_subs
     $sub my_add_var($name, $type, $value)
         my $var_list=$cur_scope->{var_list}
         my $var_hash=$cur_scope->{var_hash}
-        $call add_var, $var_hash, $var_list
+        $if $var_hash != $global_hash
+            $call add_var, $var_hash, $var_list
+        $else
+            # There must be a reason my_add_var was called in a global context
+            #     e.g. in a hack or global template
+            #     silently drop declarations
+            return $name
 
     $sub auto_add_var($name, $type, $value)
         my $var=find_var($name)
@@ -394,14 +407,13 @@ subcode:: parsecode_func_other
                 $protected_var{$t}--
         return
 
-subcode:: c_support_subs
+fncode: protect_var($v)
     $global %protected_var
-    $sub protect_var($v)
-        # $call warn,  protect_var $v
-        $if $protected_var{$v}
-            $call warn, Variable $v protected: [$protected_var{$v}]
-            $protected_var{$v}++
-        $else
-            $protected_var{$v}=1
+    # $call warn,  protect_var $v
+    $if $protected_var{$v}
+        $call warn, Variable $v protected: [$protected_var{$v}]
+        $protected_var{$v}++
+    $else
+        $protected_var{$v}=1
 
 

@@ -134,7 +134,7 @@ fncode: func_return($t)
         $if $t=~/,/
             $cur_function->{ret_type}="void";
             $call set_return_tuple
-        $elif $t
+        $elif $t or $t eq '0'
             $cur_function->{ret_var}=$t
             $cur_function->{ret_type}=infer_c_type($t)
             return "return $t"

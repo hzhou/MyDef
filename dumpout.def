@@ -32,16 +32,20 @@ subcode: dumpout
     my @make_string_stack
     my $string_list=undef
 
+    subcode: debug_dumpout
+        $if $#$f <10
+            $print dumpout $out: [$l]
+
     $while 1
-        my $l;
-        $if @$out
-            $l=shift @$out;
-        $else
+        $if !@$out
             $out=pop @source_stack;
             $if !$out
                 last;
             $else
                 next;
+
+        my $l=shift @$out;
+        # $call @debug_dumpout
         $if $custom and $custom->($f, \$l)
             # custom dump -- used in output_www.def
         $elif $l =~/^INCLUDE_BLOCK (\S+)/

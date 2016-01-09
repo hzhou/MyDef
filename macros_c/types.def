@@ -152,8 +152,7 @@ subcode:: c_support_subs
                 return get_c_type_word(substr($name,1)).'*';
         return undef
 
-    $sub get_c_type
-        my $name=shift;
+    $sub get_c_type($name)
         my $check;
         my $type="void";
         $if $name=~/.*\.([a-zA-Z].+)/

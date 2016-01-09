@@ -157,7 +157,7 @@ subcode: dump_function_declares
         my $func=$functions{$t}
         $if !$func->{skip_declare}
             $call declare, $func
-    $if $dump_out->[-1] ne "\n"
+    $if $#$dump_out>-1 and $dump_out->[-1] ne "\n"
         push @$dump_out, "\n";
 
     # ---------------------
@@ -241,7 +241,7 @@ subcode: dump_structs_functions
                 push @$dump_out, "    $l\n";
             push @$dump_out, "}\n";
         # ------------------------
-    $if $dump_out->[-1] ne "\n"
+    $if $#$dump_out>-1 and $dump_out->[-1] ne "\n"
         push @$dump_out, "\n";
 
 # ---- Init codes ----
