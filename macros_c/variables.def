@@ -1,10 +1,15 @@
 # subcode:: parsecode_func_param_other
 subcode:: parsecode_func_other
-    $elif $func eq "auto"
+    $elif $func eq "auto" or $func eq "Auto"
+        # hacks for C++
         $if $param=~/(\w+)\s*=\s*(.*)/
-            my $type=get_c_type($1)
-            $param=~s/\s*;\s*$//
-            push @$out, "$type $param;"
+            my ($name, $val) = $2
+            my $type=get_c_type($name)
+            $val=~s/\s*;\s*$//
+            $if $func eq "auto"
+                push @$out, "$type $name = $val;"
+            $else
+                push @$out, "$type $name = dynamic_cast<$type>($val);"
 
 subcode:: parsecode_func_other
     $elif $func eq "global" or $func eq "symbol"
