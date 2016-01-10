@@ -7,6 +7,9 @@ page: test, basic_frame
     $struct(list) n, next
     $map test_type, list_head, t_list, p_list_head, tp_list_node
 
+    $register_name(id) int
+    $map test_type, t_id, atom_id, my_arbitary_id, i_id, tp_id
+
 subcode: test_type(name)
     $local $(name)
     $get_type(type) $(name)

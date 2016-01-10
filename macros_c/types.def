@@ -134,10 +134,8 @@ subcode:: c_support_subs
     $sub get_c_type_word($name)
         $if $name
             $if $type_prefix{$name}
-                my $type=$type_prefix{$name}
-                return $type
-
-            $if $name=~/^([a-z0-9]+)/
+                return $type_prefix{$name}
+            $elif $name=~/^([a-z0-9]+)/
                 my $prefix=$1;
                 $if $type_prefix{$prefix}
                     return $type_prefix{$prefix};
@@ -145,8 +143,7 @@ subcode:: c_support_subs
                     return $type_prefix{$1};
                 $elif $structs{$1}
                     return "struct $1"
-
-            $if substr($name, 0, 1) eq "t"
+            $elif substr($name, 0, 1) eq "t"
                 return get_c_type_word(substr($name,1));
             $elif substr($name, 0, 1) eq "p"
                 return get_c_type_word(substr($name,1)).'*';
@@ -160,17 +157,24 @@ subcode:: c_support_subs
             $name=$1;
         $if $type_name{$name}
             $type= $type_name{$name};
-        $elsif $name=~/(\w+?)_(.*)/
-            my ($t1, $t2)=($1, $2)
-            my $t=get_c_type_word($t1)
-            $if $t1 eq "t" or $t1 eq "temp"
-                $type=get_c_type_word($t2)
-            $elif $t1 eq "p" or $t1 eq "tp"
-                $type=get_c_type_word($t2).'*'
-            $else
-                $type=get_c_type_word($t1)
         $else
-            $type=get_c_type_word($name)
+            my @parts=split /_/, $name
+            my $n_parts=@parts
+            $if $n_parts<=1
+                $type=get_c_type_word($name)
+            $elif $type_name{$parts[-1]}
+                $type = $type_name{$parts[-1]}
+                $if $parts[0] =~/^t?(p+)$/
+                    $type.='*' x length($1)
+            $else
+                my $t1=shift @parts
+                my $t2=join('_', @parts)
+                $if $t1 eq "t" or $t1 eq "temp"
+                    $type=get_c_type_word($t2)
+                $elif $t1 eq "p" or $t1 eq "tp"
+                    $type=get_c_type_word($t2).'*'
+                $else
+                    $type=get_c_type_word($t1)
 
         $if !$type
             $type="void";

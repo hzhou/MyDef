@@ -260,7 +260,7 @@ fncode: parse_var($name, $type, $value)
         $type=get_c_type($name)
         $if $fntype{$name}
             $type="function"
-        $if !($type and $type ne "void" and name_with_prefix($name))
+        $if !$type or $type eq "void" or name_with_prefix($name)
             $if defined $value
                 my $val_type=infer_c_type($value)
                 $if $debug eq "type"
