@@ -63,6 +63,7 @@ subcode: compile_line
         push @$out, $1
     $elif $l=~/^BLOCK\s*$/
         $if $#callback_block_stack <0
+            $call parse_stack_dump
             $print "[$cur_file:$cur_line] $yellow{BLOCK called out of context!}"
         $else
             my $block=pop @callback_block_stack
@@ -246,6 +247,11 @@ fncode: parse_stack_pop
     $elif $blk->{debug_off}
         $debug=$blk->{debug_off}
         $f_parse->("DEBUG $debug");
+
+subcode: parse_stack_dump
+    $print \@block_stack:
+    $foreach $blk in @block_stack
+        $print "    $blk-{code}->{name} $blk->{file}:$blk->{line}"
 
 subcode: debug_block(name, idx)
     $if $debug eq "block"
