@@ -251,7 +251,7 @@ fncode: parse_stack_pop
 subcode: parse_stack_dump
     $print \@block_stack:
     $foreach $blk in @block_stack
-        $print "    $blk-{code}->{name} $blk->{file}:$blk->{line}"
+        $print "    $blk->{code}->{name} $blk->{file}:$blk->{line}"
 
 subcode: debug_block(name, idx)
     $if $debug eq "block"
