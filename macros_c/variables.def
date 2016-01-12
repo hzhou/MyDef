@@ -2,7 +2,7 @@
 subcode:: parsecode_func_other
     $elif $func eq "auto" or $func eq "Auto"
         # hacks for C++
-        $if $param=~/(\w+)\s*=\s*(.*)/
+        $if $param=~/^(\w+)\s*=\s*(.*)/
             my ($name, $val) = $2
             my $type=get_c_type($name)
             $val=~s/\s*;\s*$//
