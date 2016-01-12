@@ -10,6 +10,7 @@ subcode:: parsecode_func_other
                 push @$out, "$type $name = $val;"
             $else
                 push @$out, "$type $name = dynamic_cast<$type>($val);"
+        return
 
 subcode:: parsecode_func_other
     $elif $func eq "global" or $func eq "symbol"
