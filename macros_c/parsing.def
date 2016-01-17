@@ -161,15 +161,14 @@ subcode: check_functioncall
 #--- called from output.def ------------
 include: macros_c/translate_regex.def
 
-subcode:: c_support_subs
-    $sub parse_condition($param)
-        $if $param=~/^\$(\w+)\s+(.*)/
-            my ($func, $param)=($1, $2)
-            $call parse_condition_check_plugin
-        $elif $param=~/^\/(.*)\/(i?)\s*$/
-            return translate_regex($1, $2)
+fncode: parse_condition($param)
+    $if $param=~/^\$(\w+)\s+(.*)/
+        my ($func, $param)=($1, $2)
+        $call parse_condition_check_plugin
+    $elif $param=~/^\/(.*)\/(i?)\s*$/
+        return translate_regex($1, $2)
 
-        return check_expression($param, "condition")
+    return check_expression($param, "condition")
 
 # ---------------------------------------------------
 subcode:: support_subs

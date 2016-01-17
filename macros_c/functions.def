@@ -53,26 +53,25 @@ subcode: process_close_scope
         MyDef::compileutil::set_output($out_save)
 
 #-----------------------------------------------------------------
-subcode:: c_support_subs
-    $sub open_function($fname, $param)
-        my $func= {param_list=>[], var_list=>[], var_hash=>{}, init=>[], finish=>[], openblock=>[], closeblock=>[], preblock=>[], postblock=>[]};
-        #---- reserve fn_init and fn_finish for user def use.----
-        MyDef::compileutil::set_named_block("fn_init", $func->{init})
-        MyDef::compileutil::set_named_block("fn_finish", $func->{finish})
-        #---------
-        $func->{name}=$fname;
-        # -- parsing param list
-        $if $param eq "api"
-            $call open_function_api
-        $if $param
-            $call add_function_params
-        # --
-        $if $func->{name}
-            my $name=$func->{name};
-            push @function_declare_list, $name;
-            $functions{$name}=$func;
-        # --
-        return $func
+fncode: open_function($fname, $param)
+    my $func= {param_list=>[], var_list=>[], var_hash=>{}, init=>[], finish=>[], openblock=>[], closeblock=>[], preblock=>[], postblock=>[]};
+    #---- reserve fn_init and fn_finish for user def use.----
+    MyDef::compileutil::set_named_block("fn_init", $func->{init})
+    MyDef::compileutil::set_named_block("fn_finish", $func->{finish})
+    #---------
+    $func->{name}=$fname;
+    # -- parsing param list
+    $if $param eq "api"
+        $call open_function_api
+    $if $param
+        $call add_function_params
+    # --
+    $if $func->{name}
+        my $name=$func->{name};
+        push @function_declare_list, $name;
+        $functions{$name}=$func;
+    # --
+    return $func
 
 subcode: add_function_params
     my $param_list=$func->{param_list}

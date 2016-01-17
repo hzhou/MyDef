@@ -15,9 +15,6 @@ subcode:: package_globals
     $global %misc_vars;
     our $except;
 
-subcode:: support_subs
-    $call c_support_subs
-
 page: output_c, output_main
     type: pm
     output_dir: lib/MyDef

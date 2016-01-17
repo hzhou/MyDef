@@ -97,66 +97,65 @@ subcode: check_var_special
 #-     _list: list of, names
 #-     _hash: hash to hash
 #-----------------------------------------------------------------
-subcode:: c_support_subs
-    $sub global_add_symbol($name, $type, $value)
-        $call add_var, $global_hash, none
+fncode: global_add_symbol($name, $type, $value)
+    $call add_var, $global_hash, none
 
-    $sub global_add_var($name, $type, $value)
-        $call add_var, $global_hash, $global_list
+fncode: global_add_var($name, $type, $value)
+    $call add_var, $global_hash, $global_list
 
-    $sub func_add_var($name, $type, $value)
-        $if !$cur_function
-            return $name
-        my $var_list=$cur_function->{var_list}
-        my $var_hash=$cur_function->{var_hash}
-        $call add_var, $var_hash, $var_list
-
-    $sub my_add_var($name, $type, $value)
-        my $var_list=$cur_scope->{var_list}
-        my $var_hash=$cur_scope->{var_hash}
-        $if $var_hash != $global_hash
-            $call add_var, $var_hash, $var_list
-        $else
-            # There must be a reason my_add_var was called in a global context
-            #     e.g. in a hack or global template
-            #     silently drop declarations
-            return $name
-
-    $sub auto_add_var($name, $type, $value)
-        my $var=find_var($name)
-        $if !$var
-            $if $debug eq "type"
-                $call warn, auto_add_var: $name - $type - $value
-            func_add_var($name, $type, $value)
-
-    $sub temp_add_var($name, $type, $value)
-        my $var=parse_var($name, $type, $value)
-        $name=$var->{name}
-
-        my $macro_name=$name
-        $name=MyDef::utils::uniq_name($name, \%protected_var)
-
-        $if $debug eq "type"
-            print "temp_var $macro_name -> $name of $var->{type}\n"
-
-        my $hash=$cur_scope->{var_hash}
-        $type=$var->{type}
-        $if $hash->{$name} and $hash->{$name}->{temptype} ne $type
-            my $i=2
-            $if $name=~/[0-9_]/
-                $name.="_"
-            $while $hash->{"$name$i"} and $hash->{"$name$i"}->{temptype} ne $type
-                $i++
-            $name="$name$i"
-        $if !$hash->{$name}
-            $var->{name}=$name
-            $var->{temptype}=$type
-            $hash->{$name}=$var
-            my $var_list=$cur_scope->{var_list}
-            push @$var_list, $name
-
-        MyDef::compileutil::set_current_macro($macro_name, $name)
+fncode: func_add_var($name, $type, $value)
+    $if !$cur_function
         return $name
+    my $var_list=$cur_function->{var_list}
+    my $var_hash=$cur_function->{var_hash}
+    $call add_var, $var_hash, $var_list
+
+fncode: my_add_var($name, $type, $value)
+    my $var_list=$cur_scope->{var_list}
+    my $var_hash=$cur_scope->{var_hash}
+    $if $var_hash != $global_hash
+        $call add_var, $var_hash, $var_list
+    $else
+        # There must be a reason my_add_var was called in a global context
+        #     e.g. in a hack or global template
+        #     silently drop declarations
+        return $name
+
+fncode: auto_add_var($name, $type, $value)
+    my $var=find_var($name)
+    $if !$var
+        $if $debug eq "type"
+            $call warn, auto_add_var: $name - $type - $value
+        func_add_var($name, $type, $value)
+
+fncode: temp_add_var($name, $type, $value)
+    my $var=parse_var($name, $type, $value)
+    $name=$var->{name}
+
+    my $macro_name=$name
+    $name=MyDef::utils::uniq_name($name, \%protected_var)
+
+    $if $debug eq "type"
+        print "temp_var $macro_name -> $name of $var->{type}\n"
+
+    my $hash=$cur_scope->{var_hash}
+    $type=$var->{type}
+    $if $hash->{$name} and $hash->{$name}->{temptype} ne $type
+        my $i=2
+        $if $name=~/[0-9_]/
+            $name.="_"
+        $while $hash->{"$name$i"} and $hash->{"$name$i"}->{temptype} ne $type
+            $i++
+        $name="$name$i"
+    $if !$hash->{$name}
+        $var->{name}=$name
+        $var->{temptype}=$type
+        $hash->{$name}=$var
+        my $var_list=$cur_scope->{var_list}
+        push @$var_list, $name
+
+    MyDef::compileutil::set_current_macro($macro_name, $name)
+    return $name
 
 #------------------
 subcode: check_var_collision(exist)
@@ -286,70 +285,70 @@ subcode: check_pointer_type_name
         $name=$2
 
 #---------------------------------------- 
-subcode:: c_support_subs
-    $sub var_declare($var)
-        $if $var->{type} eq "function"
-            return $fntype{$var->{name}};
+fncode: var_declare($var)
+    $if $var->{type} eq "function"
+        return $fntype{$var->{name}};
+    $else
+        my $name=$var->{name}
+        my $type=$var->{type}
+        my $t
+        $if defined $var->{array}
+            $t=pointer_type($type)." $name"."[$var->{array}]"
+        $elif defined $var->{constructor}
+            $t=pointer_type($type)." $name"."($var->{constructor})"
         $else
-            my $name=$var->{name}
-            my $type=$var->{type}
-            my $t
-            $if defined $var->{array}
-                $t=pointer_type($type)." $name"."[$var->{array}]"
-            $elif defined $var->{constructor}
-                $t=pointer_type($type)." $name"."($var->{constructor})"
-            $else
-                $t="$type $name"
-            $if defined $var->{init}
-                $t.=" = $var->{init}"
-            $if defined $var->{attr}
-                return  $var->{attr}." $t"
-            $else
-                return  $t
+            $t="$type $name"
+        $if defined $var->{init}
+            $t.=" = $var->{init}"
+        $if defined $var->{attr}
+            return  $var->{attr}." $t"
+        $else
+            return  $t
 
 #-----------------------------------------------------------------
-subcode:: c_support_subs
-    $sub get_var_type_direct($name)
-        my $var=find_var($name)
-        $if $debug eq "type"
-            print "get_var_type_direct: $name - [$var] - $var->{type}\n"
+fncode: get_var_type_direct($name)
+    my $var=find_var($name)
+    $if $debug eq "type"
+        print "get_var_type_direct: $name - [$var] - $var->{type}\n"
 
-        $if $var
-            return $var->{type}
-        $else
-            return undef
+    $if $var
+        return $var->{type}
+    $elif $type_name{$name}
+        # register_name may be used as a hack
+        return $type_name{$name}
+    $else
+        return undef
 
 #---------------------------------------- 
-subcode:: c_support_subs
-    $sub get_var_type($name)
-        $if $name=~/^(\w+)(.*)/
-            my $tail=$2
-            my $base_type=get_var_type_direct($1)
-            $base_type=~s/\s*&$//
-            #---- undef if not found -----
-            return get_sub_type($base_type, $tail)
-        $else
-            return "void";
+fncode: get_var_type($name)
+    $if $name=~/^(\w+)(.*)/
+        my $tail=$2
+        my $base_type=get_var_type_direct($1)
+        $base_type=~s/\s*&$//
+        #---- undef if not found -----
+        return get_sub_type($base_type, $tail)
+    $else
+        return "void";
 
-    $sub get_sub_type($type0, $tail)
-        $if !$type0
+fncode: get_sub_type($type0, $tail)
+    $if !$type0
+        return "void"
+
+    # print "get_sub_type: $type0 - $tail\n"
+
+    $if $tail=~/^(\.|->)(\w+)(.*)/
+        $tail=$3;
+        my $type=get_struct_element_type($type0, $2)
+        return get_sub_type($type, $tail)
+    $elif $tail=~/^\[.*?\](.*)/
+        $tail=$1;
+        $if $type0=~/\*$/
+            return get_sub_type(pointer_type($type0), $tail)
+        $else
+            $call warn, error in dereferencing pointer type $type0
             return "void"
-
-        # print "get_sub_type: $type0 - $tail\n"
-
-        $if $tail=~/^(\.|->)(\w+)(.*)/
-            $tail=$3;
-            my $type=get_struct_element_type($type0, $2)
-            return get_sub_type($type, $tail)
-        $elif $tail=~/^\[.*?\](.*)/
-            $tail=$1;
-            $if $type0=~/\*$/
-                return get_sub_type(pointer_type($type0), $tail)
-            $else
-                $call warn, error in dereferencing pointer type $type0
-                return "void"
-        $else
-            return $type0
+    $else
+        return $type0
 
 #-#########################################################
 subcode:: package_globals

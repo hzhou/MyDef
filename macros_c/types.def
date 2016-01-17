@@ -85,163 +85,160 @@ subcode:: package_globals
         "assert"=>"assert",
     );
 
-subcode:: c_support_subs
-    $sub infer_c_type
-        my $val=shift;
-        $if $val=~/^\((float|int|char|unsigned .*|.+\*)\)/
-            return $1
-        $elif $val=~/^\((.*)/
-            return infer_c_type($1)
-        $elif $val=~/^[+-]?\d+\./
-            return "float"
-        $elif $val=~/^[+-]?\d/
-            return "int"
-        $elif $val=~/^"/
-            return "char *";
-        $elif $val=~/^'/
-            return "char";
-        $elif $val=~/^\((\w+)\)\w/
-            return $1
-        $elif $val=~/^(true|false)/
-            $page->{use_bool}=1
-            return "bool"
-        $elif $val=~/(\w+)\(.*\)/
-            my $func=$functions{$1}
-            return $func->{ret_type}
-        $elif $val=~/(\w+)(.*)/
-            my $type=get_var_type($val)
-            return $type
-        $elif $val=~/^\((.+)\)$/
-            my @vlist=split /,\s*/, $1
-            my @plist
-            $foreach $v in @vlist
-                push @plist, infer_c_type($v)
-            my $tuple_name=declare_tuple(join(", ", @plist))
-            return "struct $tuple_name"
+fncode: infer_c_type
+    my $val=shift;
+    $if $val=~/^\((float|int|char|unsigned .*|.+\*)\)/
+        return $1
+    $elif $val=~/^\((.*)/
+        return infer_c_type($1)
+    $elif $val=~/^[+-]?\d+\./
+        return "float"
+    $elif $val=~/^[+-]?\d/
+        return "int"
+    $elif $val=~/^"/
+        return "char *";
+    $elif $val=~/^'/
+        return "char";
+    $elif $val=~/^\((\w+)\)\w/
+        return $1
+    $elif $val=~/^(true|false)/
+        $page->{use_bool}=1
+        return "bool"
+    $elif $val=~/(\w+)\(.*\)/
+        my $func=$functions{$1}
+        return $func->{ret_type}
+    $elif $val=~/(\w+)(.*)/
+        my $type=get_var_type($val)
+        return $type
+    $elif $val=~/^\((.+)\)$/
+        my @vlist=split /,\s*/, $1
+        my @plist
+        $foreach $v in @vlist
+            push @plist, infer_c_type($v)
+        my $tuple_name=declare_tuple(join(", ", @plist))
+        return "struct $tuple_name"
 
-    $sub type_default($type)
-        $if $type=~/\*$/
-            return "NULL"
-        $elif $type=~/float|double/
-            return "0.0"
-        $elif $type=~/char|signed|int/
-            return "0"
-        $else
-            return undef
-
-
-subcode:: c_support_subs
-    $sub get_c_type_word($name)
-        $if $name
-            $if $type_prefix{$name}
-                return $type_prefix{$name}
-            $elif $name=~/^([a-z0-9]+)/
-                my $prefix=$1;
-                $if $type_prefix{$prefix}
-                    return $type_prefix{$prefix};
-                $elif $prefix=~/^(.*?)\d+$/ and $type_prefix{$1}
-                    return $type_prefix{$1};
-                $elif $structs{$1}
-                    return "struct $1"
-            $elif substr($name, 0, 1) eq "t"
-                return get_c_type_word(substr($name,1));
-            $elif substr($name, 0, 1) eq "p"
-                return get_c_type_word(substr($name,1)).'*';
+fncode: type_default($type)
+    $if $type=~/\*$/
+        return "NULL"
+    $elif $type=~/float|double/
+        return "0.0"
+    $elif $type=~/char|signed|int/
+        return "0"
+    $else
         return undef
 
-    $sub get_c_type($name)
-        my $check;
-        my $type="void";
-        $if $name=~/.*\.([a-zA-Z].+)/
-            #print "ctype: $name->$1\n";
-            $name=$1;
-        $if $type_name{$name}
-            $type= $type_name{$name};
-        $else
-            my @parts=split /_/, $name
-            my $n_parts=@parts
-            $if $n_parts<=1
-                $type=get_c_type_word($name)
-            $elif $type_name{$parts[-1]}
-                $type = $type_name{$parts[-1]}
-                $if $parts[0] =~/^t?(p+)$/
-                    $type.='*' x length($1)
-            $else
-                my $t1=shift @parts
-                my $t2=join('_', @parts)
-                $if $t1 eq "t" or $t1 eq "temp"
-                    $type=get_c_type_word($t2)
-                $elif $t1 eq "p" or $t1 eq "tp"
-                    $type=get_c_type_word($t2).'*'
-                $else
-                    $type=get_c_type_word($t1)
 
-        $if !$type
-            $type="void";
-        $elif $type =~/^\*/
-            $type="void";
-        $elif $type eq "bool"
-            $page->{use_bool}=1
-        #----------------------------------------  
-        $if $type=~/^(\w+)/
-            $if $type_include{$1}
-                add_include($type_include{$1})
-        # --
-        $while $name=~/\[.*?\]/g
-            $type=pointer_type($type);
-        # --
-        $if $debug eq "type"
-            print "    get_c_type:   $name: $type\n";
-        return $type;
-
-    $sub name_with_prefix($name)
-        $if $type_name{$name}
-            return 1
-        $if $name=~/^(t_?)*(p_?)*([a-zA-Z][a-zA-Z0-9]*)\_/
-            my $prefix=$3
-            $if $debug eq "type"
-                print "name_with_prefix: $prefix - $type_prefix{$prefix}\n"
+fncode: get_c_type_word($name)
+    $if $name
+        $if $type_prefix{$name}
+            return $type_prefix{$name}
+        $elif $name=~/^([a-z0-9]+)/
+            my $prefix=$1;
             $if $type_prefix{$prefix}
-                return 1
-        return 0
+                return $type_prefix{$prefix};
+            $elif $prefix=~/^(.*?)\d+$/ and $type_prefix{$1}
+                return $type_prefix{$1};
+            $elif $structs{$1}
+                return "struct $1"
+        $elif substr($name, 0, 1) eq "t"
+            return get_c_type_word(substr($name,1));
+        $elif substr($name, 0, 1) eq "p"
+            return get_c_type_word(substr($name,1)).'*';
+    return undef
 
-subcode:: c_support_subs
-    $sub pointer_type($t)
-        $t=~s/\s*\*\s*$//;
-        return $t;
-
-    $sub get_name_type
-        my $t=shift
-        $if $t=~/(\S.*\S)\s+(\S+)/
-            return ($1, $2)
+fncode: get_c_type($name)
+    my $check;
+    my $type="void";
+    $if $name=~/.*\.([a-zA-Z].+)/
+        #print "ctype: $name->$1\n";
+        $name=$1;
+    $if $type_name{$name}
+        $type= $type_name{$name};
+    $else
+        my @parts=split /_/, $name
+        my $n_parts=@parts
+        $if $n_parts<=1
+            $type=get_c_type_word($name)
+        $elif $type_name{$parts[-1]}
+            $type = $type_name{$parts[-1]}
+            $if $parts[0] =~/^t?(p+)$/
+                $type.='*' x length($1)
         $else
-            return (get_c_type($t), $t)
+            my $t1=shift @parts
+            my $t2=join('_', @parts)
+            $if $t1 eq "t" or $t1 eq "temp"
+                $type=get_c_type_word($t2)
+            $elif $t1 eq "p" or $t1 eq "tp"
+                $type=get_c_type_word($t2).'*'
+            $else
+                $type=get_c_type_word($t1)
 
-    # --------------------------------------------
-    $sub get_var_fmt($v, $warn)
-        my $type=get_var_type($v)
-        $if !$type or $type eq "void"
-            $type=get_c_type($v);
-        $if $type=~/^char \*/
-            return "\%s";
-        $elsif $type=~/\*\s*$/
-            return "\%p";
-        $elsif $type=~/^(float|double)/
-            return "\%g"
-        $elif $type =~ /^int64_t/
-            add_include("<inttypes.h>")
-            return '%" PRId64 "'
-        $elif $type =~ /^uint64_t/
-            add_include("<inttypes.h>")
-            return '%" PRIu64 "'
-        $elsif $type=~/(int|long|bool|u?int\d+_t)\s*$/
-            return "\%d";
-        $elsif $type=~/^unsigned char/
-            return "\%d";
-        $elsif $type=~/char/
-            return "\%c";
-        $else
-            $if $warn
-                $call warn, get_var_fmt: unhandled $v - $type
-            return undef
+    $if !$type
+        $type="void";
+    $elif $type =~/^\*/
+        $type="void";
+    $elif $type eq "bool"
+        $page->{use_bool}=1
+    #----------------------------------------  
+    $if $type=~/^(\w+)/
+        $if $type_include{$1}
+            add_include($type_include{$1})
+    # --
+    $while $name=~/\[.*?\]/g
+        $type=pointer_type($type);
+    # --
+    $if $debug eq "type"
+        print "    get_c_type:   $name: $type\n";
+    return $type;
+
+fncode: name_with_prefix($name)
+    $if $type_name{$name}
+        return 1
+    $if $name=~/^(t_?)*(p_?)*([a-zA-Z][a-zA-Z0-9]*)\_/
+        my $prefix=$3
+        $if $debug eq "type"
+            print "name_with_prefix: $prefix - $type_prefix{$prefix}\n"
+        $if $type_prefix{$prefix}
+            return 1
+    return 0
+
+fncode: pointer_type($t)
+    $t=~s/\s*\*\s*$//;
+    return $t;
+
+fncode: get_name_type
+    my $t=shift
+    $if $t=~/(\S.*\S)\s+(\S+)/
+        return ($1, $2)
+    $else
+        return (get_c_type($t), $t)
+
+# --------------------------------------------
+fncode: get_var_fmt($v, $warn)
+    my $type=get_var_type($v)
+    $if !$type or $type eq "void"
+        $type=get_c_type($v);
+    $if $type=~/^char \*/
+        return "\%s";
+    $elsif $type=~/\*\s*$/
+        return "\%p";
+    $elsif $type=~/^(float|double)/
+        return "\%g"
+    $elif $type =~ /^int64_t/
+        add_include("<inttypes.h>")
+        return '%" PRId64 "'
+    $elif $type =~ /^uint64_t/
+        add_include("<inttypes.h>")
+        return '%" PRIu64 "'
+    $elsif $type=~/(int|long|bool|u?int\d+_t)\s*$/
+        return "\%d";
+    $elsif $type=~/^unsigned char/
+        return "\%d";
+    $elsif $type=~/char/
+        return "\%c";
+    $else
+        $if $warn
+            $call warn, get_var_fmt: unhandled $v - $type
+        return undef
 
