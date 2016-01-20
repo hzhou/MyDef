@@ -448,7 +448,7 @@ subcode: write_rule_submake
         print Out "force_look:\n\ttrue\n";
 
 subcode: module_specific
-    $if $config_outputdir
+    $if $config_outputdir and !-e "$config_outputdir/skipmake"
         $if $module eq "c"
             $if !-d $config_outputdir
                 mkdir $config_outputdir;

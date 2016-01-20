@@ -4,12 +4,19 @@ subcode:: parsecode_func_other
         # hacks for C++
         $if $param=~/^(\w+)\s*=\s*(.*)/
             my ($name, $val) = ($1, $2)
-            my $type=get_c_type($name)
             $val=~s/\s*;\s*$//
-            $if $func eq "auto"
-                push @$out, "$type $name = $val;"
+            my $type=get_c_type($name)
+            $if $type and $type ne "void"
+                $if $func eq "auto"
+                    push @$out, "$type $name = $val;"
+                $else
+                    push @$out, "$type $name = dynamic_cast<$type>($val);"
+            $elif $val=~/(\w+)(\.|->)(find|begin|end)\b/
+                my $t = get_c_type($1)
+                $t=~s/^const\s+//
+                push @$out, $t."::const_iterator $name = $val;"
             $else
-                push @$out, "$type $name = dynamic_cast<$type>($val);"
+                $print "$func: type for $name unknown\n"
         return
 
 subcode:: parsecode_func_other
