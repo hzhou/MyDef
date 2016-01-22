@@ -17,6 +17,10 @@ subcode:: parsecode_func_other
                 push @$out, $t."::const_iterator $name = $val;"
             $else
                 $print "$func: type for $name unknown\n"
+        $elif $param=~/^(\w+);?/
+            my $name=$1
+            my $type=get_c_type($name)
+            push @$out, "$type $name;"
         return
 
 subcode:: parsecode_func_other
