@@ -331,32 +331,31 @@ fncode: get_var_type_direct($name)
         return undef
 
 #---------------------------------------- 
-fncode: get_var_type($name)
+fncode: get_var_type($name, $nowarn)
     $if $name=~/^(\w+)(.*)/
         my $tail=$2
         my $base_type=get_var_type_direct($1)
         $base_type=~s/\s*&$//
         #---- undef if not found -----
-        return get_sub_type($base_type, $tail)
+        return get_sub_type($base_type, $tail, $nowarn)
     $else
         return "void";
 
-fncode: get_sub_type($type0, $tail)
+fncode: get_sub_type($type0, $tail, $nowarn)
     $if !$type0
         return "void"
-
-    # print "get_sub_type: $type0 - $tail\n"
 
     $if $tail=~/^(\.|->)(\w+)(.*)/
         $tail=$3;
         my $type=get_struct_element_type($type0, $2)
-        return get_sub_type($type, $tail)
+        return get_sub_type($type, $tail, $nowarn)
     $elif $tail=~/^\[.*?\](.*)/
-        $tail=$1;
+        my $new_tail=$1
         $if $type0=~/\*$/
-            return get_sub_type(pointer_type($type0), $tail)
+            return get_sub_type(pointer_type($type0), $new_tail, $nowarn)
         $else
-            $call warn, error in dereferencing pointer type $type0
+            $if !$nowarn
+                $call warn, error in dereferencing pointer type $type0 ($tail)
             return "void"
     $else
         return $type0

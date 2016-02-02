@@ -108,7 +108,7 @@ fncode: infer_c_type
         my $func=$functions{$1}
         return $func->{ret_type}
     $elif $val=~/(\w+)(.*)/
-        my $type=get_var_type($val)
+        my $type=get_var_type($val, 1)
         return $type
     $elif $val=~/^\((.+)\)$/
         my @vlist=split /,\s*/, $1
@@ -216,7 +216,7 @@ fncode: get_name_type
 
 # --------------------------------------------
 fncode: get_var_fmt($v, $warn)
-    my $type=get_var_type($v)
+    my $type=get_var_type($v, 1)
     $if !$type or $type eq "void"
         $type=get_c_type($v);
     $if $type=~/^char \*/

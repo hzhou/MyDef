@@ -37,46 +37,54 @@ fncode: do_assignment($left, $right)
     subcode: check_tuple_assignment
         my @left_list=MyDef::utils::proper_split($left)
         my @right_list=MyDef::utils::proper_split($right)
-
-        $if $debug eq "type"
-            printf "check_tuple_assignment: left $left:%d, right $right:%d\n", $#left_list+1, $#right_list+1
+        $call @debug
         $if @left_list>1 or @right_list>1
             $if @left_list==1
-                my $type=get_var_type($left)
-                # $print "left type [$type]"
-                $if $type=~/^struct (\w+)$/
-                    $call assign_to_struct, $1, 0
-                $elif $type=~/^struct (\w+)\s*\*$/
-                    $call assign_to_struct, $1, 1
-                $elif $type=~/^(.*?)\s*\*$/ 
-                    # -- assign to array ----
-                    $for $i=0:@right_list
-                        do_assignment("$left\[$i\]", $right_list[$i])
-                $else
-                    $call warn, tuple assigned to scalar
-                    do_assignment($left, $right_list[0])
+                $call assign_one_from_many
             $elif @right_list==1
-                $if $right=~/^(\w+)\((.*)\)/
-                    $call assign_from_function_tuple, $1, $2
-                $else
-                    my $type=get_var_type($right)
-                    $if $type=~/^struct (\w+)$/
-                        $call assign_from_struct, $1, 0
-                    $elif $type=~/^struct (\w+)\s*\*$/
-                        $call assign_from_struct, $1, 1
-                    $elif $type=~/^(.*?)\s*\*$/ 
-                        $for $i=0:@right_list
-                            do_assignment($left_list[$i], "$right\[$i\]")
-                    $else
-                        $call warn, scalar assigned to tuple
-                        $for $i=0:@right_list
-                            do_assignment($left_list[$i], $right)
+                $call assign_many_from_one
             $else
                 $for $i=0:@left_list
                     do_assignment($left_list[$i], $right_list[$i])
             return
 
         # ---------------------------------------- 
+        subcode: debug
+            $if $debug eq "type"
+                printf "check_tuple_assignment: left $left:%d, right $right:%d\n", $#left_list+1, $#right_list+1
+
+        subcode: assign_one_from_many
+            my $type=get_var_type($left)
+            # $print "left type [$type]"
+            $if $type=~/^struct (\w+)$/
+                $call assign_to_struct, $1, 0
+            $elif $type=~/^struct (\w+)\s*\*$/
+                $call assign_to_struct, $1, 1
+            $elif $type=~/^(.*?)\s*\*$/ 
+                # -- assign to array ----
+                $for $i=0:@right_list
+                    do_assignment("$left\[$i\]", $right_list[$i])
+            $else
+                $call warn, tuple assigned to scalar
+                do_assignment($left, $right_list[0])
+
+        subcode: assign_many_from_one
+            $if $right=~/^(\w+)\((.*)\)/
+                $call assign_from_function_tuple, $1, $2
+            $else
+                my $type=get_var_type($right)
+                $if $type=~/^struct (\w+)$/
+                    $call assign_from_struct, $1, 0
+                $elif $type=~/^struct (\w+)\s*\*$/
+                    $call assign_from_struct, $1, 1
+                $elif $type=~/^(.*?)\s*\*$/ 
+                    $for $i=0:@right_list
+                        do_assignment($left_list[$i], "$right\[$i\]")
+                $else
+                    $call warn, scalar assigned to tuple
+                    $for $i=0:@right_list
+                        do_assignment($left_list[$i], $right)
+
         subcode: assign_to_struct(name, is_ref)
             # $print "assign_to_struct $(name)"
             my $s_list=$structs{$(name)}->{list}
