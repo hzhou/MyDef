@@ -328,7 +328,7 @@ fncode: get_macro($s, $nowarn)
             return join(" $sep ", @tlist)
     $elif $s=~/^(.+)/
         #---- straight macro ----
-        return get_macro_word($1)
+        return get_macro_word($1, $nowarn)
 
 fncode: get_macro_word($name, $nowarn) 
     $for $j=$#$deflist:-1:-1
