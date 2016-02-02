@@ -130,6 +130,8 @@ fncode: type_default($type)
 
 
 fncode: get_c_type_word($name)
+    $if $debug eq "type"
+        $print "    get_c_type_word: $name"
     $if $name
         $if $type_prefix{$name}
             return $type_prefix{$name}
@@ -141,7 +143,8 @@ fncode: get_c_type_word($name)
                 return $type_prefix{$1};
             $elif $structs{$1}
                 return "struct $1"
-        $elif substr($name, 0, 1) eq "t"
+
+        $if substr($name, 0, 1) eq "t"
             return get_c_type_word(substr($name,1));
         $elif substr($name, 0, 1) eq "p"
             return get_c_type_word(substr($name,1)).'*';

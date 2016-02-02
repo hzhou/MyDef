@@ -173,7 +173,7 @@ subcode:: support_subs
             print "translate_scalar: unhandled $var - $vartype\n";
 
     $sub translate_null($out, $var, $vartype)
-        $if $vartype !~/int|float|double/
+        $if $vartype !~/int|float|double|bool/
             push @$out, "    $var = NULL;";
         $elif $vartype eq "int" or $vartype eq "bool"
             push @$out, "    $var = 0;";
