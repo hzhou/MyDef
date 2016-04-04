@@ -2,3 +2,14 @@ page: test
     a: b
 
     print "$(a)\n"
+    $call test_eval, test_case
+    $call test_inline, example
+
+subcode: test_eval(t)
+    $(eval:t2=ucfirst("$(t)"))
+    $print test_eval: $(t)
+    $print "\t ucfirst: $(t2)"
+
+subcode: test_inline(t)
+    $(set:inline=test_inline(\"$1\"))
+    $print "test_inline: $(t) -> $(inline:$(t))"

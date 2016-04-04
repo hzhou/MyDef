@@ -199,7 +199,7 @@ fncode: expand_macro($lref)
             last
 
 fncode: get_macro($s, $nowarn)
-    $if $s=~/^((rep|perl|map|or|and|sym|def)\b.+)/
+    $if $s=~/^((rep|perl|eval|map|or|and|sym|def)\b.+)/
         my $t=$1
         $if $t=~/^rep\[(.*?)\](\d+):(.*)/
             $if $2>1
@@ -219,6 +219,8 @@ fncode: get_macro($s, $nowarn)
                 return $t
             $else
                 die "Failed perl $outdir/perl-$defname.pl\n"
+        $elif $t=~/^eval:\s+(.*)/
+            return eval($1)
         $elif $t=~/^map\s+(.*):(.*):(.*)/
             my ($pat, $sep)=($1, $3)
             my @tlist=split /\|/, $2
