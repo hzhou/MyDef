@@ -163,7 +163,7 @@ fncode: get_c_type($name)
         my $n_parts=@parts
         $if $n_parts<=1
             $type=get_c_type_word($name)
-        $elif length($parts[-1]})>1 and $type_name{$parts[-1]}
+        $elif length($parts[-1])>1 and $type_name{$parts[-1]}
             $type = $type_name{$parts[-1]}
             $if $parts[0] =~/^t?(p+)$/
                 $type.='*' x length($1)
