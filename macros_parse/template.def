@@ -1,16 +1,15 @@
-subcode: _autoload
-    $global $template_index = 0
-
-fncode: parse_template($def, $codes, $template_file)
+fncode: parse_template($def, $pagecodes, $template_file)
     $call check_path
-    my @new_source
+
+    $global $template_index = 0
     my $sub_name = "TMP_$template_index"
     $template_index++
-    $codes->{main}={type=>'sub', source=>["\$call $sub_name"], 'params'=>[]}
+
+    $pagecodes->{main}={type=>'sub', source=>["\$call $sub_name"], 'params'=>[]}
+    my @new_source
     push @new_source, "subcode: $sub_name"
 
     my $t_idx = 0
-    my $cur_source
     $call start_template
 
     my $cur_grab_spaces
@@ -23,10 +22,11 @@ fncode: parse_template($def, $codes, $template_file)
             $elif /^(\s*)(.*)/
                 my $n= get_indent_spaces($1)
                 $if $n <= $cur_grab_spaces
+                    # -- end of grab 
                     $if $start_grab eq "mydef"
-                        $call insert_grab
+                        $call insert_grab_mydef
                         $call start_template
-                        push @$cur_source, $_
+                        $call append_template
                     undef $start_grab
                     next
                 $else
@@ -40,8 +40,7 @@ fncode: parse_template($def, $codes, $template_file)
                         $if $new_spaces<4
                             push @$cur_grab, "$2\n"
                         $else
-                            $new_spaces-=4
-                            push @$cur_grab, ' 'x$new_spaces . "$2\n"
+                            push @$cur_grab, ' 'x($new_spaces-4) . "$2\n"
 
 
         $elif /^(\s*)(mydef):/
@@ -52,9 +51,9 @@ fncode: parse_template($def, $codes, $template_file)
             $cur_grab_spaces=get_indent_spaces($1)
             $start_grab = "template"
             $cur_grab=[]
-            $codes->{$2}={type=>"template", source=>$cur_grab, 'params'=>[]}
+            $pagecodes->{$2}={type=>"template", source=>$cur_grab, 'params'=>[]}
         $else
-            push @$cur_source, $_
+            $call append_template
 
     return \@new_source
 
@@ -70,7 +69,7 @@ fncode: parse_template($def, $codes, $template_file)
             $if $template_file!~/^\.*\//
                 $template_file = $template_dir.'/'.$template_file
 
-    subcode: insert_grab
+    subcode: insert_grab_mydef
         my $len = $cur_grab_spaces
         my $n=int($len/4)
         $if $len % 4
@@ -83,8 +82,11 @@ fncode: parse_template($def, $codes, $template_file)
 
     subcode: start_template
         $t_idx++
-        $cur_source=[]
-        $codes->{"_T_$t_idx"} = {type=>'template', source=>$cur_source, 'params'=>[]}
+        my $cur_source=[]
+        $pagecodes->{"_T_$t_idx"} = {type=>'template', source=>$cur_source, 'params'=>[]}
         push @new_source, "    \$call _T_$t_idx"
+
+    subcode: append_template
+        push @$cur_source, $_
         
             

@@ -93,6 +93,8 @@ fncode: infer_c_type
         return infer_c_type($1)
     $elif $val=~/^[+-]?\d+\./
         return "float"
+    $elif $val=~/^[+-]?\d+[eE]/
+        return "float"
     $elif $val=~/^[+-]?\d/
         return "int"
     $elif $val=~/^"/

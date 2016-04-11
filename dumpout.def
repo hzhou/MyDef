@@ -4,10 +4,7 @@ page: dumpout
     type: pm
     output_dir: lib/MyDef
     package: MyDef::dumpout
-    subcode: main
-        $call dump_main
 
-subcode: dump_main
     $sub dumpout
         my $dump=shift;
         my $f=$dump->{f};
