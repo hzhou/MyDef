@@ -24,12 +24,15 @@ subcode:: parsecode_func_other
         return
 
 subcode:: parsecode_func_other
-    $elif $func eq "global" or $func eq "symbol"
+    $elif $func=~/^(global|static|symbol)$/
         $call check_var_special
 
         &call each_param_v
             $if $func eq "global"
                 my $name=global_add_var($v)
+            $elif $func eq "static"
+                my $name=global_add_var($v)
+                $global_hash->{$name}->{attr}="static"
             $elif $func eq "symbol"
                 global_add_symbol($v)
         return

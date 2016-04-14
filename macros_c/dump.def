@@ -1,13 +1,17 @@
 subcode: c_dump_init
     my @dump_init
+
+    #  @ <-- $dump->{block_init} <-- DUMP_STUB global_init
     $dump->{block_init}=\@dump_init
     my $global_init=MyDef::compileutil::get_named_block("global_init")
     unshift @$global_init, "INCLUDE_BLOCK block_init"
 
-    $if %objects
-        push @dump_init, "/* link: $lib_list $obj_list */\n"
-
+    # @ --> $dump_out
     my $dump_out=\@dump_init
+
+    $if %objects
+        push @$dump_out, "/* link: $lib_list $obj_list */\n"
+
     $call dump_includes
     $call dump_defines
     $call dump_enums
@@ -76,7 +80,7 @@ fncode: add_define($name, $var)
     $defines{$name}=$var
 
 subcode: dump_defines
-    $if $page->{use_bool}
+    $if $page->{use_bool} and !$page->{skip_bool}
         push @$dump_out, "typedef int bool;\n"
         push @$dump_out, "#define true 1\n"
         push @$dump_out, "#define false 0\n"
@@ -168,11 +172,14 @@ subcode: dump_function_declares
 
 # ---- Declares ----
 subcode:: c_init
-    $global @declare_list
+    $global %declare_hash, @declare_list
+    %declare_hash=()
     @declare_list=()
 
 subcode:: do_declare(param)
-    push @declare_list, $(param)
+    $if !$declare_hash{$(param)}
+        push @declare_list, $(param)
+        $declare_hash{$(param)} = 1
 
 subcode: dump_declares
     $foreach $l in @declare_list

@@ -221,9 +221,6 @@ subcode: grab_template
     $cur_line--
 
 # --------------------------------------------------------
-subcode:: import_file_init
-    my $page
-
 subcode: start_page
     my ($pagename, $framecode)
     # ---- name
@@ -234,6 +231,8 @@ subcode: start_page
         $pagename=$1;
     # ---- code
     my $codes={};
+
+    $global $page
     $page={pagename=>$pagename, codes=>$codes, main_name=>"main"};
 
     $if $framecode

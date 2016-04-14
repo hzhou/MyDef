@@ -53,6 +53,8 @@ fncode: parse_template($def, $pagecodes, $template_file)
             $cur_grab=[]
             $pagecodes->{$2}={type=>"template", source=>$cur_grab, 'params'=>[]}
         $else
+            $if /^\s*DUMP_STUB\s+(\w+)/
+                $page->{"has_stub_$1"}=1
             $call append_template
 
     return \@new_source

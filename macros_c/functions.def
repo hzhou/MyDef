@@ -61,7 +61,7 @@ fncode: open_function($fname, $param)
     #---------
     $func->{name}=$fname;
     # -- parsing param list
-    $if $param eq "api"
+    $if $param =~/^api(\s+(\w+))?$/
         $call open_function_api
     $if $param
         $call add_function_params
@@ -73,6 +73,39 @@ fncode: open_function($fname, $param)
     # --
     return $func
 
+    # ------
+    subcode: open_function_api
+        my $api_name
+        $if $1
+            $api_name=$2
+        $elif $fname=~/^([a-zA-Z0-9]+)_(\w+)/
+            $api_name=$2
+
+        $if $api_name
+            $if $fntype{$2}
+                my $t=$fntype{$2}
+                $if $t=~/^(.*?)\s*\(\s*\*\s*(\w+)\s*\)\s*\(\s*(.*)\)/
+                    $func->{ret_type}=$1
+                    $param=$3
+        $else
+            die "function $fname($param): api not found\n"
+
+#----
+subcode:: parsecode_func_other
+    $elif $func =~/^(return_type|parameter|lexical)/
+        $if $cur_function
+            my $func = $cur_function
+            $if $1 eq "return_type"
+                $cur_function->{ret_type}=$param;
+                $if $param=~/bool/
+                    $page->{use_bool}=1
+                return
+            $elif $1 eq "parameter"
+                $call add_function_params
+                return
+        return 1
+
+#----
 subcode: add_function_params
     my $param_list=$func->{param_list}
     my $var_hash=$func->{var_hash}
@@ -85,7 +118,9 @@ subcode: add_function_params
             ($type, $name)=($1, $2)
             $call check_pointer_type_name
         $elif $p eq "fmt" and $i==@plist
-            push @$param_list, "char * fmt, ..."
+            push @$param_list, "const char * fmt, ..."
+        $elif $p eq "..." and $i==@plist
+            push @$param_list, "..."
         $else
             $if $fntype{$p}
                 push @$param_list, $fntype{$p};
@@ -100,29 +135,6 @@ subcode: add_function_params
                 $call set_macro, $1, "(*p_$1)"
             $var_hash->{$name}={name=>$name, type=>$type}
             push @$param_list, "$type $name"
-
-subcode: open_function_api
-    $if $fname=~/^([a-zA-Z0-9]+)_(\w+)/
-        $if $fntype{$2}
-            my $t=$fntype{$2}
-            $if $t=~/^(.*?)\s*\(\s*\*\s*(\w+)\s*\)\s*\(\s*(.*)\)/
-                $func->{ret_type}=$1
-                $param=$3
-
-#---------------------------------------- 
-subcode:: parsecode_func_other
-    $elif $func =~/^(return_type|parameter|lexical)/
-        $if $cur_function
-            my $func = $cur_function
-            $if $1 eq "return_type"
-                $cur_function->{ret_type}=$param;
-                $if $param=~/bool/
-                    $page->{use_bool}=1
-                return
-            $elif $1 eq "parameter"
-                $call add_function_params
-                return
-        return 1
 
 # -----------------------------------------------------------------
 fncode: func_return($t)
