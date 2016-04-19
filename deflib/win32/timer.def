@@ -8,7 +8,7 @@ subcode: set_timer(ID, timeout)
             BLOCK
             $(if:!timer_repeat)
                 KillTimer(hwnd, id)
-        $(set0:$(ID)_fn=$(lamda))
+        $(set0:$(ID)_fn=$(lambda))
     SetTimer(hwnd_main, $(ID), $(timeout), $($(ID)_fn)) 
 
 subcode: set_timer_with_pointer(ID, timeout, pointer)
@@ -22,7 +22,7 @@ subcode: set_timer_with_pointer(ID, timeout, pointer)
             BLOCK
             $(if:!timer_repeat)
                 KillTimer(hwnd, id)
-        $(set0:$(ID)_fn=$(lamda))
+        $(set0:$(ID)_fn=$(lambda))
     SetTimer(hwnd_main, (UINT_PTR)$(pointer)+$(ID), $(timeout), $($(ID)_fn)) 
 
 # -------------------------------------

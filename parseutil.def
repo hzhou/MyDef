@@ -237,10 +237,10 @@ subcode: start_page
 
     $if $framecode
         $if $framecode=~/^from\s+(\S+)/
-            #-- $lines defines a template subcode: TMP_##
-            #--    ... and sets the main code to call it
-            my $lines = parse_template($def, $codes, $1)
-            push @$include_list, $lines
+            my $sub_name = get_template_sub_name()
+            $codes->{main}={type=>'sub', source=>["\$call $sub_name"], 'params'=>[]}
+            my $sub_definition = parse_template($def, $codes, $1, $sub_name)
+            push @$include_list, $sub_definition
             #- 
             $page->{main_name}="main2"
         $else

@@ -38,6 +38,9 @@ page: output_c, output_main
                 $type_name{f}="double";
                 $type_prefix{f}="double";
 
+            $if $MyDef::def->{"macros"}->{"skip_bool"} and !$page->{"skip_bool"}
+                $page->{skip_bool}=1
+
             $if $MyDef::def->{"macros"}->{"use_int64"} or $page->{"use_int64"}
                 $(for:i in i,j,k,l)
                     $type_name{$(i)}="int64_t";

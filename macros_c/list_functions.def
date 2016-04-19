@@ -107,8 +107,8 @@ subcode: parsecode_post
     # ------------------------------------
     subcode: parse_function_list_item(f)
         my $funcname=$(f)
-        $if $lamda_functions{$funcname}
-            my $block=$lamda_functions{$funcname}
+        $if $lambda_functions{$funcname}
+            my $block=$lambda_functions{$funcname}
             push @$out, @$block
             $function_autolist{$funcname}="static"
         $elif $functions{$funcname} && $functions{$funcname}->{autodecl}
@@ -149,7 +149,7 @@ subcode: parsecode_post
 
 # ---- Direct $function ------------------
 subcode: parse_function
-    $global %lamda_functions
+    $global %lambda_functions
     $if $param=~/(\w+)(.*)/
         my ($fname, $paramline)=($1, $2)
         $if $paramline=~/\((.*)\)/
@@ -164,9 +164,9 @@ subcode: parse_function
                 push @$block, "BLOCK";
             push @$block, "PARSE:\$function_pop"
 
-        $lamda_functions{$funcname}=$block
+        $lambda_functions{$funcname}=$block
         $call add_list_function, $funcname
-        MyDef::compileutil::set_current_macro("lamda", $funcname)
+        MyDef::compileutil::set_current_macro("lambda", $funcname)
 
         return $block
     $else
@@ -201,13 +201,13 @@ subcode:: support_subs
     #---- used in deflib/win32/windows.def --
     #--
     $sub start_function_block($funcname, $paramline)
-        $if !$lamda_functions{$funcname}
+        $if !$lambda_functions{$funcname}
             my $block=[]
             my $old_out=MyDef::compileutil::set_output($block)
 
             my $fidx = start_function($funcname, $paramline)
 
-            $lamda_functions{$funcname}=$block
+            $lambda_functions{$funcname}=$block
             push @list_function_list, $funcname
             $list_function_hash{$funcname}=1
             return {out=>$old_out, fidx=>$fidx}

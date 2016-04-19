@@ -15,8 +15,10 @@ subcode:: parsecode_func_other
 fncode: check_expression($l, $context)
     #-- Note: if $l is already terminated with ';'
     #--   it is bypassed: parsing.def:parsecode_other
-    # $if $debug eq "expression"
-    #     $print "check_expression: $l [$context]"
+    $(if:0)
+        $if $debug eq "expression"
+            $print "check_expression: $l [$context]"
+
     $call check_statement
     $else
         $call parse_frame
@@ -56,6 +58,10 @@ fncode: check_expression($l, $context)
                 $else
                     do_assignment($left, $right)
                     return
+            $elif $assign eq ":="
+                # a hack for assignment in condition
+                #   double parentheses is clang's trick to supress warning
+                return "($left = $right)"
             $else
                 $right= "$left $assign $right"
         $call process_expression_cache, $right

@@ -16,8 +16,9 @@ fncode: translate_regex($re, $option)
             MyDef::utils::debug_regex($r)
 
         my $opt={group_idx=>0}
-        $if $option=~/i/
-            $opt->{i}=1
+        $(for:i in i, s, m)
+            $if $option=~/$(i)/
+                $opt->{$(i)}=1
 
     subcode: check_cache
         $global %re_hash
@@ -133,7 +134,10 @@ fncode: translate_regex_atom($r, $opt, $level)
         my $cond
 
         $if $r->{type} eq "AnyChar"
-            NOOP
+            $if $opt->{s}
+                $cond = "tn_c>0"
+            $else
+                $cond = "tn_c>0 && tn_c!='\\n'"
         $elif $r->{type} eq "class"
             $if $r->{list}
                 $if $opt->{i}

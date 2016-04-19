@@ -81,12 +81,11 @@ fncode: open_function($fname, $param)
         $elif $fname=~/^([a-zA-Z0-9]+)_(\w+)/
             $api_name=$2
 
-        $if $api_name
-            $if $fntype{$2}
-                my $t=$fntype{$2}
-                $if $t=~/^(.*?)\s*\(\s*\*\s*(\w+)\s*\)\s*\(\s*(.*)\)/
-                    $func->{ret_type}=$1
-                    $param=$3
+        $if $fntype{$api_name}
+            my $t=$fntype{$api_name}
+            $if $t=~/^(.*?)\s*\(\s*\*\s*(\w+)\s*\)\s*\(\s*(.*)\)/
+                $func->{ret_type}=$1
+                $param=$3
         $else
             die "function $fname($param): api not found\n"
 

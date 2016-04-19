@@ -1,11 +1,12 @@
-fncode: parse_template($def, $pagecodes, $template_file)
-    $call check_path
-
+fncode: get_template_sub_name
     $global $template_index = 0
     my $sub_name = "TMP_$template_index"
     $template_index++
+    return $sub_name
 
-    $pagecodes->{main}={type=>'sub', source=>["\$call $sub_name"], 'params'=>[]}
+fncode: parse_template($def, $pagecodes, $template_file, $sub_name)
+    $call check_path
+
     my @new_source
     push @new_source, "subcode: $sub_name"
 

@@ -56,6 +56,14 @@ subcode: dumpout
             $if $source
                 push @source_stack, $out;
                 $out=$source;
+        $elif $l =~ /^DUMP_PERL\s+(\w+)/
+            my $t = MyDef::compileutil::eval_sub($1)
+            my $source = eval($t)
+            $if $@
+                $print eval error: [$@]
+            $if $source
+                push @source_stack, $out;
+                $out=$source;
         $elif $l=~/^\s*(INDENT|DEDENT|PUSHDENT|POPDENT)\b(.*)/
             $if $1 eq "INDENT"
                 $indentation++;

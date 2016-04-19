@@ -223,7 +223,7 @@ subcode: qsort(list, size, type)
         $(set:a=(*($(type)*)a))
         $(set:b=(*($(type)*)b))
         BLOCK
-    qsort($(list), $(size), sizeof($(type)), $(lamda))
+    qsort($(list), $(size), sizeof($(type)), $(lambda))
 
 subcode: numcmp(na, nb)
     $(allow_recurse:10)

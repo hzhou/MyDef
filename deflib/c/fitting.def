@@ -38,10 +38,10 @@ subcode: step_loop(n)
 #---------------------------------------- 
 subcode:: lma_init
     $allocate($(na)) pf_Jy
-    $allocate($(na)*$(na)) pf_S, pf_S_lamda
+    $allocate($(na)*$(na)) pf_S, pf_S_lambda
     $allocate($(na)) pf_delta
 
-#- (J'J + \lamda diag(J'J)) \delta = J' (y - y_a)
+#- (J'J + \lambda diag(J'J)) \delta = J' (y - y_a)
 subcode: do_lma_iteration
     $while 1
         $call @debug_start
@@ -54,13 +54,13 @@ subcode: do_lma_iteration
         $sumcode pf_Jy[i]=pf_J[i,j]*pf_Y[j]
         # $call matrix_print, pf_S
 
-        tf_lamda=0.0
+        tf_lambda=0.0
         find_delta:
 
-        $sumcode pf_S_lamda[i]=pf_S[i]
-        $sumcode pf_S_lamda[i,i]*=(1.0+tf_lamda)
-        $call matrix_inv, pf_S_lamda
-        $sumcode pf_delta[i]=pf_S_lamda[i,j]*pf_Jy[j]
+        $sumcode pf_S_lambda[i]=pf_S[i]
+        $sumcode pf_S_lambda[i,i]*=(1.0+tf_lambda)
+        $call matrix_inv, pf_S_lambda
+        $sumcode pf_delta[i]=pf_S_lambda[i,j]*pf_Jy[j]
 
         $call check_delta_break
         $sumcode $(param)[i]+=pf_delta[i]
@@ -68,10 +68,10 @@ subcode: do_lma_iteration
         $call @debug_iter
 
         $if tf_chi>tf_last_chi
-            $if tf_lamda<1
-                tf_lamda+=1
+            $if tf_lambda<1
+                tf_lambda+=1
             $else
-                tf_lamda*=1.5
+                tf_lambda*=1.5
             $for i=0:$(na)
                 $(param)[i]-=pf_delta[i]
             goto find_delta
@@ -143,7 +143,7 @@ subcode: debug_start
     printf(" chi = %.4f\n", tf_chi)
 
 subcode: debug_iter
-    printf("   lamda=%.2f delta: ", tf_lamda)
+    printf("   lambda=%.2f delta: ", tf_lambda)
     $for i=0:$(na)
         printf("%.2f, ", pf_delta[i])
     printf(" - a: ")
