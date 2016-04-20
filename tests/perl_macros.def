@@ -4,6 +4,7 @@ page: test
     print "$(a)\n"
     $call test_eval, test_case
     $call test_inline, example
+    $call test_for_list
 
 subcode: test_eval(t)
     $(eval:t2=ucfirst("$(t)"))
@@ -13,3 +14,8 @@ subcode: test_eval(t)
 subcode: test_inline(t)
     $(set:inline=test_inline(\"$1\"))
     $print "test_inline: $(t) -> $(inline:$(t))"
+
+subcode: test_for_list
+    $print "\nfor list:\n"
+    $(for:i, j, k and x, y, z and 1, 2, 3)
+        $print "  ", $2_$1 -> $3
