@@ -397,28 +397,29 @@ subcode: process_expression_cache(t)
 
 #---------------------------------------- 
 subcode: check_exp_string_op
+    add_include("<string.h>")
     $call exp_pop, $op
     $call exp_pop, $exp
     my %str_op=(eq=>"==", ne=>"!=", lt=>"<", gt=>">", le=>"<=", ge=>">=")
-    $op=$str_op{lc($op)}
+    my $sop=$str_op{lc($op)}.' 0'
     $if $type eq "atom-string"
         $if $token=~/^"(.*)"/
             $if ord($op) < 91
                 # upper case
-                $token= "strcmp($exp, $token) $op 0"
+                $token= "strcmp($exp, $token) $sop"
             $else
                 my $len=length($1)
-                $token= "strncmp($exp, $token, $len) $op 0"
+                $token= "strncmp($exp, $token, $len) $sop"
         $else
-            $token= "strcmp($exp, $token) $op 0"
+            $token= "strcmp($exp, $token) $sop"
         $type="atom"
     $else
         my $var=find_var($token)
         $if $var and $var->{strlen}
-            $token="strncmp($exp, $token, $var->{strlen}) $op 0"
+            $token="strncmp($exp, $token, $var->{strlen}) $sop"
             $type="atom"
         $else
-            $token="strcmp($exp, $token) $op 0"
+            $token="strcmp($exp, $token) $sop"
             $type="atom"
 
 #---------------------------------------- 
