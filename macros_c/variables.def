@@ -24,7 +24,7 @@ subcode:: parsecode_func_other
         return
 
 subcode:: parsecode_func_other
-    $elif $func=~/^(global|static|symbol)$/
+    $elif $func=~/^(global|static|symbol|extern)$/
         $call check_var_special
 
         &call each_param_v
@@ -35,6 +35,10 @@ subcode:: parsecode_func_other
                 $global_hash->{$name}->{attr}="static"
             $elif $func eq "symbol"
                 global_add_symbol($v)
+            $elif $func eq "extern"
+                my $name=global_add_symbol($v)
+                my $decl=var_declare($global_hash->{$name})
+                $call do_declare, "extern $decl"
         return
     $elif $func eq "local" or $func eq "my"
         $call check_var_special

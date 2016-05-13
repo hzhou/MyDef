@@ -127,6 +127,7 @@ subcode: parse_loop(l)
             BLOCK
 
 #---------------------------------------- 
+# all print goes to $debug_console
 subcode: init_debug_console
     use Socket
     $global $debug_console

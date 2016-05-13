@@ -45,6 +45,7 @@ subcode:: package_globals
         s=>"char *",
         f=>"float",
         d=>"double",
+        "size"=>"size_t",
         "time"=>"time_t",
         "file"=>"FILE *",
         "has"=>"bool",
@@ -165,10 +166,12 @@ fncode: get_c_type($name)
         my $n_parts=@parts
         $if $n_parts<=1
             $type=get_c_type_word($name)
-        $elif length($parts[-1])>1 and $type_name{$parts[-1]}
+        $elif $type_name{$parts[-1]}
             $type = $type_name{$parts[-1]}
             $if $parts[0] =~/^t?(p+)$/
                 $type.='*' x length($1)
+            $elif $parts[0] =~/^t?p*(.+)$/ and $type_prefix{$1}
+                $call warn, type of $name set to $type (ambiguous)
         $else
             my $t1=shift @parts
             my $t2=join('_', @parts)

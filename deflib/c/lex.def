@@ -3,6 +3,7 @@ subcode:: _autoload
     $register_name(input) struct input_buffer *
     $include ctype
 
+    $register_name(tn_c) int
 #---------------------------------------- 
 subcode: input_get_c(c)
     $(c) = input_get_char(input)

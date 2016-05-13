@@ -37,6 +37,9 @@ page: output_c, output_main
             $if $MyDef::def->{"macros"}->{"use_double"} or $page->{"use_double"}
                 $type_name{f}="double";
                 $type_prefix{f}="double";
+            $else
+                $type_name{f}="float";
+                $type_prefix{f}="float";
 
             $if $MyDef::def->{"macros"}->{"skip_bool"} and !$page->{"skip_bool"}
                 $page->{skip_bool}=1
@@ -47,6 +50,12 @@ page: output_c, output_main
                 $type_prefix{i}="int64_t";
                 $type_prefix{n}="int64_t";
                 $type_prefix{u}="uint64_t";
+            $else
+                $(for:i in i,j,k,l)
+                    $type_name{$(i)}="int";
+                $type_prefix{i}="int";
+                $type_prefix{n}="int";
+                $type_prefix{u}="uint";
 
     subcode: parsecode
         $(set:parse_condition=1)
