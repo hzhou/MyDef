@@ -26,13 +26,17 @@ fncode: allocate($dim, $param2, $alloc_type)
             my $type=pointer_type(get_var_type($p))
 
             my $size="sizeof($type)"
+            my $tsize = $size
             $if $dim ne "1"
-                $size = "$dim*$size"
+                $tsize = "$dim*$size"
 
             $if $alloc_type eq "realloc"
-                push @$out, "$p=($type*)realloc($p, $size);";
+                push @$out, "$p=($type*)realloc($p, $tsize);";
+            $elif defined $init_value and $init_value eq '0'
+                push @$out, "$p=($type*)calloc($dim, $size);";
+                undef $init_value
             $else
-                push @$out, "$p=($type*)malloc($size);";
+                push @$out, "$p=($type*)malloc($tsize);";
 
             $call @auto_post_p
             $call allocate_init
