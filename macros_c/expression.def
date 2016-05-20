@@ -302,8 +302,7 @@ subcode: check_exp_callsub
             $else
                 $call warn, Variable $varname not found
         $elif $var->{class}
-            $class = $var->{class}
-            my $subname=$class."_".$method
+            my $subname=$var->{class}."_".$method
             $call_line="$subname, $varname"
 
         $if $call_line
