@@ -9,6 +9,7 @@ macros:
     hascode: $MyDef::def->{codes}->{"$1"} or $MyDef::page->{codes}->{"$1"}
     callsub: MyDef::compileutil::callsub($1)
     getmacro: MyDef::compileutil::get_macro_word("$1", 1)
+    setmacro: MyDef::compileutil::set_current_macro("$1", $2)
 
 subcode: output_main
     $global $debug=0

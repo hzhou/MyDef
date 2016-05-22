@@ -188,7 +188,7 @@ subcode:: support_subs
         push @$out, "INDENT"
         push @$out, "DUMP_STUB fn$fidx\_pre"
 
-        MyDef::compileutil::set_current_macro("FunctionName", $funcname)
+        $(setmacro:FunctionName,$funcname)
         return $fidx
 
     $sub finish_function($fidx)

@@ -112,13 +112,10 @@ subcode: print_line
     $elif $l=~/^\s*NEWLINE\b/
         push @$f, "\n"
     $elif $l =~/^PRINT (.*)/
-        push @$f, "    "x$indentation;
-        push @$f, "$1\n"
+        push @$f, "    "x$indentation."$1\n"
     $else
-        push @$f, "    "x$indentation;
-        push @$f, $l
-        $if $l!~ /\n$/
-            push @$f, "\n";
+        chomp $l
+        push @$f, "    "x$indentation."$l\n"
 
 subcode: print_line_string
     $(set:indent=($indentation-$make_string_stack[-1]->{indent}-1))
