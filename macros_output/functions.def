@@ -1,0 +1,77 @@
+#---------------------------------------- 
+#- output_module:
+#-     implement open_function(,), which returns $func object
+#-     implement process_function, which fills open,pre,post,close blocks
+
+#-     provide function_push/function_pop if support scope
+
+#---------------------------------------- 
+subcode: list_function(f)
+    $call parse_name
+    &call load_codelib
+        my ($func, $block)=function_block($funcname, $paramline)
+        $foreach $l in @$block
+            $if $l eq "BLOCK"
+                $call @function_push
+                MyDef::compileutil::list_sub($codelib)
+                $if $out->[-1]=~/^return/
+                    $$func->{return}=pop @$out
+                $call @function_pop
+            $else
+                push @$out, $l
+
+    # ------------------
+    subcode: parse_name
+        my $codename=$(f)
+        my $funcname=$(f)
+        $if $codename=~/(\w+)\((\w+)\)/
+            $codename=$1
+            $funcname=$2
+        $funcname=~s/^@//
+
+    subcode: load_codelib
+        my $codelib=MyDef::compileutil::get_def_attr("codes", $codename)
+        $if !$codelib
+            $print function $codename not found!
+        $else
+            my $params=$codelib->{params}
+            my $paramline
+            $if defined $params
+                $paramline=join(",", @$params)
+                $if $funcname eq "n_main" or $funcname eq "main2"
+                    $funcname="main";
+            $else
+                $paramline=""
+
+            $if defined $paramline
+                BLOCK
+
+#---------------------------------------- 
+fncode: function_block($funcname, $paramline)
+    my $func=open_function($funcname, $paramline);
+
+    my @block
+    #------------------------------------------
+    #- @function_list maintains function index
+    $global @function_list
+    push @function_list, $func
+    my $fidx=$#function_list
+
+    $(set:S=MyDef::compileutil::set_named_block)
+    $(for:open in open,pre,post,close)
+        $func->{$(open)block}=[]
+        $(S)("fn$fidx\_$(open)", $func->{$(open)block})
+
+    push @block, "DUMP_STUB fn$fidx\_open"
+    push @block, "INDENT"
+    push @block, "DUMP_STUB fn$fidx\_pre"
+
+    push @block, "BLOCK"
+
+    push @block, "DUMP_STUB fn$fidx\_post"
+    push @block, "DEDENT"
+    push @block, "DUMP_STUB fn$fidx\_close"
+
+    $call set_macro, "FunctionName", $funcname
+    return ($func, \@block)
+
