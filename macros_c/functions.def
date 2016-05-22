@@ -10,7 +10,6 @@ subcode:: c_init
     $cur_scope={var_list=>$global_list, var_hash=>$global_hash, name=>"global"}
 
     $global %functions, $cur_function
-    $global @function_list
     %functions=()
     undef $cur_function
 
@@ -54,7 +53,7 @@ subcode: process_close_scope
 
 #-----------------------------------------------------------------
 fncode: open_function($fname, $param)
-    my $func= {param_list=>[], var_list=>[], var_hash=>{}, init=>[], finish=>[], openblock=>[], closeblock=>[], preblock=>[], postblock=>[]};
+    my $func= {param_list=>[], var_list=>[], var_hash=>{}, init=>[], finish=>[]};
     #---- reserve fn_init and fn_finish for user def use.----
     MyDef::compileutil::set_named_block("fn_init", $func->{init})
     MyDef::compileutil::set_named_block("fn_finish", $func->{finish})

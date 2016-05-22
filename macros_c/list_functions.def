@@ -1,3 +1,4 @@
+include: macros_output/functions.def
 subcode:: c_init
     $global @function_stack
     @function_stack=()
@@ -115,37 +116,7 @@ subcode: parsecode_post
         $elif $function_autolist{$funcname} eq "declare"
             push @function_declare_list, $funcname
         $else
-            $call parse_name
-            &call load_codelib
-                &call function_block
-                    MyDef::compileutil::list_sub($codelib)
-                    $if $out->[-1]=~/^return/
-                        $cur_function->{return}=pop @$out
-                $call function_pop
-        # ------------------
-        subcode: parse_name
-            my $codename=$(f)
-            $if $codename=~/(\w+)\((\w+)\)/
-                $codename=$1
-                $funcname=$2
-            $funcname=~s/^@//
-
-        subcode: load_codelib
-            my $codelib=MyDef::compileutil::get_def_attr("codes", $codename)
-            $if !$codelib
-                $print function $codename not found!
-            $else
-                my $params=$codelib->{params}
-                my $paramline
-                $if defined $params
-                    $paramline=join(",", @$params)
-                    $if $funcname eq "n_main" or $funcname eq "main2"
-                        $funcname="main";
-                $else
-                    $paramline=""
-
-                $if defined $paramline
-                    BLOCK
+            $call list_function, $(f)
 
 # ---- Direct $function ------------------
 subcode: parse_function
@@ -158,11 +129,9 @@ subcode: parse_function
             $paramline=$1
 
         my $funcname=MyDef::utils::uniq_name($fname, \%list_function_hash)
-        my $block=[]
-        &call replace_output, $block
-            &call function_block
-                push @$block, "BLOCK";
-            push @$block, "PARSE:\$function_pop"
+        my ($func, $block)=function_block($funcname, $paramline)
+        $call @function_push
+        push @$block, "PARSE:\$function_pop"
 
         $lambda_functions{$funcname}=$block
         $call add_list_function, $funcname
@@ -173,58 +142,6 @@ subcode: parse_function
         return "SKIPBLOCK"
 
 #---------------------------------------- 
-subcode:: support_subs
-    $sub start_function($funcname, $paramline)
-        my $func=open_function($funcname, $paramline);
-        $call function_push
-        #------------------
-        push @function_list, $func
-        my $fidx=$#function_list
-        MyDef::compileutil::set_named_block("fn$fidx\_open", $func->{openblock})
-        MyDef::compileutil::set_named_block("fn$fidx\_pre", $func->{preblock})
-        MyDef::compileutil::set_named_block("fn$fidx\_post", $func->{postblock})
-        MyDef::compileutil::set_named_block("fn$fidx\_close", $func->{closeblock})
-        push @$out, "DUMP_STUB fn$fidx\_open"
-        push @$out, "INDENT"
-        push @$out, "DUMP_STUB fn$fidx\_pre"
-
-        $(setmacro:FunctionName,$funcname)
-        return $fidx
-
-    $sub finish_function($fidx)
-        push @$out, "DUMP_STUB fn$fidx\_post"
-        push @$out, "DEDENT"
-        push @$out, "DUMP_STUB fn$fidx\_close"
-
-
-    #---------------------------------------- 
-    #---- used in deflib/win32/windows.def --
-    #--
-    $sub start_function_block($funcname, $paramline)
-        $if !$lambda_functions{$funcname}
-            my $block=[]
-            my $old_out=MyDef::compileutil::set_output($block)
-
-            my $fidx = start_function($funcname, $paramline)
-
-            $lambda_functions{$funcname}=$block
-            push @list_function_list, $funcname
-            $list_function_hash{$funcname}=1
-            return {out=>$old_out, fidx=>$fidx}
-        $else
-            return undef
-
-    $sub finish_function_block($context)
-        finish_function($context->{fidx})
-        MyDef::compileutil::set_output($context->{out})
-        $call function_pop
-
-#---------------------------------------- 
-subcode: function_block
-    my $fidx=start_function($funcname, $paramline)
-    BLOCK
-    finish_function($fidx)
-
 subcode: function_push
     push @function_stack, $cur_function
     $cur_function=$func
