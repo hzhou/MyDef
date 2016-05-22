@@ -1,5 +1,0 @@
-include: c/string.def
-
-page: string
-    subcode: main
-        $call libstring
