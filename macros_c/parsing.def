@@ -107,10 +107,13 @@ subcode: parsecode_func
         return
     $elsif $func eq "uselib"
         my @flist=split /,\s+/, $param;
-        $foreach my $f in @flist
-            $objects{"lib$f"}=1;
-            $if $lib_include{$f}
-                add_include($lib_include{$f})
+        $foreach $f in @flist
+            $if $f=~/^\w+$/
+                $objects{"lib$f"}=1
+                $if $lib_include{$f}
+                    add_include($lib_include{$f})
+            $else
+                $objects{$f}=1
         return
     $elsif $func eq "fntype"
         # Similar to type_name, but for funtion pointer types

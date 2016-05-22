@@ -24,10 +24,12 @@ subcode:: preproc_elifs
     $elif $preproc=~/^setmacro:\s*(.*)/
         # standard macros: def, macros, page
         set_macro($deflist->[2], $1)
-    $elif $preproc=~/autoinc:\s*(\w+)/
+    $elif $preproc=~/^autoinc:\s*(\w+)/
+        # increments a page variable
         my $page=$deflist->[2]
         $page->{$1}++
     $elif $preproc=~/^enuminc:\s*(\w+)/
+        # auto set page variable with common base_
         my $page=$deflist->[2]
         $if !$page->{$1}
             my $key = $1
@@ -36,6 +38,13 @@ subcode:: preproc_elifs
                 $base = $1
             $page->{$base}++
             $page->{$key}=$page->{$base}
+    $elif $preproc=~/^enumset:\s*(.*)/
+        my @t = split /,\s*/, $1
+        my $base = 1
+        my $m = $deflist->[-1]
+        $foreach $t in @t
+            $m->{$t}=$base
+            $base++
     $elif $preproc=~/^export:\s*(.*)/
         my $t=$1;
         $if $t=~/^\w+,/
@@ -90,6 +99,7 @@ subcode:: preproc_elifs
 
 #---------------------------------------- 
 #- $(set:name) join, sep, pattern, listitem1, ...
+#-    replaces the * in pattern with list
 subcode: set_macro_join
     $if !$tail
         $deflist->[-1]->{$name}=""

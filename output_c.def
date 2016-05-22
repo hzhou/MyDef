@@ -129,12 +129,13 @@ page: output_c, output_main
         $foreach $i in keys %objects
             $if $i=~/^lib(.*)/
                 push @liblist, "-l$1"
-            $elif $i=~/(.*\.o)/
-                push @objlist, "$i"
+            $else
+                push @objlist, $i
         my ($lib_list, $obj_list)
         $if @liblist
             $lib_list=join(" ", @liblist)
             $page->{lib_list}=$lib_list
         $if @objlist
             $obj_list=join(" ", @objlist)
+            $page->{lib_list}.=" ".$obj_list
 

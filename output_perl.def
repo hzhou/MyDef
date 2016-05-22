@@ -114,10 +114,6 @@ subcode: parsecode
                 $call parsecode_sum_support, perl
         $elif $func eq "print"
             $call parsecode_print
-        $elif $func eq "print_to"
-            $global $print_target
-            $print_target = $param
-            return 0
         $elif $func eq "source-$param"
             return "SKIPBLOCK"
     $elif $l=~/^NOOP POST_MAIN/
@@ -340,6 +336,7 @@ subcode: parsecode_print
         push @fmt_list, "\\x1b[0m"
 
     my $p = "print"
+    my $print_target = MyDef::compileutil::get_macro_word("print_to", 1)
     $if $print_target
         $p.=" $print_target"
     push @$out, "$p \"".join('',@fmt_list).'";'
