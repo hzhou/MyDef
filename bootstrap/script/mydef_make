@@ -96,7 +96,7 @@ if(@ARGV and $ARGV[0] eq 'nosub'){
     $nosub=1;
 }
 my $module="perl";
-my %module_type=(perl=>"pl", www=>"html", win32=>"c", apple=>"m", general=>"txt", matlab=>"m", cpp=>"cpp", java=>"java", autoit=>"au3", python=>"py");
+my %module_type=(perl=>"pl", www=>"html", win32=>"c", apple=>"m", general=>"txt", matlab=>"m", cpp=>"cpp", java=>"java", autoit=>"au3", python=>"py", fortran=>"f");
 if(@ARGV and -d $ARGV[0]){
     my $d=$ARGV[0];
     open In, "config";
@@ -528,7 +528,7 @@ while (my ($k, $v) = each %make_targets){
     print Out "\n";
 }
 close Out;
-if($config_outputdir){
+if($config_outputdir and !-e "$config_outputdir/skipmake"){
     if($module eq "c"){
         if(!-d $config_outputdir){
             mkdir $config_outputdir;

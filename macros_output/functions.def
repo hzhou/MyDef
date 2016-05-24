@@ -15,7 +15,7 @@ subcode: list_function(f)
                 $call @function_push
                 MyDef::compileutil::list_sub($codelib)
                 $if $out->[-1]=~/^return/
-                    $$func->{return}=pop @$out
+                    $func->{return}=pop @$out
                 $call @function_pop
             $else
                 push @$out, $l

@@ -1,27 +1,32 @@
 use strict;
 package MyDef::parseutil;
 our $debug=0;
-our $defname="default";
 our $code_index=0;
+our $page;
+our $template_index = 0;
 our @path;
 our %path;
 our @indent_stack=(0);
 
 sub import_data {
     my ($file) = @_;
-    if($file=~/([^\/]+)\.def/){
-        $defname=$1;
-    }
     my $def={"resource"=>{},
         "pages"=>{},
         "pagelist"=>[],
         "codes"=>{},
         "macros"=>{},
-        "defname"=>$defname,
         };
+    if($file=~/([^\/]+)\.def/){
+        $def->{name}=$1;
+        $def->{file}=find_file($file);
+    }
+    else{
+        $def->{name}="default";
+    }
+    my $macros=$def->{macros};
     while(my ($k, $v)=each %$MyDef::var){
         if($k=~/macro_(\w+)/){
-            $def->{macros}->{$1}=$v;
+            $macros->{$1}=$v;
         }
     }
     my @includes;
@@ -62,7 +67,6 @@ sub import_data {
 
 sub import_file {
     my ($f, $def, $include_list, $include_hash, $file_type) = @_;
-    my $page;
     my $curindent=0;
     my $codetype = "top";
     my $codeindent = 0;
@@ -240,6 +244,63 @@ sub import_file {
             $curindent=$curindent+1;
             $lastindent = $curindent;
         }
+        elsif($line=~/^template:/ && $curindent == $codeindent and $codetype ne "macro"){
+            if($curindent==1 && $codetype eq "code" && $indent_stack[-1]->[0] eq "page"){
+                while($codeindent<$lastindent){
+                    $lastindent--;
+                    push @$source, "SOURCE_DEDENT";
+                }
+                if($code_prepend){
+                    push @$source, @$code_prepend;
+                }
+                my $t = pop @indent_stack;
+                ($codetype, $codeindent, $codeitem) = @$t;
+            }
+            if(!$codeitem->{codes}){
+                $codeitem->{codes}={};
+            }
+            my $codes = $codeitem->{codes};
+            if($line =~ /^template:\s*(\w+)/){
+                my @grab;
+                my $t_code = {type=>"template",source=>\@grab};
+                $codes->{$1}=$t_code;
+                my $grab_indent=$curindent;
+                while($cur_line < @$plines){
+                    my $line = $plines->[$cur_line];
+                    $cur_line++;
+                    if($line=~/^\s*$/){
+                        $line="";
+                    }
+                    elsif($line=~/^(\s*)(.*)/){
+                        my $indent=get_indent($1);
+                        $line=$2;
+                        if($line=~/^#(?!(define|undef|include|line|error|pragma|if|ifdef|ifndef|elif|else|endif)\b)/){
+                            if($indent != $curindent){
+                                $line="NOOP";
+                            }
+                            else{
+                                next;
+                            }
+                        }
+                        else{
+                            $line=~s/\s+$//;
+                            $line=~s/\s+#\s.*$//;
+                        }
+                        $curindent=$indent;
+                    }
+                    if($line eq ""){
+                        push @grab, $line;
+                    }
+                    elsif($curindent>$grab_indent){
+                        push @grab, '    'x($curindent-$grab_indent-1) . $line;
+                    }
+                    else{
+                        last;
+                    }
+                }
+            }
+            $cur_line--;
+        }
         elsif($codeindent>0 and $codetype eq "code"){
             push @$source, $line;
         }
@@ -285,13 +346,16 @@ sub import_file {
                 my $codes={};
                 $page={pagename=>$pagename, codes=>$codes, main_name=>"main"};
                 if($framecode){
-                    $page->{main_name}="main2";
                     if($framecode=~/^from\s+(\S+)/){
-                        parse_template($def, $codes, $1);
-                        $codes->{main}={type=>'sub', source=>["\$call-template _T_0"], 'params'=>[]};
+                        my $sub_name = get_template_sub_name();
+                        $codes->{main}={type=>'sub', source=>["\$call $sub_name"], 'params'=>[]};
+                        my $sub_definition = parse_template($def, $codes, $1, $sub_name);
+                        push @$include_list, $sub_definition;
+                        $page->{main_name}="main2";
                     }
                     else{
                         $codes->{main}={'type'=>'sub', 'source'=>["\$call $framecode"], 'params'=>[]};
+                        $page->{main_name}="main2";
                     }
                 }
                 if($subpage){
@@ -361,6 +425,7 @@ sub import_file {
                     }
                     else{
                         grab_ogdl($grab, \@grab);
+                        last;
                     }
                 }
                 $cur_line--;
@@ -411,9 +476,6 @@ sub import_file {
     }
 }
 
-sub import_lines {
-}
-
 sub expand_macro {
     my ($lref, $macros) = @_;
     while($$lref=~/\$\(\w+\)/){
@@ -444,7 +506,10 @@ sub expand_macro {
 
 sub get_lines {
     my ($file) = @_;
-    if($file eq "-pipe"){
+    if(ref($file) eq "ARRAY"){
+        return $file;
+    }
+    elsif($file eq "-pipe"){
         my @lines=<STDIN>;
         return \@lines;
     }
@@ -458,6 +523,110 @@ sub get_lines {
         }
         return \@lines;
     }
+}
+
+sub get_template_sub_name {
+    my $sub_name = "TMP_$template_index";
+    $template_index++;
+    return $sub_name;
+}
+
+sub parse_template {
+    my ($def, $pagecodes, $template_file, $sub_name) = @_;
+    my $template_dir;
+    if($def->{macros}->{TemplateDir}){
+        $template_dir=$def->{macros}->{TemplateDir};
+    }
+    elsif($MyDef::var->{TemplateDir}){
+        $template_dir=$MyDef::var->{TemplateDir};
+    }
+    if($template_dir){
+        if($template_file!~/^\.*\//){
+            $template_file = $template_dir.'/'.$template_file;
+        }
+    }
+    my @new_source;
+    push @new_source, "subcode: $sub_name";
+    my $t_idx = 0;
+    $t_idx++;
+    my $cur_source=[];
+    $pagecodes->{"_T_$t_idx"} = {type=>'template', source=>$cur_source, 'params'=>[]};
+    push @new_source, "    \$call _T_$t_idx";
+    my $cur_grab_spaces;
+    my $start_grab;
+    my $cur_grab;
+    open In, "$template_file" or die "Can't open $template_file.\n";
+    while(<In>){
+        if($start_grab){
+            if(/^\s*$/){
+                push @$cur_grab, $_;
+            }
+            elsif(/^(\s*)(.*)/){
+                my $n= get_indent_spaces($1);
+                if($n <= $cur_grab_spaces){
+                    if($start_grab eq "mydef"){
+                        my $len = $cur_grab_spaces;
+                        my $n=int($len/4);
+                        if($len % 4){
+                            $n++;
+                        }
+                        for(my $i=0; $i <$n; $i++){
+                            push @new_source, "    INDENT";
+                        }
+                        push @new_source, @$cur_grab;
+                        for(my $i=0; $i <$n; $i++){
+                            push @new_source, "    DEDENT";
+                        }
+                        $t_idx++;
+                        my $cur_source=[];
+                        $pagecodes->{"_T_$t_idx"} = {type=>'template', source=>$cur_source, 'params'=>[]};
+                        push @new_source, "    \$call _T_$t_idx";
+                        push @$cur_source, $_;
+                    }
+                    undef $start_grab;
+                    next;
+                }
+                else{
+                    my $new_spaces = $n-$cur_grab_spaces;
+                    if($start_grab eq "mydef"){
+                        if($new_spaces<4){
+                            push @$cur_grab, "    $2\n";
+                        }
+                        else{
+                            push @$cur_grab, ' 'x$new_spaces . "$2\n";
+                        }
+                    }
+                    elsif($start_grab eq "template"){
+                        if($new_spaces<4){
+                            push @$cur_grab, "$2\n";
+                        }
+                        else{
+                            push @$cur_grab, ' 'x($new_spaces-4) . "$2\n";
+                        }
+                    }
+                }
+            }
+        }
+        elsif(/^(\s*)(mydef):/){
+            $cur_grab_spaces=get_indent_spaces($1);
+            $start_grab = $2;
+            $cur_grab=[];
+        }
+        elsif(/^(\s*)template:\s*(\w+)/){
+            $cur_grab_spaces=get_indent_spaces($1);
+            $start_grab = "template";
+            $cur_grab=[];
+            $pagecodes->{$2}={type=>"template", source=>$cur_grab, 'params'=>[]};
+        }
+        else{
+            if(/^\s*DUMP_STUB\s+(\w+)/){
+                $page->{"has_stub_$1"}=1;
+            }
+            push @$cur_source, $_;
+        }
+    }
+    close In;
+    return \@new_source;
 }
 
 sub debug_def {
@@ -513,38 +682,6 @@ sub debug_code {
     }
 }
 
-sub parse_template {
-    my ($def, $codes, $template_file) = @_;
-    if($def->{macros}->{TemplateDir}){
-        if($template_file!~/^\.*\//){
-            $template_file = $def->{macros}->{TemplateDir}.'/'.$template_file;
-        }
-    }
-    my @temp_source;
-    $codes->{"_T_0"} = {type=>'template', source=>\@temp_source, 'params'=>[]};
-    my $t_idx = 1;
-    my $cur_source=[];
-    $codes->{"_T_$t_idx"} = {type=>'template', source=>$cur_source, 'params'=>[]};
-    push @temp_source, "\$call-template _T_$t_idx";
-    my $cur_grab_spaces;
-    my $start_grab;
-    my $cur_grab;
-    open In, "$template_file" or die "Can't open $template_file.\n";
-    while(<In>){
-        if($start_grab){
-        }
-        elsif(/^(\s*)\$mydef/){
-            $cur_grab_spaces=length($1);
-            $start_grab = "mydef";
-            $cur_grab=[];
-        }
-        else{
-            push @$cur_source, $_;
-        }
-    }
-    close In;
-}
-
 sub add_path {
     my ($dir) = @_;
     if(!$dir){
@@ -589,6 +726,97 @@ sub find_file {
         warn "  search path: ".join(":", @path)."\n";
     }
     return undef;
+}
+
+sub grab_ogdl {
+    my ($ogdl, $llist)=@_;
+    my $cur_i=0;
+    my $cur_item=$ogdl;
+    my $last_item;
+    my $last_item_type;
+    my $last_item_key;
+    my @ogdl_stack;
+    foreach my $l (@$llist){
+        if($l=~/^(\d)+:(.*)/){
+            my ($i, $l)=($1, $2);
+            if($l=~/^NOOP/){
+                next;
+            }
+            if($i>$cur_i){
+                push @ogdl_stack, $cur_item;
+                $cur_item={"_list"=>[]};
+                if($last_item_type eq "array"){
+                    $cur_item->{"_name"}=$last_item->[-1];
+                    $last_item->[-1]=$cur_item;
+                }
+                elsif($last_item_type eq "hash"){
+                    $cur_item->{"_name"}=$last_item->{$last_item_key};
+                    $last_item->{$last_item_key}=$cur_item;
+                }
+                $cur_i=$i;
+            }
+            elsif($i<$cur_i){
+                while($i<$cur_i){
+                    $cur_item=pop @ogdl_stack;
+                    $cur_i--;
+                }
+            }
+            if($cur_item){
+                if($l=~/(^\S+?):\s*(.+)/){
+                    my ($k, $v)=($1, $2);
+                        $cur_item->{$k}=$v;
+                        $last_item=$cur_item;
+                        $last_item_type="hash";
+                        $last_item_key=$k;
+                }
+                elsif($l=~/(^\S+):\s*$/){
+                    my $k=$1;
+                    $cur_item->{$k}="";
+                    $last_item=$cur_item;
+                    $last_item_type="hash";
+                    $last_item_key=$k;
+                }
+                else{
+                    my @t;
+                    if($l !~/\(/){
+                        @t=split /,\s*/, $l;
+                    }
+                    else{
+                        push @t, $l;
+                    }
+                    foreach my $t (@t){
+                        push @{$cur_item->{_list}}, $t;
+                        $last_item=$cur_item->{_list};
+                        $last_item_type="array";
+                    }
+                }
+            }
+        }
+    }
+    return $ogdl;
+}
+
+sub print_ogdl {
+    my $ogdl=shift;
+    my $indent=shift;
+    if(ref($ogdl) eq "HASH"){
+        if($ogdl->{_name} ne "_"){
+            print "    "x$indent, $ogdl->{_name}, "\n";
+            $indent++;
+        }
+        while(my ($k, $v) = each %$ogdl){
+            if($k!~/^_(list|name)/){
+                print "    "x$indent, $k, ":\n";
+                print_ogdl($v, $indent+1);
+            }
+        }
+        foreach my $v (@{$ogdl->{_list}}){
+            print_ogdl($v, $indent);
+        }
+    }
+    else{
+        print "    "x$indent, $ogdl, "\n";
+    }
 }
 
 sub get_indent {
@@ -695,94 +923,5 @@ sub dupe_line {
         $l=~s/\$$i/$rep/g;
     }
     return $l;
-}
-sub grab_ogdl {
-    my ($ogdl, $llist)=@_;
-    my $cur_i=0;
-    my $cur_item=$ogdl;
-    my $last_item;
-    my $last_item_type;
-    my $last_item_key;
-    my @ogdl_stack;
-    foreach my $l (@$llist){
-        if($l=~/^(\d)+:(.*)/){
-            my ($i, $l)=($1, $2);
-            if($l=~/^NOOP/){
-                next;
-            }
-            if($i>$cur_i){
-                push @ogdl_stack, $cur_item;
-                $cur_item={"_list"=>[]};
-                if($last_item_type eq "array"){
-                    $cur_item->{"_name"}=$last_item->[-1];
-                    $last_item->[-1]=$cur_item;
-                }
-                elsif($last_item_type eq "hash"){
-                    $cur_item->{"_name"}=$last_item->{$last_item_key};
-                    $last_item->{$last_item_key}=$cur_item;
-                }
-                $cur_i=$i;
-            }
-            elsif($i<$cur_i){
-                while($i<$cur_i){
-                    $cur_item=pop @ogdl_stack;
-                    $cur_i--;
-                }
-            }
-            if($cur_item){
-                if($l=~/(^\S+?):\s*(.+)/){
-                    my ($k, $v)=($1, $2);
-                        $cur_item->{$k}=$v;
-                        $last_item=$cur_item;
-                        $last_item_type="hash";
-                        $last_item_key=$k;
-                }
-                elsif($l=~/(^\S+):\s*$/){
-                    my $k=$1;
-                    $cur_item->{$k}="";
-                    $last_item=$cur_item;
-                    $last_item_type="hash";
-                    $last_item_key=$k;
-                }
-                else{
-                    my @t;
-                    if($l !~/\(/){
-                        @t=split /,\s*/, $l;
-                    }
-                    else{
-                        push @t, $l;
-                    }
-                    foreach my $t (@t){
-                        push @{$cur_item->{_list}}, $t;
-                        $last_item=$cur_item->{_list};
-                        $last_item_type="array";
-                    }
-                }
-            }
-        }
-    }
-    return $ogdl;
-}
-sub print_ogdl {
-    my $ogdl=shift;
-    my $indent=shift;
-    if(ref($ogdl) eq "HASH"){
-        if($ogdl->{_name} ne "_"){
-            print "    "x$indent, $ogdl->{_name}, "\n";
-            $indent++;
-        }
-        while(my ($k, $v) = each %$ogdl){
-            if($k!~/^_(list|name)/){
-                print "    "x$indent, $k, ":\n";
-                print_ogdl($v, $indent+1);
-            }
-        }
-        foreach my $v (@{$ogdl->{_list}}){
-            print_ogdl($v, $indent);
-        }
-    }
-    else{
-        print "    "x$indent, $ogdl, "\n";
-    }
 }
 1;

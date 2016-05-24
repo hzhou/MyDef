@@ -79,27 +79,32 @@ sub parsecode {
     elsif($l=~/^\s*\$(\w+)\s*(.*)$/){
         my ($func, $param)=($1, $2);
         if($func=~/^(ifeq|ifneq|ifdef|ifndef)(_?)$/){
-            push @$out, "$1 $param";
-            push @$out, "BLOCK";
-            if($2 eq "_"){
-                push @$out, "endif";
+            my @src;
+            push @src, "$1 $param";
+            push @src, "BLOCK";
+            if($2){
+                push @src, "endif";
             }
-            push @$out, "endif";
-            return "NEWBLOCK";
+            MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+            return "NEWBLOCK-if";
         }
         elsif($func=~/^el(ifeq|ifneq|ifdef|ifndef)(_?)$/){
-            push @$out, "else $1 $param";
-            push @$out, "BLOCK";
-            if($2 eq "_"){
-                push @$out, "endif";
+            my @src;
+            push @src, "else $1 $param";
+            push @src, "BLOCK";
+            if($2){
+                push @src, "endif";
             }
-            return "NEWBLOCK";
+            MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+            return "NEWBLOCK-if";
         }
         elsif($func=~/^else$/){
-            push @$out, "else";
-            push @$out, "BLOCK";
-            push @$out, "endif";
-            return "NEWBLOCK";
+            my @src;
+            push @src, "else";
+            push @src, "BLOCK";
+            push @src, "endif";
+            MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+            return "NEWBLOCK-else";
         }
     }
     push @$out, $l;
@@ -112,27 +117,13 @@ sub dumpout {
 }
 sub single_block {
     my ($t1, $t2, $scope)=@_;
-    push @$out, "$t1";
-    push @$out, "INDENT";
-    push @$out, "BLOCK";
-    push @$out, "DEDENT";
-    push @$out, "$t2";
-    if($scope){
-        return "NEWBLOCK-$scope";
-    }
-    else{
-        return "NEWBLOCK";
-    }
-}
-sub single_block_pre_post {
-    my ($pre, $post, $scope)=@_;
-    if($pre){
-        push @$out, @$pre;
-    }
-    push @$out, "BLOCK";
-    if($post){
-        push @$out, @$post;
-    }
+    my @src;
+    push @src, "$t1";
+    push @src, "INDENT";
+    push @src, "BLOCK";
+    push @src, "DEDENT";
+    push @src, "$t2";
+    MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
     if($scope){
         return "NEWBLOCK-$scope";
     }

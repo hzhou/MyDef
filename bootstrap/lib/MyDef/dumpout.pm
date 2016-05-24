@@ -14,11 +14,7 @@ sub dumpout {
     my @make_string_stack;
     my $string_list=undef;
     while(1){
-        my $l;
-        if(@$out){
-            $l=shift @$out;
-        }
-        else{
+        if(!@$out){
             $out=pop @source_stack;
             if(!$out){
                 last;
@@ -27,6 +23,7 @@ sub dumpout {
                 next;
             }
         }
+        my $l=shift @$out;
         if($custom and $custom->($f, \$l)){
         }
         elsif($l =~/^INCLUDE_BLOCK (\S+)/){
@@ -35,6 +32,17 @@ sub dumpout {
         }
         elsif($l =~ /^DUMP_STUB\s+(\w+)/){
             my $source=$MyDef::compileutil::named_blocks{$1};
+            if($source){
+                push @source_stack, $out;
+                $out=$source;
+            }
+        }
+        elsif($l =~ /^DUMP_PERL\s+(\w+)/){
+            my $t = MyDef::compileutil::eval_sub($1);
+            my $source = eval($t);
+            if($@){
+                print "eval error: [$@]\n";
+            }
             if($source){
                 push @source_stack, $out;
                 $out=$source;
@@ -110,15 +118,11 @@ sub dumpout {
                 push @$f, "\n";
             }
             elsif($l =~/^PRINT (.*)/){
-                push @$f, "    "x$indentation;
-                push @$f, "$1\n";
+                push @$f, "    "x$indentation."$1\n";
             }
             else{
-                push @$f, "    "x$indentation;
-                push @$f, $l;
-                if($l!~ /\n$/){
-                    push @$f, "\n";
-                }
+                chomp $l;
+                push @$f, "    "x$indentation."$l\n";
             }
         }
         elsif($l =~/^(.*)=\s*\[(strings?)_from_file:\s*(\S+)\]\s*;/){
@@ -192,15 +196,11 @@ sub dumpout {
                     push @$f, "\n";
                 }
                 elsif($l =~/^PRINT (.*)/){
-                    push @$f, "    "x$indentation;
-                    push @$f, "$1\n";
+                    push @$f, "    "x$indentation."$1\n";
                 }
                 else{
-                    push @$f, "    "x$indentation;
-                    push @$f, $l;
-                    if($l!~ /\n$/){
-                        push @$f, "\n";
-                    }
+                    chomp $l;
+                    push @$f, "    "x$indentation."$l\n";
                 }
             }
         }
