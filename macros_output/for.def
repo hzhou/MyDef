@@ -1,8 +1,8 @@
 subcode: parsecode_for_support(style)
     $if $param=~/(.*);(.*);(.*)/
-        $(set:type=asis)
-        $call for_$(style)
-        return "NEWBLOCK-for"
+        &call return_newblock, for
+            $(set:type=asis)
+            $call for_$(style)
     $else
         my $var
         $if $param=~/^(\S+)\s*=\s*(.*)/
@@ -12,9 +12,9 @@ subcode: parsecode_for_support(style)
         my ($i0, $i1, $step)
         $call parsecode_for_convention
         $call @for_i0_i1_step
-        $(set:type=i0_i1_step)
-        $call for_$(style)
-        return "NEWBLOCK-for"
+        &call return_newblock, for
+            $(set:type=i0_i1_step)
+            $call for_$(style)
 
 #---------------------------------------- 
 subcode: parsecode_for_convention
@@ -46,7 +46,7 @@ subcode: parsecode_for_convention
 
 #---------------------------------------- 
 subcode:@ for_c_style
-    single_block("for($param){", "}")
+    $call push_single_block, "for($param){", "}"
 
 subcode:@ for_i0_i1_step
     $param="$var=$i0; $var$i1; $var+=$step"

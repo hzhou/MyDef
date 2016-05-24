@@ -1,35 +1,41 @@
 # $sumcode sum = A[i]
 subcode: parsecode_sum_support(style)
-    my $h={}
-    $call sumcode_init_style, $(style)
-    $call sumcode_parse
-    $call parsecode_sum_common
+    &call parsecode_sum_frame
+        $call sumcode_parse
 
 # $sumcode(100) sum = A[i]
 subcode: parsecode_sum_simple(style)
+    &call parsecode_sum_frame
+        $call sumcode_simple_parse
+
+#----------------------------------------------- 
+subcode: parsecode_sum_frame
+    $if $debug
+        $print parsecode_sum: [$param]
     my $h={}
     $call sumcode_init_style, $(style)
-    $call sumcode_simple_parse
+    BLOCK
     $call parsecode_sum_common
-
-subcode: parsecode_sum_common
-    $(for:left in left, right)
-        $h->{$(left)}=$$(left)
-        $h->{$(left)_idx}=\@$(left)_idx
-    $h->{klist} = \@k_list
-    $foreach $k in @k_list
-        $h->{"$k-init"}="$(my) $(k)_$k"
-        $h->{"$k-var"}="$(k)_$k"
-    $if @right_idx
-        $if $left=~/^(\$?\w+)$/
-            $h->{sum}=$1
-        $else
-            $h->{sum}="$(sum)"
-        $h->{"sum-init"}="$(mytype) $h->{sum} = 0"
-
     my $codelist=sumcode_generate($h)
     MyDef::compileutil::parseblock({source=>$codelist, name=>"sumcode"})
     return
+
+    subcode: parsecode_sum_common
+        $(for:left in left, right)
+            $h->{$(left)}=$$(left)
+            $h->{$(left)_idx}=\@$(left)_idx
+        $h->{klist} = \@k_list
+        $foreach $k in @k_list
+            $h->{"$k-init"}="$(my) $(k)_$k"
+            $h->{"$k-var"}="$(k)_$k"
+        $if @right_idx
+            $if $left=~/^(\$?\w+)$/
+                $h->{sum}=$1
+            $else
+                $h->{sum}="$(sum)"
+            $h->{"sum-init"}="$(mytype) $h->{sum} = 0"
+
+
 #---------------------------------------- 
 #- '$' is not an operator, so if it appears, let's assume it is 
 #-     part of variable name
@@ -215,6 +221,9 @@ fncode: sumcode_generate($h)
     my %loop_i_hash
     my %loop_k_hash
     $call sumcode_init_each_k
+    $if $debug
+        print "left indexs: ", join(", ", @$left_idx), "\n"
+        print "right indexs: ", join(", ", @$right_idx), "\n"
     &call sumcode_loop, left
         $if @$right_idx
             my $sum=$h->{sum}

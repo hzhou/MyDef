@@ -13,7 +13,6 @@ fncode: parseblock($code)
     my @last_line
     my $lindex=0;
 
-    my $callback_output;
     my @callback_stack; # &call
     my $pending_mode_pop;
 
@@ -126,39 +125,42 @@ subcode: parse_catch_meta
         next
 
 subcode: parse_line
-    undef $callback_output
+    my $callback_output
     my $callback_scope
 
-    my $idx=$#$out+1;
-    $global $parse_line_count=0
-    $parse_line_count++
     my $msg=$f_parse->($l);
     $if $msg
         $if ref($msg) eq "ARRAY"
-            # output is held until post processing
-            #     eg. output_apple.pm $method
-            $callback_output=$msg;
-            $idx=0;
+            $(if:1)
+                $call warn, return [ARRAY] deprecated. Use NEWBLOCK and &replace_output instead.
+            $(else)
+                # output is held until post processing
+                #     eg. output_apple.pm $method
+                $callback_output=$msg;
         $elif $msg=~/^NEWBLOCK(.*)/
             # check the new output for blocks
-            #     eg. cfunctions.pm single_block
-            $callback_output=$out;
+            #     eg. output.def single_block()
             $if $1=~/^-(.*)/
                 $callback_scope=$1
+            $callback_output=$named_blocks{NEWBLOCK}
         $elif $msg=~/^SKIPBLOCK(.*)/
             my $blk=grabblock($block, \$lindex)
             $if $1=~/^-(\w+)/
                 $named_blocks{$1}=$blk
             last
         $elif $msg=~/^CALLBACK\b/
+            # capture block into $named_blocks{last_grab}
+            #     eg. output_plot.def: CALLBACK tex
             my $blk=grabblock($block, \$lindex)
             $(if:1)
+                # expand $call etc.
                 $global $parse_capture
                 $parse_capture=[]
                 parseblock({source=>$blk, name=>"capture"})
                 $named_blocks{last_grab}=$parse_capture
                 undef $parse_capture
             $(else)
+                # as is
                 $named_blocks{last_grab}=$blk
             $f_parse->($msg)
             $named_blocks{last_grab}=undef
@@ -173,44 +175,16 @@ subcode: parse_line
         # ---------------------------------
         # single_block and $method
         $if $callback_output
-            $call check_callback
-
-    # ---------------------
-    subcode: check_callback
-        my $n=new_output()
-        my $subblock=grabblock($block, \$lindex)
-        $call parse_callback_block, $n, $subblock
-
-        my $n_end_parse=0
-        $for $i=$idx:$#$callback_output+1
-            $if $callback_output->[$i]=~/^BLOCK$/
-                $callback_output->[$i]="BLOCK_$n"
-            $elif $callback_output->[$i]=~/^PARSE:(.*)/
-                $n_end_parse++
-                $f_parse->($1)
-                $callback_output->[$i]="NOOP"
-
-        $if $n_end_parse==0
-            $call hack_case_wrap
-
-        # ------------
-        subcode: parse_callback_block(n, subblock)
-            my $temp=$out;
-            set_output($output_list[$(n)])
-            #$f_parse->("SCOPE: CALLBACK");
-            parseblock({source=>$(subblock), name=>"BLOCK_$(n)", scope=>$callback_scope})
-            #$f_parse->("SCOPE: NONE");
-            set_output($temp)
-
-        subcode: hack_case_wrap
-            # case wrap 
-            #     $for ..
-            #         $if ...
-            # need wrap at the end of $for
-            my $temp=$out;
-            set_output($output_list[$n])
-            $f_parse->("NOOP")
-            set_output($temp)
+            my $subblock=grabblock($block, \$lindex)
+            $foreach $l in @$callback_output
+                $if $l=~/^BLOCK$/
+                    #$f_parse->("SCOPE: CALLBACK");
+                    parseblock({source=>$subblock, name=>"BLOCK", scope=>$callback_scope})
+                    #$f_parse->("SCOPE: NONE");
+                $elif $l=~/^PARSE:(.*)/
+                    $f_parse->($1)
+                $else
+                    $f_parse->($l)
 
 ######## Parse Output Stacks ######################################
 fncode: parse_stack_push($code)

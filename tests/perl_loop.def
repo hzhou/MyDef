@@ -4,26 +4,31 @@
 page: test
     type: pl
 
-    # $call test_1
+    $call test_1
+    $print \n== sumcode simple =============
     $call test_sumcode
     $call test_sumcode_2
 
 subcode: test_sumcode
     $my @a
+    print '$loop(10) $a[i]=i ', "\n"
+    print '$loop(10) $print "    i: $a[i]"', "\n"
     $loop(10) $a[i]=i
-    $loop(10) print "i: $a[i]\n"
+    $loop(10) $print "    i: $a[i]"
 
 subcode: test_sumcode_2
-    $loop(10) print "sumcode simple: i \n"
-
     $my @a, @T=(0,1,1,0)
+    print '$loop(2,2) $a[i,j]=i+j', "\n"
+    print '$loop(2,2) $print "    (i,j): $a[i,j]"', "\n"
     $loop(2,2) $a[i,j]=i+j
-    $loop(2,2) print "i, j: $a[i,j]\n"
+    $loop(2,2) $print "    (i,j): $a[i,j]"
 
     $print
     $my @b
-    $sum(2,2) $b[i,j]=$T[i,k]*$a[k,j]
-    $loop(2,2) print "i, j: $b[i,j]\n"
+    print '$sum(2,2,2) $b[i,j]=$T[i,k]*$a[k,j]', "\n"
+    print '$loop(2,2) print "    (i,j): $b[i,j]\n"', "\n"
+    $sum(2,2,2) $b[i,j]=$T[i,k]*$a[k,j]
+    $loop(2,2) print "    (i,j): $b[i,j]\n"
 
 #---------------------------------------- 
 subcode: test_1
@@ -44,21 +49,21 @@ subcode: test_1
 
     $call test_foreach, $t in 1, $t
 
-subcode: test_for(param, var)
-    $(if:param~\$)
-        print "\nTest \$for \$(param) ...\n    "
-    $(else)
-        print "\nTest \$for $(param) ...\n    "
-    $for $(param)
-        print "$(var) "
-    print "\n"
+    subcode: test_for(param, var)
+        $(if:param~\$)
+            print "\nTest \$for \$(param) ...\n    "
+        $(else)
+            print "\nTest \$for $(param) ...\n    "
+        $for $(param)
+            print "$(var) "
+        print "\n"
 
-subcode: test_foreach(param, var)
-    $(if:param~\$)
-        print "\nTest \$foreach \$(param) ...\n    "
-    $(else)
-        print "\nTest \$foreach $(param) ... ...\n    "
-    $foreach $(param)
-        print "$(var) "
-    print "\n"
+    subcode: test_foreach(param, var)
+        $(if:param~\$)
+            print "\nTest \$foreach \$(param) ...\n    "
+        $(else)
+            print "\nTest \$foreach $(param) ... ...\n    "
+        $foreach $(param)
+            print "$(var) "
+        print "\n"
 
