@@ -18,7 +18,7 @@ In my case, that is to add following line in ~/.vimrc:
 
 3. You are all set!
 
-## Quick Demo
+## Quick Demo in C
 
 Let's say you want to dump a list from reddit homepage.
 
@@ -56,6 +56,7 @@ Let's say you want to dump a list from reddit homepage.
 
 Of course your experience may not as smooth as this. You may not have syntax highting or auto indentation -- why not set them up? Or your code may not compile either at MyDef compilation or gcc compilation or it conatains run-time bugs. That means to re-edit and re-press <F5>, rinse and repeat. I can't help you there, but there you are doing *real* work, aren't you?
 
+## Demo in Perl
 Well C may not suit well for quick code. Try PERL for example, it may be easier:
 
         page: test
@@ -64,4 +65,4 @@ Well C may not suit well for quick code. Try PERL for example, it may be easier:
                 $while /class="title [^"]*" href="(http[^"]*)"/g
                     $print link: $1
 
-... and press `F5` -- simple.
+... and press `F5` -- simple. Perl is MyDef's default module, so you don't even need specify the module type.
