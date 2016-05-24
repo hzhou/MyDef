@@ -45,7 +45,7 @@ Let's say you want to dump a list from reddit homepage.
             $regex_capture ts_url
             $print link: $ts_url
 
-3. ":w" and hit <F5>
+3. `:w` and hit `F5`
 
         PAGE: test
         --> [./test.c]
