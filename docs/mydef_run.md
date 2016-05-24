@@ -7,14 +7,16 @@ In fact, this is nothing new. Almost any compiler, from GCC to Perl interpreter,
 So here I show you one of my typical setup for quick code. It is by no mean to be the only workflow, but since it works for me, it may as well work for you.
 
 1. Use vim. 
-I use vim, and I know how to use vim. If you use another editor and assume you know how to use it, simply use this document as reference.
+
+   I use vim, and I know how to use vim. If you use another editor and assume you know how to use it, simply use this document as reference.
 
 2. Add a shortcut key.
-In my case, that is to add following line in ~/.vimrc:
+
+   In my case, that is to add following line in ~/.vimrc:
 
         :nmap <F5> :!mydef_run %<CR>
 
-`mydef_run` is a simple script that *guesses* your intended workflow and runs them for you. In my case, if it is C, it runs mydef_page, gcc, and finally runs the executable. Did I mention it is a simple script and it *guesses* your intention? There is nothing magic there; if it doesn't fit your workflow, simply edit mydef_run.def in your MyDef source tree and customize to your way -- make it more sophiscated if you would like.
+    `mydef_run` is a simple script that *guesses* your intended workflow and runs them for you. In my case, if it is C, it runs mydef_page, gcc, and finally runs the executable. Did I mention it is a simple script and it *guesses* your intention? There is nothing magic there; if it doesn't fit your workflow, simply edit mydef_run.def in your MyDef source tree and customize to your way -- make it more sophiscated if you would like.
 
 3. You are all set!
 
