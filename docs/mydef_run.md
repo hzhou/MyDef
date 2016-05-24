@@ -26,24 +26,24 @@ Let's say you want to dump a list from reddit homepage.
 
 2. vim t.def (t is my favorate name for anything quick or temorary)
 
-    include: c/files.def
-    include: c/regex.def
+        include: c/files.def
+        include: c/regex.def
 
-    page: test, basic_frame
-        module: c
+        page: test, basic_frame
+            module: c
 
-        s_file="t.html"
+            s_file="t.html"
 
-        $call stat_file, s_file
-        n=$(fsize)
-        $local_allocate(n+1, 0) s
+            $call stat_file, s_file
+            n=$(fsize)
+            $local_allocate(n+1, 0) s
 
-        &call open_r, s_file
-            fread(s, 1, n, file_in)
+            &call open_r, s_file
+                fread(s, 1, n, file_in)
 
-        $while s=~/class="title [^"]*" href="(http[^"]*)"/g
-            $regex_capture ts_url
-            $print link: $ts_url
+            $while s=~/class="title [^"]*" href="(http[^"]*)"/g
+                $regex_capture ts_url
+                $print link: $ts_url
 
 3. `:w` and hit `F5`
 
