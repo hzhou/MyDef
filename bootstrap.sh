@@ -6,6 +6,9 @@ perl Makefile.PL INSTALL_BASE=$HOME #pmake
 make install
 cd ..
 
+PERL5LIB=$HOME/lib/perl5
+MYDEFLIB=$HOME/lib/MyDef
+
 # install deflib 
 $HOME/bin/mydef_install deflib $HOME/lib/MyDef
 
