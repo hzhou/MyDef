@@ -824,6 +824,17 @@ sub parseblock {
                     elsif($preproc=~/^setmacro:\s*(.*)/){
                         set_macro($deflist->[2], $1);
                     }
+                    elsif($preproc=~/^unset:\s*(.*)/){
+                        my @t = split /,\s*/, $1;
+                        foreach my $t (@t){
+                            if($t=~/^(\w+)/){
+                                $deflist->[-1]->{$t}=undef;
+                            }
+                            else{
+                                print "[$cur_file:$cur_line]\x1b[32m unset only accepts single word(s)\n\x1b[0m";
+                            }
+                        }
+                    }
                     elsif($preproc=~/^autoinc:\s*(\w+)/){
                         my $page=$deflist->[2];
                         $page->{$1}++;
@@ -1597,12 +1608,7 @@ sub testcondition {
             return defined $t;
         }
         else{
-            if(!defined $t){
-                return test_op($1, $2);
-            }
-            else{
-                return test_op($t, $2);
-            }
+            return test_op($t, $2);
         }
     }
     else{
@@ -1726,12 +1732,7 @@ sub get_cur_code {
 }
 sub get_def {
     my ($name)=@_;
-    for(my $i=$#$deflist; $i >=-1; $i--){
-        if(defined $deflist->[$i]->{$name}){
-            return $deflist->[$i]->{$name};
-        }
-    }
-    return undef;
+    return get_macro_word($name, 1);
 }
 sub get_def_attr {
     my ($name, $attr)=@_;

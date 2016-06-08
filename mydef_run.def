@@ -12,7 +12,9 @@ page: mydef_run
     MyDef::init(%config)
     MyDef::import_data($config{def_file})
     $call compile_page
-    $call run
+
+    $if !$config{skiprun}
+        $call run
 
     # -------------------------
     subcode: parse_arg
@@ -33,6 +35,8 @@ page: mydef_run
             $if /module:\s*(\w+)/
                 $config{module}=$1
                 last
+            $elif /^#skiprun/
+                $config{skiprun}=1
 
     subcode: compile_page
         my $pagename=$MyDef::def->{pagelist}->[0]
