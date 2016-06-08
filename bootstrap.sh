@@ -6,15 +6,16 @@ perl Makefile.PL INSTALL_BASE=$HOME #pmake
 make install
 cd ..
 
-PERL5LIB=$HOME/lib/perl5
-MYDEFLIB=$HOME/lib/MyDef
+PATH=$HOME/bin:/bin:/usr/bin:/usr/local/bin
+export PERL5LIB=$HOME/lib/perl5
+export MYDEFLIB=$HOME/lib/MyDef
 
 # install deflib 
-$HOME/bin/mydef_install deflib $HOME/lib/MyDef
+mydef_install deflib $HOME/lib/MyDef
 
 # compile from source
 #    note: only those source files that are newer
-$HOME/bin/mydef_make # MyDef, perl
+mydef_make # MyDef, perl
 touch perlmake.def mydef.def
 make
 
@@ -22,7 +23,7 @@ make
 cd MyDef
 perl Makefile.PL INSTALL_BASE=$HOME #pmake
 cd ..
-$HOME/bin/mydef_make
+mydef_make
 make install
 
 echo "# ----------------------------------------------------"
