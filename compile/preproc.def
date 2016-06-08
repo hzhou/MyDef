@@ -229,10 +229,7 @@ subcode:: support_subs
             $if !$2
                 return defined $t
             $else
-                $if !defined $t
-                    return test_op($1, $2)
-                $else
-                    return test_op($t, $2)
+                return test_op($t, $2)
         $else
             return 0
         return 0

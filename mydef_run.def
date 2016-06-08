@@ -59,7 +59,10 @@ page: mydef_run
                 $else
                     $cmd="gcc -o$pagename $name $cflags $page->{lib_list} && ./$pagename"
         $elif $name=~/\.f$/
-            $cmd="gfortran -o$pagename $name $page->{lib_list} && ./$pagename"
+            $if $config{debug}
+                $cmd="gfortran -g -o$pagename $name $page->{lib_list} && gdb ./$pagename"
+            $else
+                $cmd="gfortran -o$pagename $name $page->{lib_list} && ./$pagename"
         $elif $name=~/\.java$/
             $name=~s/\//./g
             $name=~s/\.java$//

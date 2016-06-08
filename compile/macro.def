@@ -24,6 +24,13 @@ subcode:: preproc_elifs
     $elif $preproc=~/^setmacro:\s*(.*)/
         # standard macros: def, macros, page
         set_macro($deflist->[2], $1)
+    $elif $preproc=~/^unset:\s*(.*)/
+        my @t = split /,\s*/, $1
+        $foreach $t in @t
+            $if $t=~/^(\w+)/
+                $deflist->[-1]->{$t}=undef
+            $else
+                $call warn, unset only accepts single word(s)
     $elif $preproc=~/^autoinc:\s*(\w+)/
         # increments a page variable
         my $page=$deflist->[2]
