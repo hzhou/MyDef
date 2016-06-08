@@ -44,6 +44,8 @@ page: mydef_run
         my $cmd
         $if $name=~/\.pl$/
             $cmd="perl $name"
+        $elif $name=~/\.sh$/
+            $cmd="sh $name"
         $elif $name=~/\.py$/
             $cmd="python $name"
         $elif $name=~/\.c$/
