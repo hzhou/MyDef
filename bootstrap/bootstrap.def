@@ -1,0 +1,67 @@
+#skiprun
+
+page: bootstrap
+    type: sh
+    module: general
+    output_dir: ..
+
+    C='\033[0;32m'
+    NC='\033[0m'
+
+    $call bootstrap
+    $call check_env
+    $call deflib
+    $call compile
+    $call install
+    $call new_install_message
+
+    # ---------------------------------------- 
+    subcode: bootstrap
+        $call print, Install from bootstrap [Perl package]
+        cd bootstrap
+        perl Makefile.PL INSTALL_BASE=$HOME #pmake
+        make install
+        cd ..
+
+    subcode: check_env
+        if [ -z "$MYDEFLIB" ]; then
+            $call print, New install, set PERL5LIB, MYDEFLIB, and PATH
+            NEWINSTALL=1
+            PATH=$HOME/bin:/bin:/usr/bin:/usr/local/bin
+            export PERL5LIB=$HOME/lib/perl5
+            export MYDEFLIB=$HOME/lib/MyDef
+        fi
+
+    subcode: deflib
+        $call print, Install MyDef library
+        mydef_install deflib $HOME/lib/MyDef
+
+    subcode: compile
+        $call print, Compile from fresh MyDef source
+        mydef_make
+        #    note: only those source files that are newer will get updated
+        touch perlmake.def mydef.def
+        make
+
+    subcode: install
+        $call print, Install updated MyDef
+        cd MyDef
+        perl Makefile.PL INSTALL_BASE=$HOME #pmake
+        cd ..
+        mydef_make
+        make install
+
+    subcode: new_install_message
+        if [ "$NEWINSTALL" = 1 ]; then
+            $call print, MyDef INSTALLED
+            echo "By Default, MyDef is intalled in $HOME/bin and $HOME/lib"
+            echo "    to use MyDef, you need add $HOME/bin to your PATH"
+            echo "    and set PERL5LIB=$HOME/lib/perl5 and MYDEFLIB=$HOME/lib/MyDef"
+            echo "    you may also need to set MYDEFSRC=`pwd` (for installing output modules)"
+            echo "    It is recommended to set them in your ~/.bashrc"
+        fi
+
+#---------------------------------------- 
+subcode: print(@msg)
+    printf "\n${C}#---- $(msg) ----${NC}\n"
+

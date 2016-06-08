@@ -1,0 +1,89 @@
+#!/usr/bin/perl
+use strict;
+use MyDef;
+my %config;
+foreach my $a (@ARGV){
+    if($a=~/-m(\w+)/){
+        $config{module}=$1;
+    }
+    elsif($a=~/-g/){
+        $config{debug}=1;
+    }
+    elsif($a=~/(.*)\.def/){
+        $config{def_file}=$a;
+    }
+}
+if(!$config{def_file}){
+    die "Usage: $0 input_defile.def\n";
+}
+$config{module}="perl";
+open In, "$config{def_file}" or die "Can't open $config{def_file}.\n";
+while(<In>){
+    if(/module:\s*(\w+)/){
+        $config{module}=$1;
+        last;
+    }
+    elsif(/^#skiprun/){
+        $config{skiprun}=1;
+    }
+}
+close In;
+MyDef::init(%config);
+MyDef::import_data($config{def_file});
+my $pagename=$MyDef::def->{pagelist}->[0];
+MyDef::createpage($pagename);
+if(!$config{skiprun}){
+    my $page=$MyDef::page;
+    my $name=$page->{outname};
+    my $cmd;
+    if($name=~/\.pl$/){
+        $cmd="perl $name";
+    }
+    elsif($name=~/\.sh$/){
+        $cmd="sh $name";
+    }
+    elsif($name=~/\.py$/){
+        $cmd="python $name";
+    }
+    elsif($name=~/\.c$/){
+        my $cflags;
+        if($page->{CFLAGS}){
+            $cflags = $page->{CFLAGS};
+        }
+        if($config{module} eq "win32"){
+            my $cc = "/usr/bin/x86_64-w64-mingw32-gcc";
+            $cmd = "$cc -o$pagename.exe $name $cflags $page->{lib_list} -Wl,--subsystem,windows";
+        }
+        else{
+            if($config{debug}){
+                $cmd="gcc -g $cflags -o$pagename $name $cflags $page->{lib_list} && gdb ./$pagename";
+            }
+            else{
+                $cmd="gcc -o$pagename $name $cflags $page->{lib_list} && ./$pagename";
+            }
+        }
+    }
+    elsif($name=~/\.f$/){
+        if($config{debug}){
+            $cmd="gfortran -g -o$pagename $name $page->{lib_list} && gdb ./$pagename";
+        }
+        else{
+            $cmd="gfortran -o$pagename $name $page->{lib_list} && ./$pagename";
+        }
+    }
+    elsif($name=~/\.java$/){
+        $name=~s/\//./g;
+        $name=~s/\.java$//;
+        $cmd="javac $name && java $name";
+    }
+    elsif($name=~/\.tex$/){
+        $cmd="pdflatex $name";
+    }
+    if($cmd){
+        print "$cmd\n";
+        system $cmd;
+    }
+    else{
+        die "do not know how to run it\n";
+    }
+}
