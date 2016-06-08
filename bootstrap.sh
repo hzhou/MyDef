@@ -7,7 +7,7 @@ make install
 cd ..
 
 # install deflib 
-$HOME/bin/mydef_install deflib .
+$HOME/bin/mydef_install deflib $HOME/lib/MyDef
 
 # compile from source
 #    note: only those source files that are newer

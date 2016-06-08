@@ -2,8 +2,8 @@ page: mydef_install
     type:
     output_dir: script
 
-    $call check_install_dir
     my ($src, $dst)=($ARGV[0], $ARGV[1])
+    $call check_install_dir
     $if !$src or !$dst
         die "Usage: $0 src dst\n"
     $if $src ne "."
@@ -43,12 +43,17 @@ page: mydef_install
 
 #----------------------------------------------- 
 subcode: check_install_dir
-    my $install_dir=$ENV{MYDEFLIB}
-    $install_dir=~s/:.*//
-    $if  !$install_dir
-        $print "Missing environment variable MYDEFLIB\n"
-        $print "    try put 'MYDEFLIB=\$HOME/lib/MyDef' in your .bashrc (and source it)\n"
-        exit
+    my $install_dir
+    $if $dst=~/^(\/.*)/
+        $install_dir=$1
+        $dst = "."
+    $else
+        $install_dir=$ENV{MYDEFLIB}
+        $install_dir=~s/:.*//
+        $if  !$install_dir
+            $print "Missing environment variable MYDEFLIB\n"
+            $print "    try put 'MYDEFLIB=\$HOME/lib/MyDef' in your .bashrc (and source it)\n"
+            exit
 
     $if  !-d $install_dir
         mkdir $install_dir or die "Can't mkdir $install_dir\n";
