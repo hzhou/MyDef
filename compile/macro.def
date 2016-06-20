@@ -112,6 +112,7 @@ subcode: set_macro_join
         $deflist->[-1]->{$name}=""
     $else
         $tail=~s/^\s+//
+        expand_macro(\$tail)
         my @tlist=MyDef::utils::proper_split($tail)
         my $verb=shift @tlist
         $if $verb eq "join"
@@ -236,7 +237,8 @@ fncode: get_macro($s, $nowarn)
                 return $t
             $else
                 die "Failed perl $outdir/perl-$defname.pl\n"
-        $elif $t=~/^eval:\s+(.*)/
+        $elif $t=~/^eval:\s*(.*)/
+            # e.g. $(eval:lcfirst "$(word)")
             return eval($1)
         $elif $t=~/^map\s+(.*):(.*):(.*)/
             my ($pat, $sep)=($1, $3)
