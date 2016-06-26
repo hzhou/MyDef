@@ -215,6 +215,9 @@ fncode: expand_macro($lref)
         $if $t eq $$lref
             last
 
+    # Makefile and shell uses $(), $(:CFLAGS) --> $(CFLAGS)
+    $$lref=~s/\$\(:/\$(/g
+
 fncode: get_macro($s, $nowarn)
     $if $s=~/^((rep|perl|eval|map|or|and|sym|def)\b.+)/
         my $t=$1
