@@ -215,22 +215,21 @@ subcode:: support_subs
             my $codelib = get_def_attr("codes", $1)
             $if $codelib
                 return 1
-        $elsif $cond=~/^(string|number):(.*)/
+        $elsif $cond=~/^(string|number|word):(.*)/
             my $test=$1
             my $t=get_def($2)
             $if $test eq "string" and $t=~/^['"]/
                 return 1
             $elif $test eq "number" and $t=~/^\d+/
                 return 1
+            $elif $test eq "word" and $t=~/^[a-zA-Z_]\w*$/
+                return 1
         $elsif $cond=~/^\s*(\w+)(.*)/
             my $t=get_def($1);
             $if !$2
                 return defined $t
             $else
-                $if !defined $t
-                    return test_op($1, $2)
-                $else
-                    return test_op($t, $2)
+                return test_op($t, $2)
         $else
             return 0
         return 0

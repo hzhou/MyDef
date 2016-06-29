@@ -26,13 +26,6 @@ subcode: dbl_push_list(name, list)
     $foreach $v in @tlist
         $call dbl_push, $(name), $v
 
-#---------------------------------------- 
-subcode: case_flag_set
-    $global $case_flag="\$b_flag_case"
-    push @$out, "my \$b_flag_case=1;"
-subcode: case_flag_reset
-    push @$out, "my \$b_flag_case=0;"
-
 #---- scope  for sumcode -------
 subcode: var_declare(scope)
     $param=~s/\s*;\s*$//
@@ -80,7 +73,13 @@ subcode: parsecode
             return 0
         $elif $func eq "sub"
             $if $param=~/^(\w+)\((.*)\)/
-                return single_block_pre_post(["sub $1 {", "INDENT", "my ($2)=\@_;"], ["DEDENT", "}"], "sub")
+                &call return_newblock, sub
+                    push @src, "sub $1 {" 
+                    push @src, "INDENT"
+                    push @src, "my ($2)=\@_;"
+                    push @src, "BLOCK"
+                    push @src, "DEDENT"
+                    push @src, "}"
             $else
                 return single_block("sub $param {", "}", "sub")
 
@@ -89,7 +88,13 @@ subcode: parsecode
                 #-- regex
                 return single_block("while($param){", "}")
             $elif $param=~/^(.*?);\s*(.*?)\s*$/
-                return single_block_pre_post(["while($1){", "INDENT"], ["$2;", "DEDENT", "}"])
+                &call return_newblock, while
+                    push @src, "while($1){"
+                    push @src, "INDENT"
+                    push @src, "BLOCK"
+                    push @src, "$2;"
+                    push @src, "DEDENT"
+                    push @src, "}"
             $else
                 return single_block("while($param){", "}")
         $elif $func eq "for"
@@ -114,10 +119,6 @@ subcode: parsecode
                 $call parsecode_sum_support, perl
         $elif $func eq "print"
             $call parsecode_print
-        $elif $func eq "print_to"
-            $global $print_target
-            $print_target = $param
-            return 0
         $elif $func eq "source-$param"
             return "SKIPBLOCK"
     $elif $l=~/^NOOP POST_MAIN/
@@ -340,6 +341,7 @@ subcode: parsecode_print
         push @fmt_list, "\\x1b[0m"
 
     my $p = "print"
+    my $print_target = MyDef::compileutil::get_macro_word("print_to", 1)
     $if $print_target
         $p.=" $print_target"
     push @$out, "$p \"".join('',@fmt_list).'";'

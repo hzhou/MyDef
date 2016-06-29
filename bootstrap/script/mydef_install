@@ -1,52 +1,64 @@
 #!/usr/bin/perl
 use strict;
-my $install_dir=$ENV{MYDEFLIB};
+my ($src, $dst)=($ARGV[0], $ARGV[1]);
+my $install_dir;
+if($dst=~/^(\/.*)/){
+    $install_dir=$1;
+    $dst = ".";
+}
+else{
+    $install_dir=$ENV{MYDEFLIB};
     $install_dir=~s/:.*//;
     if(!$install_dir){
-        die "Missing environment variable MYDEFLIB\n";
+        print "Missing environment variable MYDEFLIB\n";
+        print "    try put 'MYDEFLIB=\$HOME/lib/MyDef' in your .bashrc (and source it)\n";
+        exit;
     }
+}
+if(!-d $install_dir){
+    mkdir $install_dir or die "Can't mkdir $install_dir\n";
+}
+if(!$src or !$dst){
+    die "Usage: $0 src dst\n";
+}
+if($src ne "."){
+    chdir $src or die "Can't chdir $src\n";
+}
+if($dst ne "."){
+    $install_dir.="/$dst";
     if(!-d $install_dir){
         mkdir $install_dir or die "Can't mkdir $install_dir\n";
     }
-    my ($src, $dst)=($ARGV[0], $ARGV[1]);
-    if(!$src or !$dst){
-        die "Usage: $0 src dst\n";
+}
+my @files=glob("*");
+my @defs;
+my @dirs;
+foreach my $f (@files){
+    if($f=~/\.def$/){
+        push @defs, $f;
     }
-    if($src ne "."){
-        chdir $src or die "Can't chdir $src\n";
+    elsif(-d $f){
+        push @dirs, $f;
     }
-    if($dst ne "."){
-        $install_dir.="/$dst";
-        if(!-d $install_dir){
-            mkdir $install_dir or die "Can't mkdir $install_dir\n";
+}
+foreach my $d (@dirs){
+    if(-f "$d/skip"){
+        next;
+    }
+    my @files=glob("$d/*.def");
+    if(@files){
+        if(!-d "$install_dir/$d"){
+            mkdir "$install_dir/$d" or die "Can't mkdir $install_dir/$d";
         }
-    }
-    my @files=glob("*");
-    my @defs;
-    my @dirs;
-    foreach my $f (@files){
-        if($f=~/\.def$/){
+        foreach my $f (@files){
             push @defs, $f;
         }
-        elsif(-d $f){
-            push @dirs, $f;
-        }
     }
-    foreach my $d (@dirs){
-        my @files=glob("$d/*.def");
-        if(@files){
-            if(!-d "$install_dir/$d"){
-                mkdir "$install_dir/$d" or die "Can't mkdir $install_dir/$d";
-            }
-            foreach my $f (@files){
-                push @defs, $f;
-            }
-        }
+}
+foreach my $def (@defs){
+    my $dst="$install_dir/$def";
+    if(!-e $dst or -M $def < -M $dst){
+        print "$def -> $dst\n";
+        system "cp $def $dst\n";
     }
-    foreach my $def (@defs){
-        my $dst="$install_dir/$def";
-        if(!-e $dst or -M $def < -M $dst){
-            print "$def -> $dst\n";
-            system "cp $def $dst\n";
-        }
-    }
+}

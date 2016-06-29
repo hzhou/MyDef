@@ -100,6 +100,10 @@ sub init {
         require MyDef::output_python;
         MyDef::compileutil::set_interface(MyDef::output_python::get_interface());
     }
+    elsif($module eq "fortran"){
+        require MyDef::output_fortran;
+        MyDef::compileutil::set_interface(MyDef::output_fortran::get_interface());
+    }
     else{
         die "Undefined module type $module\n";
     }
@@ -197,6 +201,10 @@ sub pipe_page {
     elsif($module eq "python"){
         require MyDef::output_python;
         MyDef::compileutil::set_interface(MyDef::output_python::get_interface());
+    }
+    elsif($module eq "fortran"){
+        require MyDef::output_fortran;
+        MyDef::compileutil::set_interface(MyDef::output_fortran::get_interface());
     }
     else{
         die "Undefined module type $module\n";

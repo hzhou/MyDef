@@ -16,14 +16,14 @@ our $case_elif="elsif";
 our @case_stack;
 our $case_state;
 our $case_wrap;
-our $case_flag="\$b_flag_case";
-our $print_target;
 our $fn_block=[];
 our $loop_idx;
 
 sub parse_condition {
     my ($t) = @_;
-    if($t=~/[!=]~/){
+    if($t=~/^\//){
+    }
+    elsif($t=~/[!=]~/){
     }
     elsif($t=~/[^!=><]=[^="]/){
         my $curfile=MyDef::compileutil::curfile_curline();
@@ -104,6 +104,10 @@ sub sumcode_generate {
             push @code, "$kvar = 0";
             $loop_k_hash{$k}=1;
         }
+    }
+    if($debug){
+        print "left indexs: ", join(", ", @$left_idx), "\n";
+        print "right indexs: ", join(", ", @$right_idx), "\n";
     }
     foreach my $i (@$left_idx){
         $loop_i_hash{$i}=1;
@@ -385,11 +389,16 @@ sub parsecode {
         my $level=@case_stack;
         print "        $level:[$case_state]$l\n";
     }
+    my $check_unwrap;
     if($l=~/^\x24(if|elif|elsif|elseif|case)\s+(.*)$/){
         my $cond=$2;
         my $case=$case_if;
         if($1 eq "if"){
             if($case_wrap){
+                if($debug eq "case"){
+                    my $level=@case_stack;
+                    print "   $level:[case_unwrap]$l\n";
+                }
                 push @$out, @$case_wrap;
                 undef $case_wrap;
             }
@@ -406,8 +415,13 @@ sub parsecode {
             $case=$case_elif;
         }
         $cond=parse_condition($cond);
-        single_block("$case($cond){", "}");
-        push @$out, "PARSE:CASEPOP";
+        my @src;
+        push @src, "$case($cond){";
+        push @src, "INDENT";
+        push @src, "BLOCK";
+        push @src, "DEDENT";
+        push @src, "}";
+        push @src, "PARSE:CASEPOP";
         push @case_stack, {state=>"if", wrap=>$case_wrap};
         undef $case_state;
         undef $case_wrap;
@@ -415,6 +429,7 @@ sub parsecode {
             my $level=@case_stack;
             print "Entering case [$level]: $l\n";
         }
+        MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
         return "NEWBLOCK-if";
     }
     elsif($l=~/^\$else/){
@@ -422,8 +437,13 @@ sub parsecode {
             my $curfile=MyDef::compileutil::curfile_curline();
             print "[$curfile]\x1b[33m Dangling \$else\n\x1b[0m";
         }
-        single_block("else{", "}");
-        push @$out, "PARSE:CASEPOP";
+        my @src;
+        push @src, "else{";
+        push @src, "INDENT";
+        push @src, "BLOCK";
+        push @src, "DEDENT";
+        push @src, "}";
+        push @src, "PARSE:CASEPOP";
         push @case_stack, {state=>undef, wrap=>$case_wrap};
         undef $case_state;
         undef $case_wrap;
@@ -431,42 +451,23 @@ sub parsecode {
             my $level=@case_stack;
             print "Entering case [$level]: $l\n";
         }
+        MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
         return "NEWBLOCK-else";
-    }
-    elsif($l=~/^\&case\s+(.*)/){
-        if(!$case_state){
-            push @$out, "my \$b_flag_case=1;";
-            MyDef::compileutil::call_sub($1, "\$call");
-            single_block("if($case_flag){", "}");
-        }
-        else{
-            push @$out, "else{";
-            push @$out, "INDENT";
-            push @$out, "my \$b_flag_case=1;";
-            MyDef::compileutil::call_sub($1, "\$call");
-            single_block("if($case_flag){", "}");
-            push @$out, "DEDENT";
-            if(!$case_wrap){
-                $case_wrap=[];
-            }
-            push @$case_wrap, "}";
-        }
-        push @$out, "PARSE:CASEPOP";
-        push @case_stack, {state=>"if", wrap=>$case_wrap};
-        undef $case_state;
-        undef $case_wrap;
-        if($debug eq "case"){
-            my $level=@case_stack;
-            print "Entering case [$level]: $l\n";
-        }
-        return "NEWBLOCK-if";
     }
     elsif($l!~/^SUBBLOCK/){
         undef $case_state;
+        if($case_wrap){
+            if($debug eq "case"){
+                my $level=@case_stack;
+                print "   $level:[case_unwrap]$l\n";
+            }
+            push @$out, @$case_wrap;
+            undef $case_wrap;
+        }
         if($l eq "CASEPOP"){
             if($debug eq "case"){
                 my $level=@case_stack;
-                print "    Exit case [$level]\n";
+                print "    Exit case [$level][wrap:$case_wrap]\n";
             }
             my $t_case=pop @case_stack;
             if($t_case){
@@ -474,16 +475,6 @@ sub parsecode {
                 $case_wrap=$t_case->{wrap};
             }
             return 0;
-        }
-        elsif($l=~/^CASEEXIT/){
-            push @$out, "my \$b_flag_case=0;";
-            return 0;
-        }
-    }
-    if(!$case_state){
-        if($case_wrap){
-            push @$out, @$case_wrap;
-            undef $case_wrap;
         }
     }
     if($l=~/^\s*\$(\w+)\s*(.*)$/){
@@ -567,7 +558,15 @@ sub parsecode {
         }
         elsif($func eq "sub"){
             if($param=~/^(\w+)\((.*)\)/){
-                return single_block_pre_post(["sub $1 {", "INDENT", "my ($2)=\@_;"], ["DEDENT", "}"], "sub");
+                my @src;
+                push @src, "sub $1 {";
+                push @src, "INDENT";
+                push @src, "my ($2)=\@_;";
+                push @src, "BLOCK";
+                push @src, "DEDENT";
+                push @src, "}";
+                MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+                return "NEWBLOCK-sub";
             }
             else{
                 return single_block("sub $param {", "}", "sub");
@@ -578,7 +577,15 @@ sub parsecode {
                 return single_block("while($param){", "}");
             }
             elsif($param=~/^(.*?);\s*(.*?)\s*$/){
-                return single_block_pre_post(["while($1){", "INDENT"], ["$2;", "DEDENT", "}"]);
+                my @src;
+                push @src, "while($1){";
+                push @src, "INDENT";
+                push @src, "BLOCK";
+                push @src, "$2;";
+                push @src, "DEDENT";
+                push @src, "}";
+                MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+                return "NEWBLOCK-while";
             }
             else{
                 return single_block("while($param){", "}");
@@ -586,7 +593,13 @@ sub parsecode {
         }
         elsif($func eq "for"){
             if($param=~/(.*);(.*);(.*)/){
-                single_block("for($param){", "}");
+                my @src;
+                push @src, "for($param){";
+                push @src, "INDENT";
+                push @src, "BLOCK";
+                push @src, "DEDENT";
+                push @src, "}";
+                MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
                 return "NEWBLOCK-for";
             }
             else{
@@ -640,7 +653,13 @@ sub parsecode {
                     $var='$'.$var;
                 }
                 $param="my $var=$i0; $var $i1; $var$step";
-                single_block("for($param){", "}");
+                my @src;
+                push @src, "for($param){";
+                push @src, "INDENT";
+                push @src, "BLOCK";
+                push @src, "DEDENT";
+                push @src, "}";
+                MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
                 return "NEWBLOCK-for";
             }
         }
@@ -679,6 +698,9 @@ sub parsecode {
             if($param=~/^\((.*?)\)\s+(.*)/){
                 my $dimstr=$1;
                 $param=$2;
+                if($debug){
+                    print "parsecode_sum: [$param]\n";
+                }
                 my $h={};
                 my ($left, $right);
                 if($param=~/(.*?)\s*(?<![\+\-\*\/%&\|><=])=(?!=)\s*(.*)/){
@@ -759,6 +781,9 @@ sub parsecode {
                 return;
             }
             elsif($func eq "sumcode"){
+                if($debug){
+                    print "parsecode_sum: [$param]\n";
+                }
                 my $h={};
                 my ($left, $right);
                 if($param=~/(.*?)\s*(?<![\+\-\*\/%&\|><=])=(?!=)\s*(.*)/){
@@ -922,14 +947,14 @@ sub parsecode {
             my @group;
             my $n_escape=0;
             while(1){
-                if($str=~/\G$/gc){
+                if($str=~/\G$/sgc){
                     last;
                 }
-                elsif($str=~/\G\$/gc){
-                    if($str=~/\G(red|green|yellow|blue|magenta|cyan)/gc){
+                elsif($str=~/\G\$/sgc){
+                    if($str=~/\G(red|green|yellow|blue|magenta|cyan)/sgc){
                         push @fmt_list, "\\x1b[$colors{$1}m";
                         $n_escape++;
-                        if($str=~/\G\{/gc){
+                        if($str=~/\G\{/sgc){
                             push @group, $1;
                         }
                     }
@@ -937,7 +962,7 @@ sub parsecode {
                         push @fmt_list, '$';
                     }
                 }
-                elsif($str=~/\G(\\.)/gc){
+                elsif($str=~/\G(\\.)/sgc){
                     push @fmt_list, $1;
                 }
                 elsif($str=~/\G"/gc){
@@ -948,7 +973,7 @@ sub parsecode {
                         push @fmt_list, "\"";
                     }
                 }
-                elsif($str=~/\G\}/gc){
+                elsif($str=~/\G\}/sgc){
                     if(@group){
                         pop @group;
                         if(!@group){
@@ -980,15 +1005,12 @@ sub parsecode {
                 push @fmt_list, "\\x1b[0m";
             }
             my $p = "print";
+            my $print_target = MyDef::compileutil::get_macro_word("print_to", 1);
             if($print_target){
                 $p.=" $print_target";
             }
             push @$out, "$p \"".join('',@fmt_list).'";';
             return;
-        }
-        elsif($func eq "print_to"){
-            $print_target = $param;
-            return 0;
         }
         elsif($func eq "source-$param"){
             return "SKIPBLOCK";
@@ -1085,27 +1107,13 @@ sub dumpout {
 }
 sub single_block {
     my ($t1, $t2, $scope)=@_;
-    push @$out, "$t1";
-    push @$out, "INDENT";
-    push @$out, "BLOCK";
-    push @$out, "DEDENT";
-    push @$out, "$t2";
-    if($scope){
-        return "NEWBLOCK-$scope";
-    }
-    else{
-        return "NEWBLOCK";
-    }
-}
-sub single_block_pre_post {
-    my ($pre, $post, $scope)=@_;
-    if($pre){
-        push @$out, @$pre;
-    }
-    push @$out, "BLOCK";
-    if($post){
-        push @$out, @$post;
-    }
+    my @src;
+    push @src, "$t1";
+    push @src, "INDENT";
+    push @src, "BLOCK";
+    push @src, "DEDENT";
+    push @src, "$t2";
+    MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
     if($scope){
         return "NEWBLOCK-$scope";
     }

@@ -8,12 +8,9 @@ macros:
 #-- level 2 facility, called within perlcode
 
 subcode: replace_output(name)
-    my $tempout=$MyDef::compileutil::out
-    $MyDef::compileutil::out=$(name)
-    $out=$(name)
+    my $old_out=MyDef::compileutil::set_output($(name))
     BLOCK
-    $MyDef::compileutil::out=$tempout
-    $out=$tempout
+    MyDef::compileutil::set_output($old_out)
 
 subcode: push_open_function
     push @$out, "OPEN_FUNC_$fidx"

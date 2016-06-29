@@ -1,7 +1,12 @@
 page: test
     a: b
+    a2: 1
 
-    print "$(a)\n"
+    print "page macro a: $(a)\n"
+    $(if:word:a)
+        $warn macro a  is a word : [$(a)]
+    $(if:!word:a2)
+        $warn macro a2  is not a word : [$(a2)]
     $call test_eval, test_case
     $call test_inline, example
     $call test_for_list

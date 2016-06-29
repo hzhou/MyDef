@@ -3,12 +3,8 @@ subcode:: support_subs
     $sub get_cur_code
         return ($block_stack[-1]->{code}, $cur_file, $cur_line)
 
-    $sub get_def
-        my ($name)=@_;
-        $for $i=$#$deflist:-1:-1
-            $if defined $deflist->[$i]->{$name}
-                return $deflist->[$i]->{$name}
-        return undef;
+    $sub get_def($name)
+        return get_macro_word($name, 1)
 
     $sub get_def_attr
         my ($name, $attr)=@_;
