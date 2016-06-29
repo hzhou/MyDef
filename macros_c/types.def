@@ -154,7 +154,7 @@ fncode: get_c_type_word($name)
     return undef
 
 fncode: get_c_type($name)
-    my $check;
+    my $is_ambiguous
     my $type="void";
     $if $name=~/.*\.([a-zA-Z].+)/
         #print "ctype: $name->$1\n";
@@ -170,8 +170,15 @@ fncode: get_c_type($name)
             $type = $type_name{$parts[-1]}
             $if $parts[0] =~/^t?(p+)$/
                 $type.='*' x length($1)
-            $elif $parts[0] =~/^t?p*(.+)$/ and $type_prefix{$1}
-                $call warn, type of $name set to $type (ambiguous)
+            $if $parts[0] =~/^t?(p*)(.+)$/ and $type_prefix{$2} 
+                my $type_prefix = $type_prefix{$2}
+                $if $1
+                    $type_prefix.='*' x length($1)
+                $if $type_prefix ne $type
+                    $if MyDef::compileutil::get_macro_word("use_prefix", 1)
+                        $type=$type_prefix
+                    $else
+                        $is_ambiguous = 1
         $else
             my $t1=shift @parts
             my $t2=join('_', @parts)
@@ -198,6 +205,8 @@ fncode: get_c_type($name)
     # --
     $if $debug eq "type"
         print "    get_c_type:   $name: $type\n";
+    $if $is_ambiguous
+        $call warn, type of $name set to $type (ambiguous)
     return $type;
 
 fncode: pointer_type($t)
@@ -221,7 +230,7 @@ fncode: get_var_fmt($v, $warn)
     $elsif $type=~/\*\s*$/
         return "\%p";
     $elsif $type=~/^(float|double)/
-        return "\%g"
+        return "\%.8g"
     $elif $type =~ /^int64_t/
         add_include("<inttypes.h>")
         return '%" PRId64 "'

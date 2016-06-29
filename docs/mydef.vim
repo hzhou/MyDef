@@ -8,7 +8,7 @@
 :syntax match xMacro /\$([^)]*)/
 
 :syntax match xCode /^\s*\$\(subclass\|method\)\s/
-:syntax match xHTML /HTML_\I\+/
+:syntax match xHTML /\(HTML\|BLOCK\)_\I\+/
 :syntax match xCode /^\s*\(sub\|fn\|js\|perl\|php\|html\)code:/
 :syntax match xStage /^\(subpage\|page\|form\|table\|fields\|macros\|resource\):/
 " Comments with #. Caution with cases CSS color, Perl $#
