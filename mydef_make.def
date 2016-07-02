@@ -240,7 +240,7 @@ subcode: read_def_file
             $inpage=1;
             $page={};
             push @page_list, $page;
-        $elif /^page: ([a-zA-Z0-9_\.-]+)/
+        $elif /^page: ([\w\.-]+)/
             $inpage=1;
             $page={};
             push @page_list, $page;
