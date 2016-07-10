@@ -42,3 +42,8 @@ INSTALL
             au BufNewFile,BufRead *.def setf mydef
             augroup END
         ln -s /path/to/MyDef/docs/mydef.vim ~/.vim/syntax/
+
+More Output Modules
+===================
+
+This repository only contains the general and perl output modules. You can use the general output module for any text based code. However, there are specialized output module for various programming languages. For example, if you are working with C/C++ code, you may want to try the output_c module: https://github.com/hzhou/output_c. 
