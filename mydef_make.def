@@ -424,9 +424,9 @@ subcode: write_rule_pages
             $if $h->{cmd}
                 print Out "\t$h->{cmd}\n"
             $elif $h->{module} and ($h->{module}ne $module)
-                print Out "\t\${MakePage} -m$h->{module} \$< \$\@\n";
+                print Out "\t\${MakePage} -m$h->{module} $def $h->{path}\n";
             $else
-                print Out "\t\${MakePage} \$< \$\@\n";
+                print Out "\t\${MakePage} $def $h->{path}\n";
             print Out "\n";
 
 #---------------------------------------- 
