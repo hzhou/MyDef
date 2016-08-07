@@ -336,15 +336,18 @@ sub import_file {
             elsif($line=~/^(sub)?page:\s*(.*)/){
                 my ($subpage, $t)=($1, $2);
                 my ($pagename, $framecode);
-                if($t=~/([a-zA-Z0-9_\-\$]+),\s*(\w.*)/){
+                if($t=~/([\w\-\$\.]+),\s*(\w.*)/){
                     $pagename=$1;
                     $framecode=$2;
                 }
-                elsif($t=~/([a-zA-Z0-9_\-\$]+)/){
+                elsif($t=~/([\w\-\$\.]+)/){
                     $pagename=$1;
                 }
                 my $codes={};
                 $page={pagename=>$pagename, codes=>$codes, main_name=>"main"};
+                if($pagename=~/(.+)\.(.+)/){
+                    $page->{type}='';
+                }
                 if($framecode){
                     if($framecode=~/^from\s+(\S+)/){
                         my $sub_name = get_template_sub_name();

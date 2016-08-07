@@ -731,6 +731,7 @@ sub parseblock {
                         }
                         else{
                             $tail=~s/^\s+//;
+                            expand_macro(\$tail);
                             my @tlist=MyDef::utils::proper_split($tail);
                             my $verb=shift @tlist;
                             if($verb eq "join"){
@@ -778,6 +779,7 @@ sub parseblock {
                         }
                         else{
                             $tail=~s/^\s+//;
+                            expand_macro(\$tail);
                             my @tlist=MyDef::utils::proper_split($tail);
                             my $verb=shift @tlist;
                             if($verb eq "join"){
@@ -1235,6 +1237,7 @@ sub expand_macro {
             last;
         }
     }
+    $$lref=~s/\$\(:/\$(/g;
 }
 
 sub get_macro {
@@ -1266,7 +1269,7 @@ sub get_macro {
                 die "Failed perl $outdir/perl-$defname.pl\n";
             }
         }
-        elsif($t=~/^eval:\s+(.*)/){
+        elsif($t=~/^eval:\s*(.*)/){
             return eval($1);
         }
         elsif($t=~/^map\s+(.*):(.*):(.*)/){
