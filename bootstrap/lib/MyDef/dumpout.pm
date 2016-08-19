@@ -120,6 +120,9 @@ sub dumpout {
             elsif($l =~/^PRINT (.*)/){
                 push @$f, "    "x$indentation."$1\n";
             }
+            elsif($l =~/^TAB (.*)/){
+                push @$f, "\t$1\n";
+            }
             else{
                 chomp $l;
                 push @$f, "    "x$indentation."$l\n";
@@ -197,6 +200,9 @@ sub dumpout {
                 }
                 elsif($l =~/^PRINT (.*)/){
                     push @$f, "    "x$indentation."$1\n";
+                }
+                elsif($l =~/^TAB (.*)/){
+                    push @$f, "\t$1\n";
                 }
                 else{
                     chomp $l;
