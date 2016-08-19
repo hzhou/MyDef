@@ -204,20 +204,22 @@ subcode: grab_template
         $codeitem->{codes}={}
     my $codes = $codeitem->{codes}
 
+    my @grab
+    my $t_code = {type=>"template",source=>\@grab}
     $if $line =~ /^template:\s*(\w+)/
-        my @grab
-        my $t_code = {type=>"template",source=>\@grab}
         $codes->{$1}=$t_code
+    $else
+        warn "parseutil: template missing name\n"
 
-        my $grab_indent=$curindent
-        &call parse_loop
-            $call get_indentation
-            $if $line eq ""
-                push @grab, $line
-            $elif $curindent>$grab_indent
-                push @grab, '    'x($curindent-$grab_indent-1) . $line
-            $else
-                last
+    my $grab_indent=$curindent
+    &call parse_loop
+        $call get_indentation
+        $if $line eq ""
+            push @grab, $line
+        $elif $curindent>$grab_indent
+            push @grab, '    'x($curindent-$grab_indent-1) . $line
+        $else
+            last
     $cur_line--
 
 # --------------------------------------------------------

@@ -81,10 +81,13 @@ subcode: call_sub_frame(type)
 
     subcode: call_sub_back
         $global @callback_block_stack
-        push @callback_block_stack, {source=>$subblock, name=>"$codename", cur_file=>$cur_file, cur_line=>$cur_line}
+        my $blk = {source=>$subblock, name=>"$codename", cur_file=>$cur_file, cur_line=>$cur_line, parsed_counter=>0}
+        push @callback_block_stack, $blk
 
         &call parseblock_with_macro
             $call call_sub_normal_setup_macro
+        $if $blk->{parsed_counter}==0
+            $call warn, Callback missing BLOCK?
 
         pop @callback_block_stack
 

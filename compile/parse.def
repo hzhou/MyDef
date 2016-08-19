@@ -1,6 +1,7 @@
 #---------------------------------------- 
 #- parseblock()
 fncode: parseblock($code)
+    # $print parseblock: [$code->{name}] ...
     my $block=$code->{source}
     $if !$block
         warn "parseblock: undefined block [$code]\n"
@@ -73,6 +74,7 @@ subcode: compile_line
                     print "$b->{name}, "
                 print $block->{name}, "\n"
             parseblock($block)
+            $block->{parsed_counter}++
             push @callback_block_stack, $block
     $else
         NormalParse:
