@@ -6,8 +6,9 @@ subcode: parsecode_scope
         return
     $case $l=~/^SUBBLOCK END (\d+) (.*)/
         # my ($blk_idx, $scope)=($1, $2)
-        $if $out->[-1]=~/^(return|break)/
-            $cur_scope->{return}=pop @$out
+        $(if:scope_return_pattern)
+            $if $out->[-1]=~/$(scope_return_pattern)/
+                $cur_scope->{return}=pop @$out
         close_scope()
         return
 

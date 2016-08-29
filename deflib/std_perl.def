@@ -140,3 +140,7 @@ subcode: init_debug_console
         $|=1
         select $ofh
     }
+#----------------------------------------------- 
+subcode: approx_zero(v)
+    $if abs($(v))<1e-8
+        $(v) = 0.0

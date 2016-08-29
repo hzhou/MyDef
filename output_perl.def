@@ -178,7 +178,18 @@ subcode: parsecode_foreach
     $if $param=~/^(?:my\s+)?(\S+)\s+in\s+(.*)/
         my ($var, $list)=($1, $2)
         $call loop_var
-        return single_block("foreach my $var ($list){", "}", "foreach")
+        $if $var=~/^(\$.+)_i$/
+            my $v = $1
+            &call return_newblock, foreach
+                push @src, "my $var = 0;"
+                push @src, "foreach my $v ($list){"
+                push @src, "INDENT"
+                push @src, "BLOCK"
+                push @src, "$var++;"
+                push @src, "DEDENT"
+                push @src, "}"
+        $else
+            return single_block("foreach my $var ($list){", "}", "foreach")
     $elif $param=~/^(%.*)/
         return single_block("while (my (\$k, \$v) = each $1){", "}", "foreach")
     $elif $param=~/^(\S+),\s*(\S+)\s+in\s+(.*)/

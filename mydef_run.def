@@ -21,8 +21,6 @@ page: mydef_run
         $foreach $a in @ARGV
             $if $a=~/-m(\w+)$/
                 $config{module}=$1
-            $elif $a=~/-(g|debug)$/
-                $config{debug}=1
             $elif $a=~/(.*)\.def/
                 $config{def_file}=$a
 
@@ -52,7 +50,7 @@ page: mydef_run
             $cmd="sh $name"
         $elif $name=~/\.py$/
             $cmd="python $name"
-        $elif $name=~/\.c$/
+        $elif $name=~/\.c(pp)?$/
             my $cflags
             $if $page->{CFLAGS}
                 $cflags = $page->{CFLAGS}
@@ -60,15 +58,12 @@ page: mydef_run
                 my $cc = "/usr/bin/x86_64-w64-mingw32-gcc"
                 $cmd = "$cc -o$pagename.exe $name $cflags $page->{lib_list} -Wl,--subsystem,windows"
             $else
-                $if $config{debug}
-                    $cmd="gcc -g $cflags -o$pagename $name $cflags $page->{lib_list} && gdb ./$pagename"
-                $else
-                    $cmd="gcc -o$pagename $name $cflags $page->{lib_list} && ./$pagename"
+                my $cc = "gcc"
+                $if $name=~/\.cpp$/
+                    $cc = "g++"
+                $cmd="$cc -g $cflags -o$pagename $name $page->{lib_list} && ./$pagename"
         $elif $name=~/\.f$/
-            $if $config{debug}
-                $cmd="gfortran -g -o$pagename $name $page->{lib_list} && gdb ./$pagename"
-            $else
-                $cmd="gfortran -o$pagename $name $page->{lib_list} && ./$pagename"
+            $cmd="gfortran -g -o$pagename $name $page->{lib_list} && ./$pagename"
         $elif $name=~/\.java$/
             $name=~s/\//./g
             $name=~s/\.java$//
