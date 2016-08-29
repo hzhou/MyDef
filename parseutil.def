@@ -143,6 +143,55 @@ subcode: parse_level_0
         $else
             $debug->{def}=1
 
+    # ------------------
+    subcode: start_page
+        my ($pagename, $framecode)
+        # ---- name
+        $if $t=~/([\w\-\$\.]+),\s*(\w.*)/
+            $pagename=$1;
+            $framecode=$2;
+        $elif $t=~/([\w\-\$\.]+)/
+            $pagename=$1;
+        # ---- code
+        my $codes={};
+
+        $global $page
+        $page={pagename=>$pagename, codes=>$codes, main_name=>"main"};
+
+        $if $pagename=~/(.+)\.(.+)/
+            $page->{type}=''
+
+        $if $framecode
+            $if $framecode=~/^from\s+(\S+)/
+                my $sub_name = get_template_sub_name()
+                $codes->{main}={type=>'sub', source=>["\$call $sub_name"], 'params'=>[]}
+                my $sub_definition = parse_template($def, $codes, $1, $sub_name)
+                push @$include_list, $sub_definition
+                #- 
+                $page->{main_name}="main2"
+            $else
+                #-- $framecode may include parameters
+                $codes->{main}={'type'=>'sub', 'source'=>["\$call $framecode"], 'params'=>[]};
+                $page->{main_name}="main2"
+
+        $if $subpage
+            $page->{subpage}=1;
+        $if $file_type eq "main"
+            $call add_page
+
+#-- used here and macros_parse/hacks.def: dupe_page
+subcode: add_page
+    # ---- insert into pages
+    $if $pages->{$pagename}
+        my $t=$pagename;
+        my $j=0;
+        $while $pages->{$pagename}
+            $j++;
+            $pagename=$t.$j;
+    $pages->{$pagename}=$page;
+    push @$pagelist, $pagename
+
+
 #---------------------------------------- 
 subcode: get_multiline_comment
     # multiline_comments, Note: we are more strict than the C comments. 
@@ -204,66 +253,25 @@ subcode: grab_template
         $codeitem->{codes}={}
     my $codes = $codeitem->{codes}
 
+    my @grab
+    my $t_code = {type=>"template",source=>\@grab}
     $if $line =~ /^template:\s*(\w+)/
-        my @grab
-        my $t_code = {type=>"template",source=>\@grab}
         $codes->{$1}=$t_code
+    $else
+        warn "parseutil: template missing name\n"
 
-        my $grab_indent=$curindent
-        &call parse_loop
-            $call get_indentation
-            $if $line eq ""
-                push @grab, $line
-            $elif $curindent>$grab_indent
-                push @grab, '    'x($curindent-$grab_indent-1) . $line
-            $else
-                last
+    my $grab_indent=$curindent
+    &call parse_loop
+        $call get_indentation
+        $if $line eq ""
+            push @grab, $line
+        $elif $curindent>$grab_indent
+            push @grab, '    'x($curindent-$grab_indent-1) . $line
+        $else
+            last
     $cur_line--
 
 # --------------------------------------------------------
-subcode: start_page
-    my ($pagename, $framecode)
-    # ---- name
-    $if $t=~/([a-zA-Z0-9_\-\$]+),\s*(\w.*)/
-        $pagename=$1;
-        $framecode=$2;
-    $elif $t=~/([a-zA-Z0-9_\-\$]+)/
-        $pagename=$1;
-    # ---- code
-    my $codes={};
-
-    $global $page
-    $page={pagename=>$pagename, codes=>$codes, main_name=>"main"};
-
-    $if $framecode
-        $if $framecode=~/^from\s+(\S+)/
-            my $sub_name = get_template_sub_name()
-            $codes->{main}={type=>'sub', source=>["\$call $sub_name"], 'params'=>[]}
-            my $sub_definition = parse_template($def, $codes, $1, $sub_name)
-            push @$include_list, $sub_definition
-            #- 
-            $page->{main_name}="main2"
-        $else
-            #-- $framecode may include parameters
-            $codes->{main}={'type'=>'sub', 'source'=>["\$call $framecode"], 'params'=>[]};
-            $page->{main_name}="main2"
-
-    $if $subpage
-        $page->{subpage}=1;
-    $if $file_type eq "main"
-        $call add_page
-
-subcode: add_page
-    # ---- insert into pages
-    $if $pages->{$pagename}
-        my $t=$pagename;
-        my $j=0;
-        $while $pages->{$pagename}
-            $j++;
-            $pagename=$t.$j;
-    $pages->{$pagename}=$page;
-    push @$pagelist, $pagename
-
 #---- macros ------------------------------------ 
 subcode: macros_start
     $if !$codeitem->{macros}

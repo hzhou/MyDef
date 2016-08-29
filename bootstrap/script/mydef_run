@@ -3,10 +3,10 @@ use strict;
 use MyDef;
 my %config;
 foreach my $a (@ARGV){
-    if($a=~/-m(\w+)/){
+    if($a=~/-m(\w+)$/){
         $config{module}=$1;
     }
-    elsif($a=~/-g/){
+    elsif($a=~/-(g|debug)$/){
         $config{debug}=1;
     }
     elsif($a=~/(.*)\.def/){

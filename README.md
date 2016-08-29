@@ -42,3 +42,15 @@ INSTALL
             au BufNewFile,BufRead *.def setf mydef
             augroup END
         ln -s /path/to/MyDef/docs/mydef.vim ~/.vim/syntax/
+
+6. Set those environment variables in step 1 in your login shell's startup file. In addition, set:
+
+        MYDEFSRC=[your MyDef path]
+        export MYDEFSRC
+
+  This is needed when you install or develop specific output modules.
+
+More Output Modules
+===================
+
+This repository only contains the general and perl output modules. You can use the general output module for any text based code. However, there are specialized output modules for various programming languages. For example, if you are working with C/C++ code, you may want to try the output_c module: https://github.com/hzhou/output_c. 
