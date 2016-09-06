@@ -43,14 +43,9 @@ page: mydef_run
     subcode: run
         my $page=$MyDef::page
         my $name=$page->{outname}
+        my $cmd_line = $page->{CMDLINE}
         my $cmd
-        $if $name=~/\.pl$/
-            $cmd="perl $name"
-        $elif $name=~/\.sh$/
-            $cmd="sh $name"
-        $elif $name=~/\.py$/
-            $cmd="python $name"
-        $elif $name=~/\.c(pp)?$/
+        $if $name=~/\.c(pp)?$/
             my $cflags
             $if $page->{CFLAGS}
                 $cflags = $page->{CFLAGS}
@@ -61,21 +56,37 @@ page: mydef_run
                 my $cc = "gcc"
                 $if $name=~/\.cpp$/
                     $cc = "g++"
-                $cmd="$cc -g $cflags -o$pagename $name $page->{lib_list} && ./$pagename"
+                $cmd="$cc -g $cflags -o$pagename $name $page->{lib_list}"
+                $if !$cmd_line
+                    $cmd_line = "./$pagename"
         $elif $name=~/\.f$/
-            $cmd="gfortran -g -o$pagename $name $page->{lib_list} && ./$pagename"
+            $cmd="gfortran -g -o$pagename $name $page->{lib_list}"
+            $if !$cmd_line
+                $cmd_line = "./$pagename"
         $elif $name=~/\.java$/
             $name=~s/\//./g
             $name=~s/\.java$//
-            $cmd="javac $name && java $name"
-        $elif $name=~/\.tex$/
-            $cmd="pdflatex $name"
+            $cmd="javac $name"
+            $if !$cmd_line
+                $cmd_line = "java $name"
+        $elif $cmd_line
+            $cmd=$cmd_line
+            undef $cmd
+        $else
+            $if $name=~/\.pl$/
+                $cmd="perl $name"
+            $elif $name=~/\.sh$/
+                $cmd="sh $name"
+            $elif $name=~/\.py$/
+                $cmd="python $name"
+            $elif $name=~/\.tex$/
+                $cmd="pdflatex $name"
 
         $if $cmd
+            $if $cmd_line
+                $cmd .= " && $cmd_line"
             $print $cmd
             system $cmd
         $else
             die "do not know how to run it\n"
             
-
-

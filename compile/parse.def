@@ -61,19 +61,22 @@ subcode: compile_line
     $elif $l=~/^\$:\s+(.*)/
         # Literal by-pass
         push @$out, $1
-    $elif $l=~/^BLOCK\s*$/
+    $elif $l=~/^BLOCK(\d*)\s*$/
+        my $callback_idx=$1
         $if $#callback_block_stack <0
             $call parse_stack_dump
             $print "[$cur_file:$cur_line] $yellow{BLOCK called out of context!}"
         $else
             my $block=pop @callback_block_stack
-            my $depth=$#callback_block_stack+1
-            $if $debug
-                print "BLOCK [$cur_file:$cur_line] -> [$block->{cur_file}: $block->{cur_line}] depth=$depth: "
-                $foreach $b in @callback_block_stack
-                    print "$b->{name}, "
-                print $block->{name}, "\n"
-            parseblock($block)
+            my $src_block
+            $if $block->{name} eq "MULTIBLOCK"
+                $if !$callback_idx
+                    $callback_idx=1
+                $src_block = $block->{blocks}->[$callback_idx-1]
+            $else
+                $src_block = $block
+            $call @debug_callback_block
+            parseblock($src_block)
             $block->{parsed_counter}++
             push @callback_block_stack, $block
     $else
@@ -82,7 +85,7 @@ subcode: compile_line
         $while 1
             #-- parse_line could return a new $l
             #-- otherwise, last in the end breaks the loop
-            $if $l=~/^(&call|\$call|\$map|\$nest|\$call-PRINT|\$call-template)\s+(.*)$/
+            $if $l=~/^(&call\d?|\$call|\$map|\$nest|\$call-PRINT|\$call-template)\s+(.*)$/
                 my ($func, $param)=($1, $2);
                 $call parse_call_sub
             $elif $l=~/^\$-:\s*(.*)/
@@ -100,6 +103,14 @@ subcode: compile_line
             $else
                 $call parse_line
             last
+    # ---------------------------
+    subcode: debug_callback_block
+        my $depth=$#callback_block_stack+1
+        $if $debug
+            print "BLOCK [$cur_file:$cur_line] -> [$block->{cur_file}: $block->{cur_line}] depth=$depth: "
+            $foreach $b in @callback_block_stack
+                print "$b->{name}, "
+            print $block->{name}, "\n"
 
 ######## Parsing routines  ######################################
 subcode: parse_filter_meta

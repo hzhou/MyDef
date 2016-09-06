@@ -8,7 +8,25 @@ subcode: parse_call_sub
         call_sub($param)
     $elif $func eq "\&call"
         my $subblock=grabblock($block, \$lindex)
-        call_back($param, $subblock)
+        my $blk = {source=>$subblock, name=>"BLOCK", cur_file=>$cur_file, cur_line=>$cur_line, parsed_counter=>0}
+        call_back($param, $blk)
+
+    $elif $func =~ /^\&call(\d+)/
+        my $n=$1
+        my @sub_blocks
+        $for $i=0:$n
+            $print multi callback $i/$n - $lindex
+            my $subblock=grabblock($block, \$lindex)
+            my $blk = {source=>$subblock, name=>"BLOCK$i", cur_file=>$cur_file, cur_line=>$cur_line, parsed_counter=>0}
+            push @sub_blocks, $blk
+            $if $block->[$lindex]=~/.*:\s*$/
+                $lindex++
+            $else
+                my $blkno = $i+1
+                $call warn, &call$n missing block $blkno - $block->[$lindex]
+        my $multi_blk = {blocks=>\@sub_blocks, name=>"MULTIBLOCK", parsed_counter=>0}
+        multi_call_back($param, $multi_blk)
+
     $elif $func eq "\$nest"
         my $subblock=grabblock($block, \$lindex)
         my @tlist = MyDef::utils::proper_split($param)
@@ -28,14 +46,17 @@ subcode: parse_call_sub
         call_back("$codename, $param_0", \@t_block)
 
 #---------------------------------------- 
-fncode: call_back($param, $subblock)
-    $call call_sub_frame, callback
+fncode: call_sub($param)
+    $call call_sub_frame, normal
 
 fncode: map_sub($param)
     $call call_sub_frame, map
 
-fncode: call_sub($param)
-    $call call_sub_frame, normal
+fncode: call_back($param, $sub_blk)
+    $call call_sub_frame, callback
+
+fncode: multi_call_back($param, $sub_blks)
+    $call call_sub_frame, multi_callback
 
 fncode: list_sub($codelib)
     &call parseblock_with_macro
@@ -69,7 +90,9 @@ subcode: call_sub_frame(type)
             $call split_param
             &call call_sub_block
                 $(if:type=callback)
-                    $call call_sub_back
+                    $call call_sub_back, $sub_blk
+                $(elif:type=multi_callback)
+                    $call call_sub_back, $sub_blks
                 $(elif:type=map)
                     $call call_sub_map
                 $(else)
@@ -79,14 +102,13 @@ subcode: call_sub_frame(type)
         &call parseblock_with_macro
             $call call_sub_normal_setup_macro
 
-    subcode: call_sub_back
+    subcode: call_sub_back(subblock)
         $global @callback_block_stack
-        my $blk = {source=>$subblock, name=>"$codename", cur_file=>$cur_file, cur_line=>$cur_line, parsed_counter=>0}
-        push @callback_block_stack, $blk
+        push @callback_block_stack, $(subblock)
 
         &call parseblock_with_macro
             $call call_sub_normal_setup_macro
-        $if $blk->{parsed_counter}==0
+        $if $(subblock)->{parsed_counter}==0
             $call warn, Callback missing BLOCK?
 
         pop @callback_block_stack
@@ -116,7 +138,7 @@ subcode: call_sub_frame(type)
     # -----------------------
     subcode: perl_block_call
         #---- e.g. html/code.def --
-        $named_blocks{last_grab}=$subblock
+        $named_blocks{last_grab}=$sub_blk->{source}
         BLOCK
         $named_blocks{last_grab}=undef
     # ---------------------------------
