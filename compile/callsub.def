@@ -15,15 +15,15 @@ subcode: parse_call_sub
         my $n=$1
         my @sub_blocks
         $for $i=0:$n
-            $print multi callback $i/$n - $lindex
             my $subblock=grabblock($block, \$lindex)
             my $blk = {source=>$subblock, name=>"BLOCK$i", cur_file=>$cur_file, cur_line=>$cur_line, parsed_counter=>0}
             push @sub_blocks, $blk
-            $if $block->[$lindex]=~/.*:\s*$/
-                $lindex++
-            $else
-                my $blkno = $i+1
-                $call warn, &call$n missing block $blkno - $block->[$lindex]
+            $if $i<$n-1
+                $if $block->[$lindex]=~/.*:\s*$/
+                    $lindex++
+                $else
+                    my $blkno = $i+1
+                    $call warn, &call$n missing block $blkno - $block->[$lindex]
         my $multi_blk = {blocks=>\@sub_blocks, name=>"MULTIBLOCK", parsed_counter=>0}
         multi_call_back($param, $multi_blk)
 
