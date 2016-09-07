@@ -46,7 +46,9 @@ subcode:: preproc_elifs
             $page->{$base}++
             $page->{$key}=$page->{$base}
     $elif $preproc=~/^enumset:\s*(.*)/
-        my @t = split /,\s*/, $1
+        my $t=$1
+        expand_macro(\$t)
+        my @t = split /,\s*/, $t
         my $base = 1
         my $m = $deflist->[-1]
         $foreach $t in @t
