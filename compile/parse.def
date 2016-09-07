@@ -183,6 +183,7 @@ subcode: parse_line
                     parseblock({source=>$subblock, name=>"BLOCK", scope=>$callback_scope})
                     #$f_parse->("SCOPE: NONE");
                 $elif $l=~/^PARSE:(.*)/
+                    # apparently now redundant :)
                     $f_parse->($1)
                 $else
                     $f_parse->($l)
