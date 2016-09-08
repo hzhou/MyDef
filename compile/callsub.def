@@ -198,7 +198,7 @@ subcode: call_sub_frame(type)
 
     # ---------------------------------------- 
     subcode: call_sub_block
-        $global @callsub_stack;
+        $global @callsub_stack
         $codelib->{recurse}++
         push @callsub_stack, $codename
         modepush($codelib->{type})

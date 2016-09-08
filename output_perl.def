@@ -14,126 +14,110 @@ page: output_perl, output_main
 subcode: init_page
     $if $page->{package} and !$page->{type}
         MyDef::set_page_extension("pm")
-    $elif !$page->{package} and $page->{type} $eq "pm"
+    $elif !$page->{package} and $page->{type} eq "pm"
         $page->{package}=$page->{pagename}
+
+    $if $page->{type} eq "pm"
+        $page->{autolist}=1
+
+    $call survey_functions
 
     $map dbl_list, globals, uses
 
 #---------------------------------------- 
-subcode: dbl_push_list(name, list)
-    $(list)=~s/\s*;\s*$//
-    my @tlist=MyDef::utils::proper_split($(list))
-    $foreach $v in @tlist
-        $call dbl_push, $(name), $v
-
-#---- scope  for sumcode -------
-subcode: var_declare(scope)
-    $param=~s/\s*;\s*$//
-    my @tlist=MyDef::utils::proper_split($param)
-    $foreach $v in @tlist
-        my ($name, $var)
-        $if $v=~/\@(\w+)\[(.*)\](.*)/
-            $name=$1
-            $v='@'.$1.$3
-            $var={}
-            my @tlist=split /,\s*/, $2
-            my $i=0
-            $foreach $t in @tlist
-                $i++
-                $var->{"dim$i"}=$t
-        $(if:scope=global)
-            # $print global variable: $v
-            $call dbl_push, globals, $v
-            $if $var
-                $global_scope->{var_hash}->{$name}=$var
-        $(else)
-            push @$out, "my $v;"
-            $if $var
-                $cur_scope->{var_hash}->{$name}=$var
-    return 0
-
-#----
 subcode: parsecode
     $(set:parse_condition=1)
-    $call parsecode_scope
-    $call parsecode_case_support, if, elsif, c_style
-    $if $l=~/^\s*\$(\w+)\s*(.*)$/
-        my $func=$1;
-        my $param=$2;
-        # TODO: think about $loopvar 
-        $if $func =~ /^global$/
-            $call var_declare, global
-        $elif $func =~ /^my$/
-            $call var_declare, my
-        $elif $func =~ /^loopvar$/
-            $call add_loop_var
+    $if $l!~/;\s*$/
+        $call parsecode_scope
+        $call parsecode_case_support, if, elsif, c_style
+        $if $l=~/^\s*\$(\w+)\s*(.*)$/
+            my $func=$1;
+            my $param=$2;
+            $call parsecode_function
+        $elif $l=~/^NOOP POST_MAIN/
+            $call list_functions
             return 0
-        $elif $func =~ /^use$/
-            $call dbl_push_list, uses, $param
+        $elif $l=~/^loop:/
+            $call define_loop_var
             return 0
-        $elif $func eq "sub"
-            $if $param=~/^(\w+)\((.*)\)/
-                &call return_newblock, sub
-                    push @src, "sub $1 {" 
-                    push @src, "INDENT"
-                    push @src, "my ($2)=\@_;"
-                    push @src, "BLOCK"
-                    push @src, "DEDENT"
-                    push @src, "}"
-            $else
-                return single_block("sub $param {", "}", "sub")
 
-        $elif $func =~ /^(while)$/
-            $if $param=~/\/.*\/\w*\s*$/
-                #-- regex
-                return single_block("while($param){", "}")
-            $elif $param=~/^(.*?);\s*(.*?)\s*$/
-                &call return_newblock, while
-                    push @src, "while($1){"
-                    push @src, "INDENT"
-                    push @src, "BLOCK"
-                    push @src, "$2;"
-                    push @src, "DEDENT"
-                    push @src, "}"
-            $else
-                return single_block("while($param){", "}")
-        $elif $func eq "for"
-            $call parsecode_for_support, c_style
-        $elif $func eq "foreach"
-            $call parsecode_foreach
-        $elif $func eq "boolhash"
-            $if $param=~/^\((.*?)\)\s*(.*)/
-                my $v = $1
-                my @plist=split /,\s*/, $2
-                my @tlist
-                $foreach $t in @plist
-                    push @tlist, "$t=>1"
-                push @$out, "$v= (".join(', ', @tlist).");"
-            return 0
-        $elif $func eq "sumcode" or $func eq "loop" or $func eq "sum"
-            $if $param=~/^\((.*?)\)\s+(.*)/
-                my $dimstr=$1
-                $param=$2
-                $call parsecode_sum_simple, perl
-            $elif $func eq "sumcode"
-                $call parsecode_sum_support, perl
-        $elif $func eq "print"
-            $call parsecode_print
-        $elif $func eq "source-$param"
-            return "SKIPBLOCK"
-    $elif $l=~/^NOOP POST_MAIN/
-        $call list_functions
-        return 0
-    $elif $l=~/^loop:/
-        $call define_loop_var
-        return 0
-
-    # $call check_hash_equal
-    $call check_termination
+        # $call check_hash_equal
+        $call check_termination
+    $call check_fcall
     push @$out, $l
 
     return 0;
 
+subcode: check_fcall
+    $if $l=~/(\w+)\([^)]*\);\s*$/
+        $call add_function, $1
+
+subcode: parsecode_function
+    # TODO: think about $loopvar 
+    $if $func =~ /^global$/
+        $call var_declare, global
+    $elif $func =~ /^my$/
+        $call var_declare, my
+    $elif $func =~ /^loopvar$/
+        $call add_loop_var
+        return 0
+    $elif $func =~ /^use$/
+        $call dbl_push_list, uses, $param
+        return 0
+    $elif $func eq "list"
+        my @flist = MyDef::utils::proper_split($param)
+        $foreach $name in @flist
+            $call add_function, $name
+    $elif $func eq "sub"
+        $if $param=~/^(\w+)\((.*)\)/
+            &call return_newblock, sub
+                push @src, "sub $1 {" 
+                push @src, "INDENT"
+                push @src, "my ($2)=\@_;"
+                push @src, "BLOCK"
+                push @src, "DEDENT"
+                push @src, "}"
+        $else
+            return single_block("sub $param {", "}", "sub")
+
+    $elif $func =~ /^(while)$/
+        $if $param=~/\/.*\/\w*\s*$/
+            #-- regex
+            return single_block("while($param){", "}")
+        $elif $param=~/^(.*?);\s*(.*?)\s*$/
+            &call return_newblock, while
+                push @src, "while($1){"
+                push @src, "INDENT"
+                push @src, "BLOCK"
+                push @src, "$2;"
+                push @src, "DEDENT"
+                push @src, "}"
+        $else
+            return single_block("while($param){", "}")
+    $elif $func eq "for"
+        $call parsecode_for_support, c_style
+    $elif $func eq "foreach"
+        $call parsecode_foreach
+    $elif $func eq "boolhash"
+        $if $param=~/^\((.*?)\)\s*(.*)/
+            my $v = $1
+            my @plist=split /,\s*/, $2
+            my @tlist
+            $foreach $t in @plist
+                push @tlist, "$t=>1"
+            push @$out, "$v= (".join(', ', @tlist).");"
+        return 0
+    $elif $func eq "sumcode" or $func eq "loop" or $func eq "sum"
+        $if $param=~/^\((.*?)\)\s+(.*)/
+            my $dimstr=$1
+            $param=$2
+            $call parsecode_sum_simple, perl
+        $elif $func eq "sumcode"
+            $call parsecode_sum_support, perl
+    $elif $func eq "print"
+        $call parsecode_print
+    $elif $func eq "source-$param"
+        return "SKIPBLOCK"
 fncode: parse_condition($t)
     $if $t=~/^\//
         # regex default
@@ -242,12 +226,30 @@ subcode: dumpout
         unshift @$out, "DUMP_STUB global_init"
 
 #----------------------------------------------- 
+subcode: survey_functions
+    $global %fn_hash
+    %fn_hash=()
+    &call each_subcode, fn
+        $fn_hash{$name}=$code
+    $call dbl_list, functions
+
+subcode: add_function(name)
+    $if $fn_hash{$(name)}
+        $if !$functions{$(name)}
+            push @functions, $(name)
+            $functions{$(name)} = $MyDef::def->{codes}->{$(name)}
+
 subcode: list_functions
     $global $fn_block=[]
     &call replace_output, $fn_block
-        &call each_subcode, fn
-            # $name, $code
-            $call parse_function
+        $if $page->{autolist}
+            &call each_subcode, fn
+                # $name, $code
+                $call parse_function
+        $else
+            $while my $name = pop @functions
+                my $code = $functions{$name}
+                $call parse_function
 
     subcode: parse_function
         push @$out, "sub $name {"
@@ -357,3 +359,38 @@ subcode: parsecode_print
         $p.=" $print_target"
     push @$out, "$p \"".join('',@fmt_list).'";'
     return
+
+#---- utils ------------------------------------
+subcode: dbl_push_list(name, list)
+    $(list)=~s/\s*;\s*$//
+    my @tlist=MyDef::utils::proper_split($(list))
+    $foreach $v in @tlist
+        $call dbl_push, $(name), $v
+
+#---- scope  for sumcode -------
+subcode: var_declare(scope)
+    $param=~s/\s*;\s*$//
+    my @tlist=MyDef::utils::proper_split($param)
+    $foreach $v in @tlist
+        my ($name, $var)
+        $if $v=~/\@(\w+)\[(.*)\](.*)/
+            $name=$1
+            $v='@'.$1.$3
+            $var={}
+            my @tlist=split /,\s*/, $2
+            my $i=0
+            $foreach $t in @tlist
+                $i++
+                $var->{"dim$i"}=$t
+        $(if:scope=global)
+            # $print global variable: $v
+            $call dbl_push, globals, $v
+            $if $var
+                $global_scope->{var_hash}->{$name}=$var
+        $(else)
+            push @$out, "my $v;"
+            $if $var
+                $cur_scope->{var_hash}->{$name}=$var
+    return 0
+
+#----

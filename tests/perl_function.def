@@ -1,7 +1,7 @@
 page: test
     $global $a
     $a=10
-    test $a
+    test($a)
 
 fncode: test($t)
     print "test: $t\n"
