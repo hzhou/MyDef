@@ -49,7 +49,7 @@ subcode: parsecode
     return 0;
 
 subcode: check_fcall
-    $if $l=~/(\w+)\([^)]*\);\s*$/
+    $while $l=~/\b(\w+)\(/g
         $call add_function, $1
 
 subcode: parsecode_function
@@ -118,6 +118,7 @@ subcode: parsecode_function
         $call parsecode_print
     $elif $func eq "source-$param"
         return "SKIPBLOCK"
+
 fncode: parse_condition($t)
     $if $t=~/^\//
         # regex default

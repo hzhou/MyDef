@@ -71,7 +71,7 @@ page: mydef_run
                 $cmd_line = "java $name"
         $elif $cmd_line
             $cmd=$cmd_line
-            undef $cmd
+            undef $cmd_line
         $else
             $if $name=~/\.pl$/
                 $cmd="perl $name"
