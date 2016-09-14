@@ -17,7 +17,7 @@ subcode: init_page
     $elif !$page->{package} and $page->{type} eq "pm"
         $page->{package}=$page->{pagename}
 
-    $if $page->{type} eq "pm"
+    $if $page->{pageext} eq "pm"
         $page->{autolist}=1
 
     $call survey_functions
