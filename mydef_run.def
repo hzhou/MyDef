@@ -43,26 +43,28 @@ page: mydef_run
     subcode: run
         my $page=$MyDef::page
         my $name=$page->{outname}
-        my $cmd_line = $page->{CMDLINE}
-        my $cmd
-        $if $name=~/\.c(pp)?$/
+        my $cmd_line = $page->{run}
+        my ($exe, $cmd)
+        $if $name=~/(.*)\.c(pp)?$/
+            $exe=$1
             my $cflags
             $if $page->{CFLAGS}
                 $cflags = $page->{CFLAGS}
             $if $config{module} eq "win32"
                 my $cc = "/usr/bin/x86_64-w64-mingw32-gcc"
-                $cmd = "$cc -o$pagename.exe $name $cflags $page->{lib_list} -Wl,--subsystem,windows"
+                $cmd = "$cc -o$exe.exe $name $cflags $page->{lib_list} -Wl,--subsystem,windows"
             $else
                 my $cc = "gcc"
                 $if $name=~/\.cpp$/
                     $cc = "g++"
-                $cmd="$cc -g $cflags -o$pagename $name $page->{lib_list}"
+                $cmd="$cc -g $cflags -o$exe $name $page->{lib_list}"
                 $if !$cmd_line
-                    $cmd_line = "./$pagename"
-        $elif $name=~/\.f$/
-            $cmd="gfortran -g -o$pagename $name $page->{lib_list}"
+                    $cmd_line = "$exe"
+        $elif $name=~/(.*)\.f$/
+            $exe = $1
+            $cmd="gfortran -g -o$exe $name $page->{lib_list}"
             $if !$cmd_line
-                $cmd_line = "./$pagename"
+                $cmd_line = "$exe"
         $elif $name=~/\.java$/
             $name=~s/\//./g
             $name=~s/\.java$//
