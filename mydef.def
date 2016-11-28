@@ -95,7 +95,7 @@ fncode: set_page_extension($default_ext)
     $if $ext eq "none"
         $ext=""
 
-    $page->{pageext}=$ext 
+    $page->{_pageext}=$ext 
 
 # --------------------------
 fncode: import_config($file)

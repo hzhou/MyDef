@@ -35,12 +35,12 @@ subcode: support_eachfile
 
     $sub dupe_page
         my ($def, $orig, $n, @pat_list)=@_;
-        my $pagename=dupe_line($orig->{pagename}, $n, @pat_list);
+        my $pagename=dupe_line($orig->{name}, $n, @pat_list);
         print "    foreach file $pagename $n: ", join(",", @pat_list), "\n";
         my $page={};
         $while my ($k, $v)=each(%$orig)
             $if $k eq "pagename"
-                $page->{pagename}=$pagename;
+                $page->{name}=$pagename;
             $elif $k eq "codes"
                 my $codes={};
                 $while my ($tk, $tv)=each(%$v)

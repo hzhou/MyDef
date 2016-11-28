@@ -15,9 +15,9 @@ subcode: init_page
     $if $page->{package} and !$page->{type}
         MyDef::set_page_extension("pm")
     $elif !$page->{package} and $page->{type} eq "pm"
-        $page->{package}=$page->{pagename}
+        $page->{package}=$page->{_pagename}
 
-    $if $page->{pageext} eq "pm"
+    $if $page->{_pageext} eq "pm"
         $page->{autolist}=1
 
     $call survey_functions
