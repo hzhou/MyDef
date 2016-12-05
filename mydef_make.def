@@ -36,7 +36,7 @@ page: mydef_make
 
     # ---------------------------------------- 
     subcode: sub_make
-        $global @master_config;
+        $global @master_config
         $if @ARGV and -d $ARGV[0]
             my $d=$ARGV[0];
             open In, "config";
