@@ -1,7 +1,7 @@
 subcode: parse_call_sub
     $param=~s/\s*$//;
     $if $func eq "\$map"
-        map_sub($param, $func);
+        map_sub($param, 1);
     $elif $func =~ "^\$call-(PRINT|template)"
         special_sub($param, $1)
     $elif $func =~ /^\$call/
@@ -11,6 +11,8 @@ subcode: parse_call_sub
         my $blk = {source=>$subblock, name=>"BLOCK", cur_file=>$cur_file, cur_line=>$cur_line, parsed_counter=>0}
         call_back($param, $blk)
 
+    $elif $func =~ /^\$map(\d+)/
+        map_sub($param, $1);
     $elif $func =~ /^\&call(\d+)/
         my $n=$1
         my @sub_blocks
@@ -50,7 +52,9 @@ subcode: parse_call_sub
 fncode: call_sub($param)
     $call call_sub_frame, normal
 
-fncode: map_sub($param)
+fncode: map_sub($param, $map_n)
+    $if $map_n < 1
+        $map_n = 1
     $call call_sub_frame, map
 
 fncode: call_back($param, $sub_blk)
@@ -115,19 +119,22 @@ subcode: call_sub_frame(type)
         pop @callback_block_stack
 
     subcode: call_sub_map
-        $if 1+@pre_plist!=$n_param
+        $if $map_n+@pre_plist!=$n_param
             warn " Code $codename parameter mismatch.\n";
         $call @map_subcode_list
-        $foreach $item in @plist
+
+        my $i=0
+        $while $i<@plist
             &call parseblock_with_macro
                 # instead of call_sub_normal_setup_macro
-                $macro->{$codeparams->[$n_pre]}=$item
-                $if $n_pre
-                    $for $i=0:$n_pre
-                        $macro->{$codeparams->[$i]}=$pre_plist[$i];
+                $for $j=0:$n_pre
+                    $macro->{$codeparams->[$j]}=$pre_plist[$j];
+                $for $j=0:$map_n
+                    $macro->{$codeparams->[$n_pre+$j]}=$plist[$i]
+                    $i++
         # ---------
         subcode: map_subcode_list
-            # collect all subcode name with certain prefix
+            # expand params from existing subcodes
             $if $plist[0]=~/^subcode:(.*)/
                 my $prefix=$1
                 @plist=()
@@ -159,6 +166,8 @@ subcode: call_sub_frame(type)
                 set_current_macro("notfound", 1)
                 $if !$attr or $attr ne '@'
                     $print [$cur_file:$cur_line] Code $codename not found!
+                    $if $debug
+                        debug_def_stack()
             $else
                 set_current_macro("notfound", 0)
                 $(if:type!=callback)
@@ -199,7 +208,7 @@ subcode: call_sub_frame(type)
 
     # ---------------------------------------- 
     subcode: call_sub_block
-        $global @callsub_stack;
+        $global @callsub_stack
         $codelib->{recurse}++
         push @callsub_stack, $codename
         modepush($codelib->{type})
@@ -212,7 +221,7 @@ subcode: call_sub_frame(type)
 
 #-------------------
 subcode: parseblock_with_macro
-    my $macro={};
+    my $macro={_name_=>"sub $codelib->{name}"}
     # $call call_sub_normal_setup_macro
     BLOCK
     push @$deflist, $macro;

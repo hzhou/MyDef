@@ -31,6 +31,14 @@ subcode: set_hash(hash, @plist)
     $(foreach:p)
         $(h){$(p)}=1
 
+subcode: update_max(max, a)
+    $if $(max)<$(a)
+        $(max)=$(a)
+
+subcode: update_min(min, a)
+    $if $(min)>$(a)
+        $(min)=$(a)
+
 # -- IO -------------------------
 subcode: open_r(name)
     $(if:name~")

@@ -156,22 +156,24 @@ subcode: parse_level_0
         my $codes={};
 
         $global $page
-        $page={pagename=>$pagename, codes=>$codes, main_name=>"main"};
+        $page={_pagename=>$pagename, codes=>$codes, main_name=>"main"};
 
         $if $pagename=~/(.+)\.(.+)/
             $page->{type}=''
 
         $if $framecode
+            my $code={name=>"_frame", type=>"sub", params=>[]}
+            $codes->{main}=$code
             $if $framecode=~/^from\s+(\S+)/
                 my $sub_name = get_template_sub_name()
-                $codes->{main}={type=>'sub', source=>["\$call $sub_name"], 'params'=>[]}
+                $code->{source}=["\$call $sub_name"]
                 my $sub_definition = parse_template($def, $codes, $1, $sub_name)
                 push @$include_list, $sub_definition
                 #- 
                 $page->{main_name}="main2"
             $else
                 #-- $framecode may include parameters
-                $codes->{main}={'type'=>'sub', 'source'=>["\$call $framecode"], 'params'=>[]};
+                $code->{source}=["\$call $framecode"]
                 $page->{main_name}="main2"
 
         $if $subpage

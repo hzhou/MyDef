@@ -21,14 +21,14 @@ subcode: compile_main
     # ---------------------------------------------------
     $sub compile
         my $page=$MyDef::page
-        my $pagename=$page->{pagename}
+        my $pagename=$page->{_pagename}
         $call output_outdir
         $call compile
 
     $sub output($plines)
         my $page=$MyDef::page
-        my $pagename=$page->{pagename}
-        my $pageext=$page->{pageext}
+        my $pagename=$page->{_pagename}
+        my $pageext=$page->{_pageext}
         my $outdir=$page->{outdir}
 
         my $outname=$outdir."/".$pagename;
@@ -87,6 +87,9 @@ subcode: compile
         $MyDef::var->{$k}=$v;
     #---- compile
     $deflist=[$MyDef::def, $MyDef::def->{macros}, $page];
+    $deflist->[0]->{_name_}="def_root"
+    $deflist->[1]->{_name_}="macros"
+    $deflist->[2]->{_name_}="page $page->{_pagename}"
 
     #---- autoload
     $global $in_autoload
@@ -116,7 +119,7 @@ subcode: compile
     #---- Dump
     $if !$page->{subpage}
         my @buffer;
-        $f_dumpout->(\@buffer, fetch_output(0), $page->{pageext})
+        $f_dumpout->(\@buffer, fetch_output(0), $page->{_pageext})
         return \@buffer
 
 subcode: output_outdir

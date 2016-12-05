@@ -8,11 +8,18 @@ subcode:: support_subs
 
     $sub get_def_attr
         my ($name, $attr)=@_;
-        $for $i=$#$deflist:-1:-1
+        $for $i=$#$deflist:0:-1
             my $t=$deflist->[$i]->{$name}
             $if $t and $t->{$attr}
                 return $t->{$attr}
         return undef;
+
+fncode: debug_def_stack
+    $for $i=$#$deflist:0:-1
+        my $name = $deflist->[$i]->{_name_}
+        $if !$name
+            $name="Unknown"
+        $print "    [$i] $name"
 
 # --------------------------------
 subcode:: package_global        
