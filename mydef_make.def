@@ -93,7 +93,7 @@ subcode: create_config
 
 #----
 subcode: read_config
-    $global $config_outputdir;
+    $global $config_outputdir
     $global $config_outputdir_make=0
     $global $config_filetype
     &call open_r, config
