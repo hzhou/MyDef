@@ -43,7 +43,8 @@ subcode: parse_call_sub
         $for $i=0:$n
             push @t_block, "SOURCE_DEDENT"
 
-        call_back("$codename, $param_0", \@t_block)
+        my $blk = {source=>\@t_block, name=>"BLOCK", cur_file=>$cur_file, cur_line=>$cur_line, parsed_counter=>0}
+        call_back("$codename, $param_0", $blk)
 
 #---------------------------------------- 
 fncode: call_sub($param)
