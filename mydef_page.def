@@ -65,7 +65,7 @@ page: mydef_page
             $if $p->{module} 
                 $t_module=$p->{module}
             $if $t_module and ($t_module ne $module)
-                $print "skip page $t: module mismatch [page:$t_module][config:$module]"
+                # $print "skip page $t: module mismatch [page:$t_module][config:$module]"
                 next
 
             MyDef::createpage($t);

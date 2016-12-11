@@ -1,6 +1,8 @@
 include: modules.def
 include: macros_util/path.def
 include: macros_util/debug.def
+include: macros_make/makefile_c.def
+include: macros_make/makefile_perl.def
 
 # mydef_make will recursively look into each subdir
 #   unless there is a skipmake file in the subdir.
@@ -9,7 +11,9 @@ page: mydef_make
     output_dir: script
     type:
 
-    $call package_global
+    $call parse_args
+    $global $module="perl"
+    $global %module_type=($(module_type))
     $call @sub_make
     # ---- in current directory ----------
     $call read_or_create_config
@@ -49,12 +53,11 @@ page: mydef_make
             $call create_config
         $call read_config
 
-
-
-subcode:: package_global
-    my $module="perl";
-    my %module_type=($(module_type))
-
+subcode: parse_args
+    $foreach $a in @ARGV
+        $if $a eq "-f"
+            $global $flag_force
+            $flag_force = 1
 
 ## --------- config -----------
 subcode: create_config
@@ -194,11 +197,13 @@ subcode: collect_files
                 print "    Skip folder $f\n"
             $elif $f eq $config_outputdir and -f "$f/Makefile"
                 $config_outputdir_make = 1
+                unshift @make_folders, $f
             $else
                 my @t=glob("$f/*.def");
                 $if @t 
                     print "$script $f ... \n";
                     system("$script $f")==0 or die "Failed to spawn sub make: $?\n";
+
                 $if -f "$f/Makefile"
                     push @make_folders, $f;
 
@@ -268,19 +273,15 @@ subcode: read_def_file
             $call outputdir_inpage
         $elif /^\s*\$include\s+(\S*)/ and $module ne "c" and -f $1
             $page->{include}->{$1}=1;
-        $elif /^\s*type: (\w+)/
-            $page->{type}=$1;
+        $elif /^\s*(type|module):\s*(\w+)/
+            $page->{$1}=$2
         $elif /^\s*type:\s*$/
             $page->{type}="none"
-        $elif /^\s*module:\s*(\w+)/
-            $page->{module}=$1;
         $elif /^\s*package:/
             $if $module eq "perl"
                 $page->{type}="pm"
-        $elif /^\s*depend:\s+(.*)/
-            $page->{depend}=$1
-        $elif /^\s*cmd:\s+(.*)/
-            $page->{cmd}=$1
+        $elif /^\s*(depend|make|other|CC|CFLAGS|LIB):\s+(.*)/
+            $page->{$1}=$2
         $elif /^\S/ 
             $inpage=0;
         # ----
@@ -290,14 +291,19 @@ subcode: read_def_file
             $if $dir !~/^[\/\.]/ and $output_dir
                 $dir=$output_dir."/".$dir
             $page->{output_dir}=$dir;
-            my $tlist=$folder{$dir};
-            $if $tlist
-                push @$tlist, "$f-$page->{page}";
-            $else
-                $folder{$dir}=["$f-$page->{page}"];
-            # Assign to Makefile Variable $dir 
-            #     (which is grouped by output folder)
-            $page->{in_var}=$dir;
+            $call add_dir_to_folder
+
+            subcode: add_dir_to_folder
+                my $key = "$f-$page->{page}"
+                # $print "Add $key -> $dir "
+                my $tlist=$folder{$dir};
+                $if $tlist
+                    push @$tlist, $key
+                $else
+                    $folder{$dir}=[$key];
+                # Assign to Makefile Variable $dir 
+                #     (which is grouped by output folder)
+                $page->{in_var}=$dir;
 
 
 subcode: check_eachpage
@@ -360,16 +366,15 @@ subcode: write_makefile
         $call write_var_folder
         $call write_var_copylist
 
-        print Out "all_targets: ", join(" ", @tlist, @make_folders),;
-        print Out "\n\n";
+        print Out "all_targets: ", join(" ", @tlist), "\n\n"
 
-        $if $config_outputdir_make
-            print Out "all: all_targets\n"
-            print Out "\tmake -C $config_outputdir\n";
-        $if $config_outputdir_make
-            print Out "install: $config_outputdir\n"
-            print Out "\tmake -C $config_outputdir install\n"
-            print Out "\n"
+        $if @make_folders
+            print Out "all: all_targets ", join(' ', @make_folders), "\n\n"
+
+            $if $make_folders[0] eq $config_outputdir
+                print Out "install: $config_outputdir\n"
+                print Out "\tmake -C $config_outputdir install\n"
+                print Out "\n"
 
         # expand def dependcy tree
         $call write_rule_copylist
@@ -421,9 +426,7 @@ subcode: write_rule_pages
                     push @t, $tt;
                     $inc->{$tt}=1
             print Out $h->{path}, ": ", $def, " ", join(" ", @t), " $inc_dep $extra_dep\n";
-            $if $h->{cmd}
-                print Out "\t$h->{cmd}\n"
-            $elif $h->{module} and ($h->{module}ne $module)
+            $if $h->{module} and ($h->{module} ne $module)
                 print Out "\t\${MakePage} -m$h->{module} $def $h->{path}\n";
             $else
                 print Out "\t\${MakePage} $def $h->{path}\n";
@@ -441,68 +444,58 @@ subcode: write_rule_submake
     $if @make_folders
         $foreach  $f in @make_folders
             $if !$nosub
-                print Out "$f: force_look\n";
-                print Out "\t cd $f; make\n";
-                print Out "\n";
+                print Out "$f: force_look\n"
+                # print Out "\t cd $f; make\n"
+                print Out "\tmake -C $f\n"
+                print Out "\n"
 
         print Out "force_look:\n\ttrue\n";
 
 subcode: module_specific
-    $if $config_outputdir and !-e "$config_outputdir/skipmake"
-        $if $module eq "c"
-            $if !-d $config_outputdir
-                mkdir $config_outputdir;
-            $if (-d $config_outputdir) and (!-f "$config_outputdir/Makefile")
-                $print "Create $config_outputdir/Makefile"
-                &call open_w, $config_outputdir/Makefile
-                    print Out "CC=gcc\n"
-                    print Out "CFLAGS=\n"
-                    print Out "INC=\n"
-                    print Out "LIB=\n"
-                    print Out "\n"
-                    $if $folder{toproot}
-                        my $tlist=$folder{toproot};
-                        my $page=$h_page{$tlist->[0]};
-                        my $name=$page->{path}
-                        $if $page->{path}=~/.*\/(.*)\.c/
-                            $name=$1;
-                        #print Out "gcc -Wl,-subsystem,windows -o $name.exe $name.c\r\n";
-                            my ($obj_list, $lib_list)
-                            print Out "$name: $name.o $obj_list\n"
-                            print Out "\t\$\(CC) \$\(LIB) $lib_list -o $name \$^\n"
-                            print Out "\n"
-                            print Out "%.o: %.c\n"
-                            print Out "\t\$\(CC) -c \$\(CFLAGS) \$\(INC) -o \$@ \$<\n"
-        $if $module eq "win32"
-            $if !-d $config_outputdir
-                mkdir $config_outputdir;
-            $if (-d $config_outputdir) and (!-f "$config_outputdir/make.bat")
-                print "Create win32 $config_outputdir/make.bat\n"
-                open Out, ">$config_outputdir/make.bat";
-                $if $folder{toproot}
-                    my $tlist=$folder{toproot};
-                    my $page=$h_page{$tlist->[0]};
-                    my $name=$page->{path}
-                    $if $page->{path}=~/.*\/(.*)\.c/
-                        $name=$1;
-                    #print Out "gcc -Wl,-subsystem,windows -o $name.exe $name.c\r\n";
-                    print Out "cl /W3 $name.c user32.lib\r\n";
-                close Out;
-        $if ($module eq "perl" or $module eq "xs") and !-d $config_outputdir
-            $if $config_outputdir=~/^\w[0-9a-zA-Z_\-]*$/
-                my $name=$config_outputdir;
-                $name=~s/-/::/g;
-                $if $module eq "perl"
-                    my $pm_count=0
-                    $while my ($p, $h) = each %h_page
-                        $if $h->{type} eq "pm"
-                            $pm_count++
-                    $if $pm_count>0
-                        print "Running h2xs -X $name ... ...\n";
-                        system "h2xs -X $name";
-                $else
-                    print "Running h2xs -n $name ... ...\n";
-                    system "h2xs -n $name";
+    $while my ($dir, $list) = each %folder
+        $if $dir=~/toproot|ROOT/
+            $dir = $config_outputdir
+        $if $dir and !-e "$dir/skipmake"
+            $if $module eq "c" || $module eq "win32"
+                &call need_makefile
+                    $call makefile_c, $dir
+            $elif $module eq "perl" 
+                $if !-d $dir
+                    $call makefile_perl, $dir
+            $elif $module eq "xs"
+                $if !-d $dir
+                    $call makefile_xs, $dir
+
+    subcode: need_makefile
+        # $print need_makefile: $dir ...
+        $if !-d $dir
+            mkdir $dir;
+        $if $flag_force || !-f "$dir/Makefile"
+            $print "Create $dir/Makefile"
+            BLOCK
+
+    subcode: get_target_list
+        my @target_list
+        $if $list
+            $foreach $t in @$list
+                my $t_page = $h_page{$t}
+                $if $t_page->{make} or $t_page->{other}
+                    $call add_page, $t
+        $if !@target_list
+            $call add_page, $list->[0]
+
+        subcode: add_page(t)
+            my $page=$h_page{$(t)}
+            my $name=$page->{path}
+            $if $page->{path}=~/.*\/(.*)\.(\w+)/
+                $name = $1
+            push @target_list, [$page, $name]
+            
+            $if !$t_module and $page->{module}
+                $t_module = $page->{module}
+
+            $call @target_page_specific
+
 
 subcode: create_outputdir
     $if $config_outputdir
@@ -535,10 +528,8 @@ fncode: prompt($msg)
         $else
             die "Must reply $msg\n"
 
-subcode: _autoload
-    $global %macros
-
 fncode: expand_macros($t)
+    $global %macros
     $if $t=~/\$\((\w+)\)/
         $if $macros{$1}
             $t=$`.$macros{$1}.$';
