@@ -460,11 +460,9 @@ subcode: module_specific
                 &call need_makefile
                     $call makefile_c, $dir
             $elif $module eq "perl" 
-                $if !-d $dir
-                    $call makefile_perl, $dir
+                $call makefile_perl, $dir
             $elif $module eq "xs"
-                $if !-d $dir
-                    $call makefile_xs, $dir
+                $call makefile_xs, $dir
 
     subcode: need_makefile
         # $print need_makefile: $dir ...
