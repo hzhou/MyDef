@@ -1,0 +1,29 @@
+subcode: perl_dir(dir)
+    $if $(dir)=~/^\w[0-9a-zA-Z_\-]*$/
+        my $name=$(dir);
+        $name=~s/-/::/g;
+        $if !-d $dir
+            BLOCK
+
+subcode: makefile_perl(dir)
+    &call perl_dir, $(dir)
+        my $pm_count=0
+        $while my ($p, $h) = each %h_page
+            $if $h->{type} eq "pm"
+                $pm_count++
+        $if $pm_count>0
+            print "Running h2xs -X $name ... ...\n";
+            system "h2xs -X $name";
+
+subcode: makefile_xs(dir)
+    &call perl_dir, $(dir)
+        print "Running h2xs -n $name ... ...\n";
+        system "h2xs -n $name";
+
+#---------------------------------------- 
+#-  my @scripts = glob("script/*")
+#-  WriteMakefile(...
+#-      EXE_FILES => \@scripts,
+#-      ...
+#-      LIBS => ['-lm -l...'],
+#-      ...
