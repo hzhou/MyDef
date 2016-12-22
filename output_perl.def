@@ -298,9 +298,13 @@ subcode: check_termination
 #---------------------------------------- 
 subcode: parsecode_print
     my $str=$param
+    my $printf_args
     my $need_escape
     $if $str=~/^\s*\"(.*)\"\s*$/
         $str=$1
+    $elif $str=~/^\s*\"([^"]+)\",\s*(.+)$/
+        $str = $1
+        $printf_args=$2
     $else
         $need_escape=1
 
@@ -354,11 +358,21 @@ subcode: parsecode_print
     $if $n_escape
         push @fmt_list, "\\x1b[0m"
 
-    my $p = "print"
+    my $p
+    $if $printf_args
+        $p = "printf"
+    $else
+        $p = "print"
+
     my $print_target = MyDef::compileutil::get_macro_word("print_to", 1)
     $if $print_target
         $p.=" $print_target"
-    push @$out, "$p \"".join('',@fmt_list).'";'
+
+    $if $printf_args
+        push @$out, "$p \"".join('',@fmt_list)."\", $printf_args;"
+    $else
+        push @$out, "$p \"".join('',@fmt_list).'";'
+
     return
 
 #---- utils ------------------------------------

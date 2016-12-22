@@ -1,0 +1,89 @@
+macros:
+    win32_cc: x86_64-w64-mingw32-gcc
+    win32_rc: x86_64-w64-mingw32-windres
+
+subcode: makefile_c(dir)
+    my $t_module
+    $(for:CC,CFLAGS,LIB,RC)
+        $my $$1
+
+    $call get_target_list
+    $if !$t_module
+        $t_module = $module
+    $print "    module: $t_module"
+    $if @target_list
+        &call open_w, $(dir)/Makefile
+            $call dump_variable
+            $call dump_target
+            $call dump_implicit
+
+    # --------------------------
+    subcode: target_page_specific
+        $(for:CC,CFLAGS,LIB)
+            $if $page->{$1}
+                $$1 = $page->{$1}
+
+        $if $page->{make}=~/win32/
+            $CC = "$(win32_cc)"
+
+    # ---------------------
+    subcode: dump_variable
+        $call set_CC
+        $(for:CC,CFLAGS,LIB)
+            print Out "$1=$$1\n"
+        $if $RC
+            print Out "RC=$RC\n"
+        print Out "\n"
+
+        subcode: set_CC
+            $if !$CC
+                $if $t_module eq "win32"
+                    $CC = "$(win32_cc)"
+                    $RC = "$(win32_rc)"
+                    $LIB = "-Wl,-subsystem,windows"
+                $else
+                    $CC = "gcc"
+
+    # ---------------------
+    subcode: dump_target
+        $foreach $t in @target_list
+            my ($page, $name)=@$t
+            $call get_obj_list
+            $call get_lib_list
+            my $target = $name
+            $if $t_module eq "win32" or $page->{make}=~/win32/
+                $target = "$name.exe"
+
+            print Out "$target: $obj_list\n"
+            $: print Out "\t\$(CC) -o $target \$^ \$(LIB) $lib_list \n";
+            print Out "\n"
+
+        subcode: get_obj_list
+            my @objs = ("$name.o")
+            $if $page->{other}
+                my @tlist = split /,\s*/, $page->{other}
+                $foreach $p in @tlist
+                    push @objs, "$p.o"
+            my $obj_list = join(' ', @objs)
+
+        subcode: get_lib_list
+            my $lib_list
+            # if $name.c exists and it is forced mydef_make,
+            #     it can be copied from head comment
+            $if -f "$(dir)/$name.c"
+                &call open_r, $(dir)/$name.c
+                    $if /^\/\*\s*link:\s*(.*?)\s*\*\/$/
+                        $lib_list = $1
+                        last
+
+    # ---------------------
+    subcode: dump_implicit
+        print Out "%.o: %.c\n"
+        $: print Out "\t\$(CC) -c \$(CFLAGS) -o \$@ \$<\n";
+        print Out "\n"
+
+        $if $RC
+            print Out "%.o: %.rc\n"
+            $: print Out "\t\$(RC) \$< \$@ \n";
+            print Out "\n"
+            

@@ -6,6 +6,8 @@
 #-     provide function_push/function_pop if support scope
 
 #---------------------------------------- 
+#-- $list function_name where function_name is a subcode
+#--   fncode maybe auto-listed
 subcode: list_function(f)
     $call parse_name
     &call load_codelib
@@ -47,6 +49,7 @@ subcode: list_function(f)
                 BLOCK
 
 #---------------------------------------- 
+#-- $function, $wndproc, ...
 fncode: function_block($funcname, $paramline)
     my $func=open_function($funcname, $paramline);
 

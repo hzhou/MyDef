@@ -10,20 +10,15 @@ subcode:: preproc_elifs
     $elif $preproc=~/^set:\s*(\w+)$/
         my $name=$1
         $call set_macro_join
-    $elif $preproc=~/^set:\s*(\w+)\)/
-        my $name=$1
-        $if $l=~/^\$\(set:\s*\w+\)(.*)/
-            $tail=$1
-        $call set_macro_join
     $elif $preproc=~/^set:\s*(.*)/
         # immediate macros
         set_macro($deflist->[-1], $1)
-    $elif $preproc=~/^set([012]):\s*(.*)/
-        # standard macros: def, macros, page
-        set_macro($deflist->[$1], $2)
-    $elif $preproc=~/^setmacro:\s*(.*)/
-        # standard macros: def, macros, page
-        set_macro($deflist->[2], $1)
+    $elif $preproc=~/^set(-?[012]|def|macro|page):\s*(.*)/
+        my ($i,$t) = ($1, $2)
+        $global %named_macros=(def=>0,macro=>1,page=>2)
+        $if $i!~/^-?\d/
+            $i=$named_macros{$i}
+        set_macro($deflist->[$i], $t)
     $elif $preproc=~/^unset:\s*(.*)/
         my @t = split /,\s*/, $1
         $foreach $t in @t
@@ -323,9 +318,16 @@ fncode: get_macro($s, $nowarn)
                 my @tlist=MyDef::utils::proper_split($t)
                 $if $idx eq "n"
                     return scalar(@tlist)
-                $elif $idx=~/(\d+)/
+                $elif $idx=~/^(-?\d+)$/
                     return $tlist[$1]
-                $elif $idx=~/(.*)\*(.*)/
+                $elif $idx=~/^shift\s+(\d+)$/
+                    splice(@tlist, 0, $1)
+                    return join(", ", @tlist)
+                $elif $idx=~/^pop\s+(\d+)$/
+                    splice(@tlist, -$1)
+                    return join(", ", @tlist)
+                $elif $idx=~/^(.*)\*(.*)$/
+                    # modifies the list
                     $foreach $t in @tlist
                         $t = "$1$t$2"
                     return join(", ", @tlist)

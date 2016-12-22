@@ -1,15 +1,28 @@
 page: test
     a: b
-    a2: 1
+    b: 1
 
     print "page macro a: $(a)\n"
     $(if:word:a)
         $warn macro a  is a word : [$(a)]
-    $(if:!word:a2)
-        $warn macro a2  is not a word : [$(a2)]
+    $(if:!word:b)
+        $warn macro b  is not a word : [$(b)]
+    $call test_named_macros
     $call test_eval, test_case
     $call test_inline, example
     $call test_for_list
+    $call test_macro_join
+
+subcode: test_named_macros
+    $call subset1
+    $print test_named_macros: $(a1), $(a2), $(a3), $(a4), $(a5), $(a6)
+    subcode: subset1
+        $(setdef:a1=def)
+        $(setmacro:a2=macro)
+        $(setpage:a3=page)
+        $(set0:a4=def)
+        $(set1:a5=macro)
+        $(set2:a6=page)
 
 subcode: test_eval(t)
     $(eval:t2=ucfirst("$(t)"))
@@ -24,3 +37,7 @@ subcode: test_for_list
     $print "\nfor list:\n"
     $(for:i, j, k and x, y, z and 1, 2, 3)
         $print "  ", $2_$1 -> $3
+
+subcode: test_macro_join
+    $(set:cond) join, ' or ', 'N!=*', 2, 4, 8, 16
+    $print test_macro_join: $(cond)
