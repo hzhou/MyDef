@@ -12,7 +12,7 @@ subcode: list_function(f)
         my ($func, $block)=function_block($funcname, $paramline)
         $foreach $l in @$block
             $if $l eq "BLOCK"
-                $call @function_push
+                $call @function_push, $func
                 MyDef::compileutil::list_sub($codelib)
                 $if $out->[-1]=~/^return/
                     $func->{return}=pop @$out
