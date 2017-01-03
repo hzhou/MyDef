@@ -39,6 +39,9 @@ subcode: update_min(min, a)
     $if $(min)>$(a)
         $(min)=$(a)
 
+subcode: swap(a, b)
+    ($(a), $(b)) = ($(b), $(a))
+
 # -- IO -------------------------
 subcode: open_r(name)
     $(if:name~")
