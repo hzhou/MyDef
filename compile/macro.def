@@ -65,18 +65,6 @@ subcode:: preproc_elifs
         my @plist=split /,\s*/, $1
         $foreach $p in @plist
             set_macro($deflist->[-2], $p)
-    $elif $preproc=~/^reset:\s*(\w+)([\.\+\-])?=(.*)/
-        my ($v, $op, $d)=($1, $2, $3, $4)
-        expand_macro(\$d)
-        my $i=$#$deflist;
-        $while $i>0 and !defined $deflist->[$i]->{$v}
-            $i--
-        $if $i==0
-            $i=-1
-        $if $op
-            $deflist->[$i]->{$v}=calc_op($deflist->[$i]->{$v}, $op, $d)
-        $else
-            $deflist->[$i]->{$v}=$d;
     $elif $preproc=~/^unset:\s*(\w+)/
         $foreach $m in @$deflist
             delete $m->{$1}
@@ -127,6 +115,7 @@ subcode: set_macro_join
     subcode: join_pattern
         $foreach $t in @$subblock
             $if $t!~/^SOURCE:/
+                expand_macro(\$t)
                 push @tlist, MyDef::utils::proper_split($t)
         $foreach $t2 in @tlist
             my $t3=$pat
@@ -140,55 +129,51 @@ subcode: set_macro_join
                 push @out_list, $t
 
 #---------------------------------------- 
+fncode: set_macro($m, $p)
+    $if $debug eq "macro"
+        print "set_macro: [$p]\n";
+    $if $p=~/(\w+)([\+\-\*\/\.])=(.+)/
+        my ($t1, $op, $num)=($1, $2, $3)
+        $m->{$t1} = calc_op($m->{$t1}, $op, $num)
+    $elif $p=~/(\S+?)=(.*)/
+        my ($t1, $t2)=($1, $2)
+        $if $t1=~/\$\(.*\)/
+            expand_macro(\$t1)
+        $if $t2=~/\$\(.*\)/
+            expand_macro(\$t2)
+        $m->{$t1}=$t2
+    $else
+        my $t=get_def($p)
+        $if defined $t
+            $m->{$p}=$t
+        $else
+            $call warn,  set_macro parse error: [$p]
+
+fncode: calc_op($v, $op, $t)
+    $if $op eq "."
+        return $v . $t
+
+    my $ret=get_numeric($v)
+    $if $op eq "+"
+        $ret+=get_numeric($t)
+    $elif $op eq "-"
+        $ret-=get_numeric($t)
+    $elif $op eq "*"
+        $ret*=get_numeric($t)
+    $elif $op eq "/"
+        $ret/=get_numeric($t)
+    $if $v=~/^0x/
+        return sprintf("0x%lx", $ret)
+    $else
+        return $ret
+
+fncode: get_numeric($v)
+    $if $v=~/0x(.*)/
+        return hex($v)
+    $else
+        return $v
+
 subcode:: support_subs
-    $sub calc_op($v, $op, $d)
-        $if $op eq "."
-            return $v . $d
-        my $ret=get_numeric($v)
-        $if $op eq "+"
-            $ret+=get_numeric($d)
-        $elif $op eq "-"
-            $ret-=get_numeric($d)
-        $if $v=~/^0x/
-            return sprintf("0x%lx", $ret)
-        $else
-            return $ret
-
-    $sub get_numeric($v)
-        $if $v=~/0x(.*)/
-            return hex($v)
-        $else
-            return $v
-
-    $sub set_macro($m, $p)
-        $if $debug eq "macro"
-            print "set_macro: [$p]\n";
-        $if $p=~/(\w+)([\+\-\*\/\.])=(\d+)/
-            my ($t1, $op, $num)=($1, $2, $3)
-            $if $op eq "+"
-                $m->{$t1}+=$num
-            $elif $op eq "*"
-                $m->{$t1}*=$num
-            $elif $op eq "."
-                $m->{$t1}.=$num
-            $elif $op eq "/"
-                $m->{$t1}/=$num
-            $elif $op eq "-"
-                $m->{$t1}/=$num
-        $elif $p=~/(\S+?)=(.*)/
-            my ($t1, $t2)=($1, $2)
-            $if $t1=~/\$\(.*\)/
-                expand_macro(\$t1)
-            $if $t2=~/\$\(.*\)/
-                expand_macro(\$t2)
-            $m->{$t1}=$t2
-        $else
-            my $t=get_def($p)
-            $if defined $t
-                $m->{$p}=$t
-            $else
-                $call warn,  set_macro parse error: [$p]
-
     $sub set_current_macro($name, $val)
         $deflist->[-1]->{$name}=$val
 
@@ -217,51 +202,19 @@ fncode: expand_macro($lref)
     $$lref=~s/\$\(:/\$(/g
 
 fncode: get_macro($s, $nowarn)
-    $if $s=~/^((rep|perl|eval|map|or|and|sym|def)\b.+)/
+    $if $s=~/^((rep|x\d+|eval|sym|def)\b.+)/
         my $t=$1
-        $if $t=~/^rep\[(.*?)\](\d+):(.*)/
-            $if $2>1
-                return "$3$1" x ($2-1) . $3
-            $else
-                die "Illegal rep macro in \"$s\"!\n"
-        $elif $t=~/^perl:(.*)/
-            my $outdir=".";
-            $if $MyDef::var->{output_dir}
-                $outdir=$MyDef::var->{output_dir};
-            my $defname=$MyDef::def->{name}
-            my $t=$1
-            $t=~s/,/ /g
-            $if open In, "perl $outdir/perl-$defname.pl $t|"
-                my $t=<In>
-                close In
-                return $t
-            $else
-                die "Failed perl $outdir/perl-$defname.pl\n"
-        $elif $t=~/^eval:\s*(.*)/
+        $if $t=~/^eval:\s*(.*)/
             # e.g. $(eval:lcfirst "$(word)")
             return eval($1)
-        $elif $t=~/^map\s+(.*):(.*):(.*)/
-            my ($pat, $sep)=($1, $3)
-            my @tlist=split /\|/, $2
-            my @segs
-            $foreach $t in @tlist
-                my $p=$pat
-                $p=~s/\$1/$t/g
-                push @segs, $p
-            return join(" $sep ", @segs)
-        $elif $t =~ /^(or|and):\s*(.*?):\s*(.*)/
-            my $sep=" $1 "
-            my $pat=$2
-            my @tlist=split /,\s*/, $3
-            my @segs
-            $foreach $t in @tlist
-                my $tt=$pat
-                $tt=~s/\*/$t/g
-                push @segs, $tt
-            return join($sep, @segs)
+        $elif $t=~/^x(\d+)([^:]*):(.*)/ and $1>1
+            # rep $3 with sep=$2, sep can't have ':'
+            return "$3$2" x ($1-1) . $3
         $elif $t =~ /^sym:(.+)/
+            # $(sym:C++) -> CPlusPlus
             return MyDef::utils::string_symbol_name($1)
         $elif $t =~ /^def:(.+)/
+            # $(def:date) -> yyyy-mm-dd
             my $t
             $if $MyDef::def->{file}
                 my @t = stat($MyDef::def->{file})
@@ -313,6 +266,9 @@ fncode: get_macro($s, $nowarn)
                     return length($t)
             $elif $p eq "strip"
                 return substr($t, 1, -1)
+            $elif $p =~/^x(\d+)(.*)/ and $1>1
+                # repeat
+                return "$t$2" x ($1-1) . $t
             $elif $p=~/list:(.*)/
                 my $idx=$1
                 my @tlist=MyDef::utils::proper_split($t)

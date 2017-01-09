@@ -40,7 +40,7 @@ subcode: list_function(f)
             my $paramline
             $if defined $params
                 $paramline=join(",", @$params)
-                $if $funcname eq "n_main" or $funcname eq "main2"
+                $if $paramline eq "main"
                     $funcname="main";
             $else
                 $paramline=""

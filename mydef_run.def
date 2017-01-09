@@ -11,10 +11,17 @@ page: mydef_run
     $call guess_module
     MyDef::init(%config)
     MyDef::import_data($config{def_file})
-    $call compile_page
+    my $pagename=$MyDef::def->{pagelist}->[0]
+    $if $pagename
+        MyDef::createpage($pagename)
+    $elif -f "run"
+        system "sh run"
+    $elif -f "Makefile"
+        system "make"
 
     $if !$config{skiprun}
-        $call run
+        $if $pagename
+            $call run_page
 
     # -------------------------
     subcode: parse_arg
@@ -36,25 +43,24 @@ page: mydef_run
             $elif /^#skiprun/
                 $config{skiprun}=1
 
-    subcode: compile_page
-        my $pagename=$MyDef::def->{pagelist}->[0]
-        MyDef::createpage($pagename)
-
-    subcode: run
+    subcode: run_page
         my $page=$MyDef::page
         my $name=$page->{outname}
         my $cmd_line = $page->{run}
         my ($exe, $cmd)
         $if $name=~/(.*)\.c(pp)?$/
             $exe=$1
+            my $cc = "gcc"
             my $cflags
             $if $page->{CFLAGS}
                 $cflags = $page->{CFLAGS}
-            $if $config{module} eq "win32"
-                my $cc = "/usr/bin/x86_64-w64-mingw32-gcc"
+            $if $page->{make} eq "win32"
+                $cc = "/usr/bin/x86_64-w64-mingw32-gcc"
+                $cmd = "$cc -o$exe.exe $name $cflags $page->{lib_list}"
+            $elif $config{module} eq "win32"
+                $cc = "/usr/bin/x86_64-w64-mingw32-gcc"
                 $cmd = "$cc -o$exe.exe $name $cflags $page->{lib_list} -Wl,--subsystem,windows"
             $else
-                my $cc = "gcc"
                 $if $name=~/\.cpp$/
                     $cc = "g++"
                 $cmd="$cc -g $cflags -o$exe $name $page->{lib_list}"

@@ -74,6 +74,11 @@ subcode:: package_global
     $global $debug=0
 
 subcode: compile
+    $deflist=[$MyDef::def, $MyDef::def->{macros}, $page];
+    $deflist->[0]->{_name_}="def_root"
+    $deflist->[1]->{_name_}="macros"
+    $deflist->[2]->{_name_}="page $page->{_pagename}"
+
     my $mode=$f_init->($page);
     $if $mode
         modepush($mode)
@@ -85,11 +90,6 @@ subcode: compile
     $while my ($k, $v)=each %$page
         $varsave{$k}=$MyDef::var->{$k};
         $MyDef::var->{$k}=$v;
-    #---- compile
-    $deflist=[$MyDef::def, $MyDef::def->{macros}, $page];
-    $deflist->[0]->{_name_}="def_root"
-    $deflist->[1]->{_name_}="macros"
-    $deflist->[2]->{_name_}="page $page->{_pagename}"
 
     #---- autoload
     $global $in_autoload

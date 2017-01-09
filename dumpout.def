@@ -25,10 +25,7 @@ subcode: dumpout
     my $indentation=0
     my @indentation_stack
 
-    #---- MAKE_STRING/POP_STRING: facilitate open gl programs
-    my @make_string_stack
-    my $string_list=undef
-
+    DUMP_STUB dumpout_init
     subcode: debug_dumpout
         $if $#$f <10
             $print dumpout $out: [$l]
@@ -93,18 +90,12 @@ subcode: dumpout
             # messages from compileutil.pm
         $elif $l=~/^NOOP/
             # messages from compileutil.pm
-        $elif $l=~/^MAKE_STRING:(.*)/
-            $call start_make_string, $1
-        $elif $l =~/^POP_STRING/
-            $call pop_make_string
+        $call @support_make_string
         $elif $l =~/^(.*)=\s*\[(strings?)_from_file:\s*(\S+)\]\s*;/
             my ($head, $file, $type)=($1, $3, $2)
             $call string_from_file
         $else
-            $if @make_string_stack
-                $call print_line_string
-            $else
-                $call print_line
+            $call print_line
 
 subcode: print_line
     $if $l=~/^\s*$/
@@ -120,45 +111,60 @@ subcode: print_line
         chomp $l
         push @$f, "    "x$indentation."$l\n"
 
-subcode: print_line_string
-    $(set:indent=($indentation-$make_string_stack[-1]->{indent}-1))
-    $if $l=~/^\s*$/
-        # push @$f, "\n"
-    $elif $l=~/^\s*NEWLINE\b/
-        push @$string_list, ""
-    $elif $l =~/^PRINT (.*)/
-        push @$string_list, "    "x$(indent) . $1
-    $else
-        push @$string_list, "    "x$(indent) . $l
+#---------------------------------------- 
+subcode: support_make_string
+    # --- MAKE_STRING/POP_STRING: facilitate open gl programs
+    #     additional messy support in compile/parse.def
+    $elif $l=~/^MAKE_STRING:(.*)/
+        $call start_make_string, $1
+    $elif $l =~/^POP_STRING/
+        $call pop_make_string
+    $elif @make_string_stack
+        $call print_line_string
+
+    $(block:dumpout_init)
+        my @make_string_stack
+        my $string_list=undef
+
+    subcode: start_make_string(line)
+        $string_list=[]
+        push @make_string_stack, {quote=>'"', join=>'\n', line=>$(line), list=>$string_list, indent=>$indentation}
+
+    subcode: pop_make_string
+        my $h=pop @make_string_stack
+        $if !$h
+            die "Error POP_STRING\n"
+        $if @make_string_stack
+            $string_list=$make_string_stack[-1]->{list}
+        $else
+            $string_list=undef
+
+        my $l=$h->{line}
+        my $join=''
+        $if $l=~/\bSTRING\[([^\]]*)\]/
+            $join=$1
+            $l=~s/\bSTRING\[[^\]]*\]/STRING/g
+            #-- ?: STRING[, ]word?
+        my $t=join($join, @{$h->{list}})
+
+        $if $l=~/"STRING"/
+            $t=~s/"/\\"/g # avoid \"?
+
+        $l=~s/\bSTRING\b/$t/
+        $call print_line
+
+    subcode: print_line_string
+        $(set:indent=($indentation-$make_string_stack[-1]->{indent}-1))
+        $if $l=~/^\s*$/
+            # push @$f, "\n"
+        $elif $l=~/^\s*NEWLINE\b/
+            push @$string_list, ""
+        $elif $l =~/^PRINT (.*)/
+            push @$string_list, "    "x$(indent) . $1
+        $else
+            push @$string_list, "    "x$(indent) . $l
 
 #---------------------------------------- 
-subcode: start_make_string(line)
-    $string_list=[]
-    push @make_string_stack, {quote=>'"', join=>'\n', line=>$(line), list=>$string_list, indent=>$indentation}
-
-subcode: pop_make_string
-    my $h=pop @make_string_stack
-    $if !$h
-        die "Error POP_STRING\n"
-    $if @make_string_stack
-        $string_list=$make_string_stack[-1]->{list}
-    $else
-        $string_list=undef
-
-    my $l=$h->{line}
-    my $join=''
-    $if $l=~/\bSTRING\[([^\]]*)\]/
-        $join=$1
-        $l=~s/\bSTRING\[[^\]]*\]/STRING/g
-        #-- ?: STRING[, ]word?
-    my $t=join($join, @{$h->{list}})
-
-    $if $l=~/"STRING"/
-        $t=~s/"/\\"/g # avoid \"?
-
-    $l=~s/\bSTRING\b/$t/
-    $call print_line
-
 subcode: string_from_file
     $if $dump->{module} eq "output_perl"
         push @$f, "$head = <<HERE;\n"
