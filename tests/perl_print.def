@@ -1,0 +1,7 @@
+page: test
+    $print plain string "with quotes" in it
+    $print plain string $green{with color} in it
+    $(set:print_to=STDERR)
+    $print "print_to=STDERR with concatenation ". localtime() ." (should work as long as quoted overall)"
+    $print "format %04d (now working)", 88
+

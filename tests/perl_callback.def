@@ -1,0 +1,11 @@
+page: test
+    &call2 muti_callback
+        $print print this first
+    second:
+        $print ...  this next
+
+
+subcode: muti_callback
+    BLOCK1
+    $print -- between BLOCK1 and BLOCK2
+    BLOCK2
