@@ -148,91 +148,94 @@ subcode: parse_preproc_if
         $print parse_preproc_if: ($1) -> $switch_context
 
 #---------------------------------------- 
-subcode:: support_subs
-    $sub test_op($a, $test)
-        $if $debug eq "preproc"
-            $print "preproc test_op: $a: $test"
-        $if $test=~/^:(\d+)/
-            $test=$'
-            $a=substr($a, 0, $1);
+fncode: test_op($a, $test)
+    $if $debug eq "preproc"
+        $print "preproc test_op: $a: $test"
+    $if $test=~/^:(\d+)/
+        $test=$'
+        $a=substr($a, 0, $1);
 
-        $if $test=~/\s*(!?[~=]|<=?|>=?)(.*)/
-            my ($op, $b)=($1, $2)
-            $if $op eq "="
-                if($a eq $b){ return 1;}
-            $elsif $op eq "!="
-                if($a ne $b){ return 1;}
-            $elsif $op eq ">"
-                if($a > $b){ return 1;}
-            $elsif $op eq "<"
-                if($a < $b){ return 1;}
-            $elsif $op eq ">="
-                if($a >= $b){ return 1;}
-            $elsif $op eq "<="
-                if($a <= $b){ return 1;}
-            $elsif $op eq "~"
-                if($a=~/^$b/){ return 1;}
-            $elsif $op eq "!~"
-                if($a!~/^$b/){ return 1;}
-            $else
-                return 0
-        $elif $test=~/\s*in\s+(.*)/
-            return test_in($a, $1)
-        $else
-            return defined $a
-
-    $sub test_in($a, $test)
-        my @tlist=split /,\s*/, $test
-        $foreach $t in @tlist
-            $if $t=~/(\S)-(\S)/
-                $if ord($a)>=ord($1) and ord($a)<=ord($2)
-                    return 1
-            $elif $a eq $t
-                return 1
-        return 0
-
-    $sub testcondition($cond)
-        $if $debug eq "preproc"
-            $print "preproc testcondition: $cond"
-        $if !$cond
-            return 0;
-        $call @testcondition_elifs
-        $elif $cond=~/^\s*!(.*)/
-            return !testcondition($1)
-        $elif $cond=~/ or /
-            my @nlist=split / or /, $cond
-            $foreach $n in @nlist
-                $if testcondition($n)
-                    return 1;
-            return 0;
-        $elif $cond=~/ and /
-            my @nlist=split / and /, $cond
-            $foreach $n in @nlist
-                $if !testcondition($n)
-                    return 0
-            return 1;
-        $elsif $cond=~/^([01])$/
-            return $1
-        $elsif $cond=~/^hascode:\s*(\w+)/
-            my $codelib = get_def_attr("codes", $1)
-            $if $codelib
-                return 1
-        $elsif $cond=~/^(string|number|word):(.*)/
-            my $test=$1
-            my $t=get_def($2)
-            $if $test eq "string" and $t=~/^['"]/
-                return 1
-            $elif $test eq "number" and $t=~/^\d+/
-                return 1
-            $elif $test eq "word" and $t=~/^[a-zA-Z_]\w*$/
-                return 1
-        $elsif $cond=~/^\s*(\w+)(.*)/
-            my $t=get_def($1);
-            $if !$2
-                return defined $t
-            $else
-                return test_op($t, $2)
+    $if $test=~/\s*(!?[~=]|<=?|>=?)(.*)/
+        my ($op, $b)=($1, $2)
+        $if $op eq "="
+            if($a eq $b){ return 1;}
+        $elsif $op eq "!="
+            if($a ne $b){ return 1;}
+        $elsif $op eq ">"
+            if($a > $b){ return 1;}
+        $elsif $op eq "<"
+            if($a < $b){ return 1;}
+        $elsif $op eq ">="
+            if($a >= $b){ return 1;}
+        $elsif $op eq "<="
+            if($a <= $b){ return 1;}
+        $elsif $op eq "~"
+            if($a=~/^$b/){ return 1;}
+        $elsif $op eq "!~"
+            if($a!~/^$b/){ return 1;}
         $else
             return 0
+    $elif $test=~/\s*in\s+(.*)/
+        return test_in($a, $1)
+    $else
+        return defined $a
+
+fncode: test_in($a, $test)
+    my @tlist=split /,\s*/, $test
+    $foreach $t in @tlist
+        $if $t=~/(\S)-(\S)/
+            $if ord($a)>=ord($1) and ord($a)<=ord($2)
+                return 1
+        $elif $a eq $t
+            return 1
+    return 0
+
+fncode: testcondition($cond)
+    $if $debug eq "preproc"
+        $print "preproc testcondition: $cond"
+    $if !$cond
+        return 0;
+    $call @testcondition_elifs
+    $elif $cond=~/^\s*!(.*)/
+        return !testcondition($1)
+    $elif $cond=~/ or /
+        my @nlist=split / or /, $cond
+        $foreach $n in @nlist
+            $if testcondition($n)
+                return 1;
+        return 0;
+    $elif $cond=~/ and /
+        my @nlist=split / and /, $cond
+        $foreach $n in @nlist
+            $if !testcondition($n)
+                return 0
+        return 1;
+    $elsif $cond=~/^([01])$/
+        return $1
+    $elsif $cond=~/^hascode:\s*(\w+)/
+        my $codelib = get_def_attr("codes", $1)
+        $if $codelib
+            return 1
+    $elsif $cond=~/^(string|number|word):(.*)/
+        my $test=$1
+        my $t=get_def($2)
+        $if $test eq "string" and $t=~/^['"]/
+            return 1
+        $elif $test eq "number" and $t=~/^\d+/
+            return 1
+        $elif $test eq "word" and $t=~/^[a-zA-Z_]\w*$/
+            return 1
+    $elsif $cond=~/^\s*(\w+)(.*)/
+        my $t=get_def($1);
+        $if !$2
+            return defined $t
+        $elif !defined $t
+            # $(if:$(type:list:n)=1)
+            return test_op($1, $2)
+        $else
+            # $(if:A=A)
+            return test_op($t, $2)
+    $else
         return 0
+    return 0
 
