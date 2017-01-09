@@ -455,6 +455,9 @@ subcode: module_specific
     $while my ($dir, $list) = each %folder
         $if $dir=~/toproot|ROOT/
             $dir = $config_outputdir
+        $elif $dir!~/^\/|\.\.?\//
+            $dir = "$config_outputdir/$dir"
+
         $if $dir and !-e "$dir/skipmake"
             $if $module eq "c" || $module eq "win32"
                 &call need_makefile

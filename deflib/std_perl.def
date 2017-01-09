@@ -90,6 +90,23 @@ subcode: bench(n)
     my $time_finish=Time::HiRes::clock()
     printf "bench $(n) iterations: %f sec/iter\n", ($time_finish-$time_start)/$(n)
 
+# -- simple progress timing
+fncode: get_time
+    $global $time_start = time()
+    my $t = time()-$time_start
+    my @t
+    $call get_seg, 60
+    $call get_seg, 60
+    $call get_seg, 60
+    $if $t>0
+        $call get_seg, 24
+        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0])
+    $else
+        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0])
+
+    subcode: get_seg(P)
+        push @t, $t % $(P)
+        $t = int($t/$(P))
 #---------------------------------------- 
 #-- similar to HERE document -----------
 perlcode: print_block

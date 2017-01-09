@@ -1,6 +1,6 @@
 subcode: perl_dir(dir)
-    $if $(dir)=~/^\w[0-9a-zA-Z_\-]*$/
-        my $name=$(dir);
+    $if $(dir)=~/^(\w[0-9a-zA-Z_\-]*)\/lib/
+        my $name=$1
         $name=~s/-/::/g;
         $if !-d $dir
             BLOCK
@@ -14,6 +14,8 @@ subcode: makefile_perl(dir)
         $if $pm_count>0
             print "Running h2xs -X $name ... ...\n";
             system "h2xs -X $name";
+        $else
+            # $print pm_count = 0
 
 subcode: makefile_xs(dir)
     &call perl_dir, $(dir)
