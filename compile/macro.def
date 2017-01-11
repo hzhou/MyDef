@@ -173,15 +173,14 @@ fncode: get_numeric($v)
     $else
         return $v
 
-subcode:: support_subs
-    $sub set_current_macro($name, $val)
-        $deflist->[-1]->{$name}=$val
+fncode: set_current_macro($name, $val)
+    $deflist->[-1]->{$name}=$val
 
-    $sub export_macro($i, $name, $val)
-        $deflist->[$i]->{$name}=$val
+fncode: export_macro($i, $name, $val)
+    $deflist->[$i]->{$name}=$val
 
-    $sub get_current_macro($name)
-        return $deflist->[-1]->{$name}
+fncode: get_current_macro($name)
+    return $deflist->[-1]->{$name}
 
 # ------------------------------------------------------
 fncode: expand_macro($lref)
