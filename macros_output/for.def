@@ -45,9 +45,44 @@ subcode: parsecode_for_convention
             $i1="<$tlist[1]"
 
 #---------------------------------------- 
+subcode: parsecode_while_support(style)
+    my ($init, $cond, $next)
+
+    my @clause = split /\s*;\s*/, $param
+    my $n = @clause
+    $if !$clause[-1]
+        $n--
+
+    $if $n>3
+        $call warn, "error: [\$while $param]\n"
+    $elif $n==3
+        ($init, $cond, $next) = @clause
+    $elif $n==2
+        ($cond, $next) = @clause
+    $elif $n==1
+        $cond = $param
+    $else
+        $cond = 1
+
+    &call return_newblock, while
+        $call while_$(style)
+
+#---------------------------------------- 
 subcode:@ for_c_style
     $call push_single_block, "for($param){", "}"
+
+subcode: while_c_style
+    $if $cond
+        push @src, "$init;"
+    push @src, "while($cond){"
+    push @src, "INDENT"
+    push @src, "BLOCK"
+    $if $next
+        push @src, "$next;"
+    push @src, "DEDENT"
+    push @src, "}"
 
 subcode:@ for_i0_i1_step
     $param="$var=$i0; $var$i1; $var+=$step"
     print "Provide \"subcode: for_i0_i1_step \" to support \$for\n"
+

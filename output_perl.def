@@ -84,16 +84,8 @@ subcode: parsecode_function
         $if $param=~/\/.*\/\w*\s*$/
             #-- regex
             return single_block("while($param){", "}")
-        $elif $param=~/^(.*?);\s*(.*?)\s*$/
-            &call return_newblock, while
-                push @src, "while($1){"
-                push @src, "INDENT"
-                push @src, "BLOCK"
-                push @src, "$2;"
-                push @src, "DEDENT"
-                push @src, "}"
         $else
-            return single_block("while($param){", "}")
+            $call parsecode_while_support, c_style
     $elif $func eq "for"
         $call parsecode_for_support, c_style
     $elif $func eq "foreach"
