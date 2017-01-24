@@ -148,7 +148,7 @@ subcode: parsecode_common
     $if $MyDef::compileutil::cur_mode eq "PRINT"
         $call @parsecode_PRINT
     $call @parsecode_special
-    $elif $l=~/^\s*\$(\w+)\((.*?)\)\s+(.*)$/
+    $elif $l=~/^\s*\$(\w+)\((.*?)\)\s+(.*?)\s*$/
         # $function(param1) param2 ---------------------------
         my ($func, $param1, $param2)=($1, $2, $3)
         $call parsecode_plugin

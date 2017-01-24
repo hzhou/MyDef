@@ -189,14 +189,15 @@ subcode: dumpout
 
     $if $pagetype ne "eval"
         $(set:p=$MyDef::page->{$1})
-        push @$f, "use strict;\n"
-        $(if:0)
-            push @$f, "use warnings;\n"
-            
-            $if !$(p:nowarn)
-                push @$f, "no warnings qw(uninitialized);\n"
-            $elif $(p:nowarn) ne "none"
-                push @$f, "no warnings qw($(p:nowarn));\n"
+        $if !$(p:relax)
+            push @$f, "use strict;\n"
+            $(if:0)
+                push @$f, "use warnings;\n"
+                
+                $if !$(p:nowarn)
+                    push @$f, "no warnings qw(uninitialized);\n"
+                $elif $(p:nowarn) ne "none"
+                    push @$f, "no warnings qw($(p:nowarn));\n"
 
         $if @uses
             $foreach $v in @uses

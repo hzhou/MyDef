@@ -26,20 +26,8 @@ subcode:: preproc_elifs
                 $deflist->[-1]->{$t}=undef
             $else
                 $call warn, unset only accepts single word(s)
-    $elif $preproc=~/^autoinc:\s*(\w+)/
-        # increments a page variable
-        my $page=$deflist->[2]
-        $page->{$1}++
-    $elif $preproc=~/^enuminc:\s*(\w+)/
-        # auto set page variable with common base_
-        my $page=$deflist->[2]
-        $if !$page->{$1}
-            my $key = $1
-            my $base = "_enumbase_"
-            $if $key=~/^([^_]+)_/
-                $base = $1
-            $page->{$base}++
-            $page->{$key}=$page->{$base}
+    # autoinc -> $(set2:v+=1)
+    # enuminc -> use subcode which increments bases
     $elif $preproc=~/^enumset:\s*(.*)/
         my $t=$1
         expand_macro(\$t)
@@ -73,17 +61,17 @@ subcode:: preproc_elifs
         expand_macro(\$t2)
         $deflist->[-1]->{$t1}=eval($t2)
     $elif $preproc=~/^split:\s*(\w+)$/
-        my $p="\$($1)"
-        expand_macro(\$p)
-        my @tlist=MyDef::utils::proper_split($p)
-        my $n=@tlist
-        $deflist->[-1]->{p_n}=$n
-        $for $i=1:$n+1
-            $deflist->[-1]->{"p_$i"}=$tlist[$i-1]
+        $call split_macro, proper, $1
     $elif $preproc=~/^split:([^:]+):\s*(\w+)/
-        my $p="\$($2)"
-        expand_macro(\$p)
-        my @tlist=split /$1/, $p
+        $call split_macro, $1, $2
+
+    # -------------------------
+    subcode: split_macro(sep, s)
+        my $p = get_macro_word($(s))
+        $(if:sep=proper)
+            my @tlist=MyDef::utils::proper_split($p)
+        $(else)
+            my @tlist=split /$(sep)/, $p
         my $n=@tlist
         $deflist->[-1]->{p_n}=$n
         $for $i=1:$n+1
@@ -131,7 +119,7 @@ subcode: set_macro_join
 #---------------------------------------- 
 fncode: set_macro($m, $p)
     $if $debug eq "macro"
-        print "set_macro: [$p]\n";
+        print "set_macro $m: [$p]\n";
     $if $p=~/(\w+)([\+\-\*\/\.])=(.+)/
         my ($t1, $op, $num)=($1, $2, $3)
         $m->{$t1} = calc_op($m->{$t1}, $op, $num)
@@ -163,12 +151,14 @@ fncode: calc_op($v, $op, $t)
     $elif $op eq "/"
         $ret/=get_numeric($t)
     $if $v=~/^0x/
-        return sprintf("0x%lx", $ret)
+        return sprintf("0x%x", $ret)
+    $elif $v=~/^x/
+        return sprintf("%x", $ret)
     $else
         return $ret
 
 fncode: get_numeric($v)
-    $if $v=~/0x(.*)/
+    $if $v=~/^0?x(.*)/
         return hex($v)
     $else
         return $v

@@ -7,6 +7,35 @@ page: utils
     subcode: main
         1;
 
+#----------------------------------------------- 
+fncode: get_range($a, $b)
+    my @tlist
+    $if $a=~/^\d+$/ and $b=~/^\d+$/
+        &call ab_range
+            push @tlist, $i
+    $elif $a=~/^[a-zA-Z]$/ and $b=~/^[a-zA-Z]$/
+        ($a, $b) = (ord($a), ord($b))
+        &call ab_range
+            push @tlist, chr($i)
+    $elif $a=~/^0x(\d+)$/ and $b=~/^\d+$/
+        $a = $1
+        # 0x0 and 0x1 both means starting at 0x01
+        $if $a>0
+            $a-=1
+            $b-=1
+        &call ab_range
+            push @tlist, sprintf("0x%x", 1<<$i)
+
+    return @tlist
+
+    subcode: ab_range
+        $if $a<=$b
+            $for my $i=$a;$i<=$b;$i++
+                BLOCK
+        $else
+            $for my $i=$a;$i>=$b;$i--
+                BLOCK
+
 #----------------------------------------------
 #-- proper_split($param) 
 #-- expand_macro($line, $sub) 

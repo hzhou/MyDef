@@ -44,8 +44,7 @@ subcode: parse_preproc
     subcode: for_in
         my @tlist;
         $if $vparam=~/(\d+)\.\.(\d+)/
-            $for my $i=$1;$i<=$2;$i++
-                push @tlist, $i
+            @tlist = MyDef::utils::get_range($a, $b)
         $else
             @tlist=split /,\s*/, $vparam;
 
@@ -65,7 +64,11 @@ subcode: parse_preproc
         my $n      # num of alternatives
         my @tlist  # list of replacement list
         $foreach $v in @vlist
-            my @t=split /,\s*/, $v
+            my @t
+            $if $v=~/^(\w+)-(\w+)$/
+                @t = MyDef::utils::get_range($1, $2)
+            $else
+                @t=split /,\s*/, $v
             $if !$n
                 $n=@t
             push @tlist, \@t
