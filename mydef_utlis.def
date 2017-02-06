@@ -8,6 +8,18 @@ page: utils
         1;
 
 #----------------------------------------------- 
+fncode: get_tlist($t)
+    my @vlist = split /,\s*/, $t
+    my @tlist
+    $foreach $v in @vlist
+        $if $v=~/(\w+)..(\w+)/
+            push @tlist, get_range($1, $2)
+        $elif $v=~/(\w+)-(\w+)/
+            push @tlist, get_range($1, $2)
+        $else
+            push @tlist, $v
+    return @tlist
+
 fncode: get_range($a, $b)
     my @tlist
     $if $a=~/^\d+$/ and $b=~/^\d+$/
@@ -181,7 +193,9 @@ fncode: string_symbol_name($s)
         $elif $c eq "="
             $name.="Eq"
         $elif $c eq "!"
-            $name.="Not"
+            $name.="Emark"
+        $elif $c eq "~"
+            $name.="Tlide"
         $elif $c eq "^"
             $name.="Ctrl"
         $elif $c eq "%"
@@ -216,6 +230,8 @@ fncode: string_symbol_name($s)
             $name.="Dot"
         $elif $c eq ":"
             $name.="Colon"
+        $elif $c eq "?"
+            $name.="Qmark"
         $elif $c eq ";"
             $name.="Semi"
         $else

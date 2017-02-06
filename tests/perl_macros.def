@@ -2,17 +2,27 @@ page: test
     a: b
     b: 1
 
-    print "page macro a: $(a)\n"
-    $(if:word:a)
-        $warn macro a  is a word : [$(a)]
-    $(if:!word:b)
-        $warn macro b  is not a word : [$(b)]
-    $call test_named_macros
-    $call test_eval, test_case
-    $call test_inline, example
-    $call test_for_list
-    $call test_macro_join
-    $call test_macro_split
+    $(if:1)
+        $(for:a in a-c,1-5)
+            $print "$(a)-"
+        $print
+
+        my @tlist=($(join:,:"*":a-z))
+        print join('-', @tlist), "\n"
+        my $x = $(nest:5:sqrt(*):10)
+        $print x=$x
+    $(else)
+        print "page macro a: $(a)\n"
+        $(if:word:a)
+            $warn macro a  is a word : [$(a)]
+        $(if:!word:b)
+            $warn macro b  is not a word : [$(b)]
+        $call test_named_macros
+        $call test_eval, test_case
+        $call test_inline, example
+        $call test_for_list
+        $call test_macro_join
+        $call test_macro_split
 
 subcode: test_named_macros
     $call subset1

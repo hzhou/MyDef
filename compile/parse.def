@@ -61,6 +61,10 @@ subcode: compile_line
     $elif $l=~/^\$:\s+(.*)/
         # Literal by-pass
         push @$out, $1
+    $elif $l=~/^\$::\s+(.*)/
+        my $t = $1
+        expand_macro(\$t)
+        push @$out, $t
     $elif $l=~/^BLOCK(\d*)\s*$/
         my $callback_idx=$1
         $if $#callback_block_stack <0

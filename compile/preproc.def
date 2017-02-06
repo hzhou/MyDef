@@ -42,11 +42,7 @@ subcode: parse_preproc
             goto NormalParse
     # ---------------------------------------- 
     subcode: for_in
-        my @tlist;
-        $if $vparam=~/(\d+)\.\.(\d+)/
-            @tlist = MyDef::utils::get_range($a, $b)
-        $else
-            @tlist=split /,\s*/, $vparam;
+        my @tlist = MyDef::utils::get_tlist($vparam)
 
         my $i=0
         $foreach $t in @tlist
@@ -64,11 +60,7 @@ subcode: parse_preproc
         my $n      # num of alternatives
         my @tlist  # list of replacement list
         $foreach $v in @vlist
-            my @t
-            $if $v=~/^(\w+)-(\w+)$/
-                @t = MyDef::utils::get_range($1, $2)
-            $else
-                @t=split /,\s*/, $v
+            my @t = MyDef::utils::get_tlist($v)
             $if !$n
                 $n=@t
             push @tlist, \@t
@@ -173,7 +165,10 @@ fncode: test_op($a, $test)
         $elsif $op eq "<="
             if($a <= $b){ return 1;}
         $elsif $op eq "~"
-            if($a=~/^$b/){ return 1;}
+            $if $b=~/(.*)\$$/
+                if($a=~/$1$/){ return 1;}
+            $else
+                if($a=~/^$b/){ return 1;}
         $elsif $op eq "!~"
             if($a!~/^$b/){ return 1;}
         $else
