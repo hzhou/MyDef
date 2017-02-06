@@ -171,24 +171,31 @@ fncode: get_current_macro($name)
     return $deflist->[-1]->{$name}
 
 # ------------------------------------------------------
+# only call MyDef::utils::expand_macro once now
 fncode: expand_macro($lref)
-    #- a hack -- $.property 
-    $$lref=~s/(?<=\$)\.(?=\w)/(this)/g
+    #- use reference to avoid unnecessary copy
 
     #- if literal $(word) is needed 
     #-     * use literal bypass: [$: literal source ...]
     #-     * encode $ (if supported):  &#36;  \x24  \044
     #-     $(\W...) is safe though
-    $while $$lref=~/\$\(\w/
-        my $t=$$lref
-        $$lref=MyDef::utils::expand_macro($t, \&get_macro)
-        $if $t eq $$lref
-            last
+    $if $$lref=~/\$(\(\w|\.)|[\x80-\xff]/
+        $$lref = MyDef::utils::expand_macro($$lref, \&get_macro)
 
-    # Makefile and shell uses $(), $(:CFLAGS) --> $(CFLAGS)
-    $$lref=~s/\$\(:/\$(/g
+    $(if:0)
+        #    $(set:V=$($1))
+        #    $(V:CFLAGS)
+        $if $$lref=~/\$\(:/
+            # Makefile and shell, $(:CFLAGS) --> $(CFLAGS)
+            $$lref=~s/\$\(:/\$(/g
 
 fncode: get_macro($s, $nowarn)
+    $global $n_get_macro # so 
+    $n_get_macro++
+
+    $if $debug eq "macro"
+        $print get_macro: [$s], nowarn: [$nowarn]
+
     $if $s=~/^((x\d+|nest|join|eval|sym|def)\b.+)/
         my $t=$1
         $if $t=~/^eval:\s*(.*)/

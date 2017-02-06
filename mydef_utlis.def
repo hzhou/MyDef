@@ -127,17 +127,30 @@ subcode: proper_split_close_bracket
 fncode: expand_macro($line, $sub)
     my @paren_stack
     my $segs=[]
+    $(set:dollar=\$(?![\(\.])) # $ not following (
     &call parse_loop, $line
         &call if_lex, \$\(
             push @paren_stack, $segs
             $segs=[]
             push @paren_stack, "\$\("
+        &call if_lex, \$\.
+            push @$segs, $sub->("this")
+        &call if_lex, ([\x80-\xff]+)
+            my $t = MyDef::compileutil::get_macro_word($1, 1)
+            $if $t
+                $MyDef::compileutil::n_get_macro++
+                push @$segs, $t
+            $else
+                push @$segs, $1
         $elif !@paren_stack
-            &call if_lex, ([^\$]|\$(?!\())+
+            # skip/copy non-macro part
+            &call if_lex, ([^\$\x80-\xff]|$(dollar))+
+                # not $ or $ -- not follow '('
                 push @$segs, $&
         $else
             # inside $( ... )
             &call if_lex, \(
+                # @paren_stack: [segs, '$(', segs, '(', ...]
                 push @paren_stack, $segs
                 $segs=[]
                 push @paren_stack, "("
@@ -148,8 +161,9 @@ fncode: expand_macro($line, $sub)
                 $if $open eq "(" or $t!~/^\w/
                     push @$segs, "$open$t)"
                 $else
+                    # must be $(w.*)
                     push @$segs, $sub->($t)
-            &call if_lex, ([^\$()]|\$(?!\())+
+            &call if_lex, ([^\$\x80-\xff()]|$(dollar))+
                 push @$segs, $&
     $call check_paren_stack
     return join('', @$segs)
