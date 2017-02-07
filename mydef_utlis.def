@@ -12,7 +12,7 @@ fncode: get_tlist($t)
     my @vlist = split /,\s*/, $t
     my @tlist
     $foreach $v in @vlist
-        $if $v=~/(\w+)..(\w+)/
+        $if $v=~/(\w+)\.\.(\w+)/
             push @tlist, get_range($1, $2)
         $elif $v=~/(\w+)-(\w+)/
             push @tlist, get_range($1, $2)
