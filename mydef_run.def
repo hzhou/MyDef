@@ -87,6 +87,8 @@ page: mydef_run
                 $cmd="sh $name"
             $elif $name=~/\.py$/
                 $cmd="python $name"
+            $elif $name=~/\.go$/
+                $cmd="go run $name"
             $elif $name=~/\.tex$/
                 $cmd="pdflatex $name"
 

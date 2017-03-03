@@ -196,7 +196,7 @@ fncode: get_macro($s, $nowarn)
     $if $debug eq "macro"
         $print get_macro: [$s], nowarn: [$nowarn]
 
-    $if $s=~/^((x\d+|nest|join|eval|sym|def)\b.+)/
+    $if $s=~/^((x\d+|nest|map|join|eval|sym|def)\b.+)/
         my $t=$1
         $if $t=~/^eval:\s*(.*)/
             # e.g. $(eval:lcfirst "$(word)")
@@ -212,8 +212,16 @@ fncode: get_macro($s, $nowarn)
             $else
                 $call warn, nest macro not supported
                 return
+        $elif $t=~/^map:(.*):(.*):(.*)/
+            my ($pat, $sep, $param)=($1, $2, $3)
+            my @tlist = MyDef::utils::get_tlist($param)
+            $foreach $t in @tlist
+                my $p = $pat
+                $p=~s/\*/$t/g
+                $t = $p
+            return join($sep, @tlist)
         $elif $t=~/^join:(.*):(.*):(.*)/
-            my ($sep, $pat, $param)=($1, $2, $3)
+            my ($pat, $sep, $param)=($1, $2, $3)
             $if $pat=~/^(.*)\*(.*)$/
                 my @tlist = MyDef::utils::get_tlist($param)
                 $foreach $t in @tlist
