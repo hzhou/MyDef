@@ -1,0 +1,68 @@
+compile/parse.def: parseblock($code) 
+    ...
+    parse_stack_push($code)
+    $while ...
+        ...
+       $call compile_line
+        ...
+    parse_stack_pop()
+
+#---- pre/post scope (local_allocate) ------------------------------------------- 
+fncode: parse_stack_push($code)
+    my $blk={out=>, index=>$block_index, ...}
+    $if $code->{scope}
+        $f_parse->("SUBBLOCK BEGIN $idx $scope")
+        push @$out, "DUMP_STUB block$idx\_pre"
+
+fncode: parse_stack_pop
+    $if $blk->{scope}
+        $f_parse->("SUBBLOCK END $blk->{index} $blk->{scope}")
+    $if $named_blocks{"block$idx\_post"}
+        push @$out, "DUMP_STUB block$idx\_post"
+
+# MyDef::compileutil::get_named_block("_pre/post") gets the pre/post blocks of blk eindex
+
+subcode: parse_catch_meta
+    ...
+    $elif $l =~ /^BLOCK RELEASE/i
+        $block_stack[-1]->{eindex}=$block_stack[-2]->{eindex}
+        next
+
+#--- macro scope ---------------------
+All callsubs establishes new macro context
+
+#--- grep callblock -----------------
+compile/callsub.def:    &call parseblock_with_macro
+compile/callsub.def:            parseblock($codelib)
+compile/callsub.def:            parseblock($codelib)
+compile/callsub.def:        &call parseblock_with_macro
+compile/callsub.def:        &call parseblock_with_macro
+compile/callsub.def:            &call parseblock_with_macro
+compile/callsub.def:subcode: parseblock_with_macro
+compile/callsub.def:    parseblock($codelib);
+
+compile/list.def:            parseblock({source=>$subblock, name=>"list_each $key"})
+compile/ogdl.def:subcode:: parseblock_init
+compile/ogdl.def:            parseblock({source=>$subblock, name=>"\${ogdl_each}"})
+
+compile/parse.def:#- parseblock()
+compile/parse.def:fncode: parseblock($code)
+compile/parse.def:        warn "parseblock: undefined block [$code]\n"
+compile/parse.def:    $call @parseblock_init
+compile/parse.def:            parseblock($block)
+compile/parse.def:                parseblock({source=>$subblock, name=>"MAKE_STRING"})
+compile/parse.def:                parseblock({source=>$blk, name=>"capture"})
+compile/parse.def:                    parseblock({source=>$subblock, name=>"BLOCK", scope=>$callback_scope})
+
+compile/preproc.def:                parseblock({source=>$subblock, name=>"block:$name"})
+compile/preproc.def:            parseblock({source=>$subblock, name=>"\${for}"})
+compile/preproc.def:            parseblock({source=>\@block, name=>"\${for:list}"})
+compile/preproc.def:                parseblock({source=>$subblock, name=>"\${foreach}"})
+compile/preproc.def:subcode:: parseblock_init
+compile/preproc.def:            parseblock({source=>$subblock, name=>"\${else}"})
+compile/preproc.def:                    parseblock({source=>$subblock, name=>"\${ifeach:}"})
+compile/preproc.def:        parseblock({source=>$subblock, name=>"\${if:}"})
+
+deflib/ext.def:        MyDef::compileutil::parseblock({source=>\@source, name=>"filtered"})
+
+macros_output/sumcode.def:    MyDef::compileutil::parseblock({source=>$codelist, name=>"sumcode"})

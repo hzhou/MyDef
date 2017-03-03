@@ -1,0 +1,52 @@
+subcode:: parse_init
+    my $macros=$def->{macros}
+    #- import from config
+    $while my ($k, $v)=each %$MyDef::var
+        $if $k=~/macro_(\w+)/
+            $macros->{$1}=$v;
+
+#---- macros ------------------------------------ 
+subcode: macros_start
+    $if !$codeitem->{macros}
+        $codeitem->{macros}={}
+    $macros = $codeitem->{macros}
+
+subcode: process_macros
+    $if $line=~/^(\w+):(:)?\s*(.*\S)/
+        my ($k,$dblcolon, $v)=($1, $2, $3)
+        expand_macro(\$v, $macros);
+        $if $macros->{$k}
+            $if $dblcolon
+                $macros->{$k}.=", $v"
+            $elif $debug
+                $print "Denied overwriting macro $k"
+        $else
+            $macros->{$k}=$v
+
+subcode: process_page_macros
+    my $k=$1;
+    my $v=$2;
+    expand_macro(\$v, $macros);
+    $page->{$k}=$v;
+
+#----------------------------------------------------- 
+#- parse time macro expansion, limited to global macros
+fncode: expand_macro($lref, $macros)
+    $while  $$lref=~/\$\(\w+\)/
+        my @segs=split /(\$\(\w+\))/, $$lref;
+        my $j=0;
+        my $flag=0;
+        $foreach my $s in @segs
+            $if $s=~/\$\((\w+)\)/
+                my $t=$macros->{$1};
+                $if $t eq $s
+                    die "Looping macro $1 in \"$$lref\"!\n";
+                $if $t
+                    $segs[$j]=$t;
+                    $flag++;
+            $j++;
+        $if $flag
+            $$lref=join '', @segs;
+        $else
+            last;
+
