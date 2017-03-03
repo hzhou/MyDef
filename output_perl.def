@@ -117,7 +117,8 @@ fncode: parse_condition($t)
     $elif $t=~/[!=]~/
         # regex var form
     $elif $t=~/[^!=><]=[^="]/
-       $call warn, assignment in condition [$t]? 
+        $if $t!~/["'].*=.*['"]/
+            $call warn, assignment in condition [$t]? 
     $elif $t=~/\$(?:eq|ne)/
         #-- to supress warning ----
         $if $t=~/(.*?)(\S+)\s+(\$eq|\$ne)\s+(.*)/
@@ -155,8 +156,9 @@ subcode: parsecode_foreach
     $if $param=~/^(?:my\s+)?(\S+)\s+in\s+(.*)/
         my ($var, $list)=($1, $2)
         $call loop_var
-        $if $var=~/^(\$.+)_i$/
+        $if $var=~/^(\x1b.+)_i$/
             my $v = $1
+            # foreach with index
             &call return_newblock, foreach
                 push @src, "my $var = 0;"
                 push @src, "foreach my $v ($list){"

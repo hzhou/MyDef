@@ -1,0 +1,55 @@
+In the output module we may need implement some construct that will wrap up at the end of a code block. For example, in output_c, we have $local_allocate to *malloc* some memory that will be *free* at the end of the block. 
+
+However, what is a block is of question. Often, mydef blocks are narrower then a semantic block. For example:
+
+        fncode: t
+            $local pf_temp
+            $call setup
+            work with pf_temp
+
+            subcode: setup
+                $local_allocate(100) pf_temp
+
+and you will be suprised to find pf_temp is being freed right after being allocated (in fact, at the end of subcode: setup). Of course that is not ideal. To remedy, there is `BLOCK RELEASE`:
+
+        subcode: setup
+            BLOCK RELEASE
+            $local_allocate(100) pf_temp
+
+From compile/parse.def, what `BLOCK RELEASE` does is simply:
+
+        $block_stack[-1]->{eindex}=$block_stack[-2]->{eindex}
+
+Each MyDef block has an auto increasing index; and each block have two stub -- block$idx_pre and block$idx_post -- so the output modules and mydef code could inject initialization and collection code into them. 
+
+`eindex` means effective index and is by default the same as block index. Upon `BLOCK RELEASE`, the eindex is set to the block index of one level higher. So with it, the wrapping code will be injected to the end of block at one level higher.
+
+# Block chain
+
+Block levels are maintained by a simple stack (`compile/parse.def:@block_stack). Each time `MyDef::compileutils::parseblock` is called, one new block level is established which will get released upon exit. So it is essentially `parseblock` recursive levels.
+
+It is trivia to understand simple `$call`
+
+        subcode: a
+            $call b
+
+        subcode: b
+            blah
+
+Here, a is one level higher than b. However, parseblock is not only used in calling subcode. New level is also established at preproc blocks:
+
+        $(if:macroname)
+            This will be a new block with one level deeper
+
+Module implemented blocks:
+
+        # module: c
+        $if condition
+            # new block level here
+
+And there is this tricky callback:
+
+        &call subcode_with_BLOCK
+            code to be inserted
+
+`&call` will `parseblock` the subcode, which is just as normal subcode (which establishes a new level). And upon parsing `BLOCK` line, `parseblock` will recurse and parse the inserted block. So the inserted block is actually two levels deeper than the text just above. Then inserted code block is being pushed onto a `@callback_block_stack` so nested callbacks are possible and levels will just gets deeper upon nesting.

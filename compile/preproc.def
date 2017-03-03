@@ -15,7 +15,6 @@ subcode: parse_preproc
                 $call for_in
             $else
                 # $(for:x,y,z and 0,1,2)
-                my @vlist=split /\s+and\s+/, $t
                 $call for_list
         $elsif $preproc=~/^foreach:p/
             my $subblock=grabblock($block, \$lindex);
@@ -57,6 +56,7 @@ subcode: parse_preproc
     # $(for:x,y,z and 1,2,3 and r,g,b and i,j,k)
     #     $print $2 $3 $4: $1 = $$1
     subcode: for_list
+        my @vlist=split /\s+and\s+/, $t
         my $n      # num of alternatives
         my @tlist  # list of replacement list
         $foreach $v in @vlist
