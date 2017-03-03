@@ -42,6 +42,18 @@ subcode: update_min(min, a)
 subcode: swap(a, b)
     ($(a), $(b)) = ($(b), $(a))
 
+# e.g. @t = bases(10000, 60, 60, 24); print join(':', reverse @t), "\n"; --> 2:46:40
+fncode: bases($n, @bases)
+    my @t
+    $foreach $b in @bases
+        push @t, $n % $b
+        $n = int($n/$b)
+        $if $n<=0
+            last
+    $if $n>0
+        push @t, $n
+    return @t
+
 # -- IO -------------------------
 subcode: open_r(name)
     $(if:name~")

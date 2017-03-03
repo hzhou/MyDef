@@ -4,10 +4,17 @@
 page: test
     type: pl
 
-    $call test_1
-    $print \n== sumcode simple =============
-    $call test_sumcode
-    $call test_sumcode_2
+    $(if:0)
+        $call test_1
+        $print \n== sumcode simple =============
+        $call test_sumcode
+        $call test_sumcode_2
+    $(else)
+        my @a
+        $loop(10) $a[i]=i+1
+        print "a: ", join(', ', @a), "\n"
+        $loop(10) $b = $a[i]
+        $print b=$b
 
 subcode: test_sumcode
     $my @a

@@ -105,11 +105,10 @@ subcode: compile
     my $maincode=$page->{codes}->{main};
     $if !$maincode
         $maincode=$MyDef::def->{codes}->{main};
-    $if !$maincode
-        $maincode=$MyDef::def->{codes}->{basic_frame};
-    $if !$maincode
-        die "Missing maincode\n"
-    parse_code($maincode);
+    $if $maincode
+        parse_code($maincode);
+    $else
+        # die "Missing maincode\n"
     $f_parse->("NOOP POST_MAIN")
 
     #---- restore var
