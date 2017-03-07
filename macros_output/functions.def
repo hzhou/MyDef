@@ -76,5 +76,6 @@ fncode: function_block($funcname, $paramline)
     push @block, "DUMP_STUB fn$fidx\_close"
 
     $call set_macro, "FunctionName", $funcname
+    $call set_macro, "recurse", $funcname
     return ($func, \@block)
 
