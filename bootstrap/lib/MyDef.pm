@@ -8,15 +8,18 @@ package MyDef;
 our $def;
 our $page;
 our $var={};
+our $time_start = time();
 
 sub init {
     my (%config) = @_;
+    ;
     while(my ($k, $v) = each %config){
         $var->{$k}=$v;
     }
     my $module=$var->{module};
     if(!$module and -f $config{def_file}){
         open In, "$config{def_file}" or die "Can't open $config{def_file}.\n";
+        ;
         while(<In>){
             if(/^\s*module:\s+(\w+)\s*$/){
                 $var->{module}=$1;
@@ -103,6 +106,14 @@ sub init {
     elsif($module eq "fortran"){
         require MyDef::output_fortran;
         MyDef::compileutil::set_interface(MyDef::output_fortran::get_interface());
+    }
+    elsif($module eq "asm"){
+        require MyDef::output_asm;
+        MyDef::compileutil::set_interface(MyDef::output_asm::get_interface());
+    }
+    elsif($module eq "go"){
+        require MyDef::output_go;
+        MyDef::compileutil::set_interface(MyDef::output_go::get_interface());
     }
     else{
         die "Undefined module type $module\n";
@@ -206,6 +217,14 @@ sub pipe_page {
         require MyDef::output_fortran;
         MyDef::compileutil::set_interface(MyDef::output_fortran::get_interface());
     }
+    elsif($module eq "asm"){
+        require MyDef::output_asm;
+        MyDef::compileutil::set_interface(MyDef::output_asm::get_interface());
+    }
+    elsif($module eq "go"){
+        require MyDef::output_go;
+        MyDef::compileutil::set_interface(MyDef::output_go::get_interface());
+    }
     else{
         die "Undefined module type $module\n";
     }
@@ -250,12 +269,13 @@ sub set_page_extension {
     if($ext eq "none"){
         $ext="";
     }
-    $page->{pageext}=$ext;
+    $page->{_pageext}=$ext;
 }
 
 sub import_config {
     my ($file) = @_;
     open In, $file or return;
+    ;
     while(<In>){
         if(/^(\w+):\s*(.*\S)/){
             $var->{$1}=$2;
@@ -264,6 +284,41 @@ sub import_config {
     close In;
     if($var->{output_path} and !$var->{output_dir}){
         $var->{output_dir}=$var->{output_path};
+    }
+}
+
+sub bases {
+    my ($n, @bases) = @_;
+    my @t;
+    foreach my $b (@bases){
+        push @t, $n % $b;
+        $n = int($n/$b);
+        if($n<=0){
+            last;
+        }
+    }
+    if($n>0){
+        push @t, $n;
+    }
+    return @t;
+}
+
+sub get_time {
+    my $t = time()-$time_start;
+    my @t;
+    push @t, $t % 60;
+    $t = int($t/60);
+    push @t, $t % 60;
+    $t = int($t/60);
+    push @t, $t % 60;
+    $t = int($t/60);
+    if($t>0){
+        push @t, $t % 24;
+        $t = int($t/24);
+        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0]);
+    }
+    else{
+        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0]);
     }
 }
 

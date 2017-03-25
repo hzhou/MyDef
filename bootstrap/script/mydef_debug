@@ -19,7 +19,7 @@ print "\n  MyDef::compileutil::compile\n";
 print "    parse_code(\$maincode);\n";
 print "    \$f_parse->(\"NOOP POST_MAIN\")\n";
 print "    ...\n";
-print "    \$f_dumpout->(\@buffer, fetch_output(0), \$page->{pageext})\n";
+print "    \$f_dumpout->(\@buffer, fetch_output(0), \$page->{_pageext})\n";
 if($mydef_page=~/(.*)\/bin\/mydef_page/){
     my $lib_dir="$1/lib/perl5/MyDef";
     my $f = "$lib_dir/dumpout.pm";

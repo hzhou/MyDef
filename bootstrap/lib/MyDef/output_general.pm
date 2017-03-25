@@ -4,6 +4,26 @@ our $debug=0;
 our $out;
 our $mode;
 our $page;
+our $time_start = time();
+
+sub get_time {
+    my $t = time()-$time_start;
+    my @t;
+    push @t, $t % 60;
+    $t = int($t/60);
+    push @t, $t % 60;
+    $t = int($t/60);
+    push @t, $t % 60;
+    $t = int($t/60);
+    if($t>0){
+        push @t, $t % 24;
+        $t = int($t/24);
+        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0]);
+    }
+    else{
+        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0]);
+    }
+}
 
 sub get_interface {
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);

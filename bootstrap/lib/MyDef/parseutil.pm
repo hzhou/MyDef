@@ -7,6 +7,7 @@ our $template_index = 0;
 our @path;
 our %path;
 our @indent_stack=(0);
+our $time_start = time();
 
 sub import_data {
     my ($file) = @_;
@@ -24,6 +25,7 @@ sub import_data {
         $def->{name}="default";
     }
     my $macros=$def->{macros};
+    ;
     while(my ($k, $v)=each %$MyDef::var){
         if($k=~/macro_(\w+)/){
             $macros->{$1}=$v;
@@ -38,6 +40,7 @@ sub import_data {
     }
     my $stdinc="std_".$MyDef::var->{module}.".def";
     push @standard_includes, $stdinc;
+    ;
     while(1){
         if(@includes){
             my $file=shift(@includes);
@@ -83,11 +86,13 @@ sub import_file {
     push @$plines, "END";
     my $cur_file=$f;
     my $cur_line=0;
+    ;
     while($cur_line < @$plines){
         my $line = $plines->[$cur_line];
         $cur_line++;
         if($line=~/^\s*\/\*/){
             if($line !~ /\*\/\s*$/){
+                ;
                 while($cur_line < @$plines){
                     my $line = $plines->[$cur_line];
                     $cur_line++;
@@ -118,8 +123,10 @@ sub import_file {
             }
             $curindent=$indent;
         }
+        ;
         while($curindent <$codeindent){
             if($codetype eq "code"){
+                ;
                 while($codeindent<$lastindent){
                     $lastindent--;
                     push @$source, "SOURCE_DEDENT";
@@ -138,10 +145,12 @@ sub import_file {
             }
         }
         if($codeindent>0 and $codetype eq "code"){
+            ;
             while($curindent>$lastindent){
                 $lastindent++;
                 push @$source, "SOURCE_INDENT";
             }
+            ;
             while($curindent<$lastindent){
                 $lastindent--;
                 push @$source, "SOURCE_DEDENT";
@@ -149,6 +158,7 @@ sub import_file {
         }
         if($line=~/^\w+code:/ && $curindent == $codeindent and $codetype ne "macro"){
             if($curindent==1 && $codetype eq "code" && $indent_stack[-1]->[0] eq "page"){
+                ;
                 while($codeindent<$lastindent){
                     $lastindent--;
                     push @$source, "SOURCE_DEDENT";
@@ -246,6 +256,7 @@ sub import_file {
         }
         elsif($line=~/^template:/ && $curindent == $codeindent and $codetype ne "macro"){
             if($curindent==1 && $codetype eq "code" && $indent_stack[-1]->[0] eq "page"){
+                ;
                 while($codeindent<$lastindent){
                     $lastindent--;
                     push @$source, "SOURCE_DEDENT";
@@ -260,43 +271,47 @@ sub import_file {
                 $codeitem->{codes}={};
             }
             my $codes = $codeitem->{codes};
+            my @grab;
+            my $t_code = {type=>"template",source=>\@grab};
             if($line =~ /^template:\s*(\w+)/){
-                my @grab;
-                my $t_code = {type=>"template",source=>\@grab};
                 $codes->{$1}=$t_code;
-                my $grab_indent=$curindent;
-                while($cur_line < @$plines){
-                    my $line = $plines->[$cur_line];
-                    $cur_line++;
-                    if($line=~/^\s*$/){
-                        $line="";
-                    }
-                    elsif($line=~/^(\s*)(.*)/){
-                        my $indent=get_indent($1);
-                        $line=$2;
-                        if($line=~/^#(?!(define|undef|include|line|error|pragma|if|ifdef|ifndef|elif|else|endif)\b)/){
-                            if($indent != $curindent){
-                                $line="NOOP";
-                            }
-                            else{
-                                next;
-                            }
+            }
+            else{
+                warn "parseutil: template missing name\n";
+            }
+            my $grab_indent=$curindent;
+            ;
+            while($cur_line < @$plines){
+                my $line = $plines->[$cur_line];
+                $cur_line++;
+                if($line=~/^\s*$/){
+                    $line="";
+                }
+                elsif($line=~/^(\s*)(.*)/){
+                    my $indent=get_indent($1);
+                    $line=$2;
+                    if($line=~/^#(?!(define|undef|include|line|error|pragma|if|ifdef|ifndef|elif|else|endif)\b)/){
+                        if($indent != $curindent){
+                            $line="NOOP";
                         }
                         else{
-                            $line=~s/\s+$//;
-                            $line=~s/\s+#\s.*$//;
+                            next;
                         }
-                        $curindent=$indent;
-                    }
-                    if($line eq ""){
-                        push @grab, $line;
-                    }
-                    elsif($curindent>$grab_indent){
-                        push @grab, '    'x($curindent-$grab_indent-1) . $line;
                     }
                     else{
-                        last;
+                        $line=~s/\s+$//;
+                        $line=~s/\s+#\s.*$//;
                     }
+                    $curindent=$indent;
+                }
+                if($line eq ""){
+                    push @grab, $line;
+                }
+                elsif($curindent>$grab_indent){
+                    push @grab, '    'x($curindent-$grab_indent-1) . $line;
+                }
+                else{
+                    last;
                 }
             }
             $cur_line--;
@@ -344,20 +359,22 @@ sub import_file {
                     $pagename=$1;
                 }
                 my $codes={};
-                $page={pagename=>$pagename, codes=>$codes, main_name=>"main"};
+                $page={_pagename=>$pagename, codes=>$codes, main_name=>"main"};
                 if($pagename=~/(.+)\.(.+)/){
                     $page->{type}='';
                 }
                 if($framecode){
+                    my $code={name=>"_frame", type=>"sub", params=>[]};
+                    $codes->{main}=$code;
                     if($framecode=~/^from\s+(\S+)/){
                         my $sub_name = get_template_sub_name();
-                        $codes->{main}={type=>'sub', source=>["\$call $sub_name"], 'params'=>[]};
+                        $code->{source}=["\$call $sub_name"];
                         my $sub_definition = parse_template($def, $codes, $1, $sub_name);
                         push @$include_list, $sub_definition;
                         $page->{main_name}="main2";
                     }
                     else{
-                        $codes->{main}={'type'=>'sub', 'source'=>["\$call $framecode"], 'params'=>[]};
+                        $code->{source}=["\$call $framecode"];
                         $page->{main_name}="main2";
                     }
                 }
@@ -368,6 +385,7 @@ sub import_file {
                     if($pages->{$pagename}){
                         my $t=$pagename;
                         my $j=0;
+                        ;
                         while($pages->{$pagename}){
                             $j++;
                             $pagename=$t.$j;
@@ -399,6 +417,7 @@ sub import_file {
                 }
                 my $grab_indent=$curindent;
                 my @grab;
+                ;
                 while($cur_line < @$plines){
                     my $line = $plines->[$cur_line];
                     $cur_line++;
@@ -479,6 +498,27 @@ sub import_file {
     }
 }
 
+sub get_lines {
+    my ($file) = @_;
+    if(ref($file) eq "ARRAY"){
+        return $file;
+    }
+    elsif($file eq "-pipe"){
+        my @lines=<STDIN>;
+        return \@lines;
+    }
+    else{
+        my $filename=find_file($file);
+        my @lines;
+        {
+            open In, "$filename" or die "Can't open $filename.\n";
+            @lines=<In>;
+            close In;
+        }
+        return \@lines;
+    }
+}
+
 sub expand_macro {
     my ($lref, $macros) = @_;
     while($$lref=~/\$\(\w+\)/){
@@ -504,27 +544,6 @@ sub expand_macro {
         else{
             last;
         }
-    }
-}
-
-sub get_lines {
-    my ($file) = @_;
-    if(ref($file) eq "ARRAY"){
-        return $file;
-    }
-    elsif($file eq "-pipe"){
-        my @lines=<STDIN>;
-        return \@lines;
-    }
-    else{
-        my $filename=find_file($file);
-        my @lines;
-        {
-            open In, "$filename" or die "Can't open $filename.\n";
-            @lines=<In>;
-            close In;
-        }
-        return \@lines;
     }
 }
 
@@ -559,6 +578,7 @@ sub parse_template {
     my $start_grab;
     my $cur_grab;
     open In, "$template_file" or die "Can't open $template_file.\n";
+    ;
     while(<In>){
         if($start_grab){
             if(/^\s*$/){
@@ -759,6 +779,7 @@ sub grab_ogdl {
                 $cur_i=$i;
             }
             elsif($i<$cur_i){
+                ;
                 while($i<$cur_i){
                     $cur_item=pop @ogdl_stack;
                     $cur_i--;
@@ -807,6 +828,7 @@ sub print_ogdl {
             print "    "x$indent, $ogdl->{_name}, "\n";
             $indent++;
         }
+        ;
         while(my ($k, $v) = each %$ogdl){
             if($k!~/^_(list|name)/){
                 print "    "x$indent, $k, ":\n";
@@ -831,6 +853,7 @@ sub get_indent {
         push @indent_stack, $i;
     }
     else{
+        ;
         while($i<$indent_stack[-1]){
             pop @indent_stack;
         }
@@ -857,10 +880,46 @@ sub get_indent_spaces {
     return $count;
 }
 
+sub bases {
+    my ($n, @bases) = @_;
+    my @t;
+    foreach my $b (@bases){
+        push @t, $n % $b;
+        $n = int($n/$b);
+        if($n<=0){
+            last;
+        }
+    }
+    if($n>0){
+        push @t, $n;
+    }
+    return @t;
+}
+
+sub get_time {
+    my $t = time()-$time_start;
+    my @t;
+    push @t, $t % 60;
+    $t = int($t/60);
+    push @t, $t % 60;
+    $t = int($t/60);
+    push @t, $t % 60;
+    $t = int($t/60);
+    if($t>0){
+        push @t, $t % 24;
+        $t = int($t/24);
+        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0]);
+    }
+    else{
+        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0]);
+    }
+}
+
 sub post_foreachfile {
     my $def=shift;
     my $pages=$def->{pages};
     my $pagelist=$def->{pagelist};
+    ;
     while(my ($name, $p)=each(%$pages)){
         if($p->{foreachfile}){
             my $pat_glob=$p->{foreachfile};
@@ -879,15 +938,17 @@ sub post_foreachfile {
 }
 sub dupe_page {
     my ($def, $orig, $n, @pat_list)=@_;
-    my $pagename=dupe_line($orig->{pagename}, $n, @pat_list);
+    my $pagename=dupe_line($orig->{name}, $n, @pat_list);
     print "    foreach file $pagename $n: ", join(",", @pat_list), "\n";
     my $page={};
+    ;
     while(my ($k, $v)=each(%$orig)){
         if($k eq "pagename"){
-            $page->{pagename}=$pagename;
+            $page->{name}=$pagename;
         }
         elsif($k eq "codes"){
             my $codes={};
+            ;
             while(my ($tk, $tv)=each(%$v)){
                 my $tcode={};
                 $tcode->{type}=$tv->{type};
@@ -911,6 +972,7 @@ sub dupe_page {
     if($pages->{$pagename}){
         my $t=$pagename;
         my $j=0;
+        ;
         while($pages->{$pagename}){
             $j++;
             $pagename=$t.$j;

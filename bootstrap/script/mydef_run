@@ -6,9 +6,6 @@ foreach my $a (@ARGV){
     if($a=~/-m(\w+)$/){
         $config{module}=$1;
     }
-    elsif($a=~/-(g|debug)$/){
-        $config{debug}=1;
-    }
     elsif($a=~/(.*)\.def/){
         $config{def_file}=$a;
     }
@@ -18,6 +15,7 @@ if(!$config{def_file}){
 }
 $config{module}="perl";
 open In, "$config{def_file}" or die "Can't open $config{def_file}.\n";
+;
 while(<In>){
     if(/module:\s*(\w+)/){
         $config{module}=$1;
@@ -31,59 +29,91 @@ close In;
 MyDef::init(%config);
 MyDef::import_data($config{def_file});
 my $pagename=$MyDef::def->{pagelist}->[0];
-MyDef::createpage($pagename);
+if($pagename){
+    MyDef::createpage($pagename);
+}
+elsif(-f "run"){
+    system "sh run";
+}
+elsif(-f "Makefile"){
+    system "make";
+}
 if(!$config{skiprun}){
-    my $page=$MyDef::page;
-    my $name=$page->{outname};
-    my $cmd;
-    if($name=~/\.pl$/){
-        $cmd="perl $name";
-    }
-    elsif($name=~/\.sh$/){
-        $cmd="sh $name";
-    }
-    elsif($name=~/\.py$/){
-        $cmd="python $name";
-    }
-    elsif($name=~/\.c$/){
-        my $cflags;
-        if($page->{CFLAGS}){
-            $cflags = $page->{CFLAGS};
-        }
-        if($config{module} eq "win32"){
-            my $cc = "/usr/bin/x86_64-w64-mingw32-gcc";
-            $cmd = "$cc -o$pagename.exe $name $cflags $page->{lib_list} -Wl,--subsystem,windows";
-        }
-        else{
-            if($config{debug}){
-                $cmd="gcc -g $cflags -o$pagename $name $cflags $page->{lib_list} && gdb ./$pagename";
+    if($pagename){
+        my $page=$MyDef::page;
+        my $name=$page->{outname};
+        my $cmd_line = $page->{run};
+        my ($exe, $cmd);
+        if($name=~/(.*)\.c(pp)?$/){
+            $exe=$1;
+            my $cc = "gcc";
+            my $cflags;
+            if($page->{CFLAGS}){
+                $cflags = $page->{CFLAGS};
+            }
+            if($page->{make} eq "win32"){
+                $cc = "/usr/bin/x86_64-w64-mingw32-gcc";
+                $cmd = "$cc -o$exe.exe $name $cflags $page->{lib_list}";
+            }
+            elsif($config{module} eq "win32"){
+                $cc = "/usr/bin/x86_64-w64-mingw32-gcc";
+                $cmd = "$cc -o$exe.exe $name $cflags $page->{lib_list} -Wl,--subsystem,windows";
             }
             else{
-                $cmd="gcc -o$pagename $name $cflags $page->{lib_list} && ./$pagename";
+                if($name=~/\.cpp$/){
+                    $cc = "g++";
+                }
+                $cmd="$cc -g $cflags -o$exe $name $page->{lib_list}";
+                if(!$cmd_line){
+                    $cmd_line = "$exe";
+                }
             }
         }
-    }
-    elsif($name=~/\.f$/){
-        if($config{debug}){
-            $cmd="gfortran -g -o$pagename $name $page->{lib_list} && gdb ./$pagename";
+        elsif($name=~/(.*)\.f$/){
+            $exe = $1;
+            $cmd="gfortran -g -o$exe $name $page->{lib_list}";
+            if(!$cmd_line){
+                $cmd_line = "$exe";
+            }
+        }
+        elsif($name=~/\.java$/){
+            $name=~s/\//./g;
+            $name=~s/\.java$//;
+            $cmd="javac $name";
+            if(!$cmd_line){
+                $cmd_line = "java $name";
+            }
+        }
+        elsif($cmd_line){
+            $cmd=$cmd_line;
+            undef $cmd_line;
         }
         else{
-            $cmd="gfortran -o$pagename $name $page->{lib_list} && ./$pagename";
+            if($name=~/\.pl$/){
+                $cmd="perl $name";
+            }
+            elsif($name=~/\.sh$/){
+                $cmd="sh $name";
+            }
+            elsif($name=~/\.py$/){
+                $cmd="python $name";
+            }
+            elsif($name=~/\.go$/){
+                $cmd="go run $name";
+            }
+            elsif($name=~/\.tex$/){
+                $cmd="pdflatex $name";
+            }
         }
-    }
-    elsif($name=~/\.java$/){
-        $name=~s/\//./g;
-        $name=~s/\.java$//;
-        $cmd="javac $name && java $name";
-    }
-    elsif($name=~/\.tex$/){
-        $cmd="pdflatex $name";
-    }
-    if($cmd){
-        print "$cmd\n";
-        system $cmd;
-    }
-    else{
-        die "do not know how to run it\n";
+        if($cmd){
+            if($cmd_line){
+                $cmd .= " && $cmd_line";
+            }
+            print "$cmd\n";
+            system $cmd;
+        }
+        else{
+            die "do not know how to run it\n";
+        }
     }
 }

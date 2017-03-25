@@ -1,6 +1,8 @@
 #!/usr/bin/perl
 use strict;
-our %macros;
+our $flag_force;
+our $module="perl";
+our %module_type=(perl=>"pl", www=>"html", win32=>"c", apple=>"m", general=>"txt", matlab=>"m", cpp=>"cpp", java=>"java", autoit=>"au3", python=>"py", fortran=>"f", asm=>"c", go=>"go");
 our @master_config;
 our $config_outputdir;
 our $config_outputdir_make=0;
@@ -9,26 +11,9 @@ our @include_default;
 our %make_targets;
 our %h_copylist;
 our @make_folders;
+our %macros;
 our @path;
 our %path;
-
-sub prompt {
-    my ($msg) = @_;
-    while(1){
-        print "$msg\n";
-        my $t=<STDIN>;
-        chomp $t;
-        if($t){
-            return $t;
-        }
-        elsif($msg=~/\[(.*)\]: $/){
-            return $1;
-        }
-        else{
-            die "Must reply $msg\n";
-        }
-    }
-}
 
 sub expand_macros {
     my ($t) = @_;
@@ -41,6 +26,25 @@ sub expand_macros {
         }
     }
     return $t;
+}
+
+sub find_file {
+    my ($file) = @_;
+    if(-f $file){
+        return $file;
+    }
+    if(@path){
+        foreach my $dir (@path){
+            if(-f "$dir/$file"){
+                return "$dir/$file";
+            }
+        }
+    }
+    if(1){
+        warn "$file not found\n";
+        warn "  search path: ".join(":", @path)."\n";
+    }
+    return undef;
 }
 
 sub add_path {
@@ -70,23 +74,23 @@ sub add_path {
     }
 }
 
-sub find_file {
-    my ($file) = @_;
-    if(-f $file){
-        return $file;
-    }
-    if(@path){
-        foreach my $dir (@path){
-            if(-f "$dir/$file"){
-                return "$dir/$file";
-            }
+sub prompt {
+    my ($msg) = @_;
+    ;
+    while(1){
+        print "$msg\n";
+        my $t=<STDIN>;
+        chomp $t;
+        if($t){
+            return $t;
+        }
+        elsif($msg=~/\[(.*)\]: $/){
+            return $1;
+        }
+        else{
+            die "Must reply $msg\n";
         }
     }
-    if(1){
-        warn "$file not found\n";
-        warn "  search path: ".join(":", @path)."\n";
-    }
-    return undef;
 }
 
 my $script=$0;
@@ -95,8 +99,11 @@ if(@ARGV and $ARGV[0] eq 'nosub'){
     shift @ARGV;
     $nosub=1;
 }
-my $module="perl";
-my %module_type=(perl=>"pl", www=>"html", win32=>"c", apple=>"m", general=>"txt", matlab=>"m", cpp=>"cpp", java=>"java", autoit=>"au3", python=>"py", fortran=>"f");
+foreach my $a (@ARGV){
+    if($a eq "-f"){
+        $flag_force = 1;
+    }
+}
 if(@ARGV and -d $ARGV[0]){
     my $d=$ARGV[0];
     open In, "config";
@@ -137,6 +144,7 @@ if(!-f "config"){
     close Out;
 }
 open In, "config" or die "Can't open config.\n";
+;
 while(<In>){
     if(/module:\s+(\w+)/){
         $module=$1;
@@ -167,6 +175,7 @@ print "    output_dir: $config_outputdir\n";
 if(-f "copylist"){
     my $location;
     open In, "copylist" or die "Can't open copylist.\n";
+    ;
     while(<In>){
         my $l=$_;
         if(/^(\S+):\s*(.*)/){
@@ -213,6 +222,7 @@ foreach my $f (@allfiles){
         }
         elsif($f eq $config_outputdir and -f "$f/Makefile"){
             $config_outputdir_make = 1;
+            unshift @make_folders, $f;
         }
         else{
             my @t=glob("$f/*.def");
@@ -230,6 +240,7 @@ my %h_def;
 my %h_page;
 my %folder;
 my @extrafiles;
+;
 while(my $f=pop @files){
     my @page_list;
     my $page;
@@ -252,6 +263,7 @@ while(my $f=pop @files){
         my @save_path;
         my $inpage=0;
         open In, "$f" or die "Can't open $f.\n";
+        ;
         while(<In>){
             if($inpage){
                 if(/^\s*output_dir: (\S+)/){
@@ -260,37 +272,32 @@ while(my $f=pop @files){
                         $dir=$output_dir."/".$dir;
                     }
                     $page->{output_dir}=$dir;
+                    my $key = "$f-$page->{page}";
                     my $tlist=$folder{$dir};
                     if($tlist){
-                        push @$tlist, "$f-$page->{page}";
+                        push @$tlist, $key;
                     }
                     else{
-                        $folder{$dir}=["$f-$page->{page}"];
+                        $folder{$dir}=[$key];
                     }
                     $page->{in_var}=$dir;
                 }
                 elsif(/^\s*\$include\s+(\S*)/ and $module ne "c" and -f $1){
                     $page->{include}->{$1}=1;
                 }
-                elsif(/^\s*type: (\w+)/){
-                    $page->{type}=$1;
+                elsif(/^\s*(type|module):\s*(\w+)/){
+                    $page->{$1}=$2;
                 }
                 elsif(/^\s*type:\s*$/){
                     $page->{type}="none";
-                }
-                elsif(/^\s*module:\s*(\w+)/){
-                    $page->{module}=$1;
                 }
                 elsif(/^\s*package:/){
                     if($module eq "perl"){
                         $page->{type}="pm";
                     }
                 }
-                elsif(/^\s*depend:\s+(.*)/){
-                    $page->{depend}=$1;
-                }
-                elsif(/^\s*cmd:\s+(.*)/){
-                    $page->{cmd}=$1;
+                elsif(/^\s*(depend|make|other|CC|CFLAGS|LIB):\s+(.*)/){
+                    $page->{$1}=$2;
                 }
                 elsif(/^\S/){
                     $inpage=0;
@@ -326,6 +333,7 @@ while(my $f=pop @files){
                     $page->{def}=$f;
                     $page->{include}={};
                     my $key="$f-$1";
+                    ;
                     while($h_page{$key}){
                         $key.='1';
                     }
@@ -354,6 +362,7 @@ while(my $f=pop @files){
         }
     }
 }
+;
 while(my ($p, $h) = each %h_page){
     if(!$h->{type}){
         if($config_filetype){
@@ -393,12 +402,14 @@ while(my ($p, $h) = each %h_page){
         $h->{path}.=".$h->{type}";
     }
 }
+;
 while(my ($f, $l) = each %h_def){
     my %track;
     foreach my $t (@$l){
         $track{$t}=1;
     }
     my $j=0;
+    ;
     while($j<@$l){
         my $t=$l->[$j];
         my $ll=$h_def{$t};
@@ -416,6 +427,7 @@ print Out "MakePage=mydef_page\n";
 print Out "\n";
 my %var_hash;
 my @tlist;
+;
 while(my ($f, $l) = each %folder){
     my $name;
     if($f=~/.*\/(.*)/){
@@ -442,6 +454,7 @@ while(my ($f, $l) = each %folder){
 }
 if(%h_copylist){
     print Out "COPY=";
+    ;
     while(my ($f, $l) = each %h_copylist){
         my $sep="/";
         if($l){$sep="/$l/"};
@@ -456,16 +469,14 @@ if(%h_copylist){
     push @tlist, "\${COPY}";
 }
 print Out "\n";
-print Out "all_targets: ", join(" ", @tlist, @make_folders),;
-print Out "\n\n";
-if($config_outputdir_make){
-    print Out "all: all_targets\n";
-    print Out "\tmake -C $config_outputdir\n";
-}
-if($config_outputdir_make){
-    print Out "install: $config_outputdir\n";
-    print Out "\tmake -C $config_outputdir install\n";
-    print Out "\n";
+print Out "all_targets: ", join(" ", @tlist), "\n\n";
+if(@make_folders){
+    print Out "all: all_targets ", join(' ', @make_folders), "\n\n";
+    if($make_folders[0] eq $config_outputdir){
+        print Out "install: $config_outputdir\n";
+        print Out "\tmake -C $config_outputdir install\n";
+        print Out "\n";
+    }
 }
 if(%h_copylist){
     while( my ($f, $l) = each %h_copylist){
@@ -482,6 +493,7 @@ if(%h_copylist){
     }
     print Out "\n";
 }
+;
 while(my ($p, $h)=each %h_page){
     my $def=$h->{def};
     my $inc=$h->{include};
@@ -500,10 +512,7 @@ while(my ($p, $h)=each %h_page){
             }
         }
         print Out $h->{path}, ": ", $def, " ", join(" ", @t), " $inc_dep $extra_dep\n";
-        if($h->{cmd}){
-            print Out "\t$h->{cmd}\n";
-        }
-        elsif($h->{module} and ($h->{module}ne $module)){
+        if($h->{module} and ($h->{module} ne $module)){
             print Out "\t\${MakePage} -m$h->{module} $def $h->{path}\n";
         }
         else{
@@ -516,7 +525,7 @@ if(@make_folders){
     foreach my $f (@make_folders){
         if(!$nosub){
             print Out "$f: force_look\n";
-            print Out "\t cd $f; make\n";
+            print Out "\tmake -C $f\n";
             print Out "\n";
         }
     }
@@ -528,74 +537,172 @@ while (my ($k, $v) = each %make_targets){
     print Out "\n";
 }
 close Out;
-if($config_outputdir and !-e "$config_outputdir/skipmake"){
-    if($module eq "c"){
-        if(!-d $config_outputdir){
-            mkdir $config_outputdir;
-        }
-        if((-d $config_outputdir) and (!-f "$config_outputdir/Makefile")){
-            print "Create $config_outputdir/Makefile\n";
-            open Out, ">$config_outputdir/Makefile" or die "Can't write $config_outputdir/Makefile.\n";
-            print Out "CC=gcc\n";
-            print Out "CFLAGS=\n";
-            print Out "INC=\n";
-            print Out "LIB=\n";
-            print Out "\n";
-            if($folder{toproot}){
-                my $tlist=$folder{toproot};
-                my $page=$h_page{$tlist->[0]};
-                my $name=$page->{path};
-                if($page->{path}=~/.*\/(.*)\.c/){
-                    $name=$1;
-                }
-                    my ($obj_list, $lib_list);
-                    print Out "$name: $name.o $obj_list\n";
-                    print Out "\t\$\(CC) \$\(LIB) $lib_list -o $name \$^\n";
-                    print Out "\n";
-                    print Out "%.o: %.c\n";
-                    print Out "\t\$\(CC) -c \$\(CFLAGS) \$\(INC) -o \$@ \$<\n";
-            }
-            close Out;
-        }
+;
+while(my ($dir, $list) = each %folder){
+    if($dir=~/toproot|ROOT/){
+        $dir = $config_outputdir;
     }
-    if($module eq "win32"){
-        if(!-d $config_outputdir){
-            mkdir $config_outputdir;
-        }
-        if((-d $config_outputdir) and (!-f "$config_outputdir/make.bat")){
-            print "Create win32 $config_outputdir/make.bat\n";
-            open Out, ">$config_outputdir/make.bat";
-            if($folder{toproot}){
-                my $tlist=$folder{toproot};
-                my $page=$h_page{$tlist->[0]};
-                my $name=$page->{path};
-                if($page->{path}=~/.*\/(.*)\.c/){
-                    $name=$1;
-                }
-                print Out "cl /W3 $name.c user32.lib\r\n";
-            }
-            close Out;
-        }
+    elsif($dir!~/^\/|\.\.?\//){
+        $dir = "$config_outputdir/$dir";
     }
-    if(($module eq "perl" or $module eq "xs") and !-d $config_outputdir){
-        if($config_outputdir=~/^\w[0-9a-zA-Z_\-]*$/){
-            my $name=$config_outputdir;
-            $name=~s/-/::/g;
-            if($module eq "perl"){
-                my $pm_count=0;
-                while(my ($p, $h) = each %h_page){
-                    if($h->{type} eq "pm"){
-                        $pm_count++;
+    if($dir and !-e "$dir/skipmake"){
+        if($module eq "c" || $module eq "win32"){
+            if(!-d $dir){
+                mkdir $dir;
+            }
+            if($flag_force || !-f "$dir/Makefile"){
+                print "Create $dir/Makefile\n";
+                my $t_module;
+                my $CC;
+                my $CFLAGS;
+                my $LIB;
+                my $RC;
+                my @target_list;
+                if($list){
+                    foreach my $t (@$list){
+                        my $t_page = $h_page{$t};
+                        if($t_page->{make} or $t_page->{other}){
+                            my $page=$h_page{$t};
+                            my $name=$page->{path};
+                            if($page->{path}=~/.*\/(.*)\.(\w+)/){
+                                $name = $1;
+                            }
+                            push @target_list, [$page, $name];
+                            if(!$t_module and $page->{module}){
+                                $t_module = $page->{module};
+                            }
+                            if($page->{CC}){
+                                $CC = $page->{CC};
+                            }
+                            if($page->{CFLAGS}){
+                                $CFLAGS = $page->{CFLAGS};
+                            }
+                            if($page->{LIB}){
+                                $LIB = $page->{LIB};
+                            }
+                            if($page->{make}=~/win32/){
+                                $CC = "x86_64-w64-mingw32-gcc";
+                            }
+                        }
                     }
                 }
-                if($pm_count>0){
-                    print "Running h2xs -X $name ... ...\n";
-                    system "h2xs -X $name";
+                if(!@target_list){
+                    my $page=$h_page{$list->[0]};
+                    my $name=$page->{path};
+                    if($page->{path}=~/.*\/(.*)\.(\w+)/){
+                        $name = $1;
+                    }
+                    push @target_list, [$page, $name];
+                    if(!$t_module and $page->{module}){
+                        $t_module = $page->{module};
+                    }
+                    if($page->{CC}){
+                        $CC = $page->{CC};
+                    }
+                    if($page->{CFLAGS}){
+                        $CFLAGS = $page->{CFLAGS};
+                    }
+                    if($page->{LIB}){
+                        $LIB = $page->{LIB};
+                    }
+                    if($page->{make}=~/win32/){
+                        $CC = "x86_64-w64-mingw32-gcc";
+                    }
+                }
+                if(!$t_module){
+                    $t_module = $module;
+                }
+                print "    module: $t_module\n";
+                if(@target_list){
+                    open Out, ">$dir/Makefile" or die "Can't write $dir/Makefile.\n";
+                    if(!$CC){
+                        if($t_module eq "win32"){
+                            $CC = "x86_64-w64-mingw32-gcc";
+                            $RC = "x86_64-w64-mingw32-windres";
+                            $LIB = "-Wl,-subsystem,windows";
+                        }
+                        else{
+                            $CC = "gcc";
+                        }
+                    }
+                    print Out "CC=$CC\n";
+                    print Out "CFLAGS=$CFLAGS\n";
+                    print Out "LIB=$LIB\n";
+                    if($RC){
+                        print Out "RC=$RC\n";
+                    }
+                    print Out "\n";
+                    foreach my $t (@target_list){
+                        my ($page, $name)=@$t;
+                        my @objs = ("$name.o");
+                        if($page->{other}){
+                            my @tlist = split /,\s*/, $page->{other};
+                            foreach my $p (@tlist){
+                                push @objs, "$p.o";
+                            }
+                        }
+                        my $obj_list = join(' ', @objs);
+                        my $lib_list;
+                        if(-f "$dir/$name.c"){
+                            open In, "$dir/$name.c" or die "Can't open $dir/$name.c.\n";
+                            ;
+                            while(<In>){
+                                if(/^\/\*\s*link:\s*(.*?)\s*\*\/$/){
+                                    $lib_list = $1;
+                                    last;
+                                }
+                            }
+                            close In;
+                        }
+                        my $target = $name;
+                        if($t_module eq "win32" or $page->{make}=~/win32/){
+                            $target = "$name.exe";
+                        }
+                        print Out "$target: $obj_list\n";
+                        print Out "\t\$(CC) -o $target \$^ \$(LIB) $lib_list \n";
+                        print Out "\n";
+                    }
+                    print Out "%.o: %.c\n";
+                    print Out "\t\$(CC) -c \$(CFLAGS) -o \$@ \$<\n";
+                    print Out "\n";
+                    if($RC){
+                        print Out "%.o: %.rc\n";
+                        print Out "\t\$(RC) \$< \$@ \n";
+                        print Out "\n";
+                    }
+                    close Out;
                 }
             }
-            else{
-                print "Running h2xs -n $name ... ...\n";
-                system "h2xs -n $name";
+        }
+        elsif($module eq "perl"){
+            if($dir=~/^(\w[0-9a-zA-Z_\-]*)\/lib/){
+                my $name=$1;
+                $name=~s/-/::/g;
+                if(!-d $dir){
+                    my $pm_count=0;
+                    ;
+                    while(my ($p, $h) = each %h_page){
+                        if($h->{type} eq "pm"){
+                            $pm_count++;
+                        }
+                    }
+                    if($pm_count>0){
+                        print "Running h2xs -X $name ... ...\n";
+                        system "h2xs -X $name";
+                    }
+                    else{
+                    }
+                }
+            }
+        }
+        elsif($module eq "xs"){
+            if($dir=~/^(\w[0-9a-zA-Z_\-]*)\/lib/){
+                my $name=$1;
+                $name=~s/-/::/g;
+                if(!-d $dir){
+                    print "Running h2xs -n $name ... ...\n";
+                    system "h2xs -n $name";
+                }
             }
         }
     }

@@ -7,6 +7,9 @@ our $debug=0;
 our $out;
 our $mode;
 our $page;
+our %fn_hash;
+our @functions;
+our %functions;
 our @globals;
 our %globals;
 our @uses;
@@ -18,6 +21,7 @@ our $case_state;
 our $case_wrap;
 our $fn_block=[];
 our $loop_idx;
+our $time_start = time();
 
 sub parse_condition {
     my ($t) = @_;
@@ -26,8 +30,10 @@ sub parse_condition {
     elsif($t=~/[!=]~/){
     }
     elsif($t=~/[^!=><]=[^="]/){
-        my $curfile=MyDef::compileutil::curfile_curline();
-        print "[$curfile]\x1b[33m assignment in condition [$t]?\n\x1b[0m";
+        if($t!~/["'].*=.*['"]/){
+            my $curfile=MyDef::compileutil::curfile_curline();
+            print "[$curfile]\x1b[33m assignment in condition [$t]?\n\x1b[0m";
+        }
     }
     elsif($t=~/\$(?:eq|ne)/){
         if($t=~/(.*?)(\S+)\s+(\$eq|\$ne)\s+(.*)/){
@@ -63,6 +69,7 @@ sub sumcode_generate {
     foreach my $k (@$klist){
         my $pos;
         my $i=$#allidx;
+        ;
         while($i>=0){
             $pos=index($k, $allidx[$i]);
             if($pos>=0){
@@ -78,6 +85,7 @@ sub sumcode_generate {
             $k_inc_hash{"$k-$allidx[$i]"}=1;
             $pos--;
             $i--;
+            ;
             while($pos>=0 and $i>=0 and substr($k, $pos, 1) eq $allidx[$i]){
                 if(index(substr($k, $pos+1), $allidx[$i])>=0 or ($pos>0 && index(substr($k, 0, $pos), $allidx[$i])>=0)){
                     $k_calc_hash{"$k-$allidx[$i]"}=1;
@@ -202,6 +210,7 @@ sub sumcode_generate {
                         my @tlist;
                         my $pos=index($k, $i);
                         $pos++;
+                        ;
                         while($pos<length($k)){
                             my $j=substr($k, $pos, 1);
                             my $dim=$h->{"$j-dim"};
@@ -235,6 +244,7 @@ sub sumcode_generate {
                     my @tlist;
                     my $pos=index($k, $i);
                     $pos++;
+                    ;
                     while($pos<length($k)){
                         my $j=substr($k, $pos, 1);
                         my $dim=$h->{"$j-dim"};
@@ -248,6 +258,41 @@ sub sumcode_generate {
         push @code, "SOURCE_DEDENT";
     }
     return \@code;
+}
+
+sub bases {
+    my ($n, @bases) = @_;
+    my @t;
+    foreach my $b (@bases){
+        push @t, $n % $b;
+        $n = int($n/$b);
+        if($n<=0){
+            last;
+        }
+    }
+    if($n>0){
+        push @t, $n;
+    }
+    return @t;
+}
+
+sub get_time {
+    my $t = time()-$time_start;
+    my @t;
+    push @t, $t % 60;
+    $t = int($t/60);
+    push @t, $t % 60;
+    $t = int($t/60);
+    push @t, $t % 60;
+    $t = int($t/60);
+    if($t>0){
+        push @t, $t % 24;
+        $t = int($t/24);
+        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0]);
+    }
+    else{
+        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0]);
+    }
 }
 
 $global_scope={var_list=>[], var_hash=>{}, name=>"global"};
@@ -308,9 +353,30 @@ sub init_page {
     if($page->{package} and !$page->{type}){
         MyDef::set_page_extension("pm");
     }
-    elsif(!$page->{package} and $page->{type} && $page->{type} eq "pm"){
-        $page->{package}=$page->{pagename};
+    elsif(!$page->{package} and $page->{type} eq "pm"){
+        $page->{package}=$page->{_pagename};
     }
+    if($page->{_pageext} eq "pm"){
+        $page->{autolist}=1;
+    }
+    %fn_hash=();
+    my $codes=$MyDef::def->{codes};
+    my @tlist;
+    ;
+    while(my ($k, $v)= each %$codes){
+        if($v->{type} eq "fn"){
+            push @tlist, $k;
+        }
+    }
+    if(@tlist){
+        @tlist=sort { $codes->{$a}->{index} <=> $codes->{$b}->{index} } @tlist;
+        foreach my $name (@tlist){
+            my $code=$codes->{$name};
+            $fn_hash{$name}=$code;
+        }
+    }
+    @functions=();
+    %functions=();
     @globals=();
     %globals=();
     @uses=();
@@ -374,26 +440,86 @@ sub parsecode {
         }
         return;
     }
-    elsif($l=~/^SUBBLOCK BEGIN (\d+) (.*)/){
-        open_scope($1, $2);
-        return;
-    }
-    elsif($l=~/^SUBBLOCK END (\d+) (.*)/){
-        if($out->[-1]=~/^(return|break)/){
-            $cur_scope->{return}=pop @$out;
+    if($l!~/;\s*$/){
+        if($l=~/^SUBBLOCK BEGIN (\d+) (.*)/){
+            open_scope($1, $2);
+            return;
         }
-        close_scope();
-        return;
-    }
-    if($debug eq "case"){
-        my $level=@case_stack;
-        print "        $level:[$case_state]$l\n";
-    }
-    my $check_unwrap;
-    if($l=~/^\x24(if|elif|elsif|elseif|case)\s+(.*)$/){
-        my $cond=$2;
-        my $case=$case_if;
-        if($1 eq "if"){
+        elsif($l=~/^SUBBLOCK END (\d+) (.*)/){
+            close_scope();
+            return;
+        }
+        if($debug eq "case"){
+            my $level=@case_stack;
+            print "        $level:[$case_state]$l\n";
+        }
+        my $check_unwrap;
+        if($l=~/^\x24(if|elif|elsif|elseif|case)\s+(.*)$/){
+            my $cond=$2;
+            my $case=$case_if;
+            if($1 eq "if"){
+                if($case_wrap){
+                    if($debug eq "case"){
+                        my $level=@case_stack;
+                        print "   $level:[case_unwrap]$l\n";
+                    }
+                    push @$out, @$case_wrap;
+                    undef $case_wrap;
+                }
+            }
+            elsif($1 eq "case"){
+                if(!$case_state){
+                    $case=$case_if;
+                }
+                else{
+                    $case=$case_elif;
+                }
+            }
+            else{
+                $case=$case_elif;
+            }
+            $cond=parse_condition($cond);
+            my @src;
+            push @src, "$case($cond){";
+            push @src, "INDENT";
+            push @src, "BLOCK";
+            push @src, "DEDENT";
+            push @src, "}";
+            push @src, "PARSE:CASEPOP";
+            push @case_stack, {state=>"if", wrap=>$case_wrap};
+            undef $case_state;
+            undef $case_wrap;
+            if($debug eq "case"){
+                my $level=@case_stack;
+                print "Entering case [$level]: $l\n";
+            }
+            MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+            return "NEWBLOCK-if";
+        }
+        elsif($l=~/^\$else/){
+            if(!$case_state and $l!~/NoWarn/i){
+                my $curfile=MyDef::compileutil::curfile_curline();
+                print "[$curfile]\x1b[33m Dangling \$else\n\x1b[0m";
+            }
+            my @src;
+            push @src, "else{";
+            push @src, "INDENT";
+            push @src, "BLOCK";
+            push @src, "DEDENT";
+            push @src, "}";
+            push @src, "PARSE:CASEPOP";
+            push @case_stack, {state=>undef, wrap=>$case_wrap};
+            undef $case_state;
+            undef $case_wrap;
+            if($debug eq "case"){
+                my $level=@case_stack;
+                print "Entering case [$level]: $l\n";
+            }
+            MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+            return "NEWBLOCK-else";
+        }
+        elsif($l!~/^SUBBLOCK/){
+            undef $case_state;
             if($case_wrap){
                 if($debug eq "case"){
                     my $level=@case_stack;
@@ -402,346 +528,317 @@ sub parsecode {
                 push @$out, @$case_wrap;
                 undef $case_wrap;
             }
-        }
-        elsif($1 eq "case"){
-            if(!$case_state){
-                $case=$case_if;
+            if($l eq "CASEPOP"){
+                if($debug eq "case"){
+                    my $level=@case_stack;
+                    print "    Exit case [$level][wrap:$case_wrap]\n";
+                }
+                my $t_case=pop @case_stack;
+                if($t_case){
+                    $case_state=$t_case->{state};
+                    $case_wrap=$t_case->{wrap};
+                }
+                return 0;
             }
-            else{
-                $case=$case_elif;
-            }
         }
-        else{
-            $case=$case_elif;
-        }
-        $cond=parse_condition($cond);
-        my @src;
-        push @src, "$case($cond){";
-        push @src, "INDENT";
-        push @src, "BLOCK";
-        push @src, "DEDENT";
-        push @src, "}";
-        push @src, "PARSE:CASEPOP";
-        push @case_stack, {state=>"if", wrap=>$case_wrap};
-        undef $case_state;
-        undef $case_wrap;
-        if($debug eq "case"){
-            my $level=@case_stack;
-            print "Entering case [$level]: $l\n";
-        }
-        MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
-        return "NEWBLOCK-if";
-    }
-    elsif($l=~/^\$else/){
-        if(!$case_state and $l!~/NoWarn/i){
-            my $curfile=MyDef::compileutil::curfile_curline();
-            print "[$curfile]\x1b[33m Dangling \$else\n\x1b[0m";
-        }
-        my @src;
-        push @src, "else{";
-        push @src, "INDENT";
-        push @src, "BLOCK";
-        push @src, "DEDENT";
-        push @src, "}";
-        push @src, "PARSE:CASEPOP";
-        push @case_stack, {state=>undef, wrap=>$case_wrap};
-        undef $case_state;
-        undef $case_wrap;
-        if($debug eq "case"){
-            my $level=@case_stack;
-            print "Entering case [$level]: $l\n";
-        }
-        MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
-        return "NEWBLOCK-else";
-    }
-    elsif($l!~/^SUBBLOCK/){
-        undef $case_state;
-        if($case_wrap){
-            if($debug eq "case"){
-                my $level=@case_stack;
-                print "   $level:[case_unwrap]$l\n";
-            }
-            push @$out, @$case_wrap;
-            undef $case_wrap;
-        }
-        if($l eq "CASEPOP"){
-            if($debug eq "case"){
-                my $level=@case_stack;
-                print "    Exit case [$level][wrap:$case_wrap]\n";
-            }
-            my $t_case=pop @case_stack;
-            if($t_case){
-                $case_state=$t_case->{state};
-                $case_wrap=$t_case->{wrap};
-            }
-            return 0;
-        }
-    }
-    if($l=~/^\s*\$(\w+)\s*(.*)$/){
-        my $func=$1;
-        my $param=$2;
-        if($func =~ /^global$/){
-            $param=~s/\s*;\s*$//;
-            my @tlist=MyDef::utils::proper_split($param);
-            foreach my $v (@tlist){
-                my ($name, $var);
-                if($v=~/\@(\w+)\[(.*)\](.*)/){
-                    $name=$1;
-                    $v='@'.$1.$3;
-                    $var={};
-                    my @tlist=split /,\s*/, $2;
-                    my $i=0;
-                    foreach my $t (@tlist){
-                        $i++;
-                        $var->{"dim$i"}=$t;
+        if($l=~/^\s*\$(\w+)\s*(.*)$/){
+            my $func=$1;
+            my $param=$2;
+            if($func =~ /^global$/){
+                $param=~s/\s*;\s*$//;
+                my @tlist=MyDef::utils::proper_split($param);
+                foreach my $v (@tlist){
+                    my ($name, $var);
+                    if($v=~/\@(\w+)\[(.*)\](.*)/){
+                        $name=$1;
+                        $v='@'.$1.$3;
+                        $var={};
+                        my @tlist=split /,\s*/, $2;
+                        my $i=0;
+                        foreach my $t (@tlist){
+                            $i++;
+                            $var->{"dim$i"}=$t;
+                        }
+                    }
+                    my $t_name=$v;
+                    if($v=~/^(\S+)\s*=/){
+                        $t_name=$1;
+                    }
+                    if(!$globals{$t_name}){
+                        $globals{$t_name}=1;
+                        push @globals, $v;
+                    }
+                    if($var){
+                        $global_scope->{var_hash}->{$name}=$var;
                     }
                 }
-                my $t_name=$v;
-                if($v=~/^(\S+)\s*=/){
-                    $t_name=$1;
-                }
-                if(!$globals{$t_name}){
-                    $globals{$t_name}=1;
-                    push @globals, $v;
-                }
-                if($var){
-                    $global_scope->{var_hash}->{$name}=$var;
-                }
+                return 0;
             }
-            return 0;
-        }
-        elsif($func =~ /^my$/){
-            $param=~s/\s*;\s*$//;
-            my @tlist=MyDef::utils::proper_split($param);
-            foreach my $v (@tlist){
-                my ($name, $var);
-                if($v=~/\@(\w+)\[(.*)\](.*)/){
-                    $name=$1;
-                    $v='@'.$1.$3;
-                    $var={};
-                    my @tlist=split /,\s*/, $2;
-                    my $i=0;
-                    foreach my $t (@tlist){
-                        $i++;
-                        $var->{"dim$i"}=$t;
+            elsif($func =~ /^my$/){
+                $param=~s/\s*;\s*$//;
+                my @tlist=MyDef::utils::proper_split($param);
+                foreach my $v (@tlist){
+                    my ($name, $var);
+                    if($v=~/\@(\w+)\[(.*)\](.*)/){
+                        $name=$1;
+                        $v='@'.$1.$3;
+                        $var={};
+                        my @tlist=split /,\s*/, $2;
+                        my $i=0;
+                        foreach my $t (@tlist){
+                            $i++;
+                            $var->{"dim$i"}=$t;
+                        }
+                    }
+                    push @$out, "my $v;";
+                    if($var){
+                        $cur_scope->{var_hash}->{$name}=$var;
                     }
                 }
-                push @$out, "my $v;";
-                if($var){
-                    $cur_scope->{var_hash}->{$name}=$var;
+                return 0;
+            }
+            elsif($func =~ /^loopvar$/){
+                my @tlist=MyDef::utils::proper_split($param);
+                my $block=MyDef::compileutil::get_named_block("loop_$loop_idx");
+                foreach my $v (@tlist){
+                    push @$block, "my $v;";
                 }
+                return 0;
             }
-            return 0;
-        }
-        elsif($func =~ /^loopvar$/){
-            my @tlist=MyDef::utils::proper_split($param);
-            my $block=MyDef::compileutil::get_named_block("loop_$loop_idx");
-            foreach my $v (@tlist){
-                push @$block, "my $v;";
-            }
-            return 0;
-        }
-        elsif($func =~ /^use$/){
-            $param=~s/\s*;\s*$//;
-            my @tlist=MyDef::utils::proper_split($param);
-            foreach my $v (@tlist){
-                my $t_name=$v;
-                if($v=~/^(\S+)\s*=/){
-                    $t_name=$1;
-                }
-                if(!$uses{$t_name}){
-                    $uses{$t_name}=1;
-                    push @uses, $v;
-                }
-            }
-            return 0;
-        }
-        elsif($func eq "sub"){
-            if($param=~/^(\w+)\((.*)\)/){
-                my @src;
-                push @src, "sub $1 {";
-                push @src, "INDENT";
-                push @src, "my ($2)=\@_;";
-                push @src, "BLOCK";
-                push @src, "DEDENT";
-                push @src, "}";
-                MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
-                return "NEWBLOCK-sub";
-            }
-            else{
-                return single_block("sub $param {", "}", "sub");
-            }
-        }
-        elsif($func =~ /^(while)$/){
-            if($param=~/\/.*\/\w*\s*$/){
-                return single_block("while($param){", "}");
-            }
-            elsif($param=~/^(.*?);\s*(.*?)\s*$/){
-                my @src;
-                push @src, "while($1){";
-                push @src, "INDENT";
-                push @src, "BLOCK";
-                push @src, "$2;";
-                push @src, "DEDENT";
-                push @src, "}";
-                MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
-                return "NEWBLOCK-while";
-            }
-            else{
-                return single_block("while($param){", "}");
-            }
-        }
-        elsif($func eq "for"){
-            if($param=~/(.*);(.*);(.*)/){
-                my @src;
-                push @src, "for($param){";
-                push @src, "INDENT";
-                push @src, "BLOCK";
-                push @src, "DEDENT";
-                push @src, "}";
-                MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
-                return "NEWBLOCK-for";
-            }
-            else{
-                my $var;
-                if($param=~/^(\S+)\s*=\s*(.*)/){
-                    $var=$1;
-                    $param=$2;
-                }
-                my @tlist=split /:/, $param;
-                my ($i0, $i1, $step);
-                if(@tlist==1){
-                    $i0="0";
-                    $i1="<$param";
-                    $step="1";
-                }
-                elsif(@tlist==2){
-                    if($tlist[1] eq "0"){
-                        $i0="$tlist[0]-1";
-                        $i1=">=$tlist[1]";
-                        $step="-1";
+            elsif($func =~ /^use$/){
+                $param=~s/\s*;\s*$//;
+                my @tlist=MyDef::utils::proper_split($param);
+                foreach my $v (@tlist){
+                    my $t_name=$v;
+                    if($v=~/^(\S+)\s*=/){
+                        $t_name=$1;
                     }
-                    else{
-                        $i0=$tlist[0];
-                        $i1="<$tlist[1]";
-                        $step="1";
+                    if(!$uses{$t_name}){
+                        $uses{$t_name}=1;
+                        push @uses, $v;
                     }
                 }
-                elsif(@tlist==3){
-                    $i0=$tlist[0];
-                    $step=$tlist[2];
-                    if($step=~/^-/){
-                        $i1=">=$tlist[1]";
-                    }
-                    else{
-                        $i1="<$tlist[1]";
-                    }
-                }
-                if($step eq "1"){
-                    $step="++";
-                }
-                elsif($step eq "-1"){
-                    $step="--";
-                }
-                else{
-                    $step= "+=$step";
-                }
-                if(!$var){
-                    $var="\$i";
-                }
-                elsif($var=~/^(\w+)/){
-                    $var='$'.$var;
-                }
-                $param="my $var=$i0; $var $i1; $var$step";
-                my @src;
-                push @src, "for($param){";
-                push @src, "INDENT";
-                push @src, "BLOCK";
-                push @src, "DEDENT";
-                push @src, "}";
-                MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
-                return "NEWBLOCK-for";
+                return 0;
             }
-        }
-        elsif($func eq "foreach"){
-            if($param=~/^(?:my\s+)?(\S+)\s+in\s+(.*)/){
-                my ($var, $list)=($1, $2);
-                if(!$var){
-                    $var="\$i";
-                }
-                elsif($var=~/^(\w+)/){
-                    $var='$'.$var;
-                }
-                return single_block("foreach my $var ($list){", "}", "foreach");
-            }
-            elsif($param=~/^(%.*)/){
-                return single_block("while (my (\$k, \$v) = each $1){", "}", "foreach");
-            }
-            elsif($param=~/^(\S+),\s*(\S+)\s+in\s+(.*)/){
-                my ($k, $v, $hash)=($1, $2, $3);
-                return single_block("while (my ($k, $v)=each $hash){", "}", "foreach");
-            }
-        }
-        elsif($func eq "boolhash"){
-            if($param=~/^\((.*?)\)\s*(.*)/){
-                my $v = $1;
-                my @plist=split /,\s*/, $2;
-                my @tlist;
-                foreach my $t (@plist){
-                    push @tlist, "$t=>1";
-                }
-                push @$out, "$v= (".join(', ', @tlist).");";
-            }
-            return 0;
-        }
-        elsif($func eq "sumcode" or $func eq "loop" or $func eq "sum"){
-            if($param=~/^\((.*?)\)\s+(.*)/){
-                my $dimstr=$1;
-                $param=$2;
-                if($debug){
-                    print "parsecode_sum: [$param]\n";
-                }
-                my $h={};
-                my ($left, $right);
-                if($param=~/(.*?)\s*(?<![\+\-\*\/%&\|><=])=(?!=)\s*(.*)/){
-                    ($left, $right)=($1, $2);
-                }
-                else{
-                    $left=$param;
-                }
-                my @idxlist=('i','j','k','l');
-                my @dimlist=MyDef::utils::proper_split($dimstr);
-                my (@left_idx, @right_idx);
-                foreach my $dim (@dimlist){
-                    my $idx=shift @idxlist;
-                    $h->{"$idx-dim"}=$dim;
-                    $h->{"$idx-var"}="\$i_$idx";
-                    if($left=~/\b$idx\b/){
-                        push @left_idx, $idx;
-                    }
-                    else{
-                        push @right_idx, $idx;
-                    }
-                }
-                my (%k_hash, @k_list);
-                my @segs=split /(\[[ijkl,]*?\])/, $left;
-                foreach my $s (@segs){
-                    if($s=~/^\[([ijkl,]*?)\]$/){
-                        my @idxlist=split /,/, $1;
-                        if(@idxlist > 1){
-                            my $k=join('', @idxlist);
-                            if(!$k_hash{$k}){
-                                $k_hash{$k}=1;
-                                push @k_list, $k;
-                            }
-                            $s="[\$k_$k\]";
+            elsif($func eq "list"){
+                my @flist = MyDef::utils::proper_split($param);
+                foreach my $name (@flist){
+                    if($fn_hash{$name}){
+                        if(!$functions{$name}){
+                            push @functions, $name;
+                            $functions{$name} = $MyDef::def->{codes}->{$name};
                         }
                     }
                 }
-                $left=join '', @segs;
-                $left=~s/\b([ijkl])\b/\$i_$1/g;
-                if($right){
-                    my @segs=split /(\[[ijkl,]*?\])/, $right;
+            }
+            elsif($func eq "sub"){
+                if($param=~/^(\w+)\((.*)\)/){
+                    my @src;
+                    push @src, "sub $1 {";
+                    push @src, "INDENT";
+                    push @src, "my ($2)=\@_;";
+                    push @src, "BLOCK";
+                    push @src, "DEDENT";
+                    push @src, "}";
+                    MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+                    return "NEWBLOCK-sub";
+                }
+                else{
+                    return single_block("sub $param {", "}", "sub");
+                }
+            }
+            elsif($func =~ /^(while)$/){
+                if($param=~/\/.*\/\w*\s*$/){
+                    return single_block("while($param){", "}");
+                }
+                else{
+                    my ($init, $cond, $next);
+                    my @clause = split /\s*;\s*/, $param;
+                    my $n = @clause;
+                    if(!$clause[-1]){
+                        $n--;
+                    }
+                    if($n>3){
+                        my $curfile=MyDef::compileutil::curfile_curline();
+                        print "[$curfile]\x1b[33m error: [\$while $param]\n\x1b[0m";
+                    }
+                    elsif($n==3){
+                        ($init, $cond, $next) = @clause;
+                    }
+                    elsif($n==2){
+                        ($cond, $next) = @clause;
+                    }
+                    elsif($n==1){
+                        $cond = $param;
+                    }
+                    else{
+                        $cond = 1;
+                    }
+                    my @src;
+                    if($cond){
+                        push @src, "$init;";
+                    }
+                    push @src, "while($cond){";
+                    push @src, "INDENT";
+                    push @src, "BLOCK";
+                    if($next){
+                        push @src, "$next;";
+                    }
+                    push @src, "DEDENT";
+                    push @src, "}";
+                    MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+                    return "NEWBLOCK-while";
+                }
+            }
+            elsif($func eq "for"){
+                if($param=~/(.*);(.*);(.*)/){
+                    my @src;
+                    push @src, "for($param){";
+                    push @src, "INDENT";
+                    push @src, "BLOCK";
+                    push @src, "DEDENT";
+                    push @src, "}";
+                    MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+                    return "NEWBLOCK-for";
+                }
+                else{
+                    my $var;
+                    if($param=~/^(\S+)\s*=\s*(.*)/){
+                        $var=$1;
+                        $param=$2;
+                    }
+                    my @tlist=split /:/, $param;
+                    my ($i0, $i1, $step);
+                    if(@tlist==1){
+                        $i0="0";
+                        $i1="<$param";
+                        $step="1";
+                    }
+                    elsif(@tlist==2){
+                        if($tlist[1] eq "0"){
+                            $i0="$tlist[0]-1";
+                            $i1=">=$tlist[1]";
+                            $step="-1";
+                        }
+                        else{
+                            $i0=$tlist[0];
+                            $i1="<$tlist[1]";
+                            $step="1";
+                        }
+                    }
+                    elsif(@tlist==3){
+                        $i0=$tlist[0];
+                        $step=$tlist[2];
+                        if($step=~/^-/){
+                            $i1=">=$tlist[1]";
+                        }
+                        else{
+                            $i1="<$tlist[1]";
+                        }
+                    }
+                    if($step eq "1"){
+                        $step="++";
+                    }
+                    elsif($step eq "-1"){
+                        $step="--";
+                    }
+                    else{
+                        $step= "+=$step";
+                    }
+                    if(!$var){
+                        $var="\$i";
+                    }
+                    elsif($var=~/^(\w+)/){
+                        $var='$'.$var;
+                    }
+                    $param="my $var=$i0; $var $i1; $var$step";
+                    my @src;
+                    push @src, "for($param){";
+                    push @src, "INDENT";
+                    push @src, "BLOCK";
+                    push @src, "DEDENT";
+                    push @src, "}";
+                    MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+                    return "NEWBLOCK-for";
+                }
+            }
+            elsif($func eq "foreach"){
+                if($param=~/^(?:my\s+)?(\S+)\s+in\s+(.*)/){
+                    my ($var, $list)=($1, $2);
+                    if(!$var){
+                        $var="\$i";
+                    }
+                    elsif($var=~/^(\w+)/){
+                        $var='$'.$var;
+                    }
+                    if($var=~/^(\x1b.+)_i$/){
+                        my $v = $1;
+                        my @src;
+                        push @src, "my $var = 0;";
+                        push @src, "foreach my $v ($list){";
+                        push @src, "INDENT";
+                        push @src, "BLOCK";
+                        push @src, "$var++;";
+                        push @src, "DEDENT";
+                        push @src, "}";
+                        MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+                        return "NEWBLOCK-foreach";
+                    }
+                    else{
+                        return single_block("foreach my $var ($list){", "}", "foreach");
+                    }
+                }
+                elsif($param=~/^(%.*)/){
+                    return single_block("while (my (\$k, \$v) = each $1){", "}", "foreach");
+                }
+                elsif($param=~/^(\S+),\s*(\S+)\s+in\s+(.*)/){
+                    my ($k, $v, $hash)=($1, $2, $3);
+                    return single_block("while (my ($k, $v)=each $hash){", "}", "foreach");
+                }
+            }
+            elsif($func eq "boolhash"){
+                if($param=~/^\((.*?)\)\s*(.*)/){
+                    my $v = $1;
+                    my @plist=split /,\s*/, $2;
+                    my @tlist;
+                    foreach my $t (@plist){
+                        push @tlist, "$t=>1";
+                    }
+                    push @$out, "$v= (".join(', ', @tlist).");";
+                }
+                return 0;
+            }
+            elsif($func eq "sumcode" or $func eq "loop" or $func eq "sum"){
+                if($param=~/^\((.*?)\)\s+(.*)/){
+                    my $dimstr=$1;
+                    $param=$2;
+                    if($debug){
+                        print "parsecode_sum: [$param]\n";
+                    }
+                    my $h={};
+                    my ($left, $right);
+                    if($param=~/(.*?)\s*(?<![\+\-\*\/%&\|><=])=(?!=)\s*(.*)/){
+                        ($left, $right)=($1, $2);
+                    }
+                    else{
+                        $left=$param;
+                    }
+                    my @idxlist=('i','j','k','l');
+                    my @dimlist=MyDef::utils::proper_split($dimstr);
+                    my (@left_idx, @right_idx);
+                    foreach my $dim (@dimlist){
+                        my $idx=shift @idxlist;
+                        $h->{"$idx-dim"}=$dim;
+                        $h->{"$idx-var"}="\$i_$idx";
+                        if($left=~/\b$idx\b/){
+                            push @left_idx, $idx;
+                        }
+                        else{
+                            push @right_idx, $idx;
+                        }
+                    }
+                    my (%k_hash, @k_list);
+                    my @segs=split /(\[[ijkl,]*?\])/, $left;
                     foreach my $s (@segs){
                         if($s=~/^\[([ijkl,]*?)\]$/){
                             my @idxlist=split /,/, $1;
@@ -755,104 +852,64 @@ sub parsecode {
                             }
                         }
                     }
-                    $right=join '', @segs;
-                    $right=~s/\b([ijkl])\b/\$i_$1/g;
-                }
-                $h->{left}=$left;
-                $h->{left_idx}=\@left_idx;
-                $h->{right}=$right;
-                $h->{right_idx}=\@right_idx;
-                $h->{klist} = \@k_list;
-                foreach my $k (@k_list){
-                    $h->{"$k-init"}="my \$k_$k";
-                    $h->{"$k-var"}="\$k_$k";
-                }
-                if(@right_idx){
-                    if($left=~/^(\$?\w+)$/){
-                        $h->{sum}=$1;
+                    $left=join '', @segs;
+                    $left=~s/\b([ijkl])\b/\$i_$1/g;
+                    if($right){
+                        my @segs=split /(\[[ijkl,]*?\])/, $right;
+                        foreach my $s (@segs){
+                            if($s=~/^\[([ijkl,]*?)\]$/){
+                                my @idxlist=split /,/, $1;
+                                if(@idxlist > 1){
+                                    my $k=join('', @idxlist);
+                                    if(!$k_hash{$k}){
+                                        $k_hash{$k}=1;
+                                        push @k_list, $k;
+                                    }
+                                    $s="[\$k_$k\]";
+                                }
+                            }
+                        }
+                        $right=join '', @segs;
+                        $right=~s/\b([ijkl])\b/\$i_$1/g;
                     }
-                    else{
-                        $h->{sum}="\$sum";
+                    $h->{left}=$left;
+                    $h->{left_idx}=\@left_idx;
+                    $h->{right}=$right;
+                    $h->{right_idx}=\@right_idx;
+                    $h->{klist} = \@k_list;
+                    foreach my $k (@k_list){
+                        $h->{"$k-init"}="my \$k_$k";
+                        $h->{"$k-var"}="\$k_$k";
                     }
-                    $h->{"sum-init"}="my $h->{sum} = 0";
-                }
-                my $codelist=sumcode_generate($h);
-                MyDef::compileutil::parseblock({source=>$codelist, name=>"sumcode"});
-                return;
-            }
-            elsif($func eq "sumcode"){
-                if($debug){
-                    print "parsecode_sum: [$param]\n";
-                }
-                my $h={};
-                my ($left, $right);
-                if($param=~/(.*?)\s*(?<![\+\-\*\/%&\|><=])=(?!=)\s*(.*)/){
-                    ($left, $right)=($1, $2);
-                }
-                else{
-                    $left=$param;
-                }
-                my (%k_hash, @k_list);
-                my %var_hash;
-                my (@left_idx, @right_idx);
-                my @segs=split /(\w+\[[ijkl,]*?\])/, $left;
-                foreach my $s (@segs){
-                    if($s=~/^(\w+)\[([ijkl,]*?)\]$/){
-                        if($var_hash{$s}){
-                            $s=$var_hash{$s};
+                    if(@right_idx){
+                        if($left=~/^(\$?\w+)$/){
+                            $h->{sum}=$1;
                         }
                         else{
-                            my $t;
-                            my ($v, $idx_str)=($1, $2);
-                            my $var=find_var($v);
-                            my @idxlist=split /,/, $idx_str;
-                            if(@idxlist==1){
-                                my $idx=$idx_str;
-                                $t="$v\[\$i_$idx\]";
-                            }
-                            else{
-                                my $k=join('', @idxlist);
-                                if(!$k_hash{$k}){
-                                    $k_hash{$k}=1;
-                                    push @k_list, $k;
-                                }
-                                $t="$v\[\$k_$k\]";
-                            }
-                            my $i=0;
-                            foreach my $idx (@idxlist){
-                                $i++;
-                                my ($dim, $inc);
-                                if($var->{"dim$i"}){
-                                    $dim=$var->{"dim$i"};
-                                }
-                                elsif($var->{"dimension"} and $i==1){
-                                    $dim=$var->{"dimension"};
-                                }
-                                else{
-                                    my $curfile=MyDef::compileutil::curfile_curline();
-                                    print "[$curfile]\x1b[33m sumcode: var $v missing dimension $i\n\x1b[0m";
-                                }
-                                if(!$h->{"$idx-dim"}){
-                                    push @left_idx, $idx;
-                                    $h->{"$idx-dim"}=$dim;
-                                    $h->{"$idx-var"}="\$i_$idx";
-                                }
-                                else{
-                                    if($h->{"$idx-dim"} ne $dim){
-                                        my $old_dim=$h->{"$idx-dim"};
-                                        print "sumcode dimesnion mismatch: $old_dim != $dim\n";
-                                    }
-                                }
-                            }
-                            $var_hash{$s}=$t;
-                            $s=$t;
+                            $h->{sum}="\$sum";
                         }
+                        $h->{"sum-init"}="my $h->{sum} = 0";
                     }
+                    my $codelist=sumcode_generate($h);
+                    MyDef::compileutil::parseblock({source=>$codelist, name=>"sumcode"});
+                    return;
                 }
-                $left=join '', @segs;
-                $left=~s/\b([ijkl])\b/\$i_$1/g;
-                if($right){
-                    my @segs=split /(\w+\[[ijkl,]*?\])/, $right;
+                elsif($func eq "sumcode"){
+                    if($debug){
+                        print "parsecode_sum: [$param]\n";
+                    }
+                    my $h={};
+                    my ($left, $right);
+                    if($param=~/(.*?)\s*(?<![\+\-\*\/%&\|><=])=(?!=)\s*(.*)/){
+                        ($left, $right)=($1, $2);
+                    }
+                    else{
+                        $left=$param;
+                    }
+                    my (%k_hash, @k_list);
+                    my %var_hash;
+                    my (@left_idx, @right_idx);
+                    my @segs=split /(\w+\[[ijkl,]*?\])/, $left;
                     foreach my $s (@segs){
                         if($s=~/^(\w+)\[([ijkl,]*?)\]$/){
                             if($var_hash{$s}){
@@ -890,7 +947,7 @@ sub parsecode {
                                         print "[$curfile]\x1b[33m sumcode: var $v missing dimension $i\n\x1b[0m";
                                     }
                                     if(!$h->{"$idx-dim"}){
-                                        push @right_idx, $idx;
+                                        push @left_idx, $idx;
                                         $h->{"$idx-dim"}=$dim;
                                         $h->{"$idx-var"}="\$i_$idx";
                                     }
@@ -906,169 +963,273 @@ sub parsecode {
                             }
                         }
                     }
-                    $right=join '', @segs;
-                    $right=~s/\b([ijkl])\b/\$i_$1/g;
-                }
-                $h->{left}=$left;
-                $h->{left_idx}=\@left_idx;
-                $h->{right}=$right;
-                $h->{right_idx}=\@right_idx;
-                $h->{klist} = \@k_list;
-                foreach my $k (@k_list){
-                    $h->{"$k-init"}="my \$k_$k";
-                    $h->{"$k-var"}="\$k_$k";
-                }
-                if(@right_idx){
-                    if($left=~/^(\$?\w+)$/){
-                        $h->{sum}=$1;
-                    }
-                    else{
-                        $h->{sum}="\$sum";
-                    }
-                    $h->{"sum-init"}="my $h->{sum} = 0";
-                }
-                my $codelist=sumcode_generate($h);
-                MyDef::compileutil::parseblock({source=>$codelist, name=>"sumcode"});
-                return;
-            }
-        }
-        elsif($func eq "print"){
-            my $str=$param;
-            my $need_escape;
-            if($str=~/^\s*\"(.*)\"\s*$/){
-                $str=$1;
-            }
-            else{
-                $need_escape=1;
-            }
-            my %colors=(red=>31,green=>32,yellow=>33,blue=>34,magenta=>35,cyan=>36);
-            my @fmt_list;
-            my @arg_list;
-            my @group;
-            my $n_escape=0;
-            while(1){
-                if($str=~/\G$/sgc){
-                    last;
-                }
-                elsif($str=~/\G\$/sgc){
-                    if($str=~/\G(red|green|yellow|blue|magenta|cyan)/sgc){
-                        push @fmt_list, "\\x1b[$colors{$1}m";
-                        $n_escape++;
-                        if($str=~/\G\{/sgc){
-                            push @group, $1;
+                    $left=join '', @segs;
+                    $left=~s/\b([ijkl])\b/\$i_$1/g;
+                    if($right){
+                        my @segs=split /(\w+\[[ijkl,]*?\])/, $right;
+                        foreach my $s (@segs){
+                            if($s=~/^(\w+)\[([ijkl,]*?)\]$/){
+                                if($var_hash{$s}){
+                                    $s=$var_hash{$s};
+                                }
+                                else{
+                                    my $t;
+                                    my ($v, $idx_str)=($1, $2);
+                                    my $var=find_var($v);
+                                    my @idxlist=split /,/, $idx_str;
+                                    if(@idxlist==1){
+                                        my $idx=$idx_str;
+                                        $t="$v\[\$i_$idx\]";
+                                    }
+                                    else{
+                                        my $k=join('', @idxlist);
+                                        if(!$k_hash{$k}){
+                                            $k_hash{$k}=1;
+                                            push @k_list, $k;
+                                        }
+                                        $t="$v\[\$k_$k\]";
+                                    }
+                                    my $i=0;
+                                    foreach my $idx (@idxlist){
+                                        $i++;
+                                        my ($dim, $inc);
+                                        if($var->{"dim$i"}){
+                                            $dim=$var->{"dim$i"};
+                                        }
+                                        elsif($var->{"dimension"} and $i==1){
+                                            $dim=$var->{"dimension"};
+                                        }
+                                        else{
+                                            my $curfile=MyDef::compileutil::curfile_curline();
+                                            print "[$curfile]\x1b[33m sumcode: var $v missing dimension $i\n\x1b[0m";
+                                        }
+                                        if(!$h->{"$idx-dim"}){
+                                            push @right_idx, $idx;
+                                            $h->{"$idx-dim"}=$dim;
+                                            $h->{"$idx-var"}="\$i_$idx";
+                                        }
+                                        else{
+                                            if($h->{"$idx-dim"} ne $dim){
+                                                my $old_dim=$h->{"$idx-dim"};
+                                                print "sumcode dimesnion mismatch: $old_dim != $dim\n";
+                                            }
+                                        }
+                                    }
+                                    $var_hash{$s}=$t;
+                                    $s=$t;
+                                }
+                            }
                         }
+                        $right=join '', @segs;
+                        $right=~s/\b([ijkl])\b/\$i_$1/g;
                     }
-                    else{
-                        push @fmt_list, '$';
+                    $h->{left}=$left;
+                    $h->{left_idx}=\@left_idx;
+                    $h->{right}=$right;
+                    $h->{right_idx}=\@right_idx;
+                    $h->{klist} = \@k_list;
+                    foreach my $k (@k_list){
+                        $h->{"$k-init"}="my \$k_$k";
+                        $h->{"$k-var"}="\$k_$k";
                     }
-                }
-                elsif($str=~/\G(\\.)/sgc){
-                    push @fmt_list, $1;
-                }
-                elsif($str=~/\G"/gc){
-                    if($need_escape){
-                        push @fmt_list, "\\\"";
-                    }
-                    else{
-                        push @fmt_list, "\"";
-                    }
-                }
-                elsif($str=~/\G\}/sgc){
-                    if(@group){
-                        pop @group;
-                        if(!@group){
-                            push @fmt_list, "\\x1b[0m";
-                            $n_escape=0;
+                    if(@right_idx){
+                        if($left=~/^(\$?\w+)$/){
+                            $h->{sum}=$1;
                         }
                         else{
-                            my $c=$group[-1];
-                            push @fmt_list, "\\x1b[$colors{$c}m";
+                            $h->{sum}="\$sum";
+                        }
+                        $h->{"sum-init"}="my $h->{sum} = 0";
+                    }
+                    my $codelist=sumcode_generate($h);
+                    MyDef::compileutil::parseblock({source=>$codelist, name=>"sumcode"});
+                    return;
+                }
+            }
+            elsif($func eq "print"){
+                my $str=$param;
+                my $printf_args;
+                my $need_escape;
+                if($str=~/^\s*\"(.*)\"\s*$/){
+                    $str=$1;
+                }
+                elsif($str=~/^\s*\"([^"]+)\",\s*(.+)$/){
+                    $str = $1;
+                    $printf_args=$2;
+                }
+                else{
+                    $need_escape=1;
+                }
+                my %colors=(red=>31,green=>32,yellow=>33,blue=>34,magenta=>35,cyan=>36);
+                my @fmt_list;
+                my @arg_list;
+                my @group;
+                my $n_escape=0;
+                ;
+                while(1){
+                    if($str=~/\G$/sgc){
+                        last;
+                    }
+                    elsif($str=~/\G\$/sgc){
+                        if($str=~/\G(red|green|yellow|blue|magenta|cyan)/sgc){
+                            push @fmt_list, "\\x1b[$colors{$1}m";
                             $n_escape++;
+                            if($str=~/\G\{/sgc){
+                                push @group, $1;
+                            }
+                        }
+                        else{
+                            push @fmt_list, '$';
                         }
                     }
-                    else{
-                        push @fmt_list, '}';
+                    elsif($str=~/\G(\\.)/sgc){
+                        push @fmt_list, $1;
+                    }
+                    elsif($str=~/\G"/gc){
+                        if($need_escape){
+                            push @fmt_list, "\\\"";
+                        }
+                        else{
+                            push @fmt_list, "\"";
+                        }
+                    }
+                    elsif($str=~/\G\}/sgc){
+                        if(@group){
+                            pop @group;
+                            if(!@group){
+                                push @fmt_list, "\\x1b[0m";
+                                $n_escape=0;
+                            }
+                            else{
+                                my $c=$group[-1];
+                                push @fmt_list, "\\x1b[$colors{$c}m";
+                                $n_escape++;
+                            }
+                        }
+                        else{
+                            push @fmt_list, '}';
+                        }
+                    }
+                    elsif($str=~/\G[^\$\}"]+/gc){
+                        push @fmt_list, $&;
                     }
                 }
-                elsif($str=~/\G[^\$\}"]+/gc){
-                    push @fmt_list, $&;
+                my $tail=$fmt_list[-1];
+                if($tail=~/(.*)-$/){
+                    $fmt_list[-1]=$1;
+                }
+                elsif($tail!~/\\n$/){
+                    push @fmt_list, "\\n";
+                }
+                if($n_escape){
+                    push @fmt_list, "\\x1b[0m";
+                }
+                my $p;
+                if($printf_args){
+                    $p = "printf";
+                }
+                else{
+                    $p = "print";
+                }
+                my $print_target = MyDef::compileutil::get_macro_word("print_to", 1);
+                if($print_target){
+                    $p.=" $print_target";
+                }
+                if($printf_args){
+                    push @$out, "$p \"".join('',@fmt_list)."\", $printf_args;";
+                }
+                else{
+                    push @$out, "$p \"".join('',@fmt_list).'";';
+                }
+                return;
+            }
+            elsif($func eq "source-$param"){
+                return "SKIPBLOCK";
+            }
+        }
+        elsif($l=~/^NOOP POST_MAIN/){
+            my $old_out=MyDef::compileutil::set_output($fn_block);
+            if($page->{autolist}){
+                my $codes=$MyDef::def->{codes};
+                my @tlist;
+                ;
+                while(my ($k, $v)= each %$codes){
+                    if($v->{type} eq "fn"){
+                        push @tlist, $k;
+                    }
+                }
+                if(@tlist){
+                    @tlist=sort { $codes->{$a}->{index} <=> $codes->{$b}->{index} } @tlist;
+                    foreach my $name (@tlist){
+                        my $code=$codes->{$name};
+                        push @$out, "sub $name {";
+                        push @$out, "INDENT";
+                        my $params=$code->{params};
+                        if($#$params>=0){
+                            my $pline=join(", ", @$params);
+                            push @$out, "my ($pline) = \@_;";
+                        }
+                        $code->{scope}="list_sub";
+                        MyDef::compileutil::list_sub($code);
+                        push @$out, "DEDENT";
+                        push @$out, "}";
+                        push @$out, "NEWLINE";
+                    }
                 }
             }
-            my $tail=$fmt_list[-1];
-            if($tail=~/(.*)-$/){
-                $fmt_list[-1]=$1;
-            }
-            elsif($tail!~/\\n$/){
-                push @fmt_list, "\\n";
-            }
-            if($n_escape){
-                push @fmt_list, "\\x1b[0m";
-            }
-            my $p = "print";
-            my $print_target = MyDef::compileutil::get_macro_word("print_to", 1);
-            if($print_target){
-                $p.=" $print_target";
-            }
-            push @$out, "$p \"".join('',@fmt_list).'";';
-            return;
-        }
-        elsif($func eq "source-$param"){
-            return "SKIPBLOCK";
-        }
-    }
-    elsif($l=~/^NOOP POST_MAIN/){
-        my $old_out=MyDef::compileutil::set_output($fn_block);
-        my $codes=$MyDef::def->{codes};
-        my @tlist;
-        while(my ($k, $v)= each %$codes){
-            if($v->{type} eq "fn"){
-                push @tlist, $k;
-            }
-        }
-        if(@tlist){
-            @tlist=sort { $codes->{$a}->{index} <=> $codes->{$b}->{index} } @tlist;
-            foreach my $name (@tlist){
-                my $code=$codes->{$name};
-                push @$out, "sub $name {";
-                push @$out, "INDENT";
-                my $params=$code->{params};
-                if($#$params>=0){
-                    my $pline=join(", ", @$params);
-                    push @$out, "my ($pline) = \@_;";
+            else{
+                ;
+                while(my $name = pop @functions){
+                    my $code = $functions{$name};
+                    push @$out, "sub $name {";
+                    push @$out, "INDENT";
+                    my $params=$code->{params};
+                    if($#$params>=0){
+                        my $pline=join(", ", @$params);
+                        push @$out, "my ($pline) = \@_;";
+                    }
+                    $code->{scope}="list_sub";
+                    MyDef::compileutil::list_sub($code);
+                    push @$out, "DEDENT";
+                    push @$out, "}";
+                    push @$out, "NEWLINE";
                 }
-                $code->{scope}="list_sub";
-                MyDef::compileutil::list_sub($code);
-                push @$out, "DEDENT";
-                push @$out, "}";
-                push @$out, "NEWLINE";
+            }
+            MyDef::compileutil::set_output($old_out);
+            return 0;
+        }
+        elsif($l=~/^loop:/){
+            $loop_idx+=1;
+            push @$out, "DUMP_STUB loop_$loop_idx";
+            return 0;
+        }
+        if($l=~/^\s*$/){
+        }
+        elsif($l=~/^\s*(break|continue);?\s*$/){
+            if($1 eq "break"){
+                $l="last;";
+            }
+            elsif($l eq "continue"){
+                $l="next;";
             }
         }
-        MyDef::compileutil::set_output($old_out);
-        return 0;
-    }
-    elsif($l=~/^loop:/){
-        $loop_idx+=1;
-        push @$out, "DUMP_STUB loop_$loop_idx";
-        return 0;
-    }
-    if($l=~/^\s*$/){
-    }
-    elsif($l=~/^\s*(break|continue);?\s*$/){
-        if($1 eq "break"){
-            $l="last;";
+        elsif($l=~/^\s*(for|while|if|else if)\s*\(.*\)\s*$/){
         }
-        elsif($l eq "continue"){
-            $l="next;";
+        elsif($l=~/^\s*}/){
+        }
+        elsif($l!~/[,:\(\[\{;]\s*$/){
+            $l.=";";
+        }
+        else{
         }
     }
-    elsif($l=~/^\s*(for|while|if|else if)\s*\(.*\)\s*$/){
-    }
-    elsif($l=~/^\s*}/){
-    }
-    elsif($l!~/[,:\(\[\{;]\s*$/){
-        $l.=";";
-    }
-    else{
+    while($l=~/\b(\w+)\(/g){
+        if($fn_hash{$1}){
+            if(!$functions{$1}){
+                push @functions, $1;
+                $functions{$1} = $MyDef::def->{codes}->{$1};
+            }
+        }
     }
     push @$out, $l;
     return 0;
@@ -1081,7 +1242,9 @@ sub dumpout {
         push @$f, "#!/usr/bin/perl\n";
     }
     if($pagetype ne "eval"){
-        push @$f, "use strict;\n";
+        if(!$MyDef::page->{relax}){
+            push @$f, "use strict;\n";
+        }
         if(@uses){
             foreach my $v (@uses){
                 push @$f, "use $v;\n";

@@ -1,5 +1,105 @@
 use strict;
 package MyDef::utils;
+our $time_start = time();
+
+sub get_tlist {
+    my ($t) = @_;
+    my @vlist = split /,\s*/, $t;
+    my @tlist;
+    foreach my $v (@vlist){
+        if($v=~/^(\w+)\.\.(\w+)$/){
+            push @tlist, get_range($1, $2);
+        }
+        elsif($v=~/^(\w+)-(\w+)$/){
+            push @tlist, get_range($1, $2);
+        }
+        else{
+            push @tlist, $v;
+        }
+    }
+    return @tlist;
+}
+
+sub get_range {
+    my ($a, $b) = @_;
+    my @tlist;
+    if($a=~/^\d+$/ and $b=~/^\d+$/){
+        if($a<=$b){
+            for(my $i=$a;$i<=$b;$i++){
+                push @tlist, $i;
+            }
+        }
+        else{
+            for(my $i=$a;$i>=$b;$i--){
+                push @tlist, $i;
+            }
+        }
+    }
+    elsif($a=~/^[a-zA-Z]$/ and $b=~/^[a-zA-Z]$/){
+        ($a, $b) = (ord($a), ord($b));
+        if($a<=$b){
+            for(my $i=$a;$i<=$b;$i++){
+                push @tlist, chr($i);
+            }
+        }
+        else{
+            for(my $i=$a;$i>=$b;$i--){
+                push @tlist, chr($i);
+            }
+        }
+    }
+    elsif($a=~/^0x(\d+)$/ and $b=~/^\d+$/){
+        $a = $1;
+        if($a>0){
+            $a-=1;
+            $b-=1;
+        }
+        if($a<=$b){
+            for(my $i=$a;$i<=$b;$i++){
+                push @tlist, sprintf("0x%x", 1<<$i);
+            }
+        }
+        else{
+            for(my $i=$a;$i>=$b;$i--){
+                push @tlist, sprintf("0x%x", 1<<$i);
+            }
+        }
+    }
+    return @tlist;
+}
+
+sub for_list_expand {
+    my ($pat, $list) = @_;
+    my @vlist=split /\s+and\s+/, $list;
+    my @tlist;
+    foreach my $v (@vlist){
+        my @t = MyDef::utils::get_tlist($v);
+        push @tlist, \@t;
+    }
+    my $n = @{$tlist[0]};
+    my $m = @tlist;
+    my @plist;
+    if($pat!~/\$\d/ && $m==1 && $pat=~/\*/){
+        foreach my $t (@{$tlist[0]}){
+            my $l = $pat;
+            $l =~s/\*/$t/g;
+            push @plist, $l;
+        }
+    }
+    else{
+        for(my $i=0; $i <$n; $i++){
+            my $l = $pat;
+            my $j=1;
+            foreach my $tlist (@tlist){
+                $l=~s/\$$j/$tlist->[$i]/g;
+                $j++;
+            }
+            push @plist, $l;
+        }
+    }
+    return \@plist;
+}
+
 sub smart_split {
     my ($param, $n) = @_;
     my @tlist = split /,\s*/, $param;
@@ -22,11 +122,12 @@ sub proper_split {
     }
     my @closure_stack;
     my $t;
+    ;
     while(1){
-        if($param=~/\G$/gc){
+        if($param=~/\G$/sgc){
             last;
         }
-        elsif($param=~/\G(\s+)/gc){
+        elsif($param=~/\G(\s+)/sgc){
             if($t or @closure_stack){
                 $t.=$1;
             }
@@ -101,27 +202,41 @@ sub expand_macro {
     my ($line, $sub) = @_;
     my @paren_stack;
     my $segs=[];
+    ;
     while(1){
-        if($line=~/\G$/gc){
+        if($line=~/\G$/sgc){
             last;
         }
-        elsif($line=~/\G\$\(/gc){
+        elsif($line=~/\G\$\(/sgc){
             push @paren_stack, $segs;
             $segs=[];
             push @paren_stack, "\$\(";
         }
+        elsif($line=~/\G\$\./sgc){
+            push @$segs, $sub->("this");
+        }
+        elsif($line=~/\G([\x80-\xff]+)/sgc){
+            my $t = MyDef::compileutil::get_macro_word($1, 1);
+            if($t){
+                $MyDef::compileutil::n_get_macro++;
+                push @$segs, $t;
+            }
+            else{
+                push @$segs, $1;
+            }
+        }
         elsif(!@paren_stack){
-            if($line=~/\G([^\$]|\$(?!\())+/gc){
+            if($line=~/\G([^\$\x80-\xff]|\$(?![\(\.]))+/sgc){
                 push @$segs, $&;
             }
         }
         else{
-            if($line=~/\G\(/gc){
+            if($line=~/\G\(/sgc){
                 push @paren_stack, $segs;
                 $segs=[];
                 push @paren_stack, "(";
             }
-            elsif($line=~/\G\)/gc){
+            elsif($line=~/\G\)/sgc){
                 my $t=join('', @$segs);
                 my $open=pop @paren_stack;
                 $segs=pop @paren_stack;
@@ -132,11 +247,12 @@ sub expand_macro {
                     push @$segs, $sub->($t);
                 }
             }
-            elsif($line=~/\G([^\$()]|\$(?!\())+/gc){
+            elsif($line=~/\G([^\$\x80-\xff()]|\$(?![\(\.]))+/sgc){
                 push @$segs, $&;
             }
         }
     }
+    ;
     while(@paren_stack){
         my $t = join('', @$segs);
         my $open = pop @paren_stack;
@@ -157,6 +273,7 @@ sub uniq_name {
         if($name=~/[0-9_]/){
             $name.="_";
         }
+        ;
         while($hash->{"$name$i"}){
             $i++;
         }
@@ -189,7 +306,10 @@ sub string_symbol_name {
             $name.="Eq";
         }
         elsif($c eq "!"){
-            $name.="Not";
+            $name.="Emark";
+        }
+        elsif($c eq "~"){
+            $name.="Tlide";
         }
         elsif($c eq "^"){
             $name.="Ctrl";
@@ -242,6 +362,9 @@ sub string_symbol_name {
         elsif($c eq ":"){
             $name.="Colon";
         }
+        elsif($c eq "?"){
+            $name.="Qmark";
+        }
         elsif($c eq ";"){
             $name.="Semi";
         }
@@ -261,6 +384,7 @@ sub parse_regex {
     my $escape;
     my $_recurse="[1]";
     my $i=0;
+    ;
     while($i<length($re)){
         my $c=substr($re, $i, 1);
         $i++;
@@ -445,6 +569,7 @@ sub parse_regex {
             my @class=();
             my $escape;
             my $_recurse="[2]";
+            ;
             while($i<length($re)){
                 my $c=substr($re, $i, 1);
                 $i++;
@@ -604,6 +729,41 @@ sub debug_regex {
         elsif($r->{atom}){
             debug_regex($r->{atom}, $level+1);
         }
+    }
+}
+
+sub bases {
+    my ($n, @bases) = @_;
+    my @t;
+    foreach my $b (@bases){
+        push @t, $n % $b;
+        $n = int($n/$b);
+        if($n<=0){
+            last;
+        }
+    }
+    if($n>0){
+        push @t, $n;
+    }
+    return @t;
+}
+
+sub get_time {
+    my $t = time()-$time_start;
+    my @t;
+    push @t, $t % 60;
+    $t = int($t/60);
+    push @t, $t % 60;
+    $t = int($t/60);
+    push @t, $t % 60;
+    $t = int($t/60);
+    if($t>0){
+        push @t, $t % 24;
+        $t = int($t/24);
+        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0]);
+    }
+    else{
+        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0]);
     }
 }
 

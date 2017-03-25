@@ -1,5 +1,26 @@
 use strict;
 package MyDef::dumpout;
+our $time_start = time();
+
+sub get_time {
+    my $t = time()-$time_start;
+    my @t;
+    push @t, $t % 60;
+    $t = int($t/60);
+    push @t, $t % 60;
+    $t = int($t/60);
+    push @t, $t % 60;
+    $t = int($t/60);
+    if($t>0){
+        push @t, $t % 24;
+        $t = int($t/24);
+        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0]);
+    }
+    else{
+        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0]);
+    }
+}
+
 sub dumpout {
     my $dump=shift;
     my $f=$dump->{f};
@@ -120,12 +141,25 @@ sub dumpout {
             elsif($l =~/^PRINT (.*)/){
                 push @$f, "    "x$indentation."$1\n";
             }
-            elsif($l =~/^TAB (.*)/){
+            elsif($l =~/^\s*TAB (.*)/){
                 push @$f, "\t$1\n";
             }
             else{
                 chomp $l;
                 push @$f, "    "x$indentation."$l\n";
+            }
+        }
+        elsif(@make_string_stack){
+            if($l=~/^\s*$/){
+            }
+            elsif($l=~/^\s*NEWLINE\b/){
+                push @$string_list, "";
+            }
+            elsif($l =~/^PRINT (.*)/){
+                push @$string_list, "    "x($indentation-$make_string_stack[-1]->{indent}-1) . $1;
+            }
+            else{
+                push @$string_list, "    "x($indentation-$make_string_stack[-1]->{indent}-1) . $l;
             }
         }
         elsif($l =~/^(.*)=\s*\[(strings?)_from_file:\s*(\S+)\]\s*;/){
@@ -178,36 +212,21 @@ sub dumpout {
             }
         }
         else{
-            if(@make_string_stack){
-                if($l=~/^\s*$/){
-                }
-                elsif($l=~/^\s*NEWLINE\b/){
-                    push @$string_list, "";
-                }
-                elsif($l =~/^PRINT (.*)/){
-                    push @$string_list, "    "x($indentation-$make_string_stack[-1]->{indent}-1) . $1;
-                }
-                else{
-                    push @$string_list, "    "x($indentation-$make_string_stack[-1]->{indent}-1) . $l;
-                }
+            if($l=~/^\s*$/){
+                push @$f, "\n";
+            }
+            elsif($l=~/^\s*NEWLINE\b/){
+                push @$f, "\n";
+            }
+            elsif($l =~/^PRINT (.*)/){
+                push @$f, "    "x$indentation."$1\n";
+            }
+            elsif($l =~/^\s*TAB (.*)/){
+                push @$f, "\t$1\n";
             }
             else{
-                if($l=~/^\s*$/){
-                    push @$f, "\n";
-                }
-                elsif($l=~/^\s*NEWLINE\b/){
-                    push @$f, "\n";
-                }
-                elsif($l =~/^PRINT (.*)/){
-                    push @$f, "    "x$indentation."$1\n";
-                }
-                elsif($l =~/^TAB (.*)/){
-                    push @$f, "\t$1\n";
-                }
-                else{
-                    chomp $l;
-                    push @$f, "    "x$indentation."$l\n";
-                }
+                chomp $l;
+                push @$f, "    "x$indentation."$l\n";
             }
         }
     }
