@@ -181,13 +181,9 @@ fncode: expand_macro($lref)
     #-     $(\W...) is safe though
     $if $$lref=~/\$(\(\w|\.)|[\x80-\xff]/
         $$lref = MyDef::utils::expand_macro($$lref, \&get_macro)
-
-    $(if:0)
-        #    $(set:V=$($1))
-        #    $(V:CFLAGS)
-        $if $$lref=~/\$\(:/
-            # Makefile and shell, $(:CFLAGS) --> $(CFLAGS)
-            $$lref=~s/\$\(:/\$(/g
+        return 1
+    $else
+        return 0
 
 fncode: get_macro($s, $nowarn)
     $global $n_get_macro # so 

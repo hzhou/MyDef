@@ -1,5 +1,5 @@
 subcode: parse_preproc
-    expand_macro(\$preproc)
+    my $has_macro = expand_macro(\$preproc)
     # $print "parse_preproc: $preproc [$tail] [$l]"
     my $flag_done
     $call parse_preproc_switch
@@ -134,7 +134,7 @@ subcode: parse_preproc_switch
         undef $switch_context
 
 subcode: parse_preproc_if
-    $if testcondition($1)
+    $if testcondition($1, $has_macro)
         parseblock({source=>$subblock, name=>"\${if:}"})
         $switch_context="off";
     $else
@@ -188,9 +188,9 @@ fncode: test_in($a, $test)
             return 1
     return 0
 
-fncode: testcondition($cond)
+fncode: testcondition($cond, $has_macro)
     $if $debug eq "preproc"
-        $print "preproc testcondition: $cond"
+        $print "preproc testcondition: $cond [$has_macro]"
     $if !$cond
         return 0;
     $call @testcondition_elifs
@@ -227,7 +227,7 @@ fncode: testcondition($cond)
         my $t=get_def($1);
         $if !$2
             return defined $t
-        $elif !defined $t
+        $elif !defined $t and $has_macro
             # $(if:$(type:list:n)=1)
             return test_op($1, $2)
         $else
