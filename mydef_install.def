@@ -2,7 +2,10 @@ page: mydef_install
     type:
     output_dir: script
 
-    my ($src, $dst)=($ARGV[0], $ARGV[1])
+    my ($src, $dst, $ext)=($ARGV[0], $ARGV[1], $ARGV[2])
+    $if !$ext
+        $ext = "def"
+
     $call check_install_dir
     $if !$src or !$dst
         die "Usage: $0 src dst\n"
@@ -14,32 +17,43 @@ page: mydef_install
         $if  !-d $install_dir
             mkdir $install_dir or die "Can't mkdir $install_dir\n";
 
+    install_all($install_dir, $ext)
 
     #---------------------------------------- 
+fncode: install_all($install_dir, $ext)
+    $print install_all: $install_dir [$ext]
     my @files=glob("*");
 
-    my @defs;
+    my @srcs;
     my @dirs;
     $foreach $f in @files
-        $if $f=~/\.def$/
-            push @defs, $f;
-        $elif -d $f
+        $if -d $f
             push @dirs, $f;
+        $elif $ext eq "-"
+            push @srcs, $f;
+        $elif $f=~/\.$ext$/
+            push @srcs, $f;
     $foreach $d in @dirs
         $if -f "$d/skip"
             next
-        my @files=glob("$d/*.def");
+        my $pat = "$d/*.$ext"
+        $if $ext eq "-"
+            $pat = "$d/*"
+        my @files=glob($pat);
         $if @files
             $if !-d "$install_dir/$d"
                 mkdir "$install_dir/$d" or die "Can't mkdir $install_dir/$d";
             $foreach $f in @files
-                push @defs, $f;
+                push @srcs, $f;
 
-    $foreach $def in @defs
-        my $dst="$install_dir/$def";
-        $if !-e $dst or -M $def < -M $dst
-            print "$def -> $dst\n";
-            system "cp $def $dst\n";
+    $foreach $src in @srcs
+        my $dst="$install_dir/$src";
+        $if !-e $dst or -M $src < -M $dst
+            print "  :| $src -> $dst\n";
+            $if $ext eq "-"
+                system "install -m555 $src $dst"
+            $else
+                system "install -m644 $src $dst";
 
 #----------------------------------------------- 
 subcode: check_install_dir
@@ -47,14 +61,29 @@ subcode: check_install_dir
     $if $dst=~/^(\/.*)/
         $install_dir=$1
         $dst = "."
-    $else
+    $elif $ext eq "def"
         $install_dir=$ENV{MYDEFLIB}
         $install_dir=~s/:.*//
         $if  !$install_dir
             $print "Missing environment variable MYDEFLIB\n"
             $print "    try put 'MYDEFLIB=\$HOME/lib/MyDef' in your .bashrc (and source it)\n"
             exit
+    $elif $ext eq "pm"
+        $install_dir=$ENV{PERL5LIB}
+        $install_dir=~s/:.*//
+        $if  !$install_dir
+            $print "Missing environment variable PERL5LIB\n"
+            $print "    try put 'PERL5LIB=\$HOME/lib/perl5' in your .bashrc (and source it)\n"
+            exit
+    $elif $ext eq "-"
+        $install_dir=$ENV{PATH}
+        $install_dir=~s/:.*//
+        $if  !$install_dir
+            $print "Missing environment variable PATH\n"
+            $print "    try put 'PERL5LIB=\$HOME/bin' in your .bashrc (and source it)\n"
+            exit
 
     $if  !-d $install_dir
         mkdir $install_dir or die "Can't mkdir $install_dir\n";
+
 
