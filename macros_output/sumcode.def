@@ -33,8 +33,7 @@ subcode: parsecode_sum_frame
                 $h->{sum}=$1
             $else
                 $h->{sum}="$(sum)"
-            $h->{"sum-init"}="$(mytype) $h->{sum} = 0"
-
+            $h->{"sum-init"}="$(mytype) $h->{sum}"
 
 #---------------------------------------- 
 #- '$' is not an operator, so if it appears, let's assume it is 
@@ -53,7 +52,8 @@ subcode: sumcode_init_style(style)
 
 subcode: sumcode_gen_sumvar_c
     $sum="sum"
-    push @code, "\$my $type $sum=0"
+    push @code, "\$my $type $sum"
+    push @code, "$sum = 0"
 
 subcode: sumcode_gen_sumvar_perl
     $sum="\$sum"
@@ -228,6 +228,7 @@ fncode: sumcode_generate($h)
         $if @$right_idx
             my $sum=$h->{sum}
             push @code, $h->{"sum-init"}
+            push @code, "$h->{sum}=0"
             &call sumcode_loop, right
                 push @code, "$sum += $right"
             $if $left ne $sum
