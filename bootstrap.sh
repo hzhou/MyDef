@@ -4,7 +4,7 @@ NC='\033[0m'
 if [ -z "$MYDEFLIB" ]; then
     printf "\n${C}#---- New install, set PERL5LIB, MYDEFLIB, and PATH ----${NC}\n"
     NEWINSTALL=1
-    install -m555 bootstrap/script/mydef_install $HOME/bin/
+    install -D -m555 bootstrap/script/mydef_install $HOME/bin/
 
     PATH=$HOME/bin:/bin:/usr/bin:/usr/local/bin
     export PERL5LIB=$HOME/lib/perl5
