@@ -2,6 +2,9 @@ page: mydef_install
     type:
     output_dir: script
 
+    # mydef_install deflib . def      --> *.def -> ${MYDEFLIB}
+    # mydef_install MyDef/lib . pm    --> *.pm  -> ${PERL5LIB}
+    # mydef_install MyDef/script . -  --> *     -> ${PATH}
     my ($src, $dst, $ext)=($ARGV[0], $ARGV[1], $ARGV[2])
     $if !$ext
         $ext = "def"
