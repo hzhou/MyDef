@@ -1,11 +1,11 @@
 include: macros_util/debug.def
-include: compile/preproc.def
-include: compile/callsub.def
-include: compile/parse.def
-include: compile/macro.def
-include: compile/ogdl.def
-include: compile/list.def
-include: compile/util.def
+include: macros_compile/preproc.def
+include: macros_compile/callsub.def
+include: macros_compile/parse.def
+include: macros_compile/macro.def
+include: macros_compile/ogdl.def
+include: macros_compile/list.def
+include: macros_compile/util.def
 
 page: compileutil
     type: pm

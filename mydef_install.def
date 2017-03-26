@@ -24,7 +24,6 @@ page: mydef_install
 
     #---------------------------------------- 
 fncode: install_all($install_dir, $ext)
-    $print install_all: $install_dir [$ext]
     my @files=glob("*");
 
     my @srcs;
@@ -49,9 +48,14 @@ fncode: install_all($install_dir, $ext)
             $foreach $f in @files
                 push @srcs, $f;
 
+    my $i = 0
     $foreach $src in @srcs
         my $dst="$install_dir/$src";
         $if !-e $dst or -M $src < -M $dst
+            $if $i==0
+                $print install_all: $install_dir [$ext]
+            $i++
+
             print "  :| $src -> $dst\n";
             $if $ext eq "-"
                 system "install -m555 $src $dst"
