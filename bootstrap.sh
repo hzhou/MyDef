@@ -15,6 +15,12 @@ if [ -z "$MYDEFLIB" ]; then
 fi
 
 printf "\n${C}#---- Install from bootstrap [Perl package] ----${NC}\n"
+for a in parseutil compileutil dumpout utils output_perl; do
+    touch bootstrap/lib/MyDef/$a.pm
+done
+touch bootstrap/lib/MyDef.pm
+touch bootstrap/script/mydef_make
+touch bootstrap/script/mydef_page
 mydef_install bootstrap/script $HOME/bin -
 mydef_install bootstrap/lib    $HOME/lib/perl5 pm
 mydef_install deflib           $HOME/lib/MyDef def
