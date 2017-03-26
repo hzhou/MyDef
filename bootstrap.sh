@@ -4,7 +4,10 @@ NC='\033[0m'
 if [ -z "$MYDEFLIB" ]; then
     printf "\n${C}#---- New install, set PERL5LIB, MYDEFLIB, and PATH ----${NC}\n"
     NEWINSTALL=1
-    install -D -m555 bootstrap/script/mydef_install $HOME/bin/
+    install -d $HOME/bin
+    install -d $HOME/lib/perl5
+    install -d $HOME/lib/MyDef
+    install -m555 bootstrap/script/mydef_install $HOME/bin/
 
     PATH=$HOME/bin:/bin:/usr/bin:/usr/local/bin
     export PERL5LIB=$HOME/lib/perl5
@@ -28,8 +31,10 @@ mydef_install MyDef/script . -
 if [ "$NEWINSTALL" = 1 ]; then
     printf "\n${C}#---- MyDef INSTALLED ----${NC}\n"
     echo "By Default, MyDef is intalled in $HOME/bin and $HOME/lib"
-    echo "    to use MyDef, you need add $HOME/bin to your PATH"
-    echo "    and set PERL5LIB=$HOME/lib/perl5 and MYDEFLIB=$HOME/lib/MyDef"
-    echo "    you may also need to set MYDEFSRC=`pwd` (for installing output modules)"
+    echo "    to use MyDef, you need:" 
+    echo "    * add $HOME/bin to your PATH"
+    echo "    * set PERL5LIB=$HOME/lib/perl5"
+    echo "    * set MYDEFLIB=$HOME/lib/MyDef"
+    echo "    * set MYDEFSRC=`pwd`"
     echo "    It is recommended to set them in your ~/.bashrc"
 fi
