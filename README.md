@@ -17,6 +17,8 @@ MyDef is not just syntax, it is about paradigm. If you have a vision on how you 
 INSTALL
 =======
 
+0. Dependency: perl(5), make(GNU), sh(bash)
+
 1. MyDef currently is in perl. First setup a custome installation environment:
 
         PATH=$PATH:$HOME/bin
