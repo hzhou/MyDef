@@ -159,6 +159,7 @@ sub sumcode_generate {
     if(@$right_idx){
         my $sum=$h->{sum};
         push @code, $h->{"sum-init"};
+        push @code, "$h->{sum}=0";
         foreach my $i (@$right_idx){
             $loop_i_hash{$i}=1;
             my $dim=$h->{"$i-dim"};
@@ -888,7 +889,7 @@ sub parsecode {
                         else{
                             $h->{sum}="\$sum";
                         }
-                        $h->{"sum-init"}="my $h->{sum} = 0";
+                        $h->{"sum-init"}="my $h->{sum}";
                     }
                     my $codelist=sumcode_generate($h);
                     MyDef::compileutil::parseblock({source=>$codelist, name=>"sumcode"});
@@ -1039,7 +1040,7 @@ sub parsecode {
                         else{
                             $h->{sum}="\$sum";
                         }
-                        $h->{"sum-init"}="my $h->{sum} = 0";
+                        $h->{"sum-init"}="my $h->{sum}";
                     }
                     my $codelist=sumcode_generate($h);
                     MyDef::compileutil::parseblock({source=>$codelist, name=>"sumcode"});

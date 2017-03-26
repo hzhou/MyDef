@@ -100,9 +100,9 @@ sub test_in {
 }
 
 sub testcondition {
-    my ($cond) = @_;
+    my ($cond, $has_macro) = @_;
     if($debug eq "preproc"){
-        print "preproc testcondition: $cond\n";
+        print "preproc testcondition: $cond [$has_macro]\n";
     }
     if(!$cond){
         return 0;
@@ -191,7 +191,7 @@ sub testcondition {
         if(!$2){
             return defined $t;
         }
-        elsif(!defined $t){
+        elsif(!defined $t and $has_macro){
             return test_op($1, $2);
         }
         else{
@@ -936,12 +936,12 @@ sub parseblock {
             elsif($l=~/^\$\((.*)\)/){
                 my $preproc=$1;
                 my $tail=$';
-                expand_macro(\$preproc);
+                my $has_macro = expand_macro(\$preproc);
                 my $flag_done;
                 $flag_done=1;
                 if($preproc=~/^if:\s*(.*)/){
                     my $subblock=grabblock($block, \$lindex);
-                    if(testcondition($1)){
+                    if(testcondition($1, $has_macro)){
                         parseblock({source=>$subblock, name=>"\${if:}"});
                         $switch_context="off";
                     }
@@ -955,7 +955,7 @@ sub parseblock {
                 elsif($preproc=~/^els?e?if:\s*(.*)/){
                     my $subblock=grabblock($block, \$lindex);
                     if($switch_context eq "on"){
-                        if(testcondition($1)){
+                        if(testcondition($1, $has_macro)){
                             parseblock({source=>$subblock, name=>"\${if:}"});
                             $switch_context="off";
                         }
@@ -1617,6 +1617,10 @@ sub expand_macro {
     my ($lref) = @_;
     if($$lref=~/\$(\(\w|\.)|[\x80-\xff]/){
         $$lref = MyDef::utils::expand_macro($$lref, \&get_macro);
+        return 1;
+    }
+    else{
+        return 0;
     }
 }
 

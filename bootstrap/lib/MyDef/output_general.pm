@@ -6,6 +6,22 @@ our $mode;
 our $page;
 our $time_start = time();
 
+sub bases {
+    my ($n, @bases) = @_;
+    my @t;
+    foreach my $b (@bases){
+        push @t, $n % $b;
+        $n = int($n/$b);
+        if($n<=0){
+            last;
+        }
+    }
+    if($n>0){
+        push @t, $n;
+    }
+    return @t;
+}
+
 sub get_time {
     my $t = time()-$time_start;
     my @t;

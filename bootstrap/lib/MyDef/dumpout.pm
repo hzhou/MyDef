@@ -2,6 +2,22 @@ use strict;
 package MyDef::dumpout;
 our $time_start = time();
 
+sub bases {
+    my ($n, @bases) = @_;
+    my @t;
+    foreach my $b (@bases){
+        push @t, $n % $b;
+        $n = int($n/$b);
+        if($n<=0){
+            last;
+        }
+    }
+    if($n>0){
+        push @t, $n;
+    }
+    return @t;
+}
+
 sub get_time {
     my $t = time()-$time_start;
     my @t;
@@ -34,6 +50,7 @@ sub dumpout {
     my @indentation_stack;
     my @make_string_stack;
     my $string_list=undef;
+    ;
     while(1){
         if(!@$out){
             $out=pop @source_stack;
@@ -167,6 +184,7 @@ sub dumpout {
             if($dump->{module} eq "output_perl"){
                 push @$f, "$head = <<HERE;\n";
                 open In, "$file" or die "Can't open $file.\n";
+                ;
                 while(<In>){
                     push @$f, $_;
                 }
@@ -176,6 +194,7 @@ sub dumpout {
             elsif($head=~/^\$/ and $dump->{module} eq "output_www"){
                 push @$f, "$head = <<<HERE\n";
                 open In, "$file" or die "Can't open $file.\n";
+                ;
                 while(<In>){
                     push @$f, $_;
                 }
@@ -185,6 +204,7 @@ sub dumpout {
             else{
                 my @t;
                 open In, "$file" or die "Can't open $file.\n";
+                ;
                 while(<In>){
                     chomp;
                     s/\\/\\\\/g;
