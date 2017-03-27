@@ -1,0 +1,29 @@
+macros:
+    comment: #
+
+subcode: basic_frame
+    $(block:_main)
+        $call @main2
+    $if __name__ == "__main__"
+        main()
+
+fncode: main
+    DUMP_STUB _main
+
+#---------------------------------------- 
+include: ext.def
+perlcode: quote
+    my $var = $param
+    $call grab_codelist
+    $if $codelist
+        push @$out, "$var = \"\"\"\n"
+        $foreach $t in @$codelist
+            push @$out, "$t\n"
+        push @$out, "\"\"\"\n"
+
+
+#---------------------
+subcode: error(@msg)
+    # $print stack: $stack
+    raise Exception($(msg))
+

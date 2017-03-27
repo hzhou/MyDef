@@ -1,0 +1,186 @@
+macros:
+    pi: 3.14159265359
+    to_rad: 0.0174532925199
+    to_deg: 57.2957795131  
+
+#---------------------------------------- 
+subcode: sub_new
+    $sub new($class, $self)
+      $class = ref($class) || $class;
+      if (!defined $self) { $self = { }; }
+      bless ($self, $class);
+      BLOCK
+      return $self
+
+subcode: export(list)
+    use Exporter
+    our @ISA = qw(Exporter)
+    our @EXPORT = qw($(list))
+
+subcode: block
+    {
+        BLOCK
+    }
+
+# -- DATA -------------------------
+subcode: set_hash(hash, @plist)
+    $(if:hash~%)
+        $(set:h=$$(hash:1:strip))
+    $(else)
+        $(set:h=$(hash)->)
+    $(foreach:p)
+        $(h){$(p)}=1
+
+subcode: update_max(max, a)
+    $if $(max)<$(a)
+        $(max)=$(a)
+
+subcode: update_min(min, a)
+    $if $(min)>$(a)
+        $(min)=$(a)
+
+subcode: swap(a, b)
+    ($(a), $(b)) = ($(b), $(a))
+
+# e.g. @t = bases(10000, 60, 60, 24); print join(':', reverse @t), "\n"; --> 2:46:40
+fncode: bases($n, @bases)
+    my @t
+    $foreach $b in @bases
+        push @t, $n % $b
+        $n = int($n/$b)
+        $if $n<=0
+            last
+    $if $n>0
+        push @t, $n
+    return @t
+
+# -- IO -------------------------
+subcode: open_r(name)
+    $(if:name~")
+        $(set:name=$(name:strip))
+    open In, "$(name)" or die "Can't open $(name).\n"
+    $while <In>
+        BLOCK
+    close In
+
+subcode: open_w(name)
+    $(if:name~")
+        $(set:name=$(name:strip))
+    open Out, ">$(name)" or die "Can't write $(name).\n"
+    BLOCK
+    close Out
+
+subcode: assert(cond)
+    $if !($(cond))
+        die "$(cond) - FALSE!\n"
+
+subcode: get_file_in_t(name)
+    $(if:name~")
+        $(set:name=$(name:strip))
+    my $t
+    &call block
+        open In, "$(name)" or die "Can't open $(name).\n"
+        local $/
+        $t=<In>
+        close In
+
+subcode: get_file_lines(name)
+    $(if:name~")
+        $(set:name=$(name:strip))
+    my @lines
+    &call block
+        open In, "$(name)" or die "Can't open $(name).\n"
+        @lines=<In>
+        close In
+
+#---------------------------------------- 
+subcode: bench(n)
+    use Time::HiRes
+    my $time_start=Time::HiRes::clock()
+    $for $i_bench=0:$(n)
+        BLOCK
+    my $time_finish=Time::HiRes::clock()
+    printf "bench $(n) iterations: %f sec/iter\n", ($time_finish-$time_start)/$(n)
+
+# -- simple progress timing
+fncode: get_time
+    $global $time_start = time()
+    my $t = time()-$time_start
+    my @t
+    $call get_seg, 60
+    $call get_seg, 60
+    $call get_seg, 60
+    $if $t>0
+        $call get_seg, 24
+        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0])
+    $else
+        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0])
+
+    subcode: get_seg(P)
+        push @t, $t % $(P)
+        $t = int($t/$(P))
+#---------------------------------------- 
+#-- similar to HERE document -----------
+perlcode: print_block
+    my $codelist=MyDef::compileutil::get_named_block("last_grab")
+    $if $codelist
+        $foreach $t in @$codelist
+            $t=~s/"/\\\"/g
+            push @$out, "print Out \"$t\\n\";"
+
+# -- COMMON PATTERNS ---------------
+subcode: topdown_loop(name, top)
+    my %$(name)_hash
+    my @$(name)_list
+    $global @topdown_list
+    @topdown_list = ($(top))
+
+    $while my $$(name)=pop @topdown_list
+        $if !$$(name)_hash{$$(name)}
+            $$(name)_hash{$$(name)}=1
+            BLOCK
+
+# -- dbl_list ----------------
+subcode: dbl_list(name)
+    $global @$(name), %$(name)
+    @$(name)=()
+    %$(name)=()
+
+subcode: dbl_push(name, v)
+    my $t_name=$(v)
+    $if $(v)=~/^(\S+)\s*=/
+        $t_name=$1
+    $if !$$(name){$t_name}
+        $$(name){$t_name}=1
+        push @$(name), $(v)
+
+# -- Parser -------------------
+# for simple parsing; for more complicated cases, ref perl/parse.def
+subcode: parse_loop(l)
+    $while 1
+        $if $(l)=~/\G$/sgc
+            last
+        BLOCK
+
+    subcode: if_lex(@pattern)
+        $case $(l)=~/\G$(pattern)/sgc
+            BLOCK
+
+#---------------------------------------- 
+# all print goes to $debug_console
+subcode: init_debug_console
+    use Socket
+    $global $debug_console
+    socket($debug_console, PF_INET, SOCK_STREAM, 0) or die "socket $!"
+    my $port = 1300
+    connect($debug_console, pack_sockaddr_in($port, inet_aton("localhost"))) or die "connect: $!"
+    $print_to $debug_console
+    {
+        my $ofh = select $debug_console
+        $|=1
+        select $ofh
+    }
+#----------------------------------------------- 
+subcode: approx_zero(v)
+    $if abs($(v))<1e-8
+        $(v) = 0.0

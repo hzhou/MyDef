@@ -23,15 +23,15 @@ touch bootstrap/script/mydef_make
 touch bootstrap/script/mydef_page
 mydef_install bootstrap/script $HOME/bin -
 mydef_install bootstrap/lib    $HOME/lib/perl5 pm
+mydef_install bootstrap/deflib $HOME/lib/MyDef def
 mydef_install deflib           $HOME/lib/MyDef def
+# In case some system do not record file stamps higher than 1 sec.
+sleep 1
 
 printf "\n${C}#---- Compile from fresh MyDef source ----${NC}\n"
 mydef_make
 touch mydef.def
 make
-# In case some system do not record file stamps higher than 1 sec.
-sleep 1
-
 printf "\n${C}#---- Install updated MyDef ----${NC}\n"
 mydef_install MyDef/lib    . pm
 mydef_install MyDef/script . -
