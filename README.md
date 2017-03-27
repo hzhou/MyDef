@@ -19,7 +19,9 @@ INSTALL
 
 0. Dependency: 
 
-        perl(5), make(GNU), sh(bash)
+        perl -- It is currently programmed in Perl 5. Most system have it installed by default.
+        make, sh, git -- part of the covenience requirement, only tested in GNU make, bash
+        vim -- optional
 
 1. MyDef currently is in perl. First setup a custome installation environment:
 
@@ -37,7 +39,13 @@ INSTALL
 
 3. If you haven't, read the documentation: http://huizhou.gitbooks.io/programming-with-mydef
 
-4. Try it.
+4. Try it. e.g.
+
+        vim t.def
+            page: t
+                $print Hello World!
+
+        mydef_run t.def
 
 5. If you use vim, there is simple mydef syntax.
 
@@ -46,6 +54,12 @@ INSTALL
             au BufNewFile,BufRead *.def setf mydef
             augroup END
         ln -s /path/to/MyDef/docs/mydef.vim ~/.vim/syntax/
+
+    lastly, in .vimrc, I would consider minimally:
+
+        set shiftwidth=4
+        set expandtab
+        :nmap <F5> :!mydef_run %<CR>
 
 6. Set those environment variables in step 1 in your login shell's startup file. In addition, set:
 
