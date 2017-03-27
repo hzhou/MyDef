@@ -19,9 +19,9 @@ INSTALL
 
 0. Dependency: 
 
-        perl -- It is currently programmed in Perl 5. Most system have it installed by default.
-        make, sh, git -- part of the covenience requirement, only tested in GNU make, bash
-        vim -- optional
+        perl -- base language
+        make, sh, git -- covenience requirement, only tested with GNU make, bash
+        vim -- optional, but you need an editor that supports indentation, syntax, and short-cut keys
 
 1. MyDef currently is in perl. First setup a custome installation environment:
 
