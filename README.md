@@ -41,24 +41,24 @@ INSTALL
 
 4. Try it. e.g.
 
-        vim t.def
-            page: t
-                $print Hello World!
+        $ vim t.def
+        page: t
+            $print Hello World!
 
-        mydef_run t.def
+        $ mydef_run t.def
 
 5. If you use vim, there is simple mydef syntax.
 
-        vim ~/.vim/filetype.vim
-            augroup filetypedetect
-            au BufNewFile,BufRead *.def setf mydef
-            augroup END
-        ln -s /path/to/MyDef/docs/mydef.vim ~/.vim/syntax/
+        $ vim ~/.vim/filetype.vim
+        augroup filetypedetect
+        au BufNewFile,BufRead *.def setf mydef
+        augroup END
+        $ ln -s /path/to/MyDef/docs/mydef.vim ~/.vim/syntax/
 
     lastly, in .vimrc, I would consider minimally:
 
-        set shiftwidth=4
-        set expandtab
+        :set shiftwidth=4
+        :set expandtab 
         :nmap <F5> :!mydef_run %<CR>
 
 6. Set those environment variables in step 1 in your login shell's startup file. In addition, set:
