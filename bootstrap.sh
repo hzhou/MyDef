@@ -29,6 +29,8 @@ printf "\n${C}#---- Compile from fresh MyDef source ----${NC}\n"
 mydef_make
 touch mydef.def
 make
+# In case some system do not record file stamps higher than 1 sec.
+sleep 1
 
 printf "\n${C}#---- Install updated MyDef ----${NC}\n"
 mydef_install MyDef/lib    . pm
