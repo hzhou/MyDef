@@ -4,7 +4,7 @@
 page: test
     type: pl
 
-    $(if:0)
+    $(if:1)
         $call test_1
         $print \n== sumcode simple =============
         $call test_sumcode

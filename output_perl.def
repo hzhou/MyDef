@@ -56,7 +56,7 @@ subcode: parsecode_function
     # TODO: think about $loopvar 
     $if $func =~ /^global$/
         $call var_declare, global
-    $elif $func =~ /^my$/
+    $elif $func =~ /^my$/ and $param !~/^\s*[=+\-*\/]/
         $call var_declare, my
     $elif $func =~ /^loopvar$/
         $call add_loop_var
@@ -143,14 +143,8 @@ subcode: add_loop_var
 
 #---------------------------------------- 
 subcode: for_i0_i1_step
-    $if $step eq "1"
-        $step="++"
-    $elif $step eq "-1"
-        $step="--"
-    $else
-        $step= "+=$step"
-    $call loop_var
-    $param="my $var=$i0; $var $i1; $var$step"
+    $call for_i0_i1_step_default, loop_var
+    $param = "my $param"
 
 subcode: parsecode_foreach
     $if $param=~/^(?:my\s+)?(\S+)\s+in\s+(.*)/

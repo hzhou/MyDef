@@ -371,14 +371,10 @@ subcode: write_makefile
         $if @make_folders
             print Out "all: all_targets ", join(' ', @make_folders), "\n\n"
 
-            $if $make_folders[0] eq $config_outputdir
-                print Out "install: $config_outputdir\n"
-                print Out "\tmake -C $config_outputdir install\n"
-                print Out "\n"
-
         # expand def dependcy tree
         $call write_rule_copylist
         $call write_rule_pages
+        $call write_rule_install
         $call write_rule_submake
         $call write_rule_targets
     # ----------------
@@ -387,6 +383,21 @@ subcode: write_makefile
             print Out "$k:\n"
             print Out "\t$v\n"
             print Out "\n"
+
+    subcode: write_rule_install
+        $if -f "install_def.sh"
+            print Out "install:\n"
+            &call open_r, install_def.sh
+                $if /^(mydef_install.*)/
+                    print Out "\t$1\n"
+            print Out "\n"
+
+        $elif $make_folders[0] eq $config_outputdir
+            print Out "install: $config_outputdir\n"
+            print Out "\tmake -C $config_outputdir install\n"
+            print Out "\n"
+
+
 
 subcode: write_var_folder
     my %var_hash;

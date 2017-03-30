@@ -16,6 +16,29 @@ subcode: parsecode_for_support(style)
             $(set:type=i0_i1_step)
             $call for_$(style)
 
+subcode:@ for_i0_i1_step
+    $call warn, "Supply subcode: for_i0_i1_step!"
+
+subcode: for_i0_i1_step_default(loop_var)
+    $if $step eq "1"
+        $step="++"
+    $elif $step eq "-1"
+        $step="--"
+    $else
+        $step="+=$step"
+
+    my $my=""
+    $(if:loop_var!=-)
+        $call $(loop_var)
+    $(else)
+        $if !$var
+            $var = "i"
+
+    $param="$my$var=$i0; $var$i1; $var$step"
+
+subcode: for_c_style
+    $call push_single_block, "for($param){", "}"
+
 #---------------------------------------- 
 subcode: parsecode_for_convention
     $if @tlist==1
@@ -23,14 +46,18 @@ subcode: parsecode_for_convention
         $i1="<$param"
         $step="1"
     $elif @tlist==2
+        # $for i0:i1
         $if $tlist[1] eq "0"
             # CAUTION
             #   $i=n:0 be the reverse of $i=0:n
             $i0="$tlist[0]-1"
             $i1=">=$tlist[1]"
             $step="-1"
+        $elif $tlist[1]=~/^[-0-9]+$/ && $tlist[0]=~/^[-0-9]+$/ && $tlist[0]>$tlist[1]
+            $i0=$tlist[0]
+            $i1=">=$tlist[1]"
+            $step="-1"
         $else
-            # $for i0:i1
             $i0=$tlist[0]
             $i1="<$tlist[1]"
             $step="1"
@@ -68,9 +95,6 @@ subcode: parsecode_while_support(style)
         $call while_$(style)
 
 #---------------------------------------- 
-subcode:@ for_c_style
-    $call push_single_block, "for($param){", "}"
-
 subcode: while_c_style
     $if $cond
         push @src, "$init;"
@@ -81,8 +105,4 @@ subcode: while_c_style
         push @src, "$next;"
     push @src, "DEDENT"
     push @src, "}"
-
-subcode:@ for_i0_i1_step
-    $param="$var=$i0; $var$i1; $var+=$step"
-    print "Provide \"subcode: for_i0_i1_step \" to support \$for\n"
 

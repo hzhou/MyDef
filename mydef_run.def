@@ -46,7 +46,6 @@ page: mydef_run
     subcode: run_page
         my $page=$MyDef::page
         my $name=$page->{outname}
-        my $cmd_line = $page->{run}
         my ($exe, $cmd)
         $if $name=~/(.*)\.c(pp)?$/
             $exe=$1
@@ -64,39 +63,44 @@ page: mydef_run
                 $if $name=~/\.cpp$/
                     $cc = "g++"
                 $cmd="$cc -g $cflags -o$exe $name $page->{lib_list}"
-                $if !$cmd_line
-                    $cmd_line = "$exe"
+            $call append_run, $exe
         $elif $name=~/(.*)\.f$/
             $exe = $1
             $cmd="gfortran -g -o$exe $name $page->{lib_list}"
-            $if !$cmd_line
-                $cmd_line = "$exe"
+            $call append_run, $exe
         $elif $name=~/\.java$/
             $name=~s/\//./g
             $name=~s/\.java$//
             $cmd="javac $name"
-            $if !$cmd_line
-                $cmd_line = "java $name"
-        $elif $cmd_line
-            $cmd=$cmd_line
-            undef $cmd_line
-        $else
-            $if $name=~/\.pl$/
-                $cmd="perl $name"
-            $elif $name=~/\.sh$/
-                $cmd="sh $name"
-            $elif $name=~/\.py$/
-                $cmd="python $name"
-            $elif $name=~/\.go$/
-                $cmd="go run $name"
-            $elif $name=~/\.tex$/
-                $cmd="pdflatex $name"
+            $call append_run, java $name
+        $elif $page->{run}
+            $cmd=$page->{run}
+        $call do_script, pl, perl
+        $call do_script, sh, sh
+        $call do_script, py, python
+        $call do_script, go, go run
+        $call do_script, tex, pdflatex
+        $call do_script, awk, awk -f
 
         $if $cmd
-            $if $cmd_line
-                $cmd .= " && $cmd_line"
+            $call append_arg
             $print $cmd
             system $cmd
         $else
             die "do not know how to run it\n"
-            
+
+        # --------------------
+        subcode: do_script(ext, cmd)
+            $case $name=~/\.$(ext)$/
+                $cmd = "$(cmd) $name"
+
+        subcode: append_run(exe)
+            $if $page->{run}
+                $cmd .= " && $page->{run}"
+            $else
+                $cmd .= " && $(exe)"
+
+        subcode: append_arg
+            $if $page->{arg}
+                $cmd .= " $page->{arg}"
+

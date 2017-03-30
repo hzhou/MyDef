@@ -1,3 +1,25 @@
 macros:
-    module_list: php, www, c, xs, apple, win32, win32rc, perl, general, glsl, make, ino, matlab, cpp, plot, java, autoit, python, fortran, asm, go
-    module_type: perl=>"pl", www=>"html", win32=>"c", apple=>"m", general=>"txt", matlab=>"m", cpp=>"cpp", java=>"java", autoit=>"au3", python=>"py", fortran=>"f", asm=>"c", go=>"go"
+    module_list: general, perl
+    # php, www, c, xs, apple, win32, win32rc, perl, general, glsl, make, ino, matlab, cpp, plot, java, autoit, python, fortran, asm, go, awk
+    module_type: general=>"txt",perl=>"pl"
+
+subcode: _autoload
+    $map add_module, c, xs, php, cpp, java, go, awk, ino, glsl
+    $call add_module2, www, html
+    $call add_module2, win32, c
+    $call add_module2, win32rc, rc
+    $call add_module2, apple, m
+    $call add_module2, matlab, m
+    $call add_module2, autoit, au3
+    $call add_module2, python, py
+    $call add_module2, fortran, f
+    $call add_module2, asm, c
+    $call add_module2, plot, pl
+
+subcode: add_module(name)
+    $(setmacro:module_list=$(module_list),$(name))
+    # $(setmacro:module_type=$(module_type),$(name)=>"$(name)")
+
+subcode: add_module2(name, ext)
+    $(setmacro:module_list=$(module_list),$(name))
+    $(setmacro:module_type=$(module_type),$(name)=>"$(ext)")
