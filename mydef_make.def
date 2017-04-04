@@ -397,8 +397,6 @@ subcode: write_makefile
             print Out "\tmake -C $config_outputdir install\n"
             print Out "\n"
 
-
-
 subcode: write_var_folder
     my %var_hash;
     my @tlist;

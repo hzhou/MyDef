@@ -14,7 +14,7 @@ if [ -z "$MYDEFLIB" ]; then
     export MYDEFLIB=$HOME/lib/MyDef
 fi
 
-printf "\n${C}#---- Install from bootstrap [Perl package] ----${NC}\n"
+printf "\n${C}#---- Install from bootstrap ----${NC}\n"
 for a in parseutil compileutil dumpout utils output_perl; do
     touch bootstrap/lib/MyDef/$a.pm
 done
@@ -26,15 +26,17 @@ mydef_install bootstrap/lib    $HOME/lib/perl5 pm
 mydef_install bootstrap/deflib $HOME/lib/MyDef def
 mydef_install deflib           $HOME/lib/MyDef def
 # In case some system do not record file stamps higher than 1 sec.
-sleep 1
 
-printf "\n${C}#---- Compile from fresh MyDef source ----${NC}\n"
-mydef_make
-touch mydef.def
-make
-printf "\n${C}#---- Install updated MyDef ----${NC}\n"
-mydef_install MyDef/lib    . pm
-mydef_install MyDef/script . -
+if [ -z $1 ]; then # so "sh bootstrap.sh skip" will skip these
+    sleep 1
+    printf "\n${C}#---- Compile from fresh MyDef source ----${NC}\n"
+    mydef_make
+    touch mydef.def
+    make
+    printf "\n${C}#---- Install updated MyDef ----${NC}\n"
+    mydef_install MyDef/lib    . pm
+    mydef_install MyDef/script . -
+fi
 
 if [ "$NEWINSTALL" = 1 ]; then
     printf "\n${C}#---- MyDef INSTALLED ----${NC}\n"

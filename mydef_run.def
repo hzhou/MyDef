@@ -35,13 +35,16 @@ page: mydef_run
             die "Usage: $0 input_defile.def\n"
 
     subcode: guess_module
-        $config{module}="perl"
         &call open_r, $config{def_file}
-            $if /module:\s*(\w+)/
+            $if /module:\s*(\w+)/ and !$config{module}
                 $config{module}=$1
-                last
-            $elif /^#skiprun/
-                $config{skiprun}=1
+                # last
+            $elif /skiprun:\s*(\w+)/
+                $config{skiprun}=$1
+            $elif /^\/\*\s*expect output:\s*$/
+                $call grab_expect_block
+        $if !$config{module}
+            $config{module}="perl"
 
     subcode: run_page
         my $page=$MyDef::page
@@ -69,23 +72,30 @@ page: mydef_run
             $cmd="gfortran -g -o$exe $name $page->{lib_list}"
             $call append_run, $exe
         $elif $name=~/\.java$/
-            $name=~s/\//./g
-            $name=~s/\.java$//
-            $cmd="javac $name"
-            $call append_run, java $name
+            $if $name=~/(.*)\/(.*)\.java/
+                chdir $1
+                $cmd="javac $2.java"
+                $call append_run, java $2
+            $else
+                $cmd="javac $name"
+                $name=~s/\.java$//
+                $call append_run, java $name
         $elif $page->{run}
             $cmd=$page->{run}
         $call do_script, pl, perl
         $call do_script, sh, sh
         $call do_script, py, python
         $call do_script, go, go run
-        $call do_script, tex, pdflatex
+        $call do_script, tex, pdflatex  # -interaction=batchmode
         $call do_script, awk, awk -f
 
         $if $cmd
             $call append_arg
-            $print $cmd
-            system $cmd
+            $if $config{expect}
+                $call run_cmd_expect
+            $else
+                $print $cmd
+                system $cmd
         $else
             die "do not know how to run it\n"
 
@@ -104,3 +114,46 @@ page: mydef_run
             $if $page->{arg}
                 $cmd .= " $page->{arg}"
 
+        # --------------------------
+        subcode: run_cmd_expect
+            $if $cmd=~/(.*) && (.*)/
+                $print $1
+                system $1
+                $if $? == -1
+                    die "failed to compile\n"
+                $elif $? & 0xff
+                    die "compile failure\n"
+                $cmd = $2
+
+            my $expect = $config{expect}
+            my $i = 0
+            my ($n_ok, $n_nok)
+            $print $cmd
+            &call open_r, "$cmd |"
+                print $_
+                $call expect_normalize
+                $if $expect->[$i] ne $_
+                    $n_nok++
+                    $print "not ok: [$expect->[$i]]"
+                $else
+                    $n_ok++
+                $i++
+            print "--------------------------\n"
+            $if $n_ok>0
+                $print "    $green{ok} $n_ok/$i"
+            $if $n_nok>0
+                $print "    $red{not ok} $n_nok/$i"
+
+subcode: grab_expect_block
+    my @expect
+    $while <In>
+        $if /^\*\//
+            $config{expect} = \@expect
+            last
+        $else
+            $call @expect_normalize
+            push @expect, $_
+
+subcode: expect_normalize
+    s/\s+/ /g
+    s/\s*$//g

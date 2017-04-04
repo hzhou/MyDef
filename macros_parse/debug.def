@@ -1,3 +1,13 @@
+fncode: parse_DEBUG($t)
+    $global $debug={}
+    $if $t=~/^(\d+)/
+        $debug->{def}=1
+        $debug->{n}=$1
+    $elif $t
+        $debug->{$t}=1
+    $else
+        $debug->{def}=1
+
 fncode: debug_def($def)
     print_def_node($def, 0)
 
@@ -11,12 +21,17 @@ fncode: print_def_node($node, $indent, $continue)
             print_def_node($v, $indent+1, 1)
     $elif ref($node) eq "ARRAY"
         my $n = @$node
+        my $m = $debug->{n}
+        $if !$m
+            $m = 3
+        $elif $m>$n
+            $m = $n
         $if $continue
             print "$n elements\n"
-        $for $i=0:3
+        $for $i=0:$m
             $if $i<$n
                 print_def_node($node->[$i], $indent+1)
-        $if $n>3
+        $if $n>$m
             print_def_node("...", $indent+1)
     $else
         $if !$continue

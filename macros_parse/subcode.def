@@ -1,8 +1,6 @@
 
 subcode: subcode_start
-    $if !$codeitem->{codes}
-        $codeitem->{codes}={}
-    my $codes = $codeitem->{codes}
+    $call get_parent, codes
     my $t_code
 
     $if $line=~/^(\w+)code:([:-@]?)\s*(\w+)(.*)/
@@ -77,7 +75,7 @@ subcode: check_subcode_end
 #---------------------------------------- 
 subcode: jump_to_main_code
     $call add_main_code
-    $call start_code_indent, code, 1, $t_code
+    $call start_code_indent, code, $curindent, $t_code
 
     push @$source, "SOURCE: $cur_file - $cur_line";
     $if $line=~/\S/
@@ -85,7 +83,6 @@ subcode: jump_to_main_code
 
 subcode: add_main_code
     my $main_name = $page->{main_name}
-    # $print jump_to_main_code: "$main_name"
     my $t_code
     $if $page->{codes}->{$main_name}
         $t_code = $page->{codes}->{$main_name}

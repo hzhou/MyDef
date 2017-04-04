@@ -56,10 +56,11 @@ subcode:: preproc_elifs
     $elif $preproc=~/^unset:\s*(\w+)/
         $foreach $m in @$deflist
             delete $m->{$1}
-    $elif $preproc=~/^eval:\s*(\w+)=(.*)/
+    $elif $preproc=~/^eval:\s*(\S+)=(.*)/
         my ($t1,$t2)=($1,$2)
         expand_macro(\$t2)
-        $deflist->[-1]->{$t1}=eval($t2)
+        $t2 = eval($t2)
+        set_macro($deflist->[-1], "$t1=$t2")
     $elif $preproc=~/^split:\s*(\w+)$/
         $call split_macro, proper, $1
     $elif $preproc=~/^split:([^:]+):\s*(\w+)/

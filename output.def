@@ -116,7 +116,7 @@ subcode: inherit(M)
     1;
 
 # -------------------------
-subcode: parsecode
+subcode:@ parsecode
     push @$out, $l
 
 subcode: parsecode_PRINT

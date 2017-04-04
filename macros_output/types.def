@@ -1,0 +1,67 @@
+
+subcode:: parsecode_func_param_other
+    $elif $func eq "register_prefix"
+        my @tlist=split /,\s*/, $param1
+        $foreach $t in @tlist
+            $type_prefix{$t}=$param2
+        return
+    $elif $func eq "register_name"
+        my @tlist=split /,\s*/, $param1
+        $foreach $t in @tlist
+            $type_name{$t}=$param2
+        return
+
+fncode: get_type_word($name)
+    $if $name
+        $if $type_prefix{$name}
+            return $type_prefix{$name}
+        $elif $name=~/^([a-z0-9]+)/
+            my $prefix=$1;
+            $if $type_prefix{$prefix}
+                return $type_prefix{$prefix};
+            $elif $prefix=~/^(.*?)\d+$/ and $type_prefix{$1}
+                return $type_prefix{$1};
+
+        my $type = get_type_word(substr($name, 1))
+        $if $type
+            return get_type_word_prefix(substr($name, 0, 1), $type)
+    return undef
+
+fncode: get_type_word_prefix($c, $type)
+    $if $type
+        $if $c eq "t"
+            return $type
+        $call @type_word_prefix
+    return undef
+
+fncode: get_type_name($name)
+    $if $debug eq "type"
+        $print "    get_c_type: $name"
+    my $type
+
+    # typename
+    $if $type_name{$name}
+        return $type_name{$name};
+
+    my @parts=split /_/, $name
+    my $n_parts=@parts
+    # tpn
+    $if $n_parts<=1
+        return get_type_word($name)
+    # tp_typename
+    $if $type_name{$parts[-1]}
+        $type = $type_name{$parts[-1]}
+        $type = get_type_word_prefix($parts[0], $type)
+        $if $type
+            return $type
+    # tp_n
+    my $t1=shift @parts
+    my $t2=join('_', @parts)
+    $type=get_type_word($t2)
+    $if $type
+        $if $t1 eq "t" or $t1 eq "temp"
+            return $type
+        return get_type_word_prefix($t1, $type)
+    # pn_xxx
+    return get_type_word($t1)
+

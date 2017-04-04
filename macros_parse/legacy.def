@@ -1,0 +1,32 @@
+subcode:: parse_level_0
+    $elif $line=~/^path:\s*(.+)/
+        add_path($1)
+    $elif $line=~/^resource:\s+(\w+)(.*)/
+        $call grab_resource
+
+subcode: grab_resource
+    my $grab
+    $if $def->{resource}->{$1}
+        $grab=$def->{resource}->{$1}
+    $else
+        $grab={"_list"=>[], "_name"=>$1}
+        $def->{resource}->{$1}=$grab
+    my $t=$2
+    $if $t=~/^\s*,\s*(.*)/
+        my @tlist=split /,\s*/, $1
+        $grab->{"_parents"}=\@tlist
+
+    #----------------------------------------------- 
+    my $grab_indent=$curindent
+    my @grab
+    &call parse_loop
+        $call get_indentation
+        $if $curindent>$grab_indent
+            my $i=$curindent-$grab_indent-1;
+            push @grab, "$i:$line";
+        $else
+            grab_ogdl($grab, \@grab)
+            #print_ogdl($grab, 0)
+            last
+    $cur_line--
+

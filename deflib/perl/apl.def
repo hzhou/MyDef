@@ -1,0 +1,2 @@
+subcode: array(a, @shape)
+    $global @$(a), @$(a)_dim=($(shape))

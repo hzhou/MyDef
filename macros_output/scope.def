@@ -6,9 +6,6 @@ subcode: parsecode_scope
         return
     $case $l=~/^SUBBLOCK END (\d+) (.*)/
         # my ($blk_idx, $scope)=($1, $2)
-        $(if:scope_return_pattern)
-            $if $out->[-1]=~/$(scope_return_pattern)/
-                $cur_scope->{return}=pop @$out
         close_scope()
         return
 
@@ -18,32 +15,76 @@ subcode:: _autoload
     $cur_scope={var_list=>[], var_hash=>{}, name=>"default"}
     push @scope_stack, $global_scope
 
-    $sub open_scope($blk_idx, $scope_name)
-        push @scope_stack, $cur_scope
-        $cur_scope={var_list=>[], var_hash=>{}, name=>$scope_name}
+fncode: open_scope($blk_idx, $scope_name)
+    push @scope_stack, $cur_scope
+    $cur_scope={var_list=>[], var_hash=>{}, name=>$scope_name}
 
-    $sub close_scope($blk, $pre, $post)
-        $if !$blk
-            $blk=$cur_scope
+fncode: close_scope($blk, $pre, $post)
+    $if !$blk
+        $blk=$cur_scope
 
-        $call @process_close_scope
+    $(if:hascode:my_add_var)
+        &call protect_return
+            $call @process_scope_variables
 
-        $if $blk->{return}
+    $cur_scope=pop @scope_stack
+
+    # ----------------------------------
+    macros:
+        _get_post: MyDef::compileutil::get_named_block("_post")
+        _get_pre:  MyDef::compileutil::get_named_block("_pre")
+
+    subcode: protect_return
+        my $return_line
+        $(if:scope_return_pattern)
+            $if $out->[-1]=~/$(scope_return_pattern)/
+                $return_line = pop @$out
+        BLOCK
+        $if $return_line
             $if !$post
-                $post=MyDef::compileutil::get_named_block("_post")
-            push @$post, $blk->{return}
+                $post= $(_get_post)
+            push @$post, $return_line
 
-        $cur_scope=pop @scope_stack
+    # -- if there is no func_add_var etc., the following is noop
+    #    need fncode: var_declare, ref: variable.def
+    subcode: process_scope_variables
+        my ($var_hash, $var_list)
+        $var_hash=$blk->{var_hash};
+        $var_list=$blk->{var_list};
 
-    $sub find_var($name)
-        $call debug_scopes
-        $if $cur_scope->{var_hash}->{$name}
-            return $cur_scope->{var_hash}->{$name}
+        $if @$var_list
+            my @exit_calls
+            $if !$pre
+                $pre=$(_get_pre)
+            $foreach $v in @$var_list
+                my $var=$var_hash->{$v}
+                my $decl=var_declare($var)
+                push @$pre, "$decl;";
 
-        $for $i=$#scope_stack:0:-1
-            $if $scope_stack[$i]->{var_hash}->{$name}
-                return $scope_stack[$i]->{var_hash}->{$name}
-        return undef
+                $if $global_hash->{$v}
+                    $call warn, In $blk->{name}: local variable $v has existing global: $decl
+
+                $if $var->{exit}
+                    push @exit_calls, "$var->{exit}, $v"
+
+            $if @exit_calls
+                $if !$post
+                    $post=$(_get_post)
+                my $out_save=$out
+                MyDef::compileutil::set_output($post)
+                $foreach $call_line in @exit_calls
+                    MyDef::compileutil::call_sub($call_line)
+                MyDef::compileutil::set_output($out_save)
+
+fncode: find_var($name)
+    $call debug_scopes
+    $if $cur_scope->{var_hash}->{$name}
+        return $cur_scope->{var_hash}->{$name}
+
+    $for $i=$#scope_stack:0:-1
+        $if $scope_stack[$i]->{var_hash}->{$name}
+            return $scope_stack[$i]->{var_hash}->{$name}
+    return undef
 
 subcode: debug_scopes
     $if $debug eq "type"

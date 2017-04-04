@@ -77,7 +77,7 @@ subcode: parsecode_while_support(style)
 
     my @clause = split /\s*;\s*/, $param
     my $n = @clause
-    $if !$clause[-1]
+    $if $n>1 && !$clause[-1]
         $n--
 
     $if $n>3
@@ -96,7 +96,7 @@ subcode: parsecode_while_support(style)
 
 #---------------------------------------- 
 subcode: while_c_style
-    $if $cond
+    $if $init
         push @src, "$init;"
     push @src, "while($cond){"
     push @src, "INDENT"

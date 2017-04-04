@@ -1,9 +1,140 @@
-#---------------------------------------- 
-#- output_module:
-#-     implement open_function(,), which returns $func object
-#-     implement process_function, which fills open,pre,post,close blocks
+# All these complex heandling is for languages with types
+#     without types, function is just as simple as a flow-control
+#     reference output_perl.def
 
-#-     provide function_push/function_pop if support scope
+# We can use the simple approach with the types as well. But types are a major programming-thought-flow interrupter, so it is nice to have MyDef do something. 
+
+# For C, Rust, Go, ..., here we go.
+
+subcode:: function_init
+    $global @function_stack
+    @function_stack=()
+
+    $global %list_function_hash
+    $global @list_function_list
+    %list_function_hash=()
+    @list_function_list=()
+
+#---- autolist ------------------------------------ 
+subcode: autolist_functions(type)
+    $global %function_autolist
+    &call each_subcode, fn
+        my ($return_type)
+        my $source=$code->{source}
+        $foreach $l in @$source
+            $if $l=~/^SOURCE/
+                #skip
+            $elif $l=~/^(lexical|parameter|return):\s*(.+?)\s*$/
+                $if $1 eq "lexical"
+                    $call parse_lexical
+                $elif $1 eq "parameter"
+                    $l="\$parameter $2"
+                $elif $1 eq "return"
+                    $l="\$return_type $2"
+                    $return_type=$2
+            $elif $l=~/^\$return_type\s+(.+)/
+                $return_type = $1
+            $else
+                last
+        # $print function_autolist: $name
+        $if $return_type
+            $functions{$name}={ret_type=>$return_type}
+        $function_autolist{$name}="$(type)"
+        $(if:type=add)
+            $call add_list_function, $name
+
+    # -- lexical parameter ------
+    subcode: parse_lexical
+        my @tlist=split /,\s*/, $2
+        my @params
+        my @segs
+        $foreach $t in @tlist
+            $if $t=~/(.*)\((\w+)\)$/
+                push @params, $1
+                push @segs, $2
+            $else
+                push @params, $t
+                $if $t=~/^(.+)\s+(\S+)$/
+                    push @segs, $2
+                $else
+                    push @segs, $t
+
+        # ref: output_c/macros_c/expression.def
+        # ref: deflib/c/lex.def
+        $global %function_defaults
+        $function_defaults{$name}="append:".join(', ', @segs)
+        $l="\$parameter ". join(", ", @params)
+
+#----
+subcode:: parsecode_func_other
+    $elif $func =~/^(return_type|parameter|lexical)/
+        $if $cur_function
+            $if $1 eq "return_type"
+                $cur_function->{ret_type}=$param;
+                return
+            $elif $1 eq "parameter"
+                $call add_function_params, $cur_function
+                return
+        return 1
+
+subcode:: parsecode_func_other
+    $elsif $func eq "function"
+        $call parse_function
+        return
+    $elsif $func eq "list"
+        my @tlist=split /,\s*/, $param
+        $foreach $f in @tlist
+            $call add_list_function, $f
+            $function_autolist{$f}="global"
+        return
+
+#------------------------------------
+subcode: function_list_all
+    $(set:lambda=$MyDef::compileutil::named_blocks{"lambda-$1"})
+    $while my $f=shift @list_function_list
+        $if $(lambda:$f)
+            my $blk = $(lambda:$f)
+            push @$out, @$blk
+        $else
+            $call list_function, $f
+
+#------------------------------------
+subcode: add_list_function(f)
+    $if !$list_function_hash{$(f)}
+        $list_function_hash{$(f)}=1
+        push @list_function_list, $(f)
+    $else
+        $list_function_hash{$(f)}++
+
+#---------------------------------------- 
+#---- interface to macros_output/functions.def ----
+#--     list_function
+subcode: function_push(func)
+    func_push($(func))
+
+subcode: function_pop
+    func_pop()
+
+#----
+fncode: func_push($func)
+    push @function_stack, $cur_function
+    $cur_function = $func
+
+    push @scope_stack, $cur_scope
+    $cur_scope=$cur_function
+
+fncode: func_pop
+    $cur_function=pop @function_stack
+    $cur_scope=pop @scope_stack
+    my $level=@function_stack
+    $if $level==0
+        my $l = "\$function_pop" # for debug_case_unwrap
+        $call case_reset
+
+subcode:: parsecode_func_other
+    $elsif $func eq "function_pop"
+        func_pop()
+        return
 
 #---------------------------------------- 
 #-- $list function_name where function_name is a subcode
@@ -49,7 +180,27 @@ subcode: list_function(f)
                 BLOCK
 
 #---------------------------------------- 
-#-- $function, $wndproc, ...
+subcode:: function_init
+    $global @scope_stack, $cur_scope
+    @scope_stack=()
+
+    $global $global_hash, $global_list
+    $global_hash={}
+    $global_list=[]
+    $cur_scope={var_list=>$global_list, var_hash=>$global_hash, name=>"global"}
+
+    $global %functions, $cur_function
+    %functions=()
+    undef $cur_function
+
+#--------------------------------------------------- 
+#- block scope: variable declaration and exit ------
+subcode:: parsecode_special
+    $call parsecode_scope
+
+#---------------------------------------- 
+#-- all list function calls this
+#--     as well as: $function, $wndproc, ...
 fncode: function_block($funcname, $paramline)
     my $func=open_function($funcname, $paramline);
 
@@ -78,4 +229,116 @@ fncode: function_block($funcname, $paramline)
     $call set_macro, "FunctionName", $funcname
     $call set_macro, "recurse", $funcname
     return ($func, \@block)
+
+fncode: open_function($fname, $param)
+    $(set:setblk=MyDef::compileutil::set_named_block)
+    $(set:getblk=MyDef::compileutil::get_named_block)
+    my $func
+    $if $fname eq "main"
+        $global $main_func={param_list=>[], var_list=>[], var_hash=>{}}
+        $func = $main_func
+        $func->{init} = $(getblk)("main_init")
+        $func->{finish} = $(getblk)("main_exit")
+    $else
+        $func= {param_list=>[], var_list=>[], var_hash=>{}, init=>[], finish=>[]};
+    #---- reserve fn_init and fn_finish for user def use.----
+    $(setblk)("fn_init", $func->{init})
+    $(setblk)("fn_finish", $func->{finish})
+    #---------
+    $func->{name}=$fname;
+    # -- parsing param list
+    $(if:hascode:function_param_api)
+        $if $param=~/^api(\w+(\w+))?$/
+            $call function_param_api
+    $if $param
+        $call add_function_params, $func
+    # --
+    $if $func->{name}
+        my $name=$func->{name};
+        $functions{$name}=$func;
+        $(if:function_need_declare=1)
+            push @function_declare_list, $name
+    # --
+    return $func
+
+#----
+# ref: used here and $param ...
+subcode: add_function_params(func)
+    my $param_list=$(func)->{param_list}
+    my $var_hash=$(func)->{var_hash}
+    my @plist=split /,\s*/, $param
+    my $i=0
+    $foreach $p in @plist
+        $i++
+        my ($type, $name)
+        $call function_param_$(function_style)
+        $if $name
+            $var_hash->{$name}={name=>$name, type=>$type}
+
+
+#---------------------------------------- 
+fncode: process_function_std($func)
+    my $name=$func->{name};
+    $(for:open,close,pre,post)
+        my $$1 = $func->{$1block}
+    $if !$func->{ret_type} and $func->{ret_var}
+        $call warn, Failed to infer function $name return type from [$func->{ret_var}]
+
+    $(if:!function_style)
+        $call warn, "macro $(function_style) missing!"
+
+    $call function_open_$(function_style)
+    $call function_close_$(function_style)
+    # functions need explicit scope
+    close_scope($func, $pre, $post)
+
+    $if @{$func->{var_list}}
+        push @$pre, "NEWLINE";
+    push @$pre, @{$func->{init}}
+
+    push @$post, @{$func->{finish}}
+    $if $func->{return}
+        push @$post, $func->{return}
+
+#---- detect function ->{ret_type}
+fncode: func_return($t)
+    MyDef::compileutil::trigger_block_post()
+    $(if:function_return_style)
+        $call func_return_$(function_return_style)
+    $(else)
+        $if $cur_function->{ret_type}
+            # $call @check_ret_type_conflict
+            return "return $t"
+        $elif !$t and $t ne '0'
+            $cur_function->{ret_type}=undef
+            return "return"
+        $else
+            $cur_function->{ret_var} = $t
+            $call infer_return_$(function_style)
+            return "return $t"
+
+# ---- Direct $function ------------------
+subcode: parse_function
+    $if $param=~/(\w+)(.*)/
+        my ($fname, $paramline)=($1, $2)
+        $if $paramline=~/^\s*\((.*)\)/
+            # $function fn (param1, param2, ...)
+            $paramline=$1
+        $elif $paramline=~/^\s*,\s*(.*)/
+            # $function fn, param1, param2, ...
+            $paramline=$1
+
+        my $funcname=MyDef::utils::uniq_name($fname, \%list_function_hash)
+        my ($func, $block)=function_block($funcname, $paramline)
+        func_push($func)
+        unshift @$block, "OUTPUT:lambda-$funcname"
+        push @$block, "PARSE:\$function_pop"
+
+        $call add_list_function, $funcname
+        MyDef::compileutil::set_current_macro("lambda", $funcname)
+
+        MyDef::compileutil::set_named_block("NEWBLOCK", $block)
+        return "NEWBLOCK"
+    $else
+        die "\$function syntax error!\n"
 

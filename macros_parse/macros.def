@@ -7,9 +7,7 @@ subcode:: parse_init
 
 #---- macros ------------------------------------ 
 subcode: macros_start
-    $if !$codeitem->{macros}
-        $codeitem->{macros}={}
-    $macros = $codeitem->{macros}
+    $call get_parent, macros
 
 subcode: process_macros
     $if $line=~/^(\w+):(:)?\s*(.*\S)/
