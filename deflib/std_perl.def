@@ -156,6 +156,12 @@ subcode: dbl_push_key(name, k, v)
         $$(name){$(k)}=1
         push @$(name), $(v)
 
+subcode: dbl_push_list(name, list)
+    $(list)=~s/\s*;\s*$//
+    my @tlist=split /,\s*/, $(list)
+    $foreach $v in @tlist
+        $call dbl_push, $(name), $v
+
 # -- Parser -------------------
 # for simple parsing; for more complicated cases, ref perl/parse.def
 subcode: parse_loop(l)

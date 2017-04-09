@@ -363,13 +363,6 @@ subcode: parsecode_print
 
     return
 
-#---- utils ------------------------------------
-subcode: dbl_push_list(name, list)
-    $(list)=~s/\s*;\s*$//
-    my @tlist=MyDef::utils::proper_split($(list))
-    $foreach $v in @tlist
-        $call dbl_push, $(name), $v
-
 #---- scope  for sumcode -------
 subcode: var_declare(scope)
     $param=~s/\s*;\s*$//

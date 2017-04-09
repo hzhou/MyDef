@@ -76,16 +76,18 @@ fncode: func_add_var($name, $type, $value)
         $var_hash=$cur_function->{var_hash}
     $call add_var, $var_hash, $var_list
 
-fncode: my_add_var($name, $type, $value)
+fncode: scope_add_var($name, $type, $value)
     my $var_list=$cur_scope->{var_list}
     my $var_hash=$cur_scope->{var_hash}
-    $if $var_hash != $global_hash
-        $call add_var, $var_hash, $var_list
-    $else
-        # There must be a reason my_add_var was called in a global context
-        #     e.g. in a hack or global template
-        #     silently drop declarations
-        return $name
+    $call add_var, $var_hash, $var_list
+
+fncode:@ my_add_var($name, $type, $value)
+    my $var_hash=$cur_scope->{var_hash}
+    my $var=parse_var($name, $type, $value)
+    $name = $var->{name}
+    $var_hash->{$name} = $var
+    my $decl = var_declare($var, 1)
+    push @$out, $decl
 
 fncode: temp_add_var($name, $type, $value)
     my $var=parse_var($name, $type, $value)

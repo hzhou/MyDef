@@ -15,6 +15,7 @@ subcode: _autoload
     $call add_module2, fortran, f
     $call add_module2, asm, c
     $call add_module2, plot, pl
+    $call add_module2, rust, rs
 
 subcode: add_module(name)
     $(setmacro:module_list=$(module_list),$(name))
