@@ -28,8 +28,6 @@ subcode: start_code_indent(type, indent, item)
     $lastindent = $curindent
 
 subcode: check_end_codeindent
-    $if $in_default_page and $line=~/^END/
-
     $while $curindent <$codeindent or ($in_default_page and $line=~/^END/ and $curindent==0 and @indent_stack)
         $if $codetype eq "code"
             $call @check_subcode_end
