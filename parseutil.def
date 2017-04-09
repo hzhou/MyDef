@@ -94,11 +94,6 @@ fncode: import_file($f, $def, $file_type)
             $call start_code_indent, macro, $curindent+1, $macros
         $elif $line=~/^template:/ && $(top_scope)
             $call grab_template
-        $elif $(in_code)
-            push @$source, $line
-        $elif $(in_macro)
-            $call process_macros
-
         $elif $curindent==0 and $line=~/^include:? (.*)/
             $call add_include
         $elif $curindent==0 and $line=~/^(sub)?page:\s*(.*)/
@@ -107,6 +102,10 @@ fncode: import_file($f, $def, $file_type)
             $call start_code_indent, page, 1, $page
         $elif $curindent==0 and $line=~/^DEBUG\s*(.*)/
             parse_DEBUG($1)
+        $elif $(in_code)
+            push @$source, $line
+        $elif $(in_macro)
+            $call process_macros
         $elif $(in_page)
             $if $line=~/^(\w+):\s*(.*)/
                 $call process_page_macros
