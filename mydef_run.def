@@ -67,10 +67,6 @@ page: mydef_run
                     $cc = "g++"
                 $cmd="$cc -g $cflags -o$exe $name $page->{lib_list}"
             $call append_run, $exe
-        $elif $name=~/(.*)\.f$/
-            $exe = $1
-            $cmd="gfortran -g -o$exe $name $page->{lib_list}"
-            $call append_run, $exe
         $elif $name=~/\.java$/
             $if $name=~/(.*)\/(.*)\.java/
                 chdir $1
@@ -80,6 +76,8 @@ page: mydef_run
                 $cmd="javac $name"
                 $name=~s/\.java$//
                 $call append_run, java $name
+        $call do_compile, f, gfortran -g -o$exe $name $page->{lib_list}
+        $call do_compile, rs, rustc $name
         $elif $page->{run}
             $cmd=$page->{run}
         $call do_script, pl, perl
@@ -100,6 +98,12 @@ page: mydef_run
             die "do not know how to run it\n"
 
         # --------------------
+        subcode: do_compile(ext, cc)
+            $case $name=~/(.*)\.$(ext)$/
+                $exe = $1
+                $cmd="$(cc)"
+                $call append_run, $exe
+
         subcode: do_script(ext, cmd)
             $case $name=~/\.$(ext)$/
                 $cmd = "$(cmd) $name"

@@ -173,6 +173,7 @@ subcode: list_function(f)
                 $paramline=join(",", @$params)
                 $if $paramline eq "main"
                     $funcname="main";
+                    $paramline=""
             $else
                 $paramline=""
 

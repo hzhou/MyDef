@@ -58,8 +58,8 @@ fncode: close_scope($blk, $pre, $post)
                 $pre=$(_get_pre)
             $foreach $v in @$var_list
                 my $var=$var_hash->{$v}
-                my $decl=var_declare($var)
-                push @$pre, "$decl;";
+                my $decl=var_declare($var, 1)
+                push @$pre, $decl
 
                 $if $global_hash->{$v}
                     $call warn, In $blk->{name}: local variable $v has existing global: $decl

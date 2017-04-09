@@ -146,13 +146,18 @@ subcode: dbl_list(name)
     @$(name)=()
     %$(name)=()
 
-subcode: dbl_push(name, v)
-    my $t_name=$(v)
-    $if $(v)=~/^(\S+)\s*=/
-        $t_name=$1
-    $if !$$(name){$t_name}
-        $$(name){$t_name}=1
-        push @$(name), $(v)
+subcode: dbl_push(name, key, value)
+    $(if:value=-)
+        $(set:value=$(key))
+    $if !$$(name){$(key)}
+        $$(name){$(key)}=1
+        push @$(name), $(value)
+
+subcode: dbl_push_list(name, list)
+    $(list)=~s/\s*;\s*$//
+    my @tlist=split /,\s*/, $(list)
+    $foreach $v in @tlist
+        $call dbl_push, $(name), $v, -
 
 # -- Parser -------------------
 # for simple parsing; for more complicated cases, ref perl/parse.def
