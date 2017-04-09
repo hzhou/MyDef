@@ -24,7 +24,6 @@ page: mydef_make
     $call collect_files
 
     # -- dependency list, individual pages, output folders
-    my %h_def;
     my %h_page;
     my %folder;
 
@@ -207,59 +206,15 @@ subcode: collect_files
                 $if -f "$f/Makefile"
                     push @make_folders, $f;
 
-subcode: read_eachfile
-    $while my $f=pop @files
-        my @page_list;
-        my $page;
-        my $output_dir
-        $if !$h_def{$f} or $h_def{$f} == 1
-            my $deplist=[];
-            $h_def{$f}=$deplist;
-            # ---- read the file ----
-            $call @read_def_file
-            $if $output_dir
-                $foreach $page in @page_list
-                    $if !$page->{output_dir}
-                        $page->{output_dir}=$output_dir
+#----------------------------------------
+#- %h_def forms a dependency graph
+subcode: def_file_need_deplist
+    $global %h_def
+    $if !$h_def{$f} or $h_def{$f} == 1
+        my $deplist=[];
+        $h_def{$f}=$deplist;
+        BLOCK
 
-subcode: read_def_file
-    $if @include_default
-        $foreach $i in @include_default
-            $call include_file, $i
-
-    &call protect_path
-        my $inpage=0;
-        &call open_r, $f
-            $if $inpage
-                $call parse_inpage
-            $if !$inpage
-                $call parse_global
-
-    # ------------------
-    subcode: parse_global
-        $if /^include:?\s*(\S+\.def)/
-            $call include_file, $1
-        $elif /^path:\s*(.+)/
-            $call protect_add_path, $1
-        $elif /^page: .*\$\d.*/
-            $inpage=1;
-            $page={};
-            push @page_list, $page;
-        $elif /^page: ([\w\.-]+)/
-            $inpage=1;
-            $page={};
-            push @page_list, $page;
-            $page->{page}=$1;
-            $page->{def}=$f;
-            $page->{include}={};
-            my $key="$f-$1";
-            $while $h_page{$key}
-                $key.='1';
-            $h_page{$key}=$page;
-        $elif /^output_(dir|path): (\S+)/
-            $output_dir=$1
-
-    # ---------------------
     subcode: include_file(f)
         my $f=find_file($(f))
         $if $f
@@ -268,42 +223,119 @@ subcode: read_def_file
                 push @files, $f
                     $h_def{$f}=1
 
-    subcode: parse_inpage
-        $if /^\s*output_dir: (\S+)/
-            $call outputdir_inpage
-        $elif /^\s*\$include\s+(\S*)/ and $module ne "c" and -f $1
-            $page->{include}->{$1}=1;
-        $elif /^\s*(type|module):\s*(\w+)/
-            $page->{$1}=$2
-        $elif /^\s*type:\s*$/
-            $page->{type}="none"
-        $elif /^\s*package:/
-            $if $module eq "perl"
-                $page->{type}="pm"
-        $elif /^\s*(depend|make|other|CC|CFLAGS|LIB):\s+(.*)/
-            $page->{$1}=$2
-        $elif /^\S/ 
-            $inpage=0;
-        # ----
-        subcode: outputdir_inpage
-            my $dir=expand_macros($1);
+subcode: expand_dependency
+    $while my ($f, $l) = each %h_def
+        my %track;
+        $foreach $t in @$l
+            $track{$t}=1
+        &call iter_l
+            $foreach $tt in @$ll
+                $if !$track{$tt}
+                    $track{$tt}=1;
+                    push @$l, $tt;
+            $j++;
 
-            $if $dir !~/^[\/\.]/ and $output_dir
-                $dir=$output_dir."/".$dir
-            $page->{output_dir}=$dir;
-            $call add_dir_to_folder
+    subcode: iter_l
+        my $j=0;
+        $while $j<@$l
+            my $t=$l->[$j];
+            my $ll=$h_def{$t};
+            BLOCK
 
-            subcode: add_dir_to_folder
-                my $key = "$f-$page->{page}"
-                # $print "Add $key -> $dir "
-                my $tlist=$folder{$dir};
-                $if $tlist
-                    push @$tlist, $key
-                $else
-                    $folder{$dir}=[$key];
-                # Assign to Makefile Variable $dir 
-                #     (which is grouped by output folder)
-                $page->{in_var}=$dir;
+#---------------------------------------- 
+subcode: read_eachfile
+    $while my $f=pop @files
+        my @page_list;
+        my $page;
+        my $output_dir
+        &call def_file_need_deplist
+            # ---- read the file ----
+            $call @read_def_file
+            $if $output_dir
+                $foreach $page in @page_list
+                    $if !$page->{output_dir}
+                        $page->{output_dir}=$output_dir
+
+    subcode: read_def_file
+        my $include_noconfig
+        my $got_page=0
+        &call protect_path
+            my $inpage=0;
+            &call open_r, $f
+                $if $inpage
+                    $call parse_inpage
+                $if !$inpage
+                    $call parse_global
+
+        $if !$include_noconfig && $got_page
+            $if @include_default
+                $foreach $i in @include_default
+                    $call include_file, $i
+
+        # ------------------
+        subcode: parse_global
+            $if /^include:?\s*(\S+\.def)/
+                $call include_file, $1
+            $elif /^include:?\s*(noconfig)/
+                $include_noconfig = 1
+            $elif /^path:\s*(.+)/
+                $call protect_add_path, $1
+            $elif /^page: .*\$\d.*/
+                $inpage=1;
+                $page={};
+                push @page_list, $page;
+            $elif /^page: ([\w\.-]+)/
+                $inpage=1;
+                $got_page=1
+                $page={};
+                push @page_list, $page;
+                $page->{page}=$1;
+                $page->{def}=$f;
+                $page->{include}={};
+                my $key="$f-$1";
+                $while $h_page{$key}
+                    $key.='1';
+                $h_page{$key}=$page;
+            $elif /^output_(dir|path): (\S+)/
+                $output_dir=$1
+
+        # ---------------------
+        subcode: parse_inpage
+            $if /^\s*output_dir: (\S+)/
+                $call outputdir_inpage
+            $elif /^\s*\$include\s+(\S*)/ and $module ne "c" and -f $1
+                $page->{include}->{$1}=1;
+            $elif /^\s*(type|module):\s*(\w+)/
+                $page->{$1}=$2
+            $elif /^\s*type:\s*$/
+                $page->{type}="none"
+            $elif /^\s*package:/
+                $if $module eq "perl"
+                    $page->{type}="pm"
+            $elif /^\s*(make_dep|make_cmd|other|CC|CFLAGS|LIB):\s+(.*)/
+                $page->{$1}=$2
+            $elif /^\S/ 
+                $inpage=0;
+            # ----
+            subcode: outputdir_inpage
+                my $dir=expand_macros($1);
+
+                $if $dir !~/^[\/\.]/ and $output_dir
+                    $dir=$output_dir."/".$dir
+                $page->{output_dir}=$dir;
+                $call add_dir_to_folder
+
+                subcode: add_dir_to_folder
+                    my $key = "$f-$page->{page}"
+                    # $print "Add $key -> $dir "
+                    my $tlist=$folder{$dir};
+                    $if $tlist
+                        push @$tlist, $key
+                    $else
+                        $folder{$dir}=[$key];
+                    # Assign to Makefile Variable $dir 
+                    #     (which is grouped by output folder)
+                    $page->{in_var}=$dir;
 
 
 subcode: check_eachpage
@@ -343,21 +375,6 @@ subcode: check_eachpage
             $else
                 $folder{toproot}=[$p];
 
-subcode: expand_dependency
-    $while my ($f, $l) = each %h_def
-        my %track;
-        $foreach my $t in @$l
-            $track{$t}=1
-        my $j=0;
-        $while $j<@$l
-            my $t=$l->[$j];
-            my $ll=$h_def{$t};
-            $foreach $tt in @$ll
-                $if !$track{$tt}
-                    $track{$tt}=1;
-                    push @$l, $tt;
-            $j++;
-
 subcode: write_makefile
     &call open_w, Makefile
         print Out "MakePage=mydef_page\n";
@@ -389,7 +406,7 @@ subcode: write_makefile
             print Out "install:\n"
             &call open_r, install_def.sh
                 $if /^(mydef_install.*)/
-                    print Out "\t$1\n"
+                    print Out "\t\@$1\n"
             print Out "\n"
 
         $elif $make_folders[0] eq $config_outputdir
@@ -425,8 +442,8 @@ subcode: write_rule_pages
         my $inc=$h->{include};
         my $inc_dep=join(" ", keys %$inc);
         my $extra_dep=''
-        $if $h->{depend}
-            $extra_dep=$h->{depend}
+        $if $h->{make_dep}
+            $extra_dep=$h->{make_dep}
         $if $h->{path}
             my @t;
             my $l=$h_def{$def};
@@ -435,7 +452,9 @@ subcode: write_rule_pages
                     push @t, $tt;
                     $inc->{$tt}=1
             print Out $h->{path}, ": ", $def, " ", join(" ", @t), " $inc_dep $extra_dep\n";
-            $if $h->{module} and ($h->{module} ne $module)
+            $if $h->{make_cmd}
+                print Out "\t$h->{make_cmd}\n"
+            $elif $h->{module} and ($h->{module} ne $module)
                 print Out "\t\${MakePage} -m$h->{module} $def $h->{path}\n";
             $else
                 print Out "\t\${MakePage} $def $h->{path}\n";

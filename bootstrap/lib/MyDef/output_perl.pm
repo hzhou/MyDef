@@ -54,6 +54,47 @@ sub inject_function {
     $MyDef::def->{codes}->{$name}=$t_code;
 }
 
+sub open_scope {
+    my ($blk_idx, $scope_name) = @_;
+    push @scope_stack, $cur_scope;
+    $cur_scope={var_list=>[], var_hash=>{}, name=>$scope_name};
+}
+
+sub close_scope {
+    my ($blk, $pre, $post) = @_;
+    if(!$blk){
+        $blk=$cur_scope;
+    }
+    $cur_scope=pop @scope_stack;
+}
+
+sub find_var {
+    my ($name) = @_;
+    if($debug eq "type"){
+        print "  cur_scope\[$cur_scope->{name}]: ";
+        foreach my $v (@{$cur_scope->{var_list}}){
+            print "$v, ";
+        }
+        print "\n";
+        for(my $i=$#scope_stack; $i>=0; $i--){
+            print "  scope $i\[$scope_stack[$i]->{name}]: ";
+            foreach my $v (@{$scope_stack[$i]->{var_list}}){
+                print "$v, ";
+            }
+            print "\n";
+        }
+    }
+    if($cur_scope->{var_hash}->{$name}){
+        return $cur_scope->{var_hash}->{$name};
+    }
+    for(my $i=$#scope_stack; $i>=0; $i--){
+        if($scope_stack[$i]->{var_hash}->{$name}){
+            return $scope_stack[$i]->{var_hash}->{$name};
+        }
+    }
+    return undef;
+}
+
 sub sumcode_generate {
     my ($h) = @_;
     my $left = $h->{left};
@@ -69,7 +110,6 @@ sub sumcode_generate {
     foreach my $k (@$klist){
         my $pos;
         my $i=$#allidx;
-        ;
         while($i>=0){
             $pos=index($k, $allidx[$i]);
             if($pos>=0){
@@ -85,7 +125,6 @@ sub sumcode_generate {
             $k_inc_hash{"$k-$allidx[$i]"}=1;
             $pos--;
             $i--;
-            ;
             while($pos>=0 and $i>=0 and substr($k, $pos, 1) eq $allidx[$i]){
                 if(index(substr($k, $pos+1), $allidx[$i])>=0 or ($pos>0 && index(substr($k, 0, $pos), $allidx[$i])>=0)){
                     $k_calc_hash{"$k-$allidx[$i]"}=1;
@@ -131,7 +170,7 @@ sub sumcode_generate {
                     $loop_k_hash{$k}=1;
                 }
                 my $t;
-                for(my $j=0; $j <length($k)-1; $j++){
+                for(my $j=0; $j<length($k)-1; $j++){
                     my $idx=substr($k, $j, 1);
                     if($loop_i_hash{$idx}){
                         my $dim=$h->{substr($k, $j+1, 1)."-dim"};
@@ -174,7 +213,7 @@ sub sumcode_generate {
                         $loop_k_hash{$k}=1;
                     }
                     my $t;
-                    for(my $j=0; $j <length($k)-1; $j++){
+                    for(my $j=0; $j<length($k)-1; $j++){
                         my $idx=substr($k, $j, 1);
                         if($loop_i_hash{$idx}){
                             my $dim=$h->{substr($k, $j+1, 1)."-dim"};
@@ -211,7 +250,6 @@ sub sumcode_generate {
                         my @tlist;
                         my $pos=index($k, $i);
                         $pos++;
-                        ;
                         while($pos<length($k)){
                             my $j=substr($k, $pos, 1);
                             my $dim=$h->{"$j-dim"};
@@ -245,7 +283,6 @@ sub sumcode_generate {
                     my @tlist;
                     my $pos=index($k, $i);
                     $pos++;
-                    ;
                     while($pos<length($k)){
                         my $j=substr($k, $pos, 1);
                         my $dim=$h->{"$j-dim"};
@@ -299,50 +336,6 @@ sub get_time {
 $global_scope={var_list=>[], var_hash=>{}, name=>"global"};
 $cur_scope={var_list=>[], var_hash=>{}, name=>"default"};
 push @scope_stack, $global_scope;
-sub open_scope {
-    my ($blk_idx, $scope_name)=@_;
-    push @scope_stack, $cur_scope;
-    $cur_scope={var_list=>[], var_hash=>{}, name=>$scope_name};
-}
-sub close_scope {
-    my ($blk, $pre, $post)=@_;
-    if(!$blk){
-        $blk=$cur_scope;
-    }
-    if($blk->{return}){
-        if(!$post){
-            $post=MyDef::compileutil::get_named_block("_post");
-        }
-        push @$post, $blk->{return};
-    }
-    $cur_scope=pop @scope_stack;
-}
-sub find_var {
-    my ($name)=@_;
-    if($debug eq "type"){
-        print "  cur_scope\[$cur_scope->{name}]: ";
-        foreach my $v (@{$cur_scope->{var_list}}){
-            print "$v, ";
-        }
-        print "\n";
-        for(my $i=$#scope_stack; $i >=0; $i--){
-            print "  scope $i\[$scope_stack[$i]->{name}]: ";
-            foreach my $v (@{$scope_stack[$i]->{var_list}}){
-                print "$v, ";
-            }
-            print "\n";
-        }
-    }
-    if($cur_scope->{var_hash}->{$name}){
-        return $cur_scope->{var_hash}->{$name};
-    }
-    for(my $i=$#scope_stack; $i >=0; $i--){
-        if($scope_stack[$i]->{var_hash}->{$name}){
-            return $scope_stack[$i]->{var_hash}->{$name};
-        }
-    }
-    return undef;
-}
 sub get_interface {
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
 }
@@ -363,7 +356,6 @@ sub init_page {
     %fn_hash=();
     my $codes=$MyDef::def->{codes};
     my @tlist;
-    ;
     while(my ($k, $v)= each %$codes){
         if($v->{type} eq "fn"){
             push @tlist, $k;
@@ -561,13 +553,17 @@ sub parsecode {
                             $var->{"dim$i"}=$t;
                         }
                     }
-                    my $t_name=$v;
                     if($v=~/^(\S+)\s*=/){
-                        $t_name=$1;
+                        if(!$globals{$1}){
+                            $globals{$1}=1;
+                            push @globals, $v;
+                        }
                     }
-                    if(!$globals{$t_name}){
-                        $globals{$t_name}=1;
-                        push @globals, $v;
+                    else{
+                        if(!$globals{$v}){
+                            $globals{$v}=1;
+                            push @globals, $v;
+                        }
                     }
                     if($var){
                         $global_scope->{var_hash}->{$name}=$var;
@@ -575,7 +571,7 @@ sub parsecode {
                 }
                 return 0;
             }
-            elsif($func =~ /^my$/){
+            elsif($func =~ /^my$/ and $param !~/^\s*[=+\-*\/]/){
                 $param=~s/\s*;\s*$//;
                 my @tlist=MyDef::utils::proper_split($param);
                 foreach my $v (@tlist){
@@ -610,12 +606,8 @@ sub parsecode {
                 $param=~s/\s*;\s*$//;
                 my @tlist=MyDef::utils::proper_split($param);
                 foreach my $v (@tlist){
-                    my $t_name=$v;
-                    if($v=~/^(\S+)\s*=/){
-                        $t_name=$1;
-                    }
-                    if(!$uses{$t_name}){
-                        $uses{$t_name}=1;
+                    if(!$uses{$v}){
+                        $uses{$v}=1;
                         push @uses, $v;
                     }
                 }
@@ -656,7 +648,7 @@ sub parsecode {
                     my ($init, $cond, $next);
                     my @clause = split /\s*;\s*/, $param;
                     my $n = @clause;
-                    if(!$clause[-1]){
+                    if($n>1 && !$clause[-1]){
                         $n--;
                     }
                     if($n>3){
@@ -676,7 +668,7 @@ sub parsecode {
                         $cond = 1;
                     }
                     my @src;
-                    if($cond){
+                    if($init){
                         push @src, "$init;";
                     }
                     push @src, "while($cond){";
@@ -721,6 +713,11 @@ sub parsecode {
                             $i1=">=$tlist[1]";
                             $step="-1";
                         }
+                        elsif($tlist[1]=~/^[-0-9]+$/ && $tlist[0]=~/^[-0-9]+$/ && $tlist[0]>$tlist[1]){
+                            $i0=$tlist[0];
+                            $i1=">=$tlist[1]";
+                            $step="-1";
+                        }
                         else{
                             $i0=$tlist[0];
                             $i1="<$tlist[1]";
@@ -744,15 +741,17 @@ sub parsecode {
                         $step="--";
                     }
                     else{
-                        $step= "+=$step";
+                        $step="+=$step";
                     }
+                    my $my="";
                     if(!$var){
                         $var="\$i";
                     }
                     elsif($var=~/^(\w+)/){
                         $var='$'.$var;
                     }
-                    $param="my $var=$i0; $var $i1; $var$step";
+                    $param="$my$var=$i0; $var$i1; $var$step";
+                    $param = "my $param";
                     my @src;
                     push @src, "for($param){";
                     push @src, "INDENT";
@@ -1066,7 +1065,6 @@ sub parsecode {
                 my @arg_list;
                 my @group;
                 my $n_escape=0;
-                ;
                 while(1){
                     if($str=~/\G$/sgc){
                         last;
@@ -1153,7 +1151,6 @@ sub parsecode {
             if($page->{autolist}){
                 my $codes=$MyDef::def->{codes};
                 my @tlist;
-                ;
                 while(my ($k, $v)= each %$codes){
                     if($v->{type} eq "fn"){
                         push @tlist, $k;
@@ -1179,7 +1176,6 @@ sub parsecode {
                 }
             }
             else{
-                ;
                 while(my $name = pop @functions){
                     my $code = $functions{$name};
                     push @$out, "sub $name {";

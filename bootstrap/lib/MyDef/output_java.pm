@@ -7,12 +7,69 @@ our $out;
 our @import_list;
 our %import_hash;
 our $debug;
+our $time_start = time();
 
 sub add_import {
     my ($l) = @_;
     if(!$import_hash{$l}){
         $import_hash{$l}=1;
         push @import_list, $l;
+    }
+}
+
+sub parse_print {
+    my ($t) = @_;
+    my $P = "System.out.println";
+    if($t=~/^(["\s]+)(-?)$/){
+        if($2){
+            $t = $1;
+        }
+        $P = "System.out.print";
+    }
+    else{
+        if($t!~/^"|"$/){
+            $t="\"$t\"";
+        }
+        if($t=~/(.*)-"$/){
+            $t = "$1\"";
+            $P = "System.out.print";
+        }
+    }
+    push @$out, "$P($t);";
+}
+
+sub bases {
+    my ($n, @bases) = @_;
+    my @t;
+    foreach my $b (@bases){
+        push @t, $n % $b;
+        $n = int($n/$b);
+        if($n<=0){
+            last;
+        }
+    }
+    if($n>0){
+        push @t, $n;
+    }
+    return @t;
+}
+
+sub get_time {
+    my $t = time()-$time_start;
+    my @t;
+    push @t, $t % 60;
+    $t = int($t/60);
+    push @t, $t % 60;
+    $t = int($t/60);
+    push @t, $t % 60;
+    $t = int($t/60);
+    if($t>0){
+        push @t, $t % 24;
+        $t = int($t/24);
+        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0]);
+    }
+    else{
+        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0]);
     }
 }
 
@@ -36,12 +93,6 @@ sub init_page {
         $page->{type}="java";
     }
     MyDef::output_c::init_page(@_);
-    if(!$page->{package}){
-        if($page->{outdir}=~/^[^\/\.]/){
-            $page->{package}=$page->{outdir};
-            $page->{package}=~s/\//./g;
-        }
-    }
     @import_list=();
     %import_hash=();
     return $page->{init_mode};
@@ -71,11 +122,7 @@ sub parsecode {
         return;
     }
     if($l=~/^\$print\s*(.*)/){
-        my $t=$1;
-        if($t!~/^"/ and $t=~/\s/){
-            $t="\"$t\"";
-        }
-        push @$out, "System.out.println($t);";
+        parse_print($1);
         return;
     }
     elsif($l=~/^(\w+)\s*=\s*new\s*(\w+)\s*(.*)\s*;?/){
@@ -108,7 +155,7 @@ sub dumpout {
             push @$f, "import $imp;\n";
         }
     }
-    unshift @$out, "public class $page->{pagename} {\n", "INDENT";
+    unshift @$out, "public class $page->{_pagename} {\n", "INDENT";
     push @$out, "DEDENT", "}\n";
     my $funclist=\@MyDef::output_c::function_list;
     foreach my $func (@$funclist){
@@ -122,7 +169,7 @@ sub dumpout {
             if(!$func->{ret_type}){
                 $func->{ret_type}="void";
             }
-            $func->{ret_type}="public $func->{ret_type}";
+            $func->{ret_type}="public static $func->{ret_type}";
         }
         MyDef::output_c::process_function_std($func);
         $func->{skip_declare}=1;

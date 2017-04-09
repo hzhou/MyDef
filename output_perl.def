@@ -40,7 +40,6 @@ subcode: parsecode
         $elif $l=~/^loop:/
             $call define_loop_var
             return 0
-
         # $call check_hash_equal
         $call check_termination
     $call check_fcall
@@ -387,8 +386,10 @@ subcode: var_declare(scope)
                 $i++
                 $var->{"dim$i"}=$t
         $(if:scope=global)
-            # $print global variable: $v
-            $call dbl_push, globals, $v
+            $if $v=~/^(\S+)\s*=/
+                $call dbl_push_key, globals, $1, $v
+            $else
+                $call dbl_push, globals, $v
             $if $var
                 $global_scope->{var_hash}->{$name}=$var
         $(else)

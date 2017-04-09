@@ -13,19 +13,34 @@ foreach my $a (@ARGV){
 if(!$config{def_file}){
     die "Usage: $0 input_defile.def\n";
 }
-$config{module}="perl";
 open In, "$config{def_file}" or die "Can't open $config{def_file}.\n";
-;
 while(<In>){
-    if(/module:\s*(\w+)/){
+    if(/module:\s*(\w+)/ and !$config{module}){
         $config{module}=$1;
-        last;
     }
-    elsif(/^#skiprun/){
-        $config{skiprun}=1;
+    elsif(/skiprun:\s*(\w+)/){
+        $config{skiprun}=$1;
+    }
+    elsif(/^\/\*\s*expect (\S+):\s*$/){
+        $config{expect_type}=$1;
+        my @expect;
+        while(<In>){
+            if(/^\*\//){
+                $config{expect} = \@expect;
+                last;
+            }
+            else{
+                s/\s+/ /g;
+                s/\s*$//g;
+                push @expect, $_;
+            }
+        }
     }
 }
 close In;
+if(!$config{module}){
+    $config{module}="perl";
+}
 MyDef::init(%config);
 MyDef::import_data($config{def_file});
 my $pagename=$MyDef::def->{pagelist}->[0];
@@ -42,7 +57,6 @@ if(!$config{skiprun}){
     if($pagename){
         my $page=$MyDef::page;
         my $name=$page->{outname};
-        my $cmd_line = $page->{run};
         my ($exe, $cmd);
         if($name=~/(.*)\.c(pp)?$/){
             $exe=$1;
@@ -64,53 +78,141 @@ if(!$config{skiprun}){
                     $cc = "g++";
                 }
                 $cmd="$cc -g $cflags -o$exe $name $page->{lib_list}";
-                if(!$cmd_line){
-                    $cmd_line = "$exe";
-                }
+            }
+            if($page->{run}){
+                $cmd .= " && $page->{run}";
+            }
+            else{
+                $cmd .= " && $exe";
             }
         }
         elsif($name=~/(.*)\.f$/){
             $exe = $1;
             $cmd="gfortran -g -o$exe $name $page->{lib_list}";
-            if(!$cmd_line){
-                $cmd_line = "$exe";
+            if($page->{run}){
+                $cmd .= " && $page->{run}";
+            }
+            else{
+                $cmd .= " && $exe";
             }
         }
         elsif($name=~/\.java$/){
-            $name=~s/\//./g;
-            $name=~s/\.java$//;
-            $cmd="javac $name";
-            if(!$cmd_line){
-                $cmd_line = "java $name";
+            if($name=~/(.*)\/(.*)\.java/){
+                chdir $1;
+                $cmd="javac $2.java";
+                if($page->{run}){
+                    $cmd .= " && $page->{run}";
+                }
+                else{
+                    $cmd .= " && java $2";
+                }
+            }
+            else{
+                $cmd="javac $name";
+                $name=~s/\.java$//;
+                if($page->{run}){
+                    $cmd .= " && $page->{run}";
+                }
+                else{
+                    $cmd .= " && java $name";
+                }
             }
         }
-        elsif($cmd_line){
-            $cmd=$cmd_line;
-            undef $cmd_line;
+        elsif($page->{run}){
+            $cmd=$page->{run};
         }
-        else{
-            if($name=~/\.pl$/){
-                $cmd="perl $name";
+        elsif($name=~/\.pl$/){
+            $cmd = "perl $name";
+        }
+        elsif($name=~/\.sh$/){
+            $cmd = "sh $name";
+        }
+        elsif($name=~/\.py$/){
+            $cmd = "python $name";
+        }
+        elsif($name=~/\.go$/){
+            $cmd = "go run $name";
+        }
+        elsif($name=~/\.tex$/){
+            $cmd = "pdflatex $name";
+        }
+        elsif($name=~/\.awk$/){
+            $cmd = "awk -f $name";
+        }
+        if($config{expect} and $name=~/\b$config{expect_type}$/){
+            my $expect = $config{expect};
+            my $i = 0;
+            my ($n_ok, $n_nok);
+            open In, "$name" or die "Can't open $name.\n";
+            while(<In>){
+                print $_;
+                s/\s+/ /g;
+                s/\s*$//g;
+                if($expect->[$i] ne $_){
+                    $n_nok++;
+                    print "not ok: [$expect->[$i]]\n";
+                }
+                else{
+                    $n_ok++;
+                }
+                $i++;
             }
-            elsif($name=~/\.sh$/){
-                $cmd="sh $name";
+            close In;
+            print "--------------------------\n";
+            if($n_ok>0){
+                print "    \x1b[32mok\x1b[0m $n_ok/$i\n";
             }
-            elsif($name=~/\.py$/){
-                $cmd="python $name";
-            }
-            elsif($name=~/\.go$/){
-                $cmd="go run $name";
-            }
-            elsif($name=~/\.tex$/){
-                $cmd="pdflatex $name";
+            if($n_nok>0){
+                print "    \x1b[31mnot ok\x1b[0m $n_nok/$i\n";
             }
         }
-        if($cmd){
-            if($cmd_line){
-                $cmd .= " && $cmd_line";
+        elsif($cmd){
+            if($page->{arg}){
+                $cmd .= " $page->{arg}";
             }
-            print "$cmd\n";
-            system $cmd;
+            if($config{expect_type} eq "output"){
+                if($cmd=~/(.*) && (.*)/){
+                    print "$1\n";
+                    system $1;
+                    if($? == -1){
+                        die "failed to compile\n";
+                    }
+                    elsif($? & 0xff){
+                        die "compile failure\n";
+                    }
+                    $cmd = $2;
+                }
+                my $expect = $config{expect};
+                my $i = 0;
+                my ($n_ok, $n_nok);
+                print "$cmd\n";
+                open In, "$cmd |" or die "Can't open $cmd |.\n";
+                while(<In>){
+                    print $_;
+                    s/\s+/ /g;
+                    s/\s*$//g;
+                    if($expect->[$i] ne $_){
+                        $n_nok++;
+                        print "not ok: [$expect->[$i]]\n";
+                    }
+                    else{
+                        $n_ok++;
+                    }
+                    $i++;
+                }
+                close In;
+                print "--------------------------\n";
+                if($n_ok>0){
+                    print "    \x1b[32mok\x1b[0m $n_ok/$i\n";
+                }
+                if($n_nok>0){
+                    print "    \x1b[31mnot ok\x1b[0m $n_nok/$i\n";
+                }
+            }
+            else{
+                print "$cmd\n";
+                system $cmd;
+            }
         }
         else{
             die "do not know how to run it\n";

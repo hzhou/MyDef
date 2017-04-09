@@ -41,7 +41,8 @@ page: mydef_run
                 # last
             $elif /skiprun:\s*(\w+)/
                 $config{skiprun}=$1
-            $elif /^\/\*\s*expect output:\s*$/
+            $elif /^\/\*\s*expect (\S+):\s*$/
+                $config{expect_type}=$1
                 $call grab_expect_block
         $if !$config{module}
             $config{module}="perl"
@@ -89,9 +90,11 @@ page: mydef_run
         $call do_script, tex, pdflatex  # -interaction=batchmode
         $call do_script, awk, awk -f
 
-        $if $cmd
+        $if $config{expect} and $name=~/\b$config{expect_type}$/
+            $call cmp_expect, $name
+        $elif $cmd
             $call append_arg
-            $if $config{expect}
+            $if $config{expect_type} eq "output"
                 $call run_cmd_expect
             $else
                 $print $cmd
@@ -125,25 +128,9 @@ page: mydef_run
                     die "compile failure\n"
                 $cmd = $2
 
-            my $expect = $config{expect}
-            my $i = 0
-            my ($n_ok, $n_nok)
-            $print $cmd
-            &call open_r, "$cmd |"
-                print $_
-                $call expect_normalize
-                $if $expect->[$i] ne $_
-                    $n_nok++
-                    $print "not ok: [$expect->[$i]]"
-                $else
-                    $n_ok++
-                $i++
-            print "--------------------------\n"
-            $if $n_ok>0
-                $print "    $green{ok} $n_ok/$i"
-            $if $n_nok>0
-                $print "    $red{not ok} $n_nok/$i"
+            $call cmp_expect, cmd
 
+#---------------------------------------- 
 subcode: grab_expect_block
     my @expect
     $while <In>
@@ -154,6 +141,32 @@ subcode: grab_expect_block
             $call @expect_normalize
             push @expect, $_
 
+subcode: cmp_expect(type)
+    my $expect = $config{expect}
+    my $i = 0
+    my ($n_ok, $n_nok)
+    $(if:type=cmd)
+        $print $cmd
+        $(set:output="$cmd |")
+    $(else)
+        $(set:output=$name)
+
+    &call open_r, $(output)
+        print $_
+        $call expect_normalize
+        $if $expect->[$i] ne $_
+            $n_nok++
+            $print "not ok: [$expect->[$i]]"
+        $else
+            $n_ok++
+        $i++
+    print "--------------------------\n"
+    $if $n_ok>0
+        $print "    $green{ok} $n_ok/$i"
+    $if $n_nok>0
+        $print "    $red{not ok} $n_nok/$i"
+
 subcode: expect_normalize
     s/\s+/ /g
     s/\s*$//g
+

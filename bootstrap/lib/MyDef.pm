@@ -12,14 +12,12 @@ our $time_start = time();
 
 sub init {
     my (%config) = @_;
-    ;
     while(my ($k, $v) = each %config){
         $var->{$k}=$v;
     }
     my $module=$var->{module};
     if(!$module and -f $config{def_file}){
         open In, "$config{def_file}" or die "Can't open $config{def_file}.\n";
-        ;
         while(<In>){
             if(/^\s*module:\s+(\w+)\s*$/){
                 $var->{module}=$1;
@@ -31,13 +29,13 @@ sub init {
     if(!$module){
         die "Module type not defined in config!\n";
     }
-    elsif($module eq "php"){
-        require MyDef::output_php;
-        MyDef::compileutil::set_interface(MyDef::output_php::get_interface());
+    elsif($module eq "general"){
+        require MyDef::output_general;
+        MyDef::compileutil::set_interface(MyDef::output_general::get_interface());
     }
-    elsif($module eq "www"){
-        require MyDef::output_www;
-        MyDef::compileutil::set_interface(MyDef::output_www::get_interface());
+    elsif($module eq "perl"){
+        require MyDef::output_perl;
+        MyDef::compileutil::set_interface(MyDef::output_perl::get_interface());
     }
     elsif($module eq "c"){
         require MyDef::output_c;
@@ -47,9 +45,41 @@ sub init {
         require MyDef::output_xs;
         MyDef::compileutil::set_interface(MyDef::output_xs::get_interface());
     }
-    elsif($module eq "apple"){
-        require MyDef::output_apple;
-        MyDef::compileutil::set_interface(MyDef::output_apple::get_interface());
+    elsif($module eq "php"){
+        require MyDef::output_php;
+        MyDef::compileutil::set_interface(MyDef::output_php::get_interface());
+    }
+    elsif($module eq "js"){
+        require MyDef::output_js;
+        MyDef::compileutil::set_interface(MyDef::output_js::get_interface());
+    }
+    elsif($module eq "cpp"){
+        require MyDef::output_cpp;
+        MyDef::compileutil::set_interface(MyDef::output_cpp::get_interface());
+    }
+    elsif($module eq "java"){
+        require MyDef::output_java;
+        MyDef::compileutil::set_interface(MyDef::output_java::get_interface());
+    }
+    elsif($module eq "go"){
+        require MyDef::output_go;
+        MyDef::compileutil::set_interface(MyDef::output_go::get_interface());
+    }
+    elsif($module eq "awk"){
+        require MyDef::output_awk;
+        MyDef::compileutil::set_interface(MyDef::output_awk::get_interface());
+    }
+    elsif($module eq "ino"){
+        require MyDef::output_ino;
+        MyDef::compileutil::set_interface(MyDef::output_ino::get_interface());
+    }
+    elsif($module eq "glsl"){
+        require MyDef::output_glsl;
+        MyDef::compileutil::set_interface(MyDef::output_glsl::get_interface());
+    }
+    elsif($module eq "www"){
+        require MyDef::output_www;
+        MyDef::compileutil::set_interface(MyDef::output_www::get_interface());
     }
     elsif($module eq "win32"){
         require MyDef::output_win32;
@@ -59,41 +89,13 @@ sub init {
         require MyDef::output_win32rc;
         MyDef::compileutil::set_interface(MyDef::output_win32rc::get_interface());
     }
-    elsif($module eq "perl"){
-        require MyDef::output_perl;
-        MyDef::compileutil::set_interface(MyDef::output_perl::get_interface());
-    }
-    elsif($module eq "general"){
-        require MyDef::output_general;
-        MyDef::compileutil::set_interface(MyDef::output_general::get_interface());
-    }
-    elsif($module eq "glsl"){
-        require MyDef::output_glsl;
-        MyDef::compileutil::set_interface(MyDef::output_glsl::get_interface());
-    }
-    elsif($module eq "make"){
-        require MyDef::output_make;
-        MyDef::compileutil::set_interface(MyDef::output_make::get_interface());
-    }
-    elsif($module eq "ino"){
-        require MyDef::output_ino;
-        MyDef::compileutil::set_interface(MyDef::output_ino::get_interface());
+    elsif($module eq "apple"){
+        require MyDef::output_apple;
+        MyDef::compileutil::set_interface(MyDef::output_apple::get_interface());
     }
     elsif($module eq "matlab"){
         require MyDef::output_matlab;
         MyDef::compileutil::set_interface(MyDef::output_matlab::get_interface());
-    }
-    elsif($module eq "cpp"){
-        require MyDef::output_cpp;
-        MyDef::compileutil::set_interface(MyDef::output_cpp::get_interface());
-    }
-    elsif($module eq "plot"){
-        require MyDef::output_plot;
-        MyDef::compileutil::set_interface(MyDef::output_plot::get_interface());
-    }
-    elsif($module eq "java"){
-        require MyDef::output_java;
-        MyDef::compileutil::set_interface(MyDef::output_java::get_interface());
     }
     elsif($module eq "autoit"){
         require MyDef::output_autoit;
@@ -111,9 +113,9 @@ sub init {
         require MyDef::output_asm;
         MyDef::compileutil::set_interface(MyDef::output_asm::get_interface());
     }
-    elsif($module eq "go"){
-        require MyDef::output_go;
-        MyDef::compileutil::set_interface(MyDef::output_go::get_interface());
+    elsif($module eq "plot"){
+        require MyDef::output_plot;
+        MyDef::compileutil::set_interface(MyDef::output_plot::get_interface());
     }
     else{
         die "Undefined module type $module\n";
@@ -141,13 +143,13 @@ sub pipe_page {
     if(!$module){
         die "Module type not defined in config!\n";
     }
-    elsif($module eq "php"){
-        require MyDef::output_php;
-        MyDef::compileutil::set_interface(MyDef::output_php::get_interface());
+    elsif($module eq "general"){
+        require MyDef::output_general;
+        MyDef::compileutil::set_interface(MyDef::output_general::get_interface());
     }
-    elsif($module eq "www"){
-        require MyDef::output_www;
-        MyDef::compileutil::set_interface(MyDef::output_www::get_interface());
+    elsif($module eq "perl"){
+        require MyDef::output_perl;
+        MyDef::compileutil::set_interface(MyDef::output_perl::get_interface());
     }
     elsif($module eq "c"){
         require MyDef::output_c;
@@ -157,9 +159,41 @@ sub pipe_page {
         require MyDef::output_xs;
         MyDef::compileutil::set_interface(MyDef::output_xs::get_interface());
     }
-    elsif($module eq "apple"){
-        require MyDef::output_apple;
-        MyDef::compileutil::set_interface(MyDef::output_apple::get_interface());
+    elsif($module eq "php"){
+        require MyDef::output_php;
+        MyDef::compileutil::set_interface(MyDef::output_php::get_interface());
+    }
+    elsif($module eq "js"){
+        require MyDef::output_js;
+        MyDef::compileutil::set_interface(MyDef::output_js::get_interface());
+    }
+    elsif($module eq "cpp"){
+        require MyDef::output_cpp;
+        MyDef::compileutil::set_interface(MyDef::output_cpp::get_interface());
+    }
+    elsif($module eq "java"){
+        require MyDef::output_java;
+        MyDef::compileutil::set_interface(MyDef::output_java::get_interface());
+    }
+    elsif($module eq "go"){
+        require MyDef::output_go;
+        MyDef::compileutil::set_interface(MyDef::output_go::get_interface());
+    }
+    elsif($module eq "awk"){
+        require MyDef::output_awk;
+        MyDef::compileutil::set_interface(MyDef::output_awk::get_interface());
+    }
+    elsif($module eq "ino"){
+        require MyDef::output_ino;
+        MyDef::compileutil::set_interface(MyDef::output_ino::get_interface());
+    }
+    elsif($module eq "glsl"){
+        require MyDef::output_glsl;
+        MyDef::compileutil::set_interface(MyDef::output_glsl::get_interface());
+    }
+    elsif($module eq "www"){
+        require MyDef::output_www;
+        MyDef::compileutil::set_interface(MyDef::output_www::get_interface());
     }
     elsif($module eq "win32"){
         require MyDef::output_win32;
@@ -169,41 +203,13 @@ sub pipe_page {
         require MyDef::output_win32rc;
         MyDef::compileutil::set_interface(MyDef::output_win32rc::get_interface());
     }
-    elsif($module eq "perl"){
-        require MyDef::output_perl;
-        MyDef::compileutil::set_interface(MyDef::output_perl::get_interface());
-    }
-    elsif($module eq "general"){
-        require MyDef::output_general;
-        MyDef::compileutil::set_interface(MyDef::output_general::get_interface());
-    }
-    elsif($module eq "glsl"){
-        require MyDef::output_glsl;
-        MyDef::compileutil::set_interface(MyDef::output_glsl::get_interface());
-    }
-    elsif($module eq "make"){
-        require MyDef::output_make;
-        MyDef::compileutil::set_interface(MyDef::output_make::get_interface());
-    }
-    elsif($module eq "ino"){
-        require MyDef::output_ino;
-        MyDef::compileutil::set_interface(MyDef::output_ino::get_interface());
+    elsif($module eq "apple"){
+        require MyDef::output_apple;
+        MyDef::compileutil::set_interface(MyDef::output_apple::get_interface());
     }
     elsif($module eq "matlab"){
         require MyDef::output_matlab;
         MyDef::compileutil::set_interface(MyDef::output_matlab::get_interface());
-    }
-    elsif($module eq "cpp"){
-        require MyDef::output_cpp;
-        MyDef::compileutil::set_interface(MyDef::output_cpp::get_interface());
-    }
-    elsif($module eq "plot"){
-        require MyDef::output_plot;
-        MyDef::compileutil::set_interface(MyDef::output_plot::get_interface());
-    }
-    elsif($module eq "java"){
-        require MyDef::output_java;
-        MyDef::compileutil::set_interface(MyDef::output_java::get_interface());
     }
     elsif($module eq "autoit"){
         require MyDef::output_autoit;
@@ -221,9 +227,9 @@ sub pipe_page {
         require MyDef::output_asm;
         MyDef::compileutil::set_interface(MyDef::output_asm::get_interface());
     }
-    elsif($module eq "go"){
-        require MyDef::output_go;
-        MyDef::compileutil::set_interface(MyDef::output_go::get_interface());
+    elsif($module eq "plot"){
+        require MyDef::output_plot;
+        MyDef::compileutil::set_interface(MyDef::output_plot::get_interface());
     }
     else{
         die "Undefined module type $module\n";
@@ -275,7 +281,6 @@ sub set_page_extension {
 sub import_config {
     my ($file) = @_;
     open In, $file or return;
-    ;
     while(<In>){
         if(/^(\w+):\s*(.*\S)/){
             $var->{$1}=$2;
