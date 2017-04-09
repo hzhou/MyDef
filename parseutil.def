@@ -14,9 +14,8 @@ page: parseutil
     type: pm
     output_dir: lib/MyDef
     package: MyDef::parseutil
-    subcode: main
-        # $call support_subs
-        1;
+
+    1;
 
 #---------------------------------------- 
 fncode: import_data($file)
@@ -35,20 +34,17 @@ fncode: import_data($file)
         $def->{name}="default"
 
     $call @parse_init
-    # -------- include files ---------
-    my @includes;
-    my %includes;
 
     # -----------------------------------------------
-    import_file($file, $def, \@includes,\%includes, "main")
+    import_file($file, $def, "main")
     $call load_standard_includes
     $while 1
         $if @includes
             my $file=shift(@includes)
-            import_file($file, $def, \@includes,\%includes, "include")
+            import_file($file, $def, "include")
         $elif @standard_includes
             my $file=shift(@standard_includes)
-            import_file($file, $def, \@includes,\%includes, "standard_include")
+            import_file($file, $def, "standard_include")
         $else
             last
     $if $in_default_page
@@ -64,9 +60,9 @@ fncode: import_data($file)
                 debug_code($def->{codes}->{$1})
     return $def;
 
-fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
+fncode: import_file($f, $def, $file_type)
     # $print import_file [$f]
-    #---- import a single def file, update include_list -----
+    #---- import a single def file, update @include-----
     # ---------------------
     $call @import_file_init
     my $plines=get_lines($f);
@@ -104,11 +100,7 @@ fncode: import_file($f, $def, $include_list, $include_hash, $file_type)
             $call process_macros
 
         $elif $curindent==0 and $line=~/^include:? (.*)/
-            $if !$include_hash->{$1}
-                $if $1 ne "noconfig"
-                    push @$include_list, $1;
-                $include_hash->{$1}=1;
-                #print STDERR "    include $1\n";
+            $call add_include
         $elif $curindent==0 and $line=~/^(sub)?page:\s*(.*)/
             my ($subpage, $t)=($1, $2)
             $call start_page
@@ -158,7 +150,7 @@ subcode: start_page
             my $sub_name = get_template_sub_name()
             $code->{source}=["\$call $sub_name"]
             my $sub_definition = parse_template($def, $codes, $1, $sub_name)
-            push @$include_list, $sub_definition
+            push @includes, $sub_definition
             #- 
             $page->{main_name}="main2"
         $else
@@ -270,7 +262,16 @@ subcode: grab_template
             last
     $cur_line--
 
-#---------------------------------------- 
+#---- includes ------------------------------------ 
+subcode: _autoload
+    $call dbl_list, includes
+
+subcode: add_include
+    $if $1 eq "noconfig"
+        $includes{$1}=1
+    $else
+        $call dbl_push, includes, $1
+
 subcode: load_standard_includes
     my $module = $MyDef::var->{module}
 

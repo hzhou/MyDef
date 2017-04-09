@@ -73,7 +73,6 @@ subcode: check_module
             require MyDef::output_$(name);
             MyDef::compileutil::set_interface(MyDef::output_$(name)::get_interface());
 
-
 #---------------------------------------- 
 fncode: addpath($path)
     $var->{path}=$path;

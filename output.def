@@ -119,7 +119,7 @@ subcode: inherit(M)
 subcode:@ parsecode
     push @$out, $l
 
-subcode: parsecode_PRINT
+subcode:@ parsecode_PRINT
     push @$out, $l
     return 0
 

@@ -48,7 +48,7 @@ subcode: start_subcode
             push @$source, $src_location
         $elif $debug>1
             # -- skip
-            print STDERR "overwiritten $type code: $name\n"
+            print STDERR "[$src_location] overwiritten $type code: $name\n"
     $else
         #---- new code or overwrite ----
         my @params;

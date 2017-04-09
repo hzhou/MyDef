@@ -2,7 +2,6 @@
 use strict;
 sub install_all {
     my ($install_dir, $ext) = @_;
-    print "install_all: $install_dir [$ext]\n";
     my @files=glob("*");
     my @srcs;
     my @dirs;
@@ -35,9 +34,14 @@ sub install_all {
             }
         }
     }
+    my $i = 0;
     foreach my $src (@srcs){
         my $dst="$install_dir/$src";
         if(!-e $dst or -M $src < -M $dst){
+            if($i==0){
+                print "install_all: $install_dir [$ext]\n";
+            }
+            $i++;
             print "  :| $src -> $dst\n";
             if($ext eq "-"){
                 system "install -m555 $src $dst";
@@ -53,6 +57,7 @@ my ($src, $dst, $ext)=($ARGV[0], $ARGV[1], $ARGV[2]);
 if(!$ext){
     $ext = "def";
 }
+my $home = $ENV{HOME};
 my $install_dir;
 if($dst=~/^(\/.*)/){
     $install_dir=$1;
@@ -79,9 +84,17 @@ elsif($ext eq "pm"){
 elsif($ext eq "-"){
     $install_dir=$ENV{PATH};
     $install_dir=~s/:.*//;
+    if($install_dir ne "$home/bin"){
+        print "This will install script into your leading path: [$install_dir]\n";
+        print "  press 'y' to continute (abort otherwise)\n";
+        my $t =<STDIN>;
+        if($t!~/^\s*y\s*$/){
+            undef $install_dir;
+        }
+    }
     if(!$install_dir){
         print "Missing environment variable PATH\n";
-        print "    try put 'PERL5LIB=\$HOME/bin' in your .bashrc (and source it)\n";
+        print "    try put 'PATH=\$HOME/bin' in your .bashrc (and source it)\n";
         exit;
     }
 }

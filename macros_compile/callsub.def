@@ -1,3 +1,5 @@
+include: modules.def
+
 subcode: parse_call_sub
     $param=~s/\s*$//;
     $if $func eq "\$map"
@@ -300,9 +302,8 @@ subcode: call_sub_normal_setup_macro
                 print "$k=$v, "
             print "\n"
 
-
 #---------------------------------------- 
-fncode: eval_sub($codename)
+fncode: eval_sub($codename, $module)
     $global %eval_sub_cache, %eval_sub_error
     $if $eval_sub_cache{$codename}
         return $eval_sub_cache{$codename}
@@ -310,28 +311,39 @@ fncode: eval_sub($codename)
         my $codelib=get_def_attr("codes", $codename);
         $if !$codelib
             warn "    eval_sub: Code $codename not found\n"
-        my $t= eval_sub_string($codelib)
+            return undef
+        $if !$module
+            $module="perl"
+        my @t
+        &call switch_interface
+            &call temp_out
+                list_sub($codelib)
+                # parse_code($codelib)
+                $f_dumpout->(\@t, $out, "eval")
+        my $t=join("", @t)
         $eval_sub_cache{$codename}=$t
         return $t
+    # --------------------------
+    subcode: switch_interface
+        my $save_out=$out
+        my @save_interface=get_interface()
+        $call @set_module_interface
+        BLOCK
+        set_interface(@save_interface)
+        # --------------------------
+        subcode: set_module_interface
+            $(for:$(module_list))
+                $case $module eq "$1"
+                    $(set:M=MyDef::output_$1)
+                    require $(M)
+                    set_interface($(M)::get_interface())
+            $else
+                $call warn, "  eval_sub: module $module not found\n"
+                return undef
 
-fncode: eval_sub_string($codelib)
-    require MyDef::output_perl
-    my $save_out=$out
-    my @save_interface=get_interface()
-
-    set_interface(MyDef::output_perl::get_interface())
-    $out=[]
-    $f_setout->($out)
-
-    list_sub($codelib)
-    # parse_code($codelib)
-    my @t
-    $f_dumpout->(\@t, $out, "eval")
-
-    set_interface(@save_interface)
-    $out=$save_out
-    $f_setout->($out)
-
-    my $t=join("", @t)
-    return $t
-
+    subcode: temp_out
+        $out=[]
+        $f_setout->($out)
+        BLOCK
+        $out=$save_out
+        $f_setout->($out)

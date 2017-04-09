@@ -15,6 +15,7 @@ our @mode_stack;
 our $cur_mode="html";
 our %plugin_statement;
 our %plugin_condition;
+our $time_start = time();
 
 sub parse_tag_attributes {
     my ($tt_list) = @_;
@@ -60,6 +61,41 @@ sub parse_tag_attributes {
     return ($func, $attr, $quick_content);
 }
 
+sub bases {
+    my ($n, @bases) = @_;
+    my @t;
+    foreach my $b (@bases){
+        push @t, $n % $b;
+        $n = int($n/$b);
+        if($n<=0){
+            last;
+        }
+    }
+    if($n>0){
+        push @t, $n;
+    }
+    return @t;
+}
+
+sub get_time {
+    my $t = time()-$time_start;
+    my @t;
+    push @t, $t % 60;
+    $t = int($t/60);
+    push @t, $t % 60;
+    $t = int($t/60);
+    push @t, $t % 60;
+    $t = int($t/60);
+    if($t>0){
+        push @t, $t % 24;
+        $t = int($t/24);
+        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0]);
+    }
+    else{
+        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0]);
+    }
+}
+
 use Term::ANSIColor qw(:constants);
 sub get_interface {
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
@@ -72,7 +108,7 @@ sub init_page {
     $style={};
     @style_key_list=();
     $style_sheets=[];
-    if($page->{pageext} eq "js"){
+    if($page->{_pageext} eq "js"){
         $init_mode="js";
     }
     %php_globals=();
@@ -226,7 +262,7 @@ sub parsecode {
         push @$out, "$1=". js_string($2);
         return;
     }
-    elsif($l=~/^\s*\$(\w+)\((.*?)\)\s+(.*)$/){
+    elsif($l=~/^\s*\$(\w+)\((.*?)\)\s+(.*?)\s*$/){
         my ($func, $param1, $param2)=($1, $2, $3);
         if($func eq "plugin"){
             if($param2=~/_condition$/){
@@ -271,22 +307,36 @@ sub parsecode {
                     push @$out, "$P <$func$attr>$quick_content</$func>";
                 }
                 elsif($func eq "pre"){
-                    my @pre=("$P <$func$attr>", "PUSHDENT");
-                    my @post=("POPDENT", "$P </$func>");
-                    return single_block_pre_post(\@pre, \@post);
+                    my @src;
+                    push @src, "$P <$func$attr>";
+                    push @src, "PUSHDENT";
+                    push @src, "BLOCK";
+                    push @src, "POPDENT";
+                    push @src, "$P </$func>";
+                    MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+                    return "NEWBLOCK-pre";
                 }
                 else{
-                    return single_block("$P <$func$attr>", "$P </$func>");
+                    my @src;
+                    push @src, "$P <$func$attr>";
+                    push @src, "INDENT";
+                    push @src, "BLOCK";
+                    push @src, "DEDENT";
+                    push @src, "$P </$func>";
+                    MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+                    return "NEWBLOCK-tag";
                 }
                 return 0;
             }
             if($func eq "script"){
                 MyDef::compileutil::modepush("js");
-                push @$out, "SOURCE_INDENT";
-                push @$out, "BLOCK";
-                push @$out, "SOURCE_DEDENT";
-                push @$out, "PARSE:\$script_end";
-                return "NEWBLOCK";
+                my @src;
+                push @src, "INDENT";
+                push @src, "BLOCK";
+                push @src, "DEDENT";
+                push @src, "PARSE:\$script_end";
+                MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+                return "NEWBLOCK-script";
             }
             elsif($func eq "script_end"){
                 MyDef::compileutil::modepop();
@@ -382,7 +432,13 @@ sub parsecode {
                 }
                 elsif($func eq "for"){
                     if($param=~/(.*);(.*);(.*)/){
-                        single_block("for($param){", "}");
+                        my @src;
+                        push @src, "for($param){";
+                        push @src, "INDENT";
+                        push @src, "BLOCK";
+                        push @src, "DEDENT";
+                        push @src, "}";
+                        MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
                         return "NEWBLOCK-for";
                     }
                     else{
@@ -401,6 +457,11 @@ sub parsecode {
                         elsif(@tlist==2){
                             if($tlist[1] eq "0"){
                                 $i0="$tlist[0]-1";
+                                $i1=">=$tlist[1]";
+                                $step="-1";
+                            }
+                            elsif($tlist[1]=~/^[-0-9]+$/ && $tlist[0]=~/^[-0-9]+$/ && $tlist[0]>$tlist[1]){
+                                $i0=$tlist[0];
                                 $i1=">=$tlist[1]";
                                 $step="-1";
                             }
@@ -436,7 +497,13 @@ sub parsecode {
                             $var='$'.$var;
                         }
                         $param="$var=$i0; $var $i1; $var$step";
-                        single_block("for($param){", "}");
+                        my @src;
+                        push @src, "for($param){";
+                        push @src, "INDENT";
+                        push @src, "BLOCK";
+                        push @src, "DEDENT";
+                        push @src, "}";
+                        MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
                         return "NEWBLOCK-for";
                     }
                 }
@@ -613,27 +680,13 @@ sub dumpout {
 }
 sub single_block {
     my ($t1, $t2, $scope)=@_;
-    push @$out, "$t1";
-    push @$out, "INDENT";
-    push @$out, "BLOCK";
-    push @$out, "DEDENT";
-    push @$out, "$t2";
-    if($scope){
-        return "NEWBLOCK-$scope";
-    }
-    else{
-        return "NEWBLOCK";
-    }
-}
-sub single_block_pre_post {
-    my ($pre, $post, $scope)=@_;
-    if($pre){
-        push @$out, @$pre;
-    }
-    push @$out, "BLOCK";
-    if($post){
-        push @$out, @$post;
-    }
+    my @src;
+    push @src, "$t1";
+    push @src, "INDENT";
+    push @src, "BLOCK";
+    push @src, "DEDENT";
+    push @src, "$t2";
+    MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
     if($scope){
         return "NEWBLOCK-$scope";
     }
@@ -703,7 +756,7 @@ sub custom_dump {
             elsif($t=~/^(\s*)(CSS|include):\s*(.*)/){
                 $t="$1<span class=\"mydef-preproc\">$2</span>: <span class=\"mydef-preproc\">$3</span>";
             }
-            elsif($t=~/^(\s*)\\b(.*)/){
+            elsif($t=~/^(\s*)\$\b(if|while|do|switch|for|elif|elsif|else|function|if_match)\b(.*)/){
                 $t="$1<span class=\"mydef-keyword\">\$$2</span>$3";
             }
             elsif($t=~/^(\s*)(return|throw|break|continue)(.*)/){
@@ -750,7 +803,7 @@ sub js_string {
     if($parts[0]=~/^$/){
         shift @parts;
     }
-    for(my $i=0; $i <@parts; $i++){
+    for(my $i=0; $i<@parts; $i++){
         if($parts[$i]=~/^\$(\w+)/){
             $parts[$i]=$1;
             while($parts[$i+1]=~/^(\[.*?\])/){

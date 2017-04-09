@@ -146,18 +146,21 @@ subcode: dbl_list(name)
     @$(name)=()
     %$(name)=()
 
-subcode: dbl_push(name, key, value)
-    $(if:value=-)
-        $(set:value=$(key))
-    $if !$$(name){$(key)}
-        $$(name){$(key)}=1
-        push @$(name), $(value)
+subcode: dbl_push(name, v)
+    $if !$$(name){$(v)}
+        $$(name){$(v)}=1
+        push @$(name), $(v)
+
+subcode: dbl_push_key(name, k, v)
+    $if !$$(name){$(k)}
+        $$(name){$(k)}=1
+        push @$(name), $(v)
 
 subcode: dbl_push_list(name, list)
     $(list)=~s/\s*;\s*$//
     my @tlist=split /,\s*/, $(list)
     $foreach $v in @tlist
-        $call dbl_push, $(name), $v, -
+        $call dbl_push, $(name), $v
 
 # -- Parser -------------------
 # for simple parsing; for more complicated cases, ref perl/parse.def
