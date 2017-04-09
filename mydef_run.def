@@ -85,6 +85,7 @@ page: mydef_run
         $call do_script, sh, sh
         $call do_script, py, python
         $call do_script, go, go run
+        $call do_script, js, node
         $call do_script, tex, pdflatex  # -interaction=batchmode
         $call do_script, awk, awk -f
 
