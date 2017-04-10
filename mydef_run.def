@@ -81,8 +81,9 @@ page: mydef_run
         $call do_compile, rs, rustc $name
         $elif $page->{run}
             $cmd=$page->{run}
-        $call do_script, pl, perl
         $call do_script, sh, sh
+        $call do_script, pl, perl
+        $call do_script, php, php
         $call do_script, py, python
         $call do_script, go, go run
         $call do_script, js, node

@@ -102,11 +102,6 @@ subcode: print_line
         push @$f, "\n"
     $elif $l=~/^\s*NEWLINE\b/
         push @$f, "\n"
-    $elif $l =~/^PRINT (.*)/
-        push @$f, "    "x$indentation."$1\n"
-    $elif $l =~/^\s*TAB (.*)/
-        # hack for Makefile recipes
-        push @$f, "\t$1\n"
     $else
         chomp $l
         push @$f, "    "x$indentation."$l\n"
@@ -159,8 +154,6 @@ subcode: support_make_string
             # push @$f, "\n"
         $elif $l=~/^\s*NEWLINE\b/
             push @$string_list, ""
-        $elif $l =~/^PRINT (.*)/
-            push @$string_list, "    "x$(indent) . $1
         $else
             push @$string_list, "    "x$(indent) . $l
 

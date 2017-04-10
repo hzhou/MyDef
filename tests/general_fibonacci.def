@@ -1,6 +1,7 @@
 # reference: http://hz2.org/blog/fibonacci_sequence.html
 
 page: test
+    module: general
     type: hs
 
     $call seq, fib, 0, 1, a0+a1

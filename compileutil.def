@@ -53,26 +53,57 @@ subcode: compile_main
     1;
 
 #################################################
-subcode:: package_global
-    $(set:interface=$f_init, $f_parse, $f_setout, $f_modeswitch, $f_dumpout)
-    $global $(interface)
-
-    $sub set_interface
-        ($(interface))=@_;
-
-    $sub get_interface
-        return ($(interface))
-
-    $sub set_output($output)
-        my $old=$out
-        $out=$output
-        $f_setout->($out)
-        return $old
-
-    # ---------------------------------------------------
+subcode: _autoload
     $global $deflist, %misc_vars
     $global $debug=0
 
+fncode: set_output($output)
+    my $old=$out
+    $out=$output
+    $f_setout->($out)
+    return $old
+
+macros:
+    # ref output.def
+    interface: $f_init, $f_parse, $f_setout, $f_modeswitch, $f_dumpout
+
+subcode: _autoload
+    $global $(interface)
+
+fncode: set_interface
+    ($(interface))=@_;
+
+fncode: set_interface_partial
+    my $t
+    ($f_init, $f_parse, $f_setout, $t, $f_dumpout)=@_;
+
+#----------------------------------------------- 
+#- push/pop _interface is also used by output_www.def
+subcode: _autoload
+    $global @interface_stack
+
+fncode: push_interface($module)
+    push @interface_stack, [$(interface)]
+
+    $(for:$(module_list))
+        $case $module eq "$1"
+            $(set:M=MyDef::output_$1)
+            require $(M)
+            set_interface_partial($(M)::get_interface())
+    $else
+        $call warn, "  push_interface: module $module not found\n"
+        return undef
+
+    $f_setout->($out)
+
+fncode: pop_interface
+    $if @interface_stack
+        my $interface = pop @interface_stack
+        set_interface_partial(@$interface)
+    $else
+        $call warn, "   pop_interface: stack empty\n"
+
+#----------------------------------------------- 
 subcode: compile
     $deflist=[$MyDef::def, $MyDef::def->{macros}, $page];
     $deflist->[0]->{_name_}="def_root"

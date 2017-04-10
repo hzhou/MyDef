@@ -29,25 +29,31 @@ fncode: parseblock($code)
         # -- such as indentation and BLOCK_n
         $call parse_filter_meta
 
-        $if $cur_mode eq "PRINT"
-            $call parse_line
-        $elif $cur_mode eq "template"
+        $if $cur_mode eq "template"
             $if $l=~/^(\s*)\$call\s+(.+)/
-                my ($func, $param)=("\$call", $2);
-                my $len = MyDef::parseutil::get_indent_spaces($1)
-                my $n = int($len/4)
-                $if $len%4
-                    $n++
-                $for $i=0:$n
-                    push @$out, "INDENT"
-                $call parse_call_sub
-                $for $i=0:$n
-                    push @$out, "DEDENT"
+                $call template_call_sub
             $else
                 push @$out, $l
         $else
             $call compile_line
     parse_stack_pop()
+
+    # -----------------------
+    subcode: template_call_sub
+        my ($func, $param)=("\$call", $2);
+        &call get_indentation, $1
+            $call parse_call_sub
+
+        subcode: get_indentation(leading_space)
+            my $len = MyDef::parseutil::get_indent_spaces($1)
+            my $n = int($len/4)
+            $if $len%4
+                $n++
+            $for $i=0:$n
+                push @$out, "INDENT"
+            BLOCK
+            $for $i=0:$n
+                push @$out, "DEDENT"
 
 #----------------------------------------------
 subcode: compile_line
@@ -89,7 +95,7 @@ subcode: compile_line
         $while 1
             #-- parse_line could return a new $l
             #-- otherwise, last in the end breaks the loop
-            $if $l=~/^(&call\d?|\$call|\$map\d?|\$nest|\$call-PRINT|\$call-template)\s+(.*)$/
+            $if $l=~/^(&call\d?|\$call|\$map\d?|\$nest)\s+(.*)$/
                 my ($func, $param)=($1, $2);
                 $call parse_call_sub
             $elif $l=~/^\$-:\s*(.*)/
@@ -197,12 +203,13 @@ subcode: parse_line
             &call check_callback_output
                 $foreach $l in @$callback_output
                     $if $l=~/^BLOCK$/
-                        #$f_parse->("SCOPE: CALLBACK");
                         parseblock({source=>$subblock, name=>"BLOCK", scope=>$callback_scope})
-                        #$f_parse->("SCOPE: NONE");
                     $elif $l=~/^PARSE:(.*)/
-                        # apparently now redundant :)
-                        $f_parse->($1)
+                        $if $1=~/\s*\MODEPOP/
+                            # ref: output_www.def -- $script
+                            modepop()
+                        $else
+                            $f_parse->($1)
                     $else
                         $f_parse->($l)
 

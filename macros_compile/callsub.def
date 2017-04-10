@@ -4,8 +4,6 @@ subcode: parse_call_sub
     $param=~s/\s*$//;
     $if $func eq "\$map"
         map_sub($param, 1);
-    $elif $func =~ "^\$call-(PRINT|template)"
-        special_sub($param, $1)
     $elif $func =~ /^\$call/
         call_sub($param)
     $elif $func eq "\&call"
@@ -69,26 +67,12 @@ fncode: list_sub($codelib)
     &call parseblock_with_macro
         $call call_sub_list_setup_macro
 
-fncode: special_sub($param, $mode)
-    $if $param=~/^(@)?(\w+)(.*)/
-        my $codename=$1
-        my $codelib=get_def_attr("codes", $codename)
-        $if $codelib
-            modepush($mode)
-            parseblock($codelib)
-            modepop()
-
 #---------------------------------------- 
 subcode: call_sub_frame(type)
     $call load_codelib
     $if $codelib
         $if $codelib->{type} eq "perl"
-            $param=~s/^\s*,\s*//
-            $(if:type=callback)
-                &call perl_block_call
-                    $f_parse->("\$eval $codename, $param")
-            $(else)
-                $f_parse->("\$eval $codename, $param")
+            $call callsub_perl
         $elif $codelib->{type} eq "template"
             modepush("template")
             parseblock($codelib)
@@ -146,11 +130,22 @@ subcode: call_sub_frame(type)
                         push @plist, $1
 
     # -----------------------
-    subcode: perl_block_call
-        #---- e.g. html/code.def --
-        $named_blocks{last_grab}=$sub_blk->{source}
-        BLOCK
-        $named_blocks{last_grab}=undef
+    subcode: callsub_perl
+        # ref: output.def
+        $param=~s/^\s*,\s*//
+        $(if:type=callback)
+            &call perl_block_call
+                # $named_blocks{last_grab}
+                $f_parse->("\$eval $codename, $param")
+        $(else)
+            $f_parse->("\$eval $codename, $param")
+
+        subcode: perl_block_call
+            #---- e.g. html/code.def --
+            $named_blocks{last_grab}=$sub_blk->{source}
+            BLOCK
+            $named_blocks{last_grab}=undef
+
     # ---------------------------------
     subcode: load_codelib
         my ($codename, $attr, $codelib)
@@ -303,7 +298,7 @@ subcode: call_sub_normal_setup_macro
             print "\n"
 
 #---------------------------------------- 
-fncode: eval_sub($codename, $module)
+fncode: eval_sub($codename)
     $global %eval_sub_cache, %eval_sub_error
     $if $eval_sub_cache{$codename}
         return $eval_sub_cache{$codename}
@@ -312,38 +307,20 @@ fncode: eval_sub($codename, $module)
         $if !$codelib
             warn "    eval_sub: Code $codename not found\n"
             return undef
-        $if !$module
-            $module="perl"
         my @t
         &call switch_interface
-            &call temp_out
-                list_sub($codelib)
-                # parse_code($codelib)
-                $f_dumpout->(\@t, $out, "eval")
+            list_sub($codelib)
+            # parse_code($codelib)
+            $f_dumpout->(\@t, $out, "eval")
         my $t=join("", @t)
         $eval_sub_cache{$codename}=$t
         return $t
     # --------------------------
     subcode: switch_interface
         my $save_out=$out
-        my @save_interface=get_interface()
-        $call @set_module_interface
-        BLOCK
-        set_interface(@save_interface)
-        # --------------------------
-        subcode: set_module_interface
-            $(for:$(module_list))
-                $case $module eq "$1"
-                    $(set:M=MyDef::output_$1)
-                    require $(M)
-                    set_interface($(M)::get_interface())
-            $else
-                $call warn, "  eval_sub: module $module not found\n"
-                return undef
-
-    subcode: temp_out
         $out=[]
-        $f_setout->($out)
+        push_interface("perl")
         BLOCK
+        pop_interface()
         $out=$save_out
         $f_setout->($out)
