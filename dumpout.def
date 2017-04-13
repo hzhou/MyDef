@@ -45,7 +45,7 @@ subcode: dumpout
         $elif $l =~/^INCLUDE_BLOCK (\S+)/
             push @source_stack, $out
             $out=$dump->{$1}
-        $elif $l =~ /^DUMP_STUB\s+(\w+)/
+        $elif $l =~ /^DUMP_STUB\s+([\w-]+)/
             my $source=$MyDef::compileutil::named_blocks{$1};
             # $print "DUMP_STUB $1 : $source"
             # multiple DUMP_STUB with the same name is OK, only the first one will be in effect

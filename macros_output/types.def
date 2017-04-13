@@ -56,6 +56,10 @@ fncode: get_type_name($name)
             return $type
     # tp_n
     my $t1=shift @parts
+    $type = get_type_word($t1)
+    $if $type
+        return $type
+
     my $t2=join('_', @parts)
     $type=get_type_word($t2)
     $if $type
@@ -63,5 +67,5 @@ fncode: get_type_name($name)
             return $type
         return get_type_word_prefix($t1, $type)
     # pn_xxx
-    return get_type_word($t1)
+    return undef
 
