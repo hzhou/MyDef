@@ -11,61 +11,38 @@ subcode:: parsecode_func_param_other
             $type_name{$t}=$param2
         return
 
-fncode: get_type_word($name)
-    $if $name
-        $if $type_prefix{$name}
-            return $type_prefix{$name}
-        $elif $name=~/^([a-z0-9]+)/
-            my $prefix=$1;
-            $if $type_prefix{$prefix}
-                return $type_prefix{$prefix};
-            $elif $prefix=~/^(.*?)\d+$/ and $type_prefix{$1}
-                return $type_prefix{$1};
-
-        my $type = get_type_word(substr($name, 1))
-        $if $type
-            return get_type_word_prefix(substr($name, 0, 1), $type)
-    return undef
-
-fncode: get_type_word_prefix($c, $type)
-    $if $type
+fncode: get_type_word_prefix($prefix, $type)
+    $foreach $c in reverse(split //, $prefix)
         $if $c eq "t"
-            return $type
+            # NOOP
         $call @type_word_prefix
-    return undef
+        $else
+            return undef
+    return $type
 
-fncode: get_type_name($name)
-    $if $debug eq "type"
-        $print "    get_c_type: $name"
-    my $type
-
+#---- type from name ------
+fncode: get_type_name($name, $no_prefix)
+    $(if:!type_prefix_char)
+        $(set:type_prefix_char=t)
     # typename
     $if $type_name{$name}
-        return $type_name{$name};
-
-    my @parts=split /_/, $name
-    my $n_parts=@parts
-    # tpn
-    $if $n_parts<=1
-        return get_type_word($name)
-    # tp_typename
-    $if $type_name{$parts[-1]}
-        $type = $type_name{$parts[-1]}
-        $type = get_type_word_prefix($parts[0], $type)
-        $if $type
-            return $type
-    # tp_n
-    my $t1=shift @parts
-    $type = get_type_word($t1)
-    $if $type
-        return $type
-
-    my $t2=join('_', @parts)
-    $type=get_type_word($t2)
-    $if $type
-        $if $t1 eq "t" or $t1 eq "temp"
-            return $type
-        return get_type_word_prefix($t1, $type)
-    # pn_xxx
+        return $type_name{$name}
+    $elif $type_prefix{$name}
+        return $type_prefix{$name}
+    # ---------------------
+    $elif !$no_prefix and $name=~/^([$(type_prefix_char)]+)_(.+)$/ 
+        # p_nxxx
+        my $type = get_type_name($2, 1)
+        return get_type_word_prefix($1, $type)
+    $if !$no_prefix and $name=~/^([$(type_prefix_char)]+)(.)(_.+)?$/ and $type_prefix{$2}
+        # pn_xxx
+        my $type = $type_prefix{$2}
+        return get_type_word_prefix($1, $type)
+    # ---------------------
+    $elif $name=~/^([^_]+)/ && $type_prefix{$1}
+        return $type_prefix{$1}
+    $elif $name=~/^([^_0-9]+)/ && $type_prefix{$1}
+        return $type_prefix{$1}
+    $elif $name=~/_([^_]+)$/ && length{$1}>1 && $type_name{$1}
+        return $type_name{$1}
     return undef
-
