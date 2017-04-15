@@ -117,6 +117,10 @@ sub init {
         require MyDef::output_plot;
         MyDef::compileutil::set_interface(MyDef::output_plot::get_interface());
     }
+    elsif($module eq "rust"){
+        require MyDef::output_rust;
+        MyDef::compileutil::set_interface(MyDef::output_rust::get_interface());
+    }
     else{
         die "Undefined module type $module\n";
     }
@@ -230,6 +234,10 @@ sub pipe_page {
     elsif($module eq "plot"){
         require MyDef::output_plot;
         MyDef::compileutil::set_interface(MyDef::output_plot::get_interface());
+    }
+    elsif($module eq "rust"){
+        require MyDef::output_rust;
+        MyDef::compileutil::set_interface(MyDef::output_rust::get_interface());
     }
     else{
         die "Undefined module type $module\n";

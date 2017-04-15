@@ -7,10 +7,6 @@ our $page;
 our $style;
 our @style_key_list;
 our $style_sheets;
-our %php_globals;
-our @php_globals;
-our %js_globals;
-our @js_globals;
 our @mode_stack;
 our $cur_mode="html";
 our %plugin_statement;
@@ -108,13 +104,6 @@ sub init_page {
     $style={};
     @style_key_list=();
     $style_sheets=[];
-    if($page->{_pageext} eq "js"){
-        $init_mode="js";
-    }
-    %php_globals=();
-    @php_globals=();
-    %js_globals=();
-    @js_globals=();
     return $init_mode;
 }
 sub set_output {
@@ -126,30 +115,16 @@ sub modeswitch {
     if($mode eq $cur_mode or $mode eq "sub"){
         goto modeswitch_done;
     }
-    if($cur_mode eq "PRINT"){
-        $cur_mode=pop @mode_stack;
-        if($mode eq $cur_mode){
-            goto modeswitch_done;
-        }
-    }
-    if($mode eq "PRINT"){
-        push @mode_stack, $cur_mode;
-        $cur_mode=$mode;
-        goto modeswitch_done;
-    }
     if($cur_mode eq "php"){
-        if($out->[-1] eq "<?php\n"){
-            pop @$out;
-        }
-        else{
-            push @$out, "?>\n";
-        }
+        push @$out, "?>\n";
+        MyDef::compileutil::pop_interface();
         $cur_mode=pop @mode_stack;
         if($mode eq $cur_mode){
             goto modeswitch_done;
         }
     }
     if($mode eq "php"){
+        MyDef::compileutil::push_interface("php");
         push @$out, "<?php\n";
         push @mode_stack, $cur_mode;
         $cur_mode=$mode;
@@ -157,12 +132,14 @@ sub modeswitch {
     }
     if($cur_mode eq "js"){
         push @$out, "<\/script>\n";
+        MyDef::compileutil::pop_interface();
         $cur_mode=pop @mode_stack;
         if($mode eq $cur_mode){
             goto modeswitch_done;
         }
     }
     if($mode eq "js"){
+        MyDef::compileutil::push_interface("js");
         push @$out, "<script type=\"text/javascript\">\n";
         push @mode_stack, $cur_mode;
         $cur_mode=$mode;
@@ -220,24 +197,9 @@ sub parsecode {
         }
         return;
     }
-    if($MyDef::compileutil::cur_mode eq "PRINT"){
-        if($l=~/^(SUBBLOCK|SOURCE)/){
-            push @$out, $l;
-        }
-        else{
-            my $P="PRINT-".$mode_stack[-1];
-            if($P eq "PRINT-html"){
-                $l=~s/</&lt;/g;
-                $l=~s/>/&gt;/g;
-                push @$out, "$P $l";
-            }
-            else{
-                push @$out, $l;
-            }
-        }
-        return 0;
+    if(0){
     }
-    if($l=~/^CSS:\s*(.*)/){
+    elsif($l=~/^CSS:\s*(.*)/){
         my $t=$1;
         if($t=~/(.*?)\s*\{(.*)\}/){
             if($style->{$1}){
@@ -253,15 +215,6 @@ sub parsecode {
         }
         return;
     }
-    elsif($l=~/^\s*PRINT\s+(.*)/){
-        my $P="PRINT-$cur_mode";
-        push @$out, "$P $1";
-        return;
-    }
-    elsif($cur_mode eq "js" && $l=~/^(\S+)\s*=\s*"(.*\$\w+.*)"\s*$/){
-        push @$out, "$1=". js_string($2);
-        return;
-    }
     elsif($l=~/^\s*\$(\w+)\((.*?)\)\s+(.*?)\s*$/){
         my ($func, $param1, $param2)=($1, $2, $3);
         if($func eq "plugin"){
@@ -272,10 +225,6 @@ sub parsecode {
                 $plugin_statement{$param1}=$param2;
             }
             return;
-        }
-        if($cur_mode eq "js"){
-        }
-        elsif($cur_mode eq "php"){
         }
     }
     elsif($l=~/^\s*\$(\w+)\s*(.*)$/){
@@ -299,30 +248,29 @@ sub parsecode {
                     unshift @tt_list, $func;
                 }
                 my ($func, $attr, $quick_content)= parse_tag_attributes(\@tt_list);
-                my $P="PRINT-$cur_mode";
                 if($func=~ /img|input/){
-                    push @$out, "$P <$func$attr>";
+                    push @$out, "<$func$attr>";
                 }
                 elsif(defined $quick_content){
-                    push @$out, "$P <$func$attr>$quick_content</$func>";
+                    push @$out, "<$func$attr>$quick_content</$func>";
                 }
                 elsif($func eq "pre"){
                     my @src;
-                    push @src, "$P <$func$attr>";
+                    push @src, "<$func$attr>";
                     push @src, "PUSHDENT";
                     push @src, "BLOCK";
                     push @src, "POPDENT";
-                    push @src, "$P </$func>";
+                    push @src, "</$func>";
                     MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
                     return "NEWBLOCK-pre";
                 }
                 else{
                     my @src;
-                    push @src, "$P <$func$attr>";
+                    push @src, "<$func$attr>";
                     push @src, "INDENT";
                     push @src, "BLOCK";
                     push @src, "DEDENT";
-                    push @src, "$P </$func>";
+                    push @src, "</$func>";
                     MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
                     return "NEWBLOCK-tag";
                 }
@@ -334,255 +282,58 @@ sub parsecode {
                 push @src, "INDENT";
                 push @src, "BLOCK";
                 push @src, "DEDENT";
-                push @src, "PARSE:\$script_end";
+                push @src, "PARSE:MODEPOP";
                 MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
                 return "NEWBLOCK-script";
-            }
-            elsif($func eq "script_end"){
-                MyDef::compileutil::modepop();
-                return;
             }
             elsif($func=~/^(title|charset)/){
                 $page->{$1}=$2;
                 return;
             }
-            elsif($cur_mode eq "js"){
-                my $param1="";
-                my $param2=$param;
-                if($func eq "global"){
-                    $param=~s/\s*;\s*$//;
-                    my @tlist=MyDef::utils::proper_split($param);
-                    foreach my $v (@tlist){
-                        if(!$js_globals{$v}){
-                            $js_globals{$v}=1;
-                            push @js_globals, $v;
+            elsif($func eq "include"){
+                if(open my $in, $param){
+                    my $omit=0;
+                    while(<$in>){
+                        if(/<!-- start omit -->/){
+                            $omit=1;
                         }
-                    }
-                    return;
-                }
-                elsif($func =~ /^(function)$/){
-                    return single_block("$1 $param\{", "}");
-                }
-                elsif($func =~ /^(if|while|switch|with)$/){
-                    return single_block("$1($param){", "}");
-                }
-                elsif($func =~ /^(el|els|else)if$/){
-                    return single_block("else if($param){", "}");
-                }
-                elsif($func eq "else"){
-                    return single_block("else{", "}");
-                }
-                elsif($func eq "for" or $func eq "foreach"){
-                    if($param=~/(\w+)=(.*?):(.*?)(:.*)?$/){
-                        my ($var, $i0, $i1, $step)=($1, $2, $3, $4);
-                        my $stepclause;
-                        if($step){
-                            my $t=substr($step, 1);
-                            if($t eq "-1"){
-                                $stepclause="var $var=$i0;$var>$i1;$var--";
+                        elsif($omit){
+                            if(/<!-- end omit -->/){
+                                $omit=0;
                             }
-                            elsif($t=~/^-/){
-                                $stepclause="var $var=$i0;$var>$i1;$var=$var$t";
-                            }
-                            else{
-                                $stepclause="var $var=$i0;$var<$i1;$var+=$t";
-                            }
+                            next;
+                        }
+                        elsif(/(.*)<call>(\w+)<\/call>(.*)/){
+                            my ($a, $b, $c)=($1, $2, $3);
+                            push @$out, $a;
+                            print "    call $b\n";
+                            MyDef::compileutil::call_sub($b);
+                            push @$out, $c;
+                        }
+                        elsif(/^\s*<\/HEAD>/i){
+                            push @$out, "DUMP_STUB meta";
+                            push @$out, $_;
                         }
                         else{
-                            if($i1 eq "0"){
-                                $stepclause="var $var=$i0-1;$var>=0;$var--";
-                            }
-                            elsif($i1=~/^-?\d+/ and $i0=~/^-?\d+/ and $i1<$i0){
-                                $stepclause="var $var=$i0;$var>$i1;$var--";
-                            }
-                            else{
-                                $stepclause="var $var=$i0;$var<$i1;$var++";
-                            }
+                            push @$out, $_;
                         }
-                        return single_block("for($stepclause){", "}");
                     }
-                    elsif($param=~/^(\S+)$/){
-                        MyDef::compileutil::set_current_macro("item", "$1\[i]");
-                        return single_block("for(i=0;i<$1.length;i++){", "}");
-                    }
-                    else{
-                        return single_block("$func($param){", "}");
-                    }
+                    close $in;
                 }
-                elsif($func eq "print"){
-                    push @$out, "console.log($param);";
-                    return 0;
-                }
-            }
-            elsif($cur_mode eq "php"){
-                if($func =~/^if(\w*)/){
-                    if($1 and $param!~/^!/){
-                        $param=test_var($param, $1 eq 'z');
-                    }
-                    return single_block("if($param){", "}");
-                }
-                elsif($func =~ /^(el|els|else)if(\w*)$/){
-                    if($2 and $param!~/^!/){
-                        $param=test_var($param, $2 eq 'z');
-                    }
-                    return single_block("elseif($param){", "}");
-                }
-                elsif($func eq "else"){
-                    return single_block("else{", "}");
-                }
-                elsif($func eq "for"){
-                    if($param=~/(.*);(.*);(.*)/){
-                        my @src;
-                        push @src, "for($param){";
-                        push @src, "INDENT";
-                        push @src, "BLOCK";
-                        push @src, "DEDENT";
-                        push @src, "}";
-                        MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
-                        return "NEWBLOCK-for";
-                    }
-                    else{
-                        my $var;
-                        if($param=~/^(\S+)\s*=\s*(.*)/){
-                            $var=$1;
-                            $param=$2;
-                        }
-                        my @tlist=split /:/, $param;
-                        my ($i0, $i1, $step);
-                        if(@tlist==1){
-                            $i0="0";
-                            $i1="<$param";
-                            $step="1";
-                        }
-                        elsif(@tlist==2){
-                            if($tlist[1] eq "0"){
-                                $i0="$tlist[0]-1";
-                                $i1=">=$tlist[1]";
-                                $step="-1";
-                            }
-                            elsif($tlist[1]=~/^[-0-9]+$/ && $tlist[0]=~/^[-0-9]+$/ && $tlist[0]>$tlist[1]){
-                                $i0=$tlist[0];
-                                $i1=">=$tlist[1]";
-                                $step="-1";
-                            }
-                            else{
-                                $i0=$tlist[0];
-                                $i1="<$tlist[1]";
-                                $step="1";
-                            }
-                        }
-                        elsif(@tlist==3){
-                            $i0=$tlist[0];
-                            $step=$tlist[2];
-                            if($step=~/^-/){
-                                $i1=">=$tlist[1]";
-                            }
-                            else{
-                                $i1="<$tlist[1]";
-                            }
-                        }
-                        if($step eq "1"){
-                            $step="++";
-                        }
-                        elsif($step eq "-1"){
-                            $step="--";
-                        }
-                        else{
-                            $step= "+=$step";
-                        }
-                        if(!$var){
-                            $var="\$i";
-                        }
-                        elsif($var=~/^(\w+)/){
-                            $var='$'.$var;
-                        }
-                        $param="$var=$i0; $var $i1; $var$step";
-                        my @src;
-                        push @src, "for($param){";
-                        push @src, "INDENT";
-                        push @src, "BLOCK";
-                        push @src, "DEDENT";
-                        push @src, "}";
-                        MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
-                        return "NEWBLOCK-for";
-                    }
-                }
-                elsif($func eq "foreach" or $func eq "for" or $func eq "while"){
-                    return single_block("$func ($param){", "}");
-                }
-                elsif($func eq "function"){
-                    return single_block("function $param {", "}");
-                }
-                elsif($func eq "global"){
-                    $param=~s/\s*;\s*$//;
-                    my @tlist=MyDef::utils::proper_split($param);
-                    foreach my $v (@tlist){
-                        if(!$php_globals{$v}){
-                            $php_globals{$v}=1;
-                            push @php_globals, $v;
-                        }
-                        $v=~s/=.*//;
-                        push @$out, "global $v;";
-                    }
-                    return 0;
-                }
-            }
-            elsif($cur_mode eq "html"){
-                if($func eq "include"){
-                    if(open my $in, $param){
-                        my $omit=0;
-                        while(<$in>){
-                            if(/<!-- start omit -->/){
-                                $omit=1;
-                            }
-                            elsif($omit){
-                                if(/<!-- end omit -->/){
-                                    $omit=0;
-                                }
-                                next;
-                            }
-                            elsif(/(.*)<call>(\w+)<\/call>(.*)/){
-                                my ($a, $b, $c)=($1, $2, $3);
-                                push @$out, $a;
-                                print "    call $b\n";
-                                MyDef::compileutil::call_sub($b);
-                                push @$out, $c;
-                            }
-                            elsif(/^\s*<\/HEAD>/i){
-                                push @$out, "DUMP_STUB meta";
-                                push @$out, $_;
-                            }
-                            else{
-                                push @$out, $_;
-                            }
-                        }
-                        close $in;
-                    }
-                    else{
-                        warn " Can't open [$param]\n";
-                    }
+                else{
+                    warn " Can't open [$param]\n";
                 }
             }
         }
     }
-    if($cur_mode eq "php"){
-        if($l!~/[\{\};]\s*$/){
-            $l.=";";
-        }
-    }
-    elsif($cur_mode eq "js"){
-        if($l!~/[:\(\{\};,]\s*$/){
-            $l.=';';
-        }
-    }
-    elsif($cur_mode eq "html"){
+    if($page->{type} eq "php"){
+        $l=~s/(\$\w+)/<?php echo $1 ?>/g;
     }
     push @$out, $l;
 }
 sub dumpout {
     my ($f, $out, $pagetype)=@_;
     my $dump={out=>$out,f=>$f, module=>"output_www"};
-    $dump->{custom}=\&custom_dump;
     if($MyDef::page->{type} && $MyDef::page->{type} eq "css"){
         foreach my $k (@style_key_list){
             my %attr;
@@ -665,17 +416,6 @@ sub dumpout {
             push @$metablock, "</style>\n";
         }
     }
-    if(@php_globals){
-        push @$f, "<?php\n";
-        foreach my $v (@php_globals){
-            push @$f, "$v;\n";
-        }
-        push @$f, "?>\n";
-    }
-    my $block=MyDef::compileutil::get_named_block("js_init");
-    foreach my $v (@js_globals){
-        push @$block, "var $v;\n";
-    }
     MyDef::dumpout::dumpout($dump);
 }
 sub single_block {
@@ -693,220 +433,5 @@ sub single_block {
     else{
         return "NEWBLOCK";
     }
-}
-sub custom_dump {
-    my ($f, $rl)=@_;
-    if($$rl=~/\\span_(\w+)\{([^}]*)\}/){
-        my $t="<span class=\"$1\">$2</span>";
-        $$rl=$`.$t.$';
-    }
-    if($$rl=~/PRINT-(\w+) (.*)/){
-        my $mode=$1;
-        my $t=$2;
-        if($mode eq "php"){
-            $$rl=echo_php($t);
-        }
-        elsif($mode eq "js"){
-            $$rl="PRINT $t";
-        }
-        else{
-            if($t!~/</){
-                if($t=~/".*?"/){
-                    my @plist=split /(".*?")/, $t;
-                    my @tlist;
-                    foreach my $p (@plist){
-                        if($p=~/^".*?"$/){
-                            push @tlist, "<span class=\"mydef-quote\">$p</span>";
-                        }
-                        else{
-                            push @tlist, $p;
-                        }
-                    }
-                    $t=join('', @tlist);
-                }
-                if($t=~/\$\(.*?\)/){
-                    my @plist=split /(\$\(.*?\))/, $t;
-                    my @tlist;
-                    foreach my $p (@plist){
-                        if($p=~/^\$\(.*?\)$/){
-                            push @tlist, "<span class=\"mydef-macro\">$p</span>";
-                        }
-                        else{
-                            push @tlist, $p;
-                        }
-                    }
-                    $t=join('', @tlist);
-                }
-            }
-            if($t=~/^(\s*)((#|&#35;).*)/){
-                $t="$1<span class=\"mydef-comment\">$2</span>";
-            }
-            elsif($t=~/(.*)(\s(#|&#35;)\s.*)/){
-                $t="$1<span class=\"mydef-comment\">$2</span>";
-            }
-            elsif($t=~/^(\s*)(page|\w+code)(:.?\s*)(\w+)(.*)/){
-                $t="$1<span class=\"mydef-label\">$2</span>$3<span class=\"mydef-label\">$4</span>$5";
-            }
-            elsif($t=~/^(\s*)(macros):/){
-                $t="$1<span class=\"mydef-label\">$2</span>:";
-            }
-            elsif($t=~/^(\s*)(\$call|\$map|\&call)\s*(\S+)(.*)/){
-                $t="$1<span class=\"mydef-keyword\">$2</span> <strong>$3</strong>$4";
-            }
-            elsif($t=~/^(\s*)(CSS|include):\s*(.*)/){
-                $t="$1<span class=\"mydef-preproc\">$2</span>: <span class=\"mydef-preproc\">$3</span>";
-            }
-            elsif($t=~/^(\s*)\$\b(if|while|do|switch|for|elif|elsif|else|function|if_match)\b(.*)/){
-                $t="$1<span class=\"mydef-keyword\">\$$2</span>$3";
-            }
-            elsif($t=~/^(\s*)(return|throw|break|continue)(.*)/){
-                $t="$1<span class=\"mydef-label\">$2</span>$3";
-            }
-            $$rl="PRINT $t";
-        }
-    }
-    return 0;
-}
-sub echo_php {
-    my ($t, $ln)=@_;
-    $t=~s/\\/\\\\/g;
-    $t=~s/"/\\"/g;
-    if($ln){
-        return "echo \"$t\\n\";";
-    }
-    else{
-        return "echo \"$t\";";
-    }
-}
-sub test_var {
-    my ($param, $z)=@_;
-    if($param=~/(\$\w+)\[(^[\]]*)\]/){
-        if(!$z){
-            return "array_key_exists($2, $1) and $param";
-        }
-        else{
-            return "!(array_key_exists($2, $1) and $param)";
-        }
-    }
-    else{
-        if($z){
-            return "empty($param)";
-        }
-        else{
-            return "!empty($param)";
-        }
-    }
-}
-sub js_string {
-    my ($t)=@_;
-    my @parts=split /(\$\w+)/, $t;
-    if($parts[0]=~/^$/){
-        shift @parts;
-    }
-    for(my $i=0; $i<@parts; $i++){
-        if($parts[$i]=~/^\$(\w+)/){
-            $parts[$i]=$1;
-            while($parts[$i+1]=~/^(\[.*?\])/){
-                $parts[$i].=$1;
-                $parts[$i+1]=$';
-            }
-        }
-        else{
-            $parts[$i]= "\"$parts[$i]\"";
-        }
-    }
-    return join(' + ', @parts);
-}
-sub sql_value {
-    my ($varname, $colname)=@_;
-    my $type=MyDef::compileutil::get_def("$varname"."_type");
-    if(!$type){
-        $type=getfieldtype($colname);
-    }
-    if($type =~/^(int|uint|boolean)$/){
-        push @$out, "if(is_numeric(\$$varname)){";
-        push @$out, "    \$t_$varname=\$$varname;";
-        push @$out, "}else{";
-        push @$out, "    \$t_$varname=\"NULL\";";
-        push @$out, "}";
-        return "\$t_$varname";
-    }
-    elsif($type eq 'date'){
-        push @$out, "if(\$$varname){";
-        push @$out, "    \$t_$varname=\"'\".\$$varname.\"'\";";
-        push @$out, "}else{";
-        push @$out, "    \$t_$varname=\"NULL\";";
-        push @$out, "}";
-        return "\$t_$varname";
-    }
-    elsif($type eq 'now'){
-        return "NOW()";
-    }
-    elsif($type eq 'today' or $type eq 'curdate'){
-        return "CURDATE()";
-    }
-    else{
-        my $null=MyDef::compileutil::get_def("$varname"."_null");
-        if($null){
-            push @$out, "if(\$$varname){";
-            push @$out, "    \$t_$varname=\"'\".addslashes(\$$varname).\"'\";";
-            push @$out, "}";
-            push @$out, "else{";
-            push @$out, "    \$t_$varname='NULL';";
-            push @$out, "}";
-            return "\$t_$varname";
-        }
-        else{
-            push @$out, "\$t_$varname=addslashes(\$$varname);";
-            return "'\$t_$varname'";
-        }
-    }
-}
-sub getfieldtype {
-    my ($colname)=@_;
-    my $type;
-    if($colname=~/_id$/){
-        $type="uint";
-    }
-    elsif($colname=~/_date$/ or $colname=~/^date_/){
-        $type="date";
-    }
-    elsif($colname eq "time_inserted" or $colname eq "time_in" or $colname eq "time_out"){
-        $type="now";
-    }
-    elsif($colname eq "date_inserted"){
-        $type="today";
-    }
-    elsif($colname=~/_flag$/ or $colname=~/^flag_/){
-        $type="boolean";
-    }
-    elsif($colname=~/_quantity$/){
-        $type="int";
-    }
-    elsif($colname=~/^number_/){
-        $type="int";
-    }
-    elsif($colname eq "password"){
-        $type="password";
-    }
-    elsif($colname =~/phone/){
-        $type="phone";
-    }
-    elsif($colname eq 'city'){
-        $type='city';
-    }
-    elsif($colname eq 'state'){
-        $type='state';
-    }
-    elsif($colname =~ /zip(code)?/){
-        $type='zip';
-    }
-    elsif($colname =~ /email/){
-        $type='email';
-    }
-    elsif($colname =~ /city_state_zip/){
-        $type='city_state_zip';
-    }
-    return $type;
 }
 1;

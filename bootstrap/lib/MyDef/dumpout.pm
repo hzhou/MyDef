@@ -50,7 +50,6 @@ sub dumpout {
     my @indentation_stack;
     my @make_string_stack;
     my $string_list=undef;
-    ;
     while(1){
         if(!@$out){
             $out=pop @source_stack;
@@ -155,12 +154,6 @@ sub dumpout {
             elsif($l=~/^\s*NEWLINE\b/){
                 push @$f, "\n";
             }
-            elsif($l =~/^PRINT (.*)/){
-                push @$f, "    "x$indentation."$1\n";
-            }
-            elsif($l =~/^\s*TAB (.*)/){
-                push @$f, "\t$1\n";
-            }
             else{
                 chomp $l;
                 push @$f, "    "x$indentation."$l\n";
@@ -172,9 +165,6 @@ sub dumpout {
             elsif($l=~/^\s*NEWLINE\b/){
                 push @$string_list, "";
             }
-            elsif($l =~/^PRINT (.*)/){
-                push @$string_list, "    "x($indentation-$make_string_stack[-1]->{indent}-1) . $1;
-            }
             else{
                 push @$string_list, "    "x($indentation-$make_string_stack[-1]->{indent}-1) . $l;
             }
@@ -184,7 +174,6 @@ sub dumpout {
             if($dump->{module} eq "output_perl"){
                 push @$f, "$head = <<HERE;\n";
                 open In, "$file" or die "Can't open $file.\n";
-                ;
                 while(<In>){
                     push @$f, $_;
                 }
@@ -194,7 +183,6 @@ sub dumpout {
             elsif($head=~/^\$/ and $dump->{module} eq "output_www"){
                 push @$f, "$head = <<<HERE\n";
                 open In, "$file" or die "Can't open $file.\n";
-                ;
                 while(<In>){
                     push @$f, $_;
                 }
@@ -204,7 +192,6 @@ sub dumpout {
             else{
                 my @t;
                 open In, "$file" or die "Can't open $file.\n";
-                ;
                 while(<In>){
                     chomp;
                     s/\\/\\\\/g;
@@ -237,12 +224,6 @@ sub dumpout {
             }
             elsif($l=~/^\s*NEWLINE\b/){
                 push @$f, "\n";
-            }
-            elsif($l =~/^PRINT (.*)/){
-                push @$f, "    "x$indentation."$1\n";
-            }
-            elsif($l =~/^\s*TAB (.*)/){
-                push @$f, "\t$1\n";
             }
             else{
                 chomp $l;

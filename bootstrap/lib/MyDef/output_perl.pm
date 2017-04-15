@@ -604,7 +604,7 @@ sub parsecode {
             }
             elsif($func =~ /^use$/){
                 $param=~s/\s*;\s*$//;
-                my @tlist=MyDef::utils::proper_split($param);
+                my @tlist=split /,\s*/, $param;
                 foreach my $v (@tlist){
                     if(!$uses{$v}){
                         $uses{$v}=1;

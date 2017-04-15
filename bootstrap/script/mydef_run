@@ -86,16 +86,6 @@ if(!$config{skiprun}){
                 $cmd .= " && $exe";
             }
         }
-        elsif($name=~/(.*)\.f$/){
-            $exe = $1;
-            $cmd="gfortran -g -o$exe $name $page->{lib_list}";
-            if($page->{run}){
-                $cmd .= " && $page->{run}";
-            }
-            else{
-                $cmd .= " && $exe";
-            }
-        }
         elsif($name=~/\.java$/){
             if($name=~/(.*)\/(.*)\.java/){
                 chdir $1;
@@ -118,20 +108,66 @@ if(!$config{skiprun}){
                 }
             }
         }
+        elsif($name=~/(.*)\.f$/){
+            $exe = $1;
+            $cmd="gfortran -g -o$exe $name $page->{lib_list}";
+            if($page->{run}){
+                $cmd .= " && $page->{run}";
+            }
+            else{
+                $cmd .= " && $exe";
+            }
+        }
+        elsif($name=~/(.*)\.rs$/){
+            $exe = $1;
+            $cmd="rustc $name";
+            if($page->{run}){
+                $cmd .= " && $page->{run}";
+            }
+            else{
+                $cmd .= " && $exe";
+            }
+        }
+        elsif($name=~/(.*)\.hs$/){
+            $exe = $1;
+            $cmd="ghc -o$exe $name";
+            if($page->{run}){
+                $cmd .= " && $page->{run}";
+            }
+            else{
+                $cmd .= " && $exe";
+            }
+        }
+        elsif($name=~/(.*)\.prolog$/){
+            $exe = $1;
+            $cmd="gplc $name";
+            if($page->{run}){
+                $cmd .= " && $page->{run}";
+            }
+            else{
+                $cmd .= " && $exe";
+            }
+        }
         elsif($page->{run}){
             $cmd=$page->{run};
+        }
+        elsif($name=~/\.sh$/){
+            $cmd = "sh $name";
         }
         elsif($name=~/\.pl$/){
             $cmd = "perl $name";
         }
-        elsif($name=~/\.sh$/){
-            $cmd = "sh $name";
+        elsif($name=~/\.php$/){
+            $cmd = "php $name";
         }
         elsif($name=~/\.py$/){
             $cmd = "python $name";
         }
         elsif($name=~/\.go$/){
             $cmd = "go run $name";
+        }
+        elsif($name=~/\.js$/){
+            $cmd = "node $name";
         }
         elsif($name=~/\.tex$/){
             $cmd = "pdflatex $name";

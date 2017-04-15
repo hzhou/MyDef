@@ -2,7 +2,7 @@
 use strict;
 our $flag_force;
 our $module="perl";
-our %module_type=(general=>"txt",perl=>"pl",www=>"html",win32=>"c",win32rc=>"rc",apple=>"m",matlab=>"m",autoit=>"au3",python=>"py",fortran=>"f",asm=>"c",plot=>"pl");
+our %module_type=(general=>"txt",perl=>"pl",www=>"html",win32=>"c",win32rc=>"rc",apple=>"m",matlab=>"m",autoit=>"au3",python=>"py",fortran=>"f",asm=>"c",plot=>"pl",rust=>"rs");
 our @master_config;
 our $config_outputdir;
 our $config_outputdir_make=0;
@@ -682,7 +682,7 @@ while(my ($dir, $list) = each %folder){
                 }
             }
         }
-        elsif($module eq "perl"){
+        elsif($module eq "perl"  and $dir=~/^[A-Z]/){
             if($dir=~/^(\w[0-9a-zA-Z_\-]*)\/lib/){
                 my $name=$1;
                 $name=~s/-/::/g;
@@ -702,7 +702,7 @@ while(my ($dir, $list) = each %folder){
                 }
             }
         }
-        elsif($module eq "xs"){
+        elsif($module eq "xs"  and $dir=~/^[A-Z]/){
             if($dir=~/^(\w[0-9a-zA-Z_\-]*)\/lib/){
                 my $name=$1;
                 $name=~s/-/::/g;

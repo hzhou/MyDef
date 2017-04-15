@@ -10,6 +10,172 @@ our %plugin_statement;
 our %plugin_condition;
 our $time_start = time();
 
+sub js_string {
+    my ($t) = @_;
+    my @parts=split /(\$\w+)/, $t;
+    if($parts[0]=~/^$/){
+        shift @parts;
+    }
+    for(my $i=0; $i<@parts; $i++){
+        if($parts[$i]=~/^\$(\w+)/){
+            $parts[$i]=$1;
+            while($parts[$i+1]=~/^(\[.*?\])/){
+                $parts[$i].=$1;
+                $parts[$i+1]=$';
+            }
+        }
+        else{
+            $parts[$i]= "\"$parts[$i]\"";
+        }
+    }
+    return join(' + ', @parts);
+}
+
+sub get_var_fmt {
+    my ($v, $warn) = @_;
+    return '%s';
+}
+
+sub fmt_string {
+    my ($str, $add_newline) = @_;
+    if(!$str){
+        if($add_newline){
+            return (0, '"\n"');
+        }
+        else{
+            return (0, '""');
+        }
+    }
+    $str=~s/\s*$//;
+    my @pre_list;
+    if($str=~/^\s*\"(.*)\"\s*,\s*(.*)$/){
+        $str=$1;
+        @pre_list=MyDef::utils::proper_split($2);
+    }
+    elsif($str=~/^\s*\"(.*)\"\s*$/){
+        $str=$1;
+    }
+    if($add_newline and $str=~/(.*)-$/){
+        $add_newline=0;
+        $str=$1;
+    }
+    my %colors=(red=>31,green=>32,yellow=>33,blue=>34,magenta=>35,cyan=>36);
+    my @fmt_list;
+    my @arg_list;
+    my $missing = 0;
+    my @group;
+    my $flag_hyphen=0;
+    while(1){
+        if($str=~/\G$/sgc){
+            last;
+        }
+        elsif($str=~/\G%/sgc){
+            if($str=~/\G%/sgc){
+                push @fmt_list, '%%';
+            }
+            elsif($str=~/\G[-+ #]*[0-9]*(\.\d+)?[s]/sgc){
+                if(!@pre_list){
+                    $missing++;
+                }
+                push @arg_list, shift @pre_list;
+                push @fmt_list, "%$&";
+            }
+            else{
+                push @fmt_list, '%%';
+            }
+        }
+        elsif($str=~/\G\$/sgc){
+            if($str=~/\G(red|green|yellow|blue|magenta|cyan)/sgc){
+                push @fmt_list, "\\x1b[$colors{$1}m";
+                if($str=~/\G\{/sgc){
+                    push @group, $1;
+                }
+            }
+            elsif($str=~/\Greset/sgc){
+                push @fmt_list, "\\x1b[0m";
+            }
+            elsif($str=~/\Gclear/sgc){
+                push @fmt_list, "\\x1b[H\\x1b[J";
+            }
+            elsif($str=~/\G(\w+)/sgc){
+                my $v=$1;
+                if($str=~/\G(\[.*?\])/sgc){
+                    $v.=$1;
+                }
+                elsif($str=~/\G(\{.*?\})/sgc){
+                    $v.=$1;
+                    $v=check_expression($v);
+                }
+                my $var=find_var($v);
+                if($var->{strlen}){
+                    push @fmt_list, "%.*s";
+                    push @arg_list, $var->{strlen};
+                    push @arg_list, $v;
+                }
+                else{
+                    push @fmt_list, get_var_fmt($v, 1);
+                    push @arg_list, $v;
+                }
+                if($str=~/\G-/sgc){
+                }
+            }
+            elsif($str=~/\G\{(.*?)\}/sgc){
+                push @arg_list, $1;
+                push @fmt_list, get_var_fmt($1, 1);
+            }
+            else{
+                push @fmt_list, '$';
+            }
+        }
+        elsif($str=~/\G\\\$/sgc){
+            push @fmt_list, '$';
+        }
+        elsif($str=~/\G\}/sgc){
+            if(@group){
+                pop @group;
+                if(!@group){
+                    push @fmt_list, "\\x1b[0m";
+                }
+                else{
+                    my $c=$group[-1];
+                    push @fmt_list, "\\x1b[$colors{$c}m";
+                }
+            }
+            else{
+                push @fmt_list, '}';
+            }
+        }
+        elsif($str=~/\G[^%\$\}]+/sgc){
+            push @fmt_list, $&;
+        }
+    }
+    if(@pre_list){
+        my $s = join(', ', @pre_list);
+        my $curfile=MyDef::compileutil::curfile_curline();
+        print "[$curfile]\x1b[33m Extra fmt arg list: $s\n\x1b[0m";
+    }
+    elsif($missing>0){
+        my $curfile=MyDef::compileutil::curfile_curline();
+        print "[$curfile]\x1b[33m Missing $missing fmt arguments\n\x1b[0m";
+    }
+    if($add_newline){
+        my $tail=$fmt_list[-1];
+        if($tail=~/(.*)-$/){
+            $fmt_list[-1]=$1;
+        }
+        elsif($tail!~/\\n$/){
+            push @fmt_list, "\\n";
+        }
+    }
+    if(!@arg_list){
+        return (0, '"'.join('',@fmt_list).'"');
+    }
+    else{
+        my $vcnt=@arg_list;
+        return ($vcnt, '"'.join('',@fmt_list).'", '.join(', ', @arg_list));
+    }
+}
+
 sub bases {
     my ($n, @bases) = @_;
     my @t;
@@ -114,9 +280,11 @@ sub parsecode {
         }
         return;
     }
-    if($MyDef::compileutil::cur_mode eq "PRINT"){
-        push @$out, $l;
-        return 0;
+    if(0){
+    }
+    elsif($l=~/^(\S+)\s*=\s*"(.*\$\w+.*)"\s*$/){
+        push @$out, "$1=". js_string($2);
+        return;
     }
     elsif($l=~/^\s*\$(\w+)\((.*?)\)\s+(.*?)\s*$/){
         my ($func, $param1, $param2)=($1, $2, $3);
@@ -208,8 +376,20 @@ sub parsecode {
                 }
             }
             elsif($func eq "print"){
-                push @$out, "console.log($param);";
-                return 0;
+                $param=~s/^\s+//;
+                my ($n, $fmt)=fmt_string($param, 0);
+                my $print_to = MyDef::compileutil::get_macro_word("print_to", 1);
+                if(!$print_to){
+                    push @$out, "console.log($fmt)";
+                }
+                else{
+                    push @$out, "console.$print_to($fmt)";
+                }
+                return;
+            }
+            elsif($func eq "dump"){
+                push @$out, "console.log($param)";
+                return;
             }
         }
     }
@@ -242,25 +422,5 @@ sub single_block {
     else{
         return "NEWBLOCK";
     }
-}
-sub js_string {
-    my ($t)=@_;
-    my @parts=split /(\$\w+)/, $t;
-    if($parts[0]=~/^$/){
-        shift @parts;
-    }
-    for(my $i=0; $i<@parts; $i++){
-        if($parts[$i]=~/^\$(\w+)/){
-            $parts[$i]=$1;
-            while($parts[$i+1]=~/^(\[.*?\])/){
-                $parts[$i].=$1;
-                $parts[$i+1]=$';
-            }
-        }
-        else{
-            $parts[$i]= "\"$parts[$i]\"";
-        }
-    }
-    return join(' + ', @parts);
 }
 1;

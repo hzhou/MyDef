@@ -1,17 +1,18 @@
 use strict;
 package MyDef::compileutil;
-our %list_list;
-our %list_hash;
-our $cur_file;
-our $cur_line;
+our $deflist;
+our %misc_vars;
+our $debug=0;
 our $f_init;
 our $f_parse;
 our $f_setout;
 our $f_modeswitch;
 our $f_dumpout;
-our $deflist;
-our %misc_vars;
-our $debug=0;
+our @interface_stack;
+our %list_list;
+our %list_hash;
+our $cur_file;
+our $cur_line;
 our $out;
 our @output_list;
 our %named_blocks;
@@ -23,13 +24,142 @@ our @callback_block_stack;
 our %eval_sub_cache;
 our %eval_sub_error;
 our $cur_ogdl;
-our $parse_capture;
 our %named_macros=(def=>0,macro=>1,page=>2);
 our $MAKE_STRING;
+our $parse_capture;
 our $block_index=0;
 our @block_stack;
 our $n_get_macro;
 our $time_start = time();
+
+sub set_output {
+    my ($output) = @_;
+    my $old=$out;
+    $out=$output;
+    $f_setout->($out);
+    return $old;
+}
+
+sub set_interface {
+    ($f_init, $f_parse, $f_setout, $f_modeswitch, $f_dumpout)=@_;
+}
+
+sub set_interface_partial {
+    my $t;
+    ($f_init, $f_parse, $f_setout, $t, $f_dumpout)=@_;
+}
+
+sub push_interface {
+    my ($module) = @_;
+    push @interface_stack, [$f_init, $f_parse, $f_setout, $f_modeswitch, $f_dumpout];
+    if($module eq "general"){
+        require MyDef::output_general;
+        set_interface_partial(MyDef::output_general::get_interface());
+    }
+    elsif($module eq "perl"){
+        require MyDef::output_perl;
+        set_interface_partial(MyDef::output_perl::get_interface());
+    }
+    elsif($module eq "c"){
+        require MyDef::output_c;
+        set_interface_partial(MyDef::output_c::get_interface());
+    }
+    elsif($module eq "xs"){
+        require MyDef::output_xs;
+        set_interface_partial(MyDef::output_xs::get_interface());
+    }
+    elsif($module eq "php"){
+        require MyDef::output_php;
+        set_interface_partial(MyDef::output_php::get_interface());
+    }
+    elsif($module eq "js"){
+        require MyDef::output_js;
+        set_interface_partial(MyDef::output_js::get_interface());
+    }
+    elsif($module eq "cpp"){
+        require MyDef::output_cpp;
+        set_interface_partial(MyDef::output_cpp::get_interface());
+    }
+    elsif($module eq "java"){
+        require MyDef::output_java;
+        set_interface_partial(MyDef::output_java::get_interface());
+    }
+    elsif($module eq "go"){
+        require MyDef::output_go;
+        set_interface_partial(MyDef::output_go::get_interface());
+    }
+    elsif($module eq "awk"){
+        require MyDef::output_awk;
+        set_interface_partial(MyDef::output_awk::get_interface());
+    }
+    elsif($module eq "ino"){
+        require MyDef::output_ino;
+        set_interface_partial(MyDef::output_ino::get_interface());
+    }
+    elsif($module eq "glsl"){
+        require MyDef::output_glsl;
+        set_interface_partial(MyDef::output_glsl::get_interface());
+    }
+    elsif($module eq "www"){
+        require MyDef::output_www;
+        set_interface_partial(MyDef::output_www::get_interface());
+    }
+    elsif($module eq "win32"){
+        require MyDef::output_win32;
+        set_interface_partial(MyDef::output_win32::get_interface());
+    }
+    elsif($module eq "win32rc"){
+        require MyDef::output_win32rc;
+        set_interface_partial(MyDef::output_win32rc::get_interface());
+    }
+    elsif($module eq "apple"){
+        require MyDef::output_apple;
+        set_interface_partial(MyDef::output_apple::get_interface());
+    }
+    elsif($module eq "matlab"){
+        require MyDef::output_matlab;
+        set_interface_partial(MyDef::output_matlab::get_interface());
+    }
+    elsif($module eq "autoit"){
+        require MyDef::output_autoit;
+        set_interface_partial(MyDef::output_autoit::get_interface());
+    }
+    elsif($module eq "python"){
+        require MyDef::output_python;
+        set_interface_partial(MyDef::output_python::get_interface());
+    }
+    elsif($module eq "fortran"){
+        require MyDef::output_fortran;
+        set_interface_partial(MyDef::output_fortran::get_interface());
+    }
+    elsif($module eq "asm"){
+        require MyDef::output_asm;
+        set_interface_partial(MyDef::output_asm::get_interface());
+    }
+    elsif($module eq "plot"){
+        require MyDef::output_plot;
+        set_interface_partial(MyDef::output_plot::get_interface());
+    }
+    elsif($module eq "rust"){
+        require MyDef::output_rust;
+        set_interface_partial(MyDef::output_rust::get_interface());
+    }
+    else{
+        print "[$cur_file:$cur_line]\x1b[32m   push_interface: module $module not found\n\x1b[0m";
+        return undef;
+    }
+    $f_setout->($out);
+}
+
+sub pop_interface {
+    if(@interface_stack){
+        my $interface = pop @interface_stack;
+        set_interface_partial(@$interface);
+    }
+    else{
+        print "[$cur_file:$cur_line]\x1b[32m    pop_interface: stack empty\n\x1b[0m";
+    }
+}
 
 sub test_op {
     my ($a, $test) = @_;
@@ -680,21 +810,8 @@ sub list_sub {
     pop @$deflist;
 }
 
-sub special_sub {
-    my ($param, $mode) = @_;
-    if($param=~/^(@)?(\w+)(.*)/){
-        my $codename=$1;
-        my $codelib=get_def_attr("codes", $codename);
-        if($codelib){
-            modepush($mode);
-            parseblock($codelib);
-            modepop();
-        }
-    }
-}
-
 sub eval_sub {
-    my ($codename, $module) = @_;
+    my ($codename) = @_;
     if($eval_sub_cache{$codename}){
         return $eval_sub_cache{$codename};
     }
@@ -704,111 +821,15 @@ sub eval_sub {
             warn "    eval_sub: Code $codename not found\n";
             return undef;
         }
-        if(!$module){
-            $module="perl";
-        }
         my @t;
         my $save_out=$out;
-        my @save_interface=get_interface();
-        if($module eq "general"){
-            require MyDef::output_general;
-            set_interface(MyDef::output_general::get_interface());
-        }
-        elsif($module eq "perl"){
-            require MyDef::output_perl;
-            set_interface(MyDef::output_perl::get_interface());
-        }
-        elsif($module eq "c"){
-            require MyDef::output_c;
-            set_interface(MyDef::output_c::get_interface());
-        }
-        elsif($module eq "xs"){
-            require MyDef::output_xs;
-            set_interface(MyDef::output_xs::get_interface());
-        }
-        elsif($module eq "php"){
-            require MyDef::output_php;
-            set_interface(MyDef::output_php::get_interface());
-        }
-        elsif($module eq "js"){
-            require MyDef::output_js;
-            set_interface(MyDef::output_js::get_interface());
-        }
-        elsif($module eq "cpp"){
-            require MyDef::output_cpp;
-            set_interface(MyDef::output_cpp::get_interface());
-        }
-        elsif($module eq "java"){
-            require MyDef::output_java;
-            set_interface(MyDef::output_java::get_interface());
-        }
-        elsif($module eq "go"){
-            require MyDef::output_go;
-            set_interface(MyDef::output_go::get_interface());
-        }
-        elsif($module eq "awk"){
-            require MyDef::output_awk;
-            set_interface(MyDef::output_awk::get_interface());
-        }
-        elsif($module eq "ino"){
-            require MyDef::output_ino;
-            set_interface(MyDef::output_ino::get_interface());
-        }
-        elsif($module eq "glsl"){
-            require MyDef::output_glsl;
-            set_interface(MyDef::output_glsl::get_interface());
-        }
-        elsif($module eq "www"){
-            require MyDef::output_www;
-            set_interface(MyDef::output_www::get_interface());
-        }
-        elsif($module eq "win32"){
-            require MyDef::output_win32;
-            set_interface(MyDef::output_win32::get_interface());
-        }
-        elsif($module eq "win32rc"){
-            require MyDef::output_win32rc;
-            set_interface(MyDef::output_win32rc::get_interface());
-        }
-        elsif($module eq "apple"){
-            require MyDef::output_apple;
-            set_interface(MyDef::output_apple::get_interface());
-        }
-        elsif($module eq "matlab"){
-            require MyDef::output_matlab;
-            set_interface(MyDef::output_matlab::get_interface());
-        }
-        elsif($module eq "autoit"){
-            require MyDef::output_autoit;
-            set_interface(MyDef::output_autoit::get_interface());
-        }
-        elsif($module eq "python"){
-            require MyDef::output_python;
-            set_interface(MyDef::output_python::get_interface());
-        }
-        elsif($module eq "fortran"){
-            require MyDef::output_fortran;
-            set_interface(MyDef::output_fortran::get_interface());
-        }
-        elsif($module eq "asm"){
-            require MyDef::output_asm;
-            set_interface(MyDef::output_asm::get_interface());
-        }
-        elsif($module eq "plot"){
-            require MyDef::output_plot;
-            set_interface(MyDef::output_plot::get_interface());
-        }
-        else{
-            print "[$cur_file:$cur_line]\x1b[32m   eval_sub: module $module not found\n\x1b[0m";
-            return undef;
-        }
         $out=[];
-        $f_setout->($out);
+        push_interface("perl");
         list_sub($codelib);
         $f_dumpout->(\@t, $out, "eval");
+        pop_interface();
         $out=$save_out;
         $f_setout->($out);
-        set_interface(@save_interface);
         my $t=join("", @t);
         $eval_sub_cache{$codename}=$t;
         return $t;
@@ -882,70 +903,7 @@ sub parseblock {
         elsif($l eq "SOURCE_DEDENT"){
             $indent-- if $indent>0;
         }
-        if($cur_mode eq "PRINT"){
-            my $callback_output;
-            my $callback_scope;
-            my $msg=$f_parse->($l);
-            if($msg){
-                if(ref($msg) eq "ARRAY"){
-                    print "[$cur_file:$cur_line]\x1b[32m return [ARRAY] deprecated. Use NEWBLOCK and &replace_output instead.\n\x1b[0m";
-                }
-                elsif($msg=~/^NEWBLOCK(.*)/){
-                    if($1=~/^-(.*)/){
-                        $callback_scope=$1;
-                    }
-                    $callback_output=$named_blocks{NEWBLOCK};
-                }
-                elsif($msg=~/^SKIPBLOCK(.*)/){
-                    my $blk=grabblock($block, \$lindex);
-                    if($1=~/^-(\w+)/){
-                        $named_blocks{$1}=$blk;
-                    }
-                    last;
-                }
-                elsif($msg=~/^CALLBACK\b/){
-                    my $blk=grabblock($block, \$lindex);
-                    $parse_capture=[];
-                    parseblock({source=>$blk, name=>"capture"});
-                    $named_blocks{last_grab}=$parse_capture;
-                    undef $parse_capture;
-                    $f_parse->($msg);
-                    $named_blocks{last_grab}=undef;
-                }
-                elsif($msg=~/^SET:(\w+)=(.*)/){
-                    $deflist->[-1]->{$1}=$2;
-                    last;
-                }
-                elsif($msg=~/^PARSE:(.*)/){
-                    $l=$1;
-                    next;
-                }
-                if($callback_output){
-                    my $subblock=grabblock($block, \$lindex);
-                    my $old_out;
-                    if($callback_output->[0]=~/^OUTPUT:\s*(\S+)/){
-                        my $output = get_named_block($1);
-                        $old_out = set_output($output);
-                        shift @$callback_output;
-                    }
-                    foreach my $l (@$callback_output){
-                        if($l=~/^BLOCK$/){
-                            parseblock({source=>$subblock, name=>"BLOCK", scope=>$callback_scope});
-                        }
-                        elsif($l=~/^PARSE:(.*)/){
-                            $f_parse->($1);
-                        }
-                        else{
-                            $f_parse->($l);
-                        }
-                    }
-                    if($old_out){
-                        set_output($old_out);
-                    }
-                }
-            }
-        }
-        elsif($cur_mode eq "template"){
+        if($cur_mode eq "template"){
             if($l=~/^(\s*)\$call\s+(.+)/){
                 my ($func, $param)=("\$call", $2);
                 my $len = MyDef::parseutil::get_indent_spaces($1);
@@ -959,9 +917,6 @@ sub parseblock {
                 $param=~s/\s*$//;
                 if($func eq "\$map"){
                     map_sub($param, 1);
-                }
-                elsif($func =~ "^\$call-(PRINT|template)"){
-                    special_sub($param, $1);
                 }
                 elsif($func =~ /^\$call/){
                     call_sub($param);
@@ -1437,14 +1392,11 @@ sub parseblock {
                 NormalParse:
                 expand_macro(\$l);
                 while(1){
-                    if($l=~/^(&call\d?|\$call|\$map\d?|\$nest|\$call-PRINT|\$call-template)\s+(.*)$/){
+                    if($l=~/^(&call\d?|\$call|\$map\d?|\$nest)\s+(.*)$/){
                         my ($func, $param)=($1, $2);
                         $param=~s/\s*$//;
                         if($func eq "\$map"){
                             map_sub($param, 1);
-                        }
-                        elsif($func =~ "^\$call-(PRINT|template)"){
-                            special_sub($param, $1);
                         }
                         elsif($func =~ /^\$call/){
                             call_sub($param);
@@ -1563,7 +1515,12 @@ sub parseblock {
                                         parseblock({source=>$subblock, name=>"BLOCK", scope=>$callback_scope});
                                     }
                                     elsif($l=~/^PARSE:(.*)/){
-                                        $f_parse->($1);
+                                        if($1=~/\s*\MODEPOP/){
+                                            modepop();
+                                        }
+                                        else{
+                                            $f_parse->($1);
+                                        }
                                     }
                                     else{
                                         $f_parse->($l);
@@ -1966,19 +1923,6 @@ sub get_time {
     }
 }
 
-sub set_interface {
-    ($f_init, $f_parse, $f_setout, $f_modeswitch, $f_dumpout)=@_;
-}
-sub get_interface {
-    return ($f_init, $f_parse, $f_setout, $f_modeswitch, $f_dumpout);
-}
-sub set_output {
-    my ($output)=@_;
-    my $old=$out;
-    $out=$output;
-    $f_setout->($out);
-    return $old;
-}
 sub init_output {
     @output_list=([]);
     set_output($output_list[0]);
