@@ -79,6 +79,8 @@ page: mydef_run
                 $call append_run, java $name
         $call do_compile, f, gfortran -g -o$exe $name $page->{lib_list}
         $call do_compile, rs, rustc $name
+        $call do_compile, hs, ghc -o$exe $name
+        # $call do_compile, prolog, gplc $name    ? no idea how to make it work
         $elif $page->{run}
             $cmd=$page->{run}
         $call do_script, sh, sh

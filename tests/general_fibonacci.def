@@ -9,6 +9,8 @@ page: test
     $call seq, fac, 1, a0*n
     $call seq, rec, "recursive", "I know (" ++ a0 ++ ") " ++ show n
 
+    main = print (fac 42)
+
 # ---- engine part, tuck in the library ----
 perlcode: seq
     $if $param=~/(\w+)[,:]\s*(.*)/

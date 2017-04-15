@@ -3,6 +3,11 @@ subcode: get_print_to
     my $print_to = MyDef::compileutil::get_macro_word("print_to", 1)
 #---------------------------------------- 
 fncode: fmt_string($str, $add_newline)
+    $if !$str
+        $if $add_newline
+            return (0, '"\n"')
+        $else
+            return (0, '""')
     # print "fmt_string: [$str]\n"
     $str=~s/\s*$//
     my @pre_list
