@@ -88,6 +88,7 @@ fncode:@ my_add_var($name, $type, $value)
     $var_hash->{$name} = $var
     my $decl = var_declare($var, 1)
     push @$out, $decl
+    return $name
 
 fncode: temp_add_var($name, $type, $value)
     my $var=parse_var($name, $type, $value)
