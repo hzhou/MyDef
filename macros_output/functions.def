@@ -271,11 +271,7 @@ subcode: add_function_params(func)
     my $i=0
     $foreach $p in @plist
         $i++
-        my ($type, $name)
         $call function_param_$(function_style)
-        $if $name
-            $var_hash->{$name}={name=>$name, type=>$type}
-
 
 #---------------------------------------- 
 fncode: process_function_std($func)

@@ -203,7 +203,9 @@ subcode: parse_line
             &call check_callback_output
                 $foreach $l in @$callback_output
                     $if $l=~/^BLOCK$/
+                        push @$deflist, {}
                         parseblock({source=>$subblock, name=>"BLOCK", scope=>$callback_scope})
+                        pop @$deflist
                     $elif $l=~/^PARSE:(.*)/
                         $if $1=~/\s*\MODEPOP/
                             # ref: output_www.def -- $script
