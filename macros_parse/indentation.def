@@ -15,6 +15,7 @@ subcode:: import_file_init
     my @indent_stack
 
 subcode: start_code_indent(type, indent, item)
+    # $call @debug
     $(if:type=page)
         $if !@indent_stack
             push @indent_stack, [$codetype, $codeindent, $codeitem]
@@ -26,6 +27,10 @@ subcode: start_code_indent(type, indent, item)
     # prevent starting empty line triger dedent
     $curindent=$(indent)
     $lastindent = $curindent
+
+    subcode: debug
+        my $n = @indent_stack
+        $print [$n]start_code_indent $(type) - $(indent) - $(item)
 
 subcode: check_end_codeindent
     $while $curindent <$codeindent or ($in_default_page and $line=~/^END/ and $curindent==0 and @indent_stack)
@@ -67,7 +72,7 @@ subcode: get_source_dedent(curindent)
 #---------------------------------------- 
 subcode: get_parent(what)
     my $parent
-    $if $in_default_page and $curindent==0
+    $if $curindent==0
         $parent = $def
     $elif !$in_default_page and $curindent==1 and $page
         $parent = $page

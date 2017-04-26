@@ -8,7 +8,7 @@ page: test
         $call test_case, 2
 
     subcode: test_read_file
-        $(set:f=../perl_test.def)
+        $(set:f=perl_test.def)
         print "\nTest \&call open_r $(f)...\n"
         &call read_sub
             print "    subcode: $1\n"
@@ -25,7 +25,7 @@ page: test
         test_global("Harry")
 
         $sub test_global($name)
-            $global $index
+            $global $index=10
             $index++
             print "    $index: $name\n"
 
