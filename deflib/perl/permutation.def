@@ -44,10 +44,30 @@ subcode: permute(n, k)
                 $j++
                 $k--
 
-    subcode: swap(a, b)
-        my $_t = $(a)
-        $(a) = $(b)
-        $(b) = $_t
+#---------------------------------------- 
+subcode: ret_tlist(n)
+    my @tlist
+    BLOCK
+    return \@tlist
+
+    subcode: add_perm
+        my @t
+        $for $i=0:$(n)
+            push @t, $_[$perm[$i]]
+        push @tlist, \@t
+
+fncode: get_perm_list
+    my $n=@_
+    &call ret_tlist, $n
+        &call permute, $n, $n
+            $call add_perm
+
+fncode: get_enum_list
+    my $n = shift @_
+    my $k = @_
+    &call ret_tlist, $n
+        &call enum_count, $n, $k
+            $call add_perm
 
 #---------------------------------------- 
 #- n-digit count up (first digit at i=0)

@@ -42,18 +42,6 @@ subcode: update_min(min, a)
 subcode: swap(a, b)
     ($(a), $(b)) = ($(b), $(a))
 
-# e.g. @t = bases(10000, 60, 60, 24); print join(':', reverse @t), "\n"; --> 2:46:40
-fncode: bases($n, @bases)
-    my @t
-    $foreach $b in @bases
-        push @t, $n % $b
-        $n = int($n/$b)
-        $if $n<=0
-            last
-    $if $n>0
-        push @t, $n
-    return @t
-
 # -- IO -------------------------
 subcode: open_r(name)
     $(if:name~")
@@ -102,23 +90,6 @@ subcode: bench(n)
     my $time_finish=Time::HiRes::clock()
     printf "bench $(n) iterations: %f sec/iter\n", ($time_finish-$time_start)/$(n)
 
-# -- simple progress timing
-fncode: get_time
-    $global $time_start = time()
-    my $t = time()-$time_start
-    my @t
-    $call get_seg, 60
-    $call get_seg, 60
-    $call get_seg, 60
-    $if $t>0
-        $call get_seg, 24
-        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0])
-    $else
-        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0])
-
-    subcode: get_seg(P)
-        push @t, $t % $(P)
-        $t = int($t/$(P))
 #---------------------------------------- 
 #-- similar to HERE document -----------
 perlcode: print_block
