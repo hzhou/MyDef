@@ -30,7 +30,6 @@ our $parse_capture;
 our $block_index=0;
 our @block_stack;
 our $n_get_macro;
-our $time_start = time();
 
 sub set_output {
     my ($output) = @_;
@@ -100,6 +99,10 @@ sub push_interface {
         require MyDef::output_glsl;
         set_interface_partial(MyDef::output_glsl::get_interface());
     }
+    elsif($module eq "asm"){
+        require MyDef::output_asm;
+        set_interface_partial(MyDef::output_asm::get_interface());
+    }
     elsif($module eq "www"){
         require MyDef::output_www;
         set_interface_partial(MyDef::output_www::get_interface());
@@ -131,10 +134,6 @@ sub push_interface {
     elsif($module eq "fortran"){
         require MyDef::output_fortran;
         set_interface_partial(MyDef::output_fortran::get_interface());
-    }
-    elsif($module eq "asm"){
-        require MyDef::output_asm;
-        set_interface_partial(MyDef::output_asm::get_interface());
     }
     elsif($module eq "plot"){
         require MyDef::output_plot;
@@ -374,6 +373,9 @@ sub call_sub {
         }
         else{
             my $codeparams=$codelib->{params};
+            if(!$codeparams){
+                $codeparams=[];
+            }
             my $n_param = @$codeparams;
             my ($pline, @plist);
             $param=~s/^\s*,?\s*//;
@@ -398,24 +400,30 @@ sub call_sub {
                     $macro->{"p$i"}=$p;
                 }
             }
-            if($n_pre+@plist!=$n_param){
-                my $n2=@plist;
-                my $n3=$n_param;
-                if($codeparams->[$n3-1]=~/^\@(\w+)/ and $n2>$n3-$n_pre){
-                    my $n0=$n3-$n_pre-1;
-                    for(my $i=0; $i<$n0; $i++){
-                        $pline=~s/^[^,]*,//;
+            my $n_p=@plist;
+            if($n_pre+$n_p != $n_param){
+                my $n0=$n_param-$n_pre-1;
+                if($codeparams->[$n_param-1]=~/^\@(\w+)/ and $n_p>=$n0){
+                    if($n_p>$n0){
+                        for(my $i=0; $i<$n0; $i++){
+                            $pline=~s/^[^,]*,//;
+                        }
+                        $pline=~s/^\s*//;
+                        $plist[$n0]=$pline;
                     }
-                    $pline=~s/^\s*//;
-                    $plist[$n0]=$pline;
+                    else{
+                        $plist[$n0]="";
+                    }
                 }
                 else{
                     my $param=join(', ', @$codeparams);
-                    warn "    [$cur_file:$cur_line] Code $codename parameter mismatch ($n_pre + $n2) != $n3. [pline:$pline]($param)\n";
+                    print "[$cur_file:$cur_line]\x1b[32m Code $codename parameter mismatch ($n_pre + $n_p) != $n_param. [pline:$pline]($param)\n\x1b[0m";
                 }
             }
-            for(my $i=0; $i<$n_pre; $i++){
-                $macro->{$codeparams->[$i]}=$pre_plist[$i];
+            if($n_pre>0){
+                for(my $i=0; $i<$n_pre; $i++){
+                    $macro->{$codeparams->[$i]}=$pre_plist[$i];
+                }
             }
             for(my $j=0; $j<$n_param-$n_pre; $j++){
                 my $p=$codeparams->[$n_pre+$j];
@@ -498,6 +506,9 @@ sub map_sub {
         }
         else{
             my $codeparams=$codelib->{params};
+            if(!$codeparams){
+                $codeparams=[];
+            }
             my $n_param = @$codeparams;
             my (@pre_plist, $pline, @plist);
             if($param=~/^\(([^\)]*)\)/){
@@ -582,6 +593,9 @@ sub call_back {
         }
         else{
             my $codeparams=$codelib->{params};
+            if(!$codeparams){
+                $codeparams=[];
+            }
             my $n_param = @$codeparams;
             my ($pline, @plist);
             $param=~s/^\s*,?\s*//;
@@ -607,24 +621,30 @@ sub call_back {
                     $macro->{"p$i"}=$p;
                 }
             }
-            if($n_pre+@plist!=$n_param){
-                my $n2=@plist;
-                my $n3=$n_param;
-                if($codeparams->[$n3-1]=~/^\@(\w+)/ and $n2>$n3-$n_pre){
-                    my $n0=$n3-$n_pre-1;
-                    for(my $i=0; $i<$n0; $i++){
-                        $pline=~s/^[^,]*,//;
+            my $n_p=@plist;
+            if($n_pre+$n_p != $n_param){
+                my $n0=$n_param-$n_pre-1;
+                if($codeparams->[$n_param-1]=~/^\@(\w+)/ and $n_p>=$n0){
+                    if($n_p>$n0){
+                        for(my $i=0; $i<$n0; $i++){
+                            $pline=~s/^[^,]*,//;
+                        }
+                        $pline=~s/^\s*//;
+                        $plist[$n0]=$pline;
                     }
-                    $pline=~s/^\s*//;
-                    $plist[$n0]=$pline;
+                    else{
+                        $plist[$n0]="";
+                    }
                 }
                 else{
                     my $param=join(', ', @$codeparams);
-                    warn "    [$cur_file:$cur_line] Code $codename parameter mismatch ($n_pre + $n2) != $n3. [pline:$pline]($param)\n";
+                    print "[$cur_file:$cur_line]\x1b[32m Code $codename parameter mismatch ($n_pre + $n_p) != $n_param. [pline:$pline]($param)\n\x1b[0m";
                 }
             }
-            for(my $i=0; $i<$n_pre; $i++){
-                $macro->{$codeparams->[$i]}=$pre_plist[$i];
+            if($n_pre>0){
+                for(my $i=0; $i<$n_pre; $i++){
+                    $macro->{$codeparams->[$i]}=$pre_plist[$i];
+                }
             }
             for(my $j=0; $j<$n_param-$n_pre; $j++){
                 my $p=$codeparams->[$n_pre+$j];
@@ -708,6 +728,9 @@ sub multi_call_back {
         }
         else{
             my $codeparams=$codelib->{params};
+            if(!$codeparams){
+                $codeparams=[];
+            }
             my $n_param = @$codeparams;
             my ($pline, @plist);
             $param=~s/^\s*,?\s*//;
@@ -733,24 +756,30 @@ sub multi_call_back {
                     $macro->{"p$i"}=$p;
                 }
             }
-            if($n_pre+@plist!=$n_param){
-                my $n2=@plist;
-                my $n3=$n_param;
-                if($codeparams->[$n3-1]=~/^\@(\w+)/ and $n2>$n3-$n_pre){
-                    my $n0=$n3-$n_pre-1;
-                    for(my $i=0; $i<$n0; $i++){
-                        $pline=~s/^[^,]*,//;
+            my $n_p=@plist;
+            if($n_pre+$n_p != $n_param){
+                my $n0=$n_param-$n_pre-1;
+                if($codeparams->[$n_param-1]=~/^\@(\w+)/ and $n_p>=$n0){
+                    if($n_p>$n0){
+                        for(my $i=0; $i<$n0; $i++){
+                            $pline=~s/^[^,]*,//;
+                        }
+                        $pline=~s/^\s*//;
+                        $plist[$n0]=$pline;
                     }
-                    $pline=~s/^\s*//;
-                    $plist[$n0]=$pline;
+                    else{
+                        $plist[$n0]="";
+                    }
                 }
                 else{
                     my $param=join(', ', @$codeparams);
-                    warn "    [$cur_file:$cur_line] Code $codename parameter mismatch ($n_pre + $n2) != $n3. [pline:$pline]($param)\n";
+                    print "[$cur_file:$cur_line]\x1b[32m Code $codename parameter mismatch ($n_pre + $n_p) != $n_param. [pline:$pline]($param)\n\x1b[0m";
                 }
             }
-            for(my $i=0; $i<$n_pre; $i++){
-                $macro->{$codeparams->[$i]}=$pre_plist[$i];
+            if($n_pre>0){
+                for(my $i=0; $i<$n_pre; $i++){
+                    $macro->{$codeparams->[$i]}=$pre_plist[$i];
+                }
             }
             for(my $j=0; $j<$n_param-$n_pre; $j++){
                 my $p=$codeparams->[$n_pre+$j];
@@ -825,6 +854,7 @@ sub eval_sub {
         my $save_out=$out;
         $out=[];
         push_interface("perl");
+        push @$out, "EVAL";
         list_sub($codelib);
         $f_dumpout->(\@t, $out, "eval");
         pop_interface();
@@ -1512,7 +1542,9 @@ sub parseblock {
                                 }
                                 foreach my $l (@$callback_output){
                                     if($l=~/^BLOCK$/){
+                                        push @$deflist, {};
                                         parseblock({source=>$subblock, name=>"BLOCK", scope=>$callback_scope});
+                                        pop @$deflist;
                                     }
                                     elsif($l=~/^PARSE:(.*)/){
                                         if($1=~/\s*\MODEPOP/){
@@ -1888,41 +1920,6 @@ sub debug_def_stack {
     }
 }
 
-sub bases {
-    my ($n, @bases) = @_;
-    my @t;
-    foreach my $b (@bases){
-        push @t, $n % $b;
-        $n = int($n/$b);
-        if($n<=0){
-            last;
-        }
-    }
-    if($n>0){
-        push @t, $n;
-    }
-    return @t;
-}
-
-sub get_time {
-    my $t = time()-$time_start;
-    my @t;
-    push @t, $t % 60;
-    $t = int($t/60);
-    push @t, $t % 60;
-    $t = int($t/60);
-    push @t, $t % 60;
-    $t = int($t/60);
-    if($t>0){
-        push @t, $t % 24;
-        $t = int($t/24);
-        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0]);
-    }
-    else{
-        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0]);
-    }
-}
-
 sub init_output {
     @output_list=([]);
     set_output($output_list[0]);
@@ -2121,7 +2118,11 @@ sub compile {
     if(!$maincode){
         $maincode=$MyDef::def->{codes}->{main};
     }
-    if($maincode){
+    if($page->{_frame}){
+        $page->{codes}->{main2}=$maincode;
+        call_sub($page->{_frame});
+    }
+    elsif($maincode){
         parse_code($maincode);
     }
     else{
@@ -2132,7 +2133,7 @@ sub compile {
     }
     if(!$page->{subpage}){
         my @buffer;
-        $f_dumpout->(\@buffer, fetch_output(0), $page->{_pageext});
+        $f_dumpout->(\@buffer, fetch_output(0));
         return \@buffer;
     }
 }

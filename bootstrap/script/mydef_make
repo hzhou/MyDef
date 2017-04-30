@@ -2,7 +2,7 @@
 use strict;
 our $flag_force;
 our $module="perl";
-our %module_type=(general=>"txt",perl=>"pl",www=>"html",win32=>"c",win32rc=>"rc",apple=>"m",matlab=>"m",autoit=>"au3",python=>"py",fortran=>"f",asm=>"c",plot=>"pl",rust=>"rs");
+our %module_type=(general=>"txt",perl=>"pl",www=>"html",win32=>"c",win32rc=>"rc",apple=>"m",matlab=>"m",autoit=>"au3",python=>"py",fortran=>"f",plot=>"pl",rust=>"rs");
 our @master_config;
 our $config_outputdir;
 our $config_outputdir_make=0;
