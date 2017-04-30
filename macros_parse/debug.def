@@ -1,5 +1,17 @@
+subcode:: post_parsing
+    $if $debug
+        $foreach $k in keys %$debug
+            $if $k eq "def"
+                debug_def($def)
+                exit
+            $elif $k=~/^code:\s*(\w+)/
+                debug_code($def->{codes}->{$1})
+                exit
+
 fncode: parse_DEBUG($t)
-    $global $debug={}
+    $global $debug
+    $if !$debug
+        $debug={}
     $if $t=~/^(\d+)/
         $debug->{def}=1
         $debug->{n}=$1
@@ -9,16 +21,96 @@ fncode: parse_DEBUG($t)
         $debug->{def}=1
 
 fncode: debug_def($def)
+    $call dump_macros, $def, 0
+    $call dump_pagelist
+    $call dump_pages
+    $call dump_codes, $def, 0
     print_def_node($def, 0)
 
+    subcode: dump_pagelist
+        my $pagelist=$def->{pagelist}
+        $if @$pagelist
+            print "pagelist: ", join(', ', @$pagelist), "\n"
+        undef $def->{pagelist}
+        $print
+
+    subcode: dump_pages
+        $foreach %{$def->{pages}}
+            $call dump_page, $k, $v
+        undef $def->{pages}
+        $print
+
+    subcode: dump_macros(node, indent)
+        my $macros = $(node)->{macros}
+        $if $macros && %$macros
+            print "    " x $(indent)
+            $print "macros:"
+            debug_macros($macros, $(indent)+1)
+            undef $def->{macros}
+            $print
+
+    subcode: dump_codes(node, indent)
+        my $codes = $(node)->{codes}
+        $if $codes && %$codes
+            $foreach $k in sort keys %$codes
+                my $v = $codes->{$k}
+                debug_code($v, $(indent), 1)
+        undef $(node)->{codes}
+        $print
+
+    subcode: dump_page(name, v)
+        $print "page: $(name)"
+        print "    ["
+        $(for:_pagename, _frame, module)
+            $if $(v)->{$1}
+                print "$1: $(v)->{$1}; "
+                undef $(v)->{_pagename}
+        $print ]
+        $call dump_codes, $(v), 1
+        $call dump_macros, $(v), 1
+
+#---------------------------------------- 
+fncode: debug_code($code, $indent, $skip_source)
+    print "    " x $indent
+    print "$code->{type}code $code->{name}: "
+    my $params = $code->{params}
+    $if $params && @$params
+        print join(', ', @$params), " - "
+    my $src = $code->{source}
+    $if $skip_source
+        my $n = @$src
+        $print $n lines
+    $else
+        $print
+        $foreach $l in @$src
+            print "    " x ($indent+1)
+            print "$l\n"
+    $if $code->{codes}
+        $foreach $k in sort keys %{$code->{codes}}
+            my $v = $code->{codes}->{$k}
+            debug_code($v, $indent+1, $skip_source)
+    $if $code->{macros}
+        debug_macros($code->{macros}, $indent+1)
+
+#---------------------------------------- 
+fncode: debug_macros($macros, $indent)
+    $if %$macros
+        $foreach $k in sort keys %$macros
+            my $v = $macros->{$k}
+            print "    " x $indent
+            $print $k: $v
+
+#----------------------------------------------- 
 fncode: print_def_node($node, $indent, $continue)
     $if ref($node) eq "HASH"
         $if $continue
             print "\n"
-        $foreach %$node
-            print "    "x$indent
-            print "$k: "
-            print_def_node($v, $indent+1, 1)
+        $foreach $k in sort keys %$node
+            my $v = $node->{$k}
+            $if $v
+                print "    "x$indent
+                print "$k: "
+                print_def_node($v, $indent+1, 1)
     $elif ref($node) eq "ARRAY"
         my $n = @$node
         my $m = $debug->{n}
@@ -37,14 +129,4 @@ fncode: print_def_node($node, $indent, $continue)
         $if !$continue
             print "    "x$indent
         print $node, "\n"
-
-#---------------------------------------- 
-fncode: debug_code($code)
-    print "$code->{name}:\n"
-    $foreach $l in @{$code->{source}}
-        print "    $l\n"
-    $if $code->{codes}
-        $foreach %{$code->{codes}}
-            print "---------\n"
-            debug_code($v)
 

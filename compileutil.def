@@ -136,7 +136,11 @@ subcode: compile
     my $maincode=$page->{codes}->{main};
     $if !$maincode
         $maincode=$MyDef::def->{codes}->{main};
-    $if $maincode
+
+    $if $page->{_frame}
+        $page->{codes}->{main2}=$maincode
+        call_sub($page->{_frame})
+    $elif $maincode
         parse_code($maincode);
     $else
         # die "Missing maincode\n"

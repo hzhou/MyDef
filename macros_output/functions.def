@@ -177,8 +177,7 @@ subcode: list_function(f)
             $else
                 $paramline=""
 
-            $if defined $paramline
-                BLOCK
+            BLOCK
 
 #---------------------------------------- 
 subcode:: function_init
@@ -249,7 +248,13 @@ fncode: open_function($fname, $param)
     $func->{name}=$fname;
     # -- parsing param list
     $(if:hascode:function_param_api)
-        $if $param=~/^api(\w+(\w+))?$/
+        my $api_name
+        $if $param eq "api" and $fname=~/.+?_(.+)/
+            $api_name=$1
+        $elif $param=~/^api\s+(\w+)$/
+            $api_name=$1
+        # $print check function api [$param] -> $api_name ..
+        $if $api_name
             $call function_param_api
     $if $param
         $call add_function_params, $func
@@ -271,11 +276,7 @@ subcode: add_function_params(func)
     my $i=0
     $foreach $p in @plist
         $i++
-        my ($type, $name)
         $call function_param_$(function_style)
-        $if $name
-            $var_hash->{$name}={name=>$name, type=>$type}
-
 
 #---------------------------------------- 
 fncode: process_function_std($func)

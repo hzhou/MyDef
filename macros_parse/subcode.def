@@ -9,9 +9,19 @@ subcode: subcode_start
         #-        :: concat
         #-        :@ optional default
         #-        :- prepend
-        $if $name eq "_autoload"
+        $if $name eq "_autoload" or $name eq "main"
             $dblcolon=":"
+        # $call @debug
         $call start_subcode
+
+    subcode: debug
+        $print $type code $name, parent: -
+        $if $parent == $def
+            $print def
+        $elif $parent->{_pagename}
+            $print page: $parent->{_pagename}
+        $else
+            $print code: $parent->{name}
 
 #---------------------------------------- 
 subcode:: import_file_init
@@ -48,7 +58,7 @@ subcode: start_subcode
             push @$source, $src_location
         $elif $debug>1
             # -- skip
-            print STDERR "[$src_location] overwiritten $type code: $name\n"
+            print STDERR "[$src_location] skip duplicate code: $name [debug:$debug]\n"
     $else
         #---- new code or overwrite ----
         my @params;
@@ -62,10 +72,8 @@ subcode: start_subcode
             $t_code->{attr}="default"
         $elif $dblcolon eq ":" or $dblcolon eq "-"
             $t_code->{attr}="optional"
-        $if $codetype eq "page" && $name eq "main"
-            $call add_main_code
-        $else
-            $codes->{$name}=$t_code
+
+        $codes->{$name}=$t_code
 
 subcode: check_subcode_end
     $call get_source_dedent, $codeindent
@@ -82,13 +90,12 @@ subcode: jump_to_main_code
         push @$source, $line
 
 subcode: add_main_code
-    my $main_name = $page->{main_name}
     my $t_code
-    $if $page->{codes}->{$main_name}
-        $t_code = $page->{codes}->{$main_name}
+    $if $page->{codes}->{main}
+        $t_code = $page->{codes}->{main}
         $source = $t_code->{source}
     $else
         $source=[]
-        $t_code={'type'=>"sub", 'source'=>$source, 'params'=>[], 'name'=>"main"};
-        $page->{codes}->{$main_name}=$t_code;
+        $t_code={'type'=>"sub", 'source'=>$source, 'name'=>"main"};
+        $page->{codes}->{main}=$t_code
 

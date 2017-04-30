@@ -2,13 +2,14 @@ include: macros_parse/indentation.def
 include: macros_parse/macros.def
 include: macros_parse/subcode.def
 include: macros_parse/template.def
+
+include: macros_parse/hacks.def
 include: macros_parse/debug.def
+
 include: macros_util/path.def
 include: macros_util/ogdl.def
 include: macros_util/debug.def
 include: perl/indentations.def
-
-include: macros_parse/hacks.def
 
 page: parseutil
     type: pm
@@ -52,12 +53,6 @@ fncode: import_data($file)
 
     # ---- End of Parsing ---------------------------
     $call @post_parsing
-    $if $debug
-        $foreach $k in keys %$debug
-            $if $k eq "def"
-                debug_def($def)
-            $elif $k=~/^code:\s*(\w+)/
-                debug_code($def->{codes}->{$1})
     return $def;
 
 fncode: import_file($f, $def, $file_type)
@@ -100,6 +95,8 @@ fncode: import_file($f, $def, $file_type)
             my ($subpage, $t)=($1, $2)
             $call start_page
             $call start_code_indent, page, 1, $page
+            $if $subpage
+                $page->{subpage}=1;
         $elif $curindent==0 and $line=~/^DEBUG\s*(.*)/
             parse_DEBUG($1)
         $elif $(in_code)
@@ -137,28 +134,14 @@ subcode: start_page
 
     $global $page
     $call @abort_default_page
-    $page={_pagename=>$pagename, codes=>$codes, main_name=>"main"};
+    $page={_pagename=>$pagename, codes=>$codes};
 
     $if $pagename=~/(.+)\.(.+)/
         $page->{type}=''
 
     $if $framecode
-        my $code={name=>"_frame", type=>"sub", params=>[]}
-        $codes->{main}=$code
-        $if $framecode=~/^from\s+(\S+)/
-            my $sub_name = get_template_sub_name()
-            $code->{source}=["\$call $sub_name"]
-            my $sub_definition = parse_template($def, $codes, $1, $sub_name)
-            push @includes, $sub_definition
-            #- 
-            $page->{main_name}="main2"
-        $else
-            #-- $framecode may include parameters
-            $code->{source}=["\$call $framecode"]
-            $page->{main_name}="main2"
+        $page->{_frame}=$framecode
 
-    $if $subpage
-        $page->{subpage}=1;
     $if $file_type eq "main"
         $call add_page
 
@@ -166,16 +149,18 @@ subcode: start_page
 subcode: start_default_page
     $global $in_default_page
     $global $page
-    $page={_pagename=>$def->{name}, codes=>{}, main_name=>"main"};
+    $page={_pagename=>$def->{name}, codes=>{}};
     $in_default_page = $page
-    $call start_code_indent, page, 0, $page
-    $codetype   = "page"
+    $call add_main_code
+    $call start_code_indent, code, 0, $t_code
+    $codetype   = "code"
     $codeindent = 0
     $curindent = 0
     $lastindent = 0
 
 subcode: abort_default_page
     undef $in_default_page
+    @indent_stack = ()
     # assert @indent_stack == 1
 
 subcode: add_default_page
@@ -186,11 +171,7 @@ subcode: add_default_page
 
 subcode: check_default_page_framecode
     $if $def->{codes}->{basic_frame}
-        my $codes=$in_default_page->{codes}
-        my $code={name=>"_frame", type=>"sub", params=>[]}
-        $code->{source}=["\$call basic_frame"]
-        $codes->{main2}=$codes->{main}
-        $codes->{main} =$code
+        $in_default_page->{_frame}="basic_frame"
 
 #---------------------------------------- 
 #-- used here and macros_parse/hacks.def: dupe_page

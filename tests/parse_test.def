@@ -1,0 +1,33 @@
+# DEBUG def
+
+subcode: A1
+    top def
+
+#----------------------------------------------- 
+page: test, basicframe, p1, p2
+    module: general
+    direct main code
+    $call B1
+
+    subcode: main
+        real main
+
+    still main code
+
+
+subcode: B1
+    $call b1
+    subcode: b1
+        belongs to B1
+    subcode: b2
+        something
+        subcode: c1
+        subcode: c2
+            test
+
+subcode: basicframe(p1, @p2)
+    frame $(p1) - $(p2)
+    ---- main ----
+    $call main
+    ---- main2 ----
+    $call main2

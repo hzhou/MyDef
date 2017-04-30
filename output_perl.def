@@ -244,7 +244,7 @@ subcode: list_functions
         push @$out, "sub $name {"
         push @$out, "INDENT"
         my $params=$code->{params}
-        $if $#$params>=0
+        $if $params and @$params
             my $pline=join(", ", @$params)
             push @$out, "my ($pline) = \@_;"
         $code->{scope}="list_sub"
@@ -369,19 +369,11 @@ subcode: parsecode_print
 
 #---- scope  for sumcode -------
 subcode: var_declare(scope)
-    $param=~s/\s*;\s*$//
+    $call @remove_trailing_semi
     my @tlist=MyDef::utils::proper_split($param)
     $foreach $v in @tlist
         my ($name, $var)
-        $if $v=~/\@(\w+)\[(.*)\](.*)/
-            $name=$1
-            $v='@'.$1.$3
-            $var={}
-            my @tlist=split /,\s*/, $2
-            my $i=0
-            $foreach $t in @tlist
-                $i++
-                $var->{"dim$i"}=$t
+        $call @check_array_dims
         $(if:scope=global)
             $if $v=~/^(\S+)\s*=/
                 $call dbl_push_key, globals, $1, $v
@@ -395,4 +387,17 @@ subcode: var_declare(scope)
                 $cur_scope->{var_hash}->{$name}=$var
     return 0
 
+    subcode: remove_trailing_semi
+        $param=~s/\s*;\s*$//
+
+    subcode: check_array_dims
+        $if $v=~/\@(\w+)\[(.*)\](.*)/
+            $name=$1
+            $v='@'.$1.$3
+            $var={}
+            my @tlist=split /,\s*/, $2
+            my $i=0
+            $foreach $t in @tlist
+                $i++
+                $var->{"dim$i"}=$t
 #----
