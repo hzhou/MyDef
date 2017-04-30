@@ -1,13 +1,14 @@
 C='\033[0;32m'
 NC='\033[0m'
 
+MY_INSTALL="perl bootstrap/script/mydef_install"
+
 if [ -z "$MYDEFLIB" ]; then
     printf "\n${C}#---- New install, set PERL5LIB, MYDEFLIB, and PATH ----${NC}\n"
     NEWINSTALL=1
     install -d $HOME/bin
     install -d $HOME/lib/perl5
     install -d $HOME/lib/MyDef
-    install -m555 bootstrap/script/mydef_install $HOME/bin/
 
     PATH=$HOME/bin:/bin:/usr/bin:/usr/local/bin
     export PERL5LIB=$HOME/lib/perl5
@@ -21,10 +22,10 @@ done
 touch bootstrap/lib/MyDef.pm
 touch bootstrap/script/mydef_make
 touch bootstrap/script/mydef_page
-mydef_install bootstrap/script $HOME/bin -
-mydef_install bootstrap/lib    $HOME/lib/perl5 pm
-mydef_install bootstrap/deflib $HOME/lib/MyDef def
-mydef_install deflib           $HOME/lib/MyDef def
+$MY_INSTALL bootstrap/script . -
+$MY_INSTALL bootstrap/lib    . pm
+$MY_INSTALL bootstrap/deflib . def
+$MY_INSTALL deflib           . def
 # In case some system do not record file stamps higher than 1 sec.
 
 if [ -z $1 ]; then # so "sh bootstrap.sh skip" will skip these
@@ -34,8 +35,8 @@ if [ -z $1 ]; then # so "sh bootstrap.sh skip" will skip these
     touch mydef.def
     make
     printf "\n${C}#---- Install updated MyDef ----${NC}\n"
-    mydef_install MyDef/lib    . pm
-    mydef_install MyDef/script . -
+    $MY_INSTALL MyDef/lib    . pm
+    $MY_INSTALL MyDef/script . -
 fi
 
 if [ "$NEWINSTALL" = 1 ]; then
