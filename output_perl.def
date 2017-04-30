@@ -178,11 +178,15 @@ subcode: loop_var
 subcode: dumpout
     # needed for wrapping up &case support
     parsecode("NOOP")
+    $if $out->[0] eq "EVAL"
+        shift @$out
+    $else
+        my $pagetype = $page->{_pageext}
+        $if !$pagetype or $pagetype eq "pl"
+            push @$f, "#!/usr/bin/perl\n"
+        $call dump_accessories
     # ---------------
-    $if !$pagetype or $pagetype eq "pl"
-        push @$f, "#!/usr/bin/perl\n"
-
-    $if $pagetype ne "eval"
+    subcode: dump_accessories
         $(set:p=$MyDef::page->{$1})
         $if !$(p:relax)
             push @$f, "use strict;\n"

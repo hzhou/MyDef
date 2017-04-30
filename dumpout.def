@@ -91,10 +91,7 @@ subcode: dumpout
         $elif $l=~/^NOOP/
             # messages from compileutil.pm
         $call @support_make_string
-        $elif $l =~/^(.*)=\s*\[(strings?)_from_file:\s*(\S+)\]\s*;/
-            my ($head, $file, $type)=($1, $3, $2)
-            $call string_from_file
-        $else
+        $else NoWarn
             $call print_line
 
 subcode: print_line
@@ -156,40 +153,4 @@ subcode: support_make_string
             push @$string_list, ""
         $else
             push @$string_list, "    "x$(indent) . $l
-
-#---------------------------------------- 
-subcode: string_from_file
-    $if $dump->{module} eq "output_perl"
-        push @$f, "$head = <<HERE;\n"
-        &call open_r, $file
-            push @$f, $_
-        push @$f, "HERE\n"
-    $elif $head=~/^\$/ and $dump->{module} eq "output_www"
-        #-- php --
-        push @$f, "$head = <<<HERE\n"
-        &call open_r, $file
-            push @$f, $_
-        push @$f, "HERE;\n"
-    $else
-        my @t
-        &call open_r, $file
-            chomp
-            s/\\/\\\\/g
-            s/"/\\"/g
-            push @t, $_
-        push @$f, "    "x$indentation
-        push @$f, "$head = "
-        $if $type eq "string"
-            push @$f, '"'
-            $foreach $t in @t
-                push @$f, "$t\\\n"
-            push @$f, "\";\n"
-        $elif $type eq "strings"
-            # $if $dump->{module} eq "output_www"
-            my $indent="    " x ($indentation+1)
-            push @$f, "[\n"
-            $foreach $t in @t
-                push @$f, "$indent\"$t\",\n"
-            push @$f, "$indent];\n"
-
 
