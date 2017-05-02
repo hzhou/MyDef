@@ -17,7 +17,7 @@ subcode: process_macros
             $if $dblcolon
                 $macros->{$k}.=", $v"
             $elif $macros->{$k} ne $v
-                $print "Denied overwriting macro $k"
+                # $print "[$cur_file:$cur_line] Denied overwriting macro $k"
         $else
             $macros->{$k}=$v
 

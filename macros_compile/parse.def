@@ -95,8 +95,8 @@ subcode: compile_line
         $while 1
             #-- parse_line could return a new $l
             #-- otherwise, last in the end breaks the loop
-            $if $l=~/^(&call\d?|\$call|\$map\d?|\$nest)\s+(.*)$/
-                my ($func, $param)=($1, $2);
+            $if $l=~/^(&call\d?|\$call|\$map\d?|\$nest)\s+(.*)$/i
+                my ($func, $param)=(lc($1), $2);
                 $call parse_call_sub
             $elif $l=~/^\$-:\s*(.*)/
                 push @$out, "MAKE_STRING:$1"
