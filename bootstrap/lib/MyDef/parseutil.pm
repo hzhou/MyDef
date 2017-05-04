@@ -6,11 +6,10 @@ our $in_default_page;
 our $page;
 our $code_index=0;
 our $template_index = 0;
-our $debug={};
+our $debug;
 our @path;
 our %path;
 our @indent_stack=(0);
-our $time_start = time();
 
 sub import_data {
     my ($file) = @_;
@@ -56,11 +55,7 @@ sub import_data {
     }
     if($in_default_page){
         if($def->{codes}->{basic_frame}){
-            my $codes=$in_default_page->{codes};
-            my $code={name=>"_frame", type=>"sub", params=>[]};
-            $code->{source}=["\$call basic_frame"];
-            $codes->{main2}=$codes->{main};
-            $codes->{main} =$code;
+            $in_default_page->{_frame}="basic_frame";
         }
     }
     post_foreachfile($def);
@@ -68,9 +63,11 @@ sub import_data {
         foreach my $k (keys %$debug){
             if($k eq "def"){
                 debug_def($def);
+                exit;
             }
             elsif($k=~/^code:\s*(\w+)/){
                 debug_code($def->{codes}->{$1});
+                exit;
             }
         }
     }
@@ -96,17 +93,25 @@ sub import_file {
     my $cur_file=$f;
     my $cur_line=0;
     if($file_type eq "main"){
-        $page={_pagename=>$def->{name}, codes=>{}, main_name=>"main"};
+        $page={_pagename=>$def->{name}, codes=>{}};
         $in_default_page = $page;
-        if(!@indent_stack){
-            push @indent_stack, [$codetype, $codeindent, $codeitem];
+        my $t_code;
+        if($page->{codes}->{main}){
+            $t_code = $page->{codes}->{main};
+            $source = $t_code->{source};
         }
-        $codetype   = "page";
+        else{
+            $source=[];
+            $t_code={'type'=>"sub", 'source'=>$source, 'name'=>"main"};
+            $page->{codes}->{main}=$t_code;
+        }
+        push @indent_stack, [$codetype, $codeindent, $codeitem];
+        $codetype   = "code";
         $codeindent = 0;
-        $codeitem   = $page;
+        $codeitem   = $t_code;
         $curindent=0;
         $lastindent = $curindent;
-        $codetype   = "page";
+        $codetype   = "code";
         $codeindent = 0;
         $curindent = 0;
         $lastindent = 0;
@@ -180,7 +185,7 @@ sub import_file {
         }
         if($line=~/^\w+code:/ && $curindent == $codeindent and $codetype ne "macro"){
             my $parent;
-            if($in_default_page and $curindent==0){
+            if($curindent==0){
                 $parent = $def;
             }
             elsif(!$in_default_page and $curindent==1 and $page){
@@ -199,7 +204,7 @@ sub import_file {
             my $t_code;
             if($line=~/^(\w+)code:([:-@]?)\s*(\w+)(.*)/){
                 my ($type, $dblcolon, $name, $t)=($1, $2, $3, $4);
-                if($name eq "_autoload"){
+                if($name eq "_autoload" or $name eq "main"){
                     $dblcolon=":";
                 }
                 my $src_location="SOURCE: $cur_file - $cur_line";
@@ -223,7 +228,7 @@ sub import_file {
                         push @$source, $src_location;
                     }
                     elsif($debug>1){
-                        print STDERR "[$src_location] overwiritten $type code: $name\n";
+                        print STDERR "[$src_location] skip duplicate code: $name [debug:$debug]\n";
                     }
                 }
                 else{
@@ -240,22 +245,7 @@ sub import_file {
                     elsif($dblcolon eq ":" or $dblcolon eq "-"){
                         $t_code->{attr}="optional";
                     }
-                    if($codetype eq "page" && $name eq "main"){
-                        my $main_name = $page->{main_name};
-                        my $t_code;
-                        if($page->{codes}->{$main_name}){
-                            $t_code = $page->{codes}->{$main_name};
-                            $source = $t_code->{source};
-                        }
-                        else{
-                            $source=[];
-                            $t_code={'type'=>"sub", 'source'=>$source, 'params'=>[], 'name'=>"main"};
-                            $page->{codes}->{$main_name}=$t_code;
-                        }
-                    }
-                    else{
-                        $codes->{$name}=$t_code;
-                    }
+                    $codes->{$name}=$t_code;
                 }
             }
             push @indent_stack, [$codetype, $codeindent, $codeitem];
@@ -267,7 +257,7 @@ sub import_file {
         }
         elsif($line=~/^macros:/ && $curindent == $codeindent and $codetype ne "macro"){
             my $parent;
-            if($in_default_page and $curindent==0){
+            if($curindent==0){
                 $parent = $def;
             }
             elsif(!$in_default_page and $curindent==1 and $page){
@@ -362,27 +352,13 @@ sub import_file {
             }
             my $codes={};
             undef $in_default_page;
-            $page={_pagename=>$pagename, codes=>$codes, main_name=>"main"};
+            @indent_stack = ();
+            $page={_pagename=>$pagename, codes=>$codes};
             if($pagename=~/(.+)\.(.+)/){
                 $page->{type}='';
             }
             if($framecode){
-                my $code={name=>"_frame", type=>"sub", params=>[]};
-                $codes->{main}=$code;
-                if($framecode=~/^from\s+(\S+)/){
-                    my $sub_name = get_template_sub_name();
-                    $code->{source}=["\$call $sub_name"];
-                    my $sub_definition = parse_template($def, $codes, $1, $sub_name);
-                    push @includes, $sub_definition;
-                    $page->{main_name}="main2";
-                }
-                else{
-                    $code->{source}=["\$call $framecode"];
-                    $page->{main_name}="main2";
-                }
-            }
-            if($subpage){
-                $page->{subpage}=1;
+                $page->{_frame}=$framecode;
             }
             if($file_type eq "main"){
                 if($pages->{$pagename}){
@@ -404,6 +380,9 @@ sub import_file {
             $codeitem   = $page;
             $curindent=1;
             $lastindent = $curindent;
+            if($subpage){
+                $page->{subpage}=1;
+            }
         }
         elsif($curindent==0 and $line=~/^DEBUG\s*(.*)/){
             parse_DEBUG($1);
@@ -419,7 +398,7 @@ sub import_file {
                     if($dblcolon){
                         $macros->{$k}.=", $v";
                     }
-                    elsif($debug){
+                    elsif($macros->{$k} ne $v){
                         print "Denied overwriting macro $k\n";
                     }
                 }
@@ -439,16 +418,15 @@ sub import_file {
                 next;
             }
             else{
-                my $main_name = $page->{main_name};
                 my $t_code;
-                if($page->{codes}->{$main_name}){
-                    $t_code = $page->{codes}->{$main_name};
+                if($page->{codes}->{main}){
+                    $t_code = $page->{codes}->{main};
                     $source = $t_code->{source};
                 }
                 else{
                     $source=[];
-                    $t_code={'type'=>"sub", 'source'=>$source, 'params'=>[], 'name'=>"main"};
-                    $page->{codes}->{$main_name}=$t_code;
+                    $t_code={'type'=>"sub", 'source'=>$source, 'name'=>"main"};
+                    $page->{codes}->{main}=$t_code;
                 }
                 push @indent_stack, [$codetype, $codeindent, $codeitem];
                 $codetype   = "code";
@@ -627,6 +605,9 @@ sub parse_template {
 
 sub parse_DEBUG {
     my ($t) = @_;
+    if(!$debug){
+        $debug={};
+    }
     if($t=~/^(\d+)/){
         $debug->{def}=1;
         $debug->{n}=$1;
@@ -641,7 +622,108 @@ sub parse_DEBUG {
 
 sub debug_def {
     my ($def) = @_;
+    my $macros = $def->{macros};
+    if($macros && %$macros){
+        print "    " x 0;
+        print "macros:\n";
+        debug_macros($macros, 0+1);
+        undef $def->{macros};
+        print "\n";
+    }
+    my $pagelist=$def->{pagelist};
+    if(@$pagelist){
+        print "pagelist: ", join(', ', @$pagelist), "\n";
+    }
+    undef $def->{pagelist};
+    print "\n";
+    while (my ($k, $v) = each %{$def->{pages}}){
+        print "page: $k\n";
+        print "    [";
+        if($v->{_pagename}){
+            print "_pagename: $v->{_pagename}; ";
+            undef $v->{_pagename};
+        }
+        if($v->{_frame}){
+            print "_frame: $v->{_frame}; ";
+            undef $v->{_pagename};
+        }
+        if($v->{module}){
+            print "module: $v->{module}; ";
+            undef $v->{_pagename};
+        }
+        print "]\n";
+        my $codes = $v->{codes};
+        if($codes && %$codes){
+            foreach my $k (sort keys %$codes){
+                my $v = $codes->{$k};
+                debug_code($v, 1, 1);
+            }
+        }
+        undef $v->{codes};
+        print "\n";
+        my $macros = $v->{macros};
+        if($macros && %$macros){
+            print "    " x 1;
+            print "macros:\n";
+            debug_macros($macros, 1+1);
+            undef $def->{macros};
+            print "\n";
+        }
+    }
+    undef $def->{pages};
+    print "\n";
+    my $codes = $def->{codes};
+    if($codes && %$codes){
+        foreach my $k (sort keys %$codes){
+            my $v = $codes->{$k};
+            debug_code($v, 0, 1);
+        }
+    }
+    undef $def->{codes};
+    print "\n";
     print_def_node($def, 0);
+}
+
+sub debug_code {
+    my ($code, $indent, $skip_source) = @_;
+    print "    " x $indent;
+    print "$code->{type}code $code->{name}: ";
+    my $params = $code->{params};
+    if($params && @$params){
+        print join(', ', @$params), " - ";
+    }
+    my $src = $code->{source};
+    if($skip_source){
+        my $n = @$src;
+        print "$n lines\n";
+    }
+    else{
+        print "\n";
+        foreach my $l (@$src){
+            print "    " x ($indent+1);
+            print "$l\n";
+        }
+    }
+    if($code->{codes}){
+        foreach my $k (sort keys %{$code->{codes}}){
+            my $v = $code->{codes}->{$k};
+            debug_code($v, $indent+1, $skip_source);
+        }
+    }
+    if($code->{macros}){
+        debug_macros($code->{macros}, $indent+1);
+    }
+}
+
+sub debug_macros {
+    my ($macros, $indent) = @_;
+    if(%$macros){
+        foreach my $k (sort keys %$macros){
+            my $v = $macros->{$k};
+            print "    " x $indent;
+            print "$k: $v\n";
+        }
+    }
 }
 
 sub print_def_node {
@@ -650,10 +732,13 @@ sub print_def_node {
         if($continue){
             print "\n";
         }
-        while (my ($k, $v) = each %$node){
-            print "    "x$indent;
-            print "$k: ";
-            print_def_node($v, $indent+1, 1);
+        foreach my $k (sort keys %$node){
+            my $v = $node->{$k};
+            if($v){
+                print "    "x$indent;
+                print "$k: ";
+                print_def_node($v, $indent+1, 1);
+            }
         }
     }
     elsif(ref($node) eq "ARRAY"){
@@ -682,20 +767,6 @@ sub print_def_node {
             print "    "x$indent;
         }
         print $node, "\n";
-    }
-}
-
-sub debug_code {
-    my ($code) = @_;
-    print "$code->{name}:\n";
-    foreach my $l (@{$code->{source}}){
-        print "    $l\n";
-    }
-    if($code->{codes}){
-        while (my ($k, $v) = each %{$code->{codes}}){
-            print "---------\n";
-            debug_code($v);
-        }
     }
 }
 
@@ -869,41 +940,6 @@ sub get_indent_spaces {
         }
     }
     return $count;
-}
-
-sub bases {
-    my ($n, @bases) = @_;
-    my @t;
-    foreach my $b (@bases){
-        push @t, $n % $b;
-        $n = int($n/$b);
-        if($n<=0){
-            last;
-        }
-    }
-    if($n>0){
-        push @t, $n;
-    }
-    return @t;
-}
-
-sub get_time {
-    my $t = time()-$time_start;
-    my @t;
-    push @t, $t % 60;
-    $t = int($t/60);
-    push @t, $t % 60;
-    $t = int($t/60);
-    push @t, $t % 60;
-    $t = int($t/60);
-    if($t>0){
-        push @t, $t % 24;
-        $t = int($t/24);
-        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0]);
-    }
-    else{
-        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0]);
-    }
 }
 
 @includes=();

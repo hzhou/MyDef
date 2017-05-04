@@ -63,8 +63,8 @@ subcode: output_main
         $call parsecode
 
     # ---- Final output, allows for 2nd pass translation
-    $sub dumpout($f, $out, $pagetype)
-        my $dump={out=>$out,f=>$f, module=>"$(_pagename)"}
+    $sub dumpout($f, $out)
+        my $dump={out=>$out,f=>$f}
         $call @dumpout
         MyDef::dumpout::dumpout($dump);
 
@@ -107,9 +107,9 @@ subcode: inherit(M)
         $call @on_parsecode
         return $(super:parsecode)($l)
 
-    $sub dumpout($f, $out, $pagetype)
+    $sub dumpout($f, $out)
         $call @on_dumpout
-        $(super:dumpout)($f, $out, $pagetype)
+        $(super:dumpout)($f, $out)
 
     $call @support_subs
 

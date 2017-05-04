@@ -8,7 +8,6 @@ package MyDef;
 our $def;
 our $page;
 our $var={};
-our $time_start = time();
 
 sub init {
     my (%config) = @_;
@@ -77,6 +76,10 @@ sub init {
         require MyDef::output_glsl;
         MyDef::compileutil::set_interface(MyDef::output_glsl::get_interface());
     }
+    elsif($module eq "asm"){
+        require MyDef::output_asm;
+        MyDef::compileutil::set_interface(MyDef::output_asm::get_interface());
+    }
     elsif($module eq "www"){
         require MyDef::output_www;
         MyDef::compileutil::set_interface(MyDef::output_www::get_interface());
@@ -108,10 +111,6 @@ sub init {
     elsif($module eq "fortran"){
         require MyDef::output_fortran;
         MyDef::compileutil::set_interface(MyDef::output_fortran::get_interface());
-    }
-    elsif($module eq "asm"){
-        require MyDef::output_asm;
-        MyDef::compileutil::set_interface(MyDef::output_asm::get_interface());
     }
     elsif($module eq "plot"){
         require MyDef::output_plot;
@@ -195,6 +194,10 @@ sub pipe_page {
         require MyDef::output_glsl;
         MyDef::compileutil::set_interface(MyDef::output_glsl::get_interface());
     }
+    elsif($module eq "asm"){
+        require MyDef::output_asm;
+        MyDef::compileutil::set_interface(MyDef::output_asm::get_interface());
+    }
     elsif($module eq "www"){
         require MyDef::output_www;
         MyDef::compileutil::set_interface(MyDef::output_www::get_interface());
@@ -226,10 +229,6 @@ sub pipe_page {
     elsif($module eq "fortran"){
         require MyDef::output_fortran;
         MyDef::compileutil::set_interface(MyDef::output_fortran::get_interface());
-    }
-    elsif($module eq "asm"){
-        require MyDef::output_asm;
-        MyDef::compileutil::set_interface(MyDef::output_asm::get_interface());
     }
     elsif($module eq "plot"){
         require MyDef::output_plot;
@@ -297,41 +296,6 @@ sub import_config {
     close In;
     if($var->{output_path} and !$var->{output_dir}){
         $var->{output_dir}=$var->{output_path};
-    }
-}
-
-sub bases {
-    my ($n, @bases) = @_;
-    my @t;
-    foreach my $b (@bases){
-        push @t, $n % $b;
-        $n = int($n/$b);
-        if($n<=0){
-            last;
-        }
-    }
-    if($n>0){
-        push @t, $n;
-    }
-    return @t;
-}
-
-sub get_time {
-    my $t = time()-$time_start;
-    my @t;
-    push @t, $t % 60;
-    $t = int($t/60);
-    push @t, $t % 60;
-    $t = int($t/60);
-    push @t, $t % 60;
-    $t = int($t/60);
-    if($t>0){
-        push @t, $t % 24;
-        $t = int($t/24);
-        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0]);
-    }
-    else{
-        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0]);
     }
 }
 

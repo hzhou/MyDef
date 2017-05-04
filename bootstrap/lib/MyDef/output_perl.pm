@@ -21,7 +21,6 @@ our $case_state;
 our $case_wrap;
 our $fn_block=[];
 our $loop_idx;
-our $time_start = time();
 
 sub parse_condition {
     my ($t) = @_;
@@ -296,41 +295,6 @@ sub sumcode_generate {
         push @code, "SOURCE_DEDENT";
     }
     return \@code;
-}
-
-sub bases {
-    my ($n, @bases) = @_;
-    my @t;
-    foreach my $b (@bases){
-        push @t, $n % $b;
-        $n = int($n/$b);
-        if($n<=0){
-            last;
-        }
-    }
-    if($n>0){
-        push @t, $n;
-    }
-    return @t;
-}
-
-sub get_time {
-    my $t = time()-$time_start;
-    my @t;
-    push @t, $t % 60;
-    $t = int($t/60);
-    push @t, $t % 60;
-    $t = int($t/60);
-    push @t, $t % 60;
-    $t = int($t/60);
-    if($t>0){
-        push @t, $t % 24;
-        $t = int($t/24);
-        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0]);
-    }
-    else{
-        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0]);
-    }
 }
 
 $global_scope={var_list=>[], var_hash=>{}, name=>"global"};
@@ -771,14 +735,15 @@ sub parsecode {
                     elsif($var=~/^(\w+)/){
                         $var='$'.$var;
                     }
-                    if($var=~/^(\x1b.+)_i$/){
+                    if($var=~/^(\S+),(i.?)$/){
                         my $v = $1;
+                        my $idx = '$'.$2;
                         my @src;
-                        push @src, "my $var = 0;";
+                        push @src, "my $idx = 0;";
                         push @src, "foreach my $v ($list){";
                         push @src, "INDENT";
                         push @src, "BLOCK";
-                        push @src, "$var++;";
+                        push @src, "$idx++;";
                         push @src, "DEDENT";
                         push @src, "}";
                         MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
@@ -1046,6 +1011,9 @@ sub parsecode {
                     return;
                 }
             }
+            elsif($func eq "source-$param"){
+                return "SKIPBLOCK";
+            }
             elsif($func eq "print"){
                 my $str=$param;
                 my $printf_args;
@@ -1142,9 +1110,6 @@ sub parsecode {
                 }
                 return;
             }
-            elsif($func eq "source-$param"){
-                return "SKIPBLOCK";
-            }
         }
         elsif($l=~/^NOOP POST_MAIN/){
             my $old_out=MyDef::compileutil::set_output($fn_block);
@@ -1163,7 +1128,7 @@ sub parsecode {
                         push @$out, "sub $name {";
                         push @$out, "INDENT";
                         my $params=$code->{params};
-                        if($#$params>=0){
+                        if($params and @$params){
                             my $pline=join(", ", @$params);
                             push @$out, "my ($pline) = \@_;";
                         }
@@ -1181,7 +1146,7 @@ sub parsecode {
                     push @$out, "sub $name {";
                     push @$out, "INDENT";
                     my $params=$code->{params};
-                    if($#$params>=0){
+                    if($params and @$params){
                         my $pline=join(", ", @$params);
                         push @$out, "my ($pline) = \@_;";
                     }
@@ -1232,13 +1197,17 @@ sub parsecode {
     return 0;
 }
 sub dumpout {
-    my ($f, $out, $pagetype)=@_;
-    my $dump={out=>$out,f=>$f, module=>"output_perl"};
+    my ($f, $out)=@_;
+    my $dump={out=>$out,f=>$f};
     parsecode("NOOP");
-    if(!$pagetype or $pagetype eq "pl"){
-        push @$f, "#!/usr/bin/perl\n";
+    if($out->[0] eq "EVAL"){
+        shift @$out;
     }
-    if($pagetype ne "eval"){
+    else{
+        my $pagetype = $page->{_pageext};
+        if(!$pagetype or $pagetype eq "pl"){
+            push @$f, "#!/usr/bin/perl\n";
+        }
         if(!$MyDef::page->{relax}){
             push @$f, "use strict;\n";
         }

@@ -138,9 +138,9 @@ if(!$config{skiprun}){
                 $cmd .= " && $exe";
             }
         }
-        elsif($name=~/(.*)\.prolog$/){
+        elsif($name=~/(.*)\.asm$/){
             $exe = $1;
-            $cmd="gplc $name";
+            $cmd="nasm -f elf $name && ld -m elf_i386 $exe.o -o$exe";
             if($page->{run}){
                 $cmd .= " && $page->{run}";
             }

@@ -105,10 +105,9 @@ subcode: parsecode_function
             $call parsecode_sum_simple, perl
         $elif $func eq "sumcode"
             $call parsecode_sum_support, perl
-    $elif $func eq "print"
-        $call parsecode_print
     $elif $func eq "source-$param"
         return "SKIPBLOCK"
+    $call @parsecode_func_other
 
 fncode: parse_condition($t)
     $if $t=~/^\//
@@ -149,15 +148,16 @@ subcode: parsecode_foreach
     $if $param=~/^(?:my\s+)?(\S+)\s+in\s+(.*)/
         my ($var, $list)=($1, $2)
         $call loop_var
-        $if $var=~/^(\x1b.+)_i$/
+        $if $var=~/^(\S+),(i.?)$/
             my $v = $1
+            my $idx = '$'.$2
             # foreach with index
             &call return_newblock, foreach
-                push @src, "my $var = 0;"
+                push @src, "my $idx = 0;"
                 push @src, "foreach my $v ($list){"
                 push @src, "INDENT"
                 push @src, "BLOCK"
-                push @src, "$var++;"
+                push @src, "$idx++;"
                 push @src, "DEDENT"
                 push @src, "}"
         $else
@@ -178,11 +178,15 @@ subcode: loop_var
 subcode: dumpout
     # needed for wrapping up &case support
     parsecode("NOOP")
+    $if $out->[0] eq "EVAL"
+        shift @$out
+    $else
+        my $pagetype = $page->{_pageext}
+        $if !$pagetype or $pagetype eq "pl"
+            push @$f, "#!/usr/bin/perl\n"
+        $call dump_accessories
     # ---------------
-    $if !$pagetype or $pagetype eq "pl"
-        push @$f, "#!/usr/bin/perl\n"
-
-    $if $pagetype ne "eval"
+    subcode: dump_accessories
         $(set:p=$MyDef::page->{$1})
         $if !$(p:relax)
             push @$f, "use strict;\n"
@@ -284,6 +288,10 @@ subcode: check_termination
         #print "[$l]\n";
 
 #---------------------------------------- 
+subcode:: parsecode_func_other
+    $elif $func eq "print"
+        $call parsecode_print
+
 subcode: parsecode_print
     my $str=$param
     my $printf_args

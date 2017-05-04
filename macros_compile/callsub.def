@@ -318,6 +318,7 @@ fncode: eval_sub($codename)
             return undef
         my @t
         &call switch_interface
+            push @$out, "EVAL"
             list_sub($codelib)
             # parse_code($codelib)
             $f_dumpout->(\@t, $out, "eval")

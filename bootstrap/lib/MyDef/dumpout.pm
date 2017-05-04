@@ -1,42 +1,5 @@
 use strict;
 package MyDef::dumpout;
-our $time_start = time();
-
-sub bases {
-    my ($n, @bases) = @_;
-    my @t;
-    foreach my $b (@bases){
-        push @t, $n % $b;
-        $n = int($n/$b);
-        if($n<=0){
-            last;
-        }
-    }
-    if($n>0){
-        push @t, $n;
-    }
-    return @t;
-}
-
-sub get_time {
-    my $t = time()-$time_start;
-    my @t;
-    push @t, $t % 60;
-    $t = int($t/60);
-    push @t, $t % 60;
-    $t = int($t/60);
-    push @t, $t % 60;
-    $t = int($t/60);
-    if($t>0){
-        push @t, $t % 24;
-        $t = int($t/24);
-        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0]);
-    }
-    else{
-        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0]);
-    }
-}
-
 sub dumpout {
     my $dump=shift;
     my $f=$dump->{f};
@@ -67,7 +30,7 @@ sub dumpout {
             push @source_stack, $out;
             $out=$dump->{$1};
         }
-        elsif($l =~ /^DUMP_STUB\s+(\w+)/){
+        elsif($l =~ /^DUMP_STUB\s+([\w-]+)/){
             my $source=$MyDef::compileutil::named_blocks{$1};
             if($source){
                 push @source_stack, $out;
@@ -167,55 +130,6 @@ sub dumpout {
             }
             else{
                 push @$string_list, "    "x($indentation-$make_string_stack[-1]->{indent}-1) . $l;
-            }
-        }
-        elsif($l =~/^(.*)=\s*\[(strings?)_from_file:\s*(\S+)\]\s*;/){
-            my ($head, $file, $type)=($1, $3, $2);
-            if($dump->{module} eq "output_perl"){
-                push @$f, "$head = <<HERE;\n";
-                open In, "$file" or die "Can't open $file.\n";
-                while(<In>){
-                    push @$f, $_;
-                }
-                close In;
-                push @$f, "HERE\n";
-            }
-            elsif($head=~/^\$/ and $dump->{module} eq "output_www"){
-                push @$f, "$head = <<<HERE\n";
-                open In, "$file" or die "Can't open $file.\n";
-                while(<In>){
-                    push @$f, $_;
-                }
-                close In;
-                push @$f, "HERE;\n";
-            }
-            else{
-                my @t;
-                open In, "$file" or die "Can't open $file.\n";
-                while(<In>){
-                    chomp;
-                    s/\\/\\\\/g;
-                    s/"/\\"/g;
-                    push @t, $_;
-                }
-                close In;
-                push @$f, "    "x$indentation;
-                push @$f, "$head = ";
-                if($type eq "string"){
-                    push @$f, '"';
-                    foreach my $t (@t){
-                        push @$f, "$t\\\n";
-                    }
-                    push @$f, "\";\n";
-                }
-                elsif($type eq "strings"){
-                    my $indent="    " x ($indentation+1);
-                    push @$f, "[\n";
-                    foreach my $t (@t){
-                        push @$f, "$indent\"$t\",\n";
-                    }
-                    push @$f, "$indent];\n";
-                }
             }
         }
         else{
