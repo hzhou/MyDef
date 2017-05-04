@@ -2,6 +2,7 @@
 :highlight link CallPlace Special
 
 :syntax match xKey /^\s*\$\i\+/
+:syntax match xHTML /^\s*\$Call.*/
 :syntax match xPrefix /\$\./
 :syntax match xKey /^\s*&call/
 :syntax match xKey /^\s*\$(set:.*)/
