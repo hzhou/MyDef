@@ -53,7 +53,8 @@ page: mydef_run
         my ($exe, $cmd)
         $if $name=~/(.*)\.c(pp)?$/
             $exe=$1
-            my $cc = "gcc"
+            # my $cc = "gcc"
+            my $cc = "c99"
             my $cflags
             $if $page->{CFLAGS}
                 $cflags = $page->{CFLAGS}
