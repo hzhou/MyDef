@@ -4,42 +4,6 @@ use MyDef::output_c;
 package MyDef::output_cpp;
 our $out;
 our $debug;
-our $time_start = time();
-
-sub bases {
-    my ($n, @bases) = @_;
-    my @t;
-    foreach my $b (@bases){
-        push @t, $n % $b;
-        $n = int($n/$b);
-        if($n<=0){
-            last;
-        }
-    }
-    if($n>0){
-        push @t, $n;
-    }
-    return @t;
-}
-
-sub get_time {
-    my $t = time()-$time_start;
-    my @t;
-    push @t, $t % 60;
-    $t = int($t/60);
-    push @t, $t % 60;
-    $t = int($t/60);
-    push @t, $t % 60;
-    $t = int($t/60);
-    if($t>0){
-        push @t, $t % 24;
-        $t = int($t/24);
-        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0]);
-    }
-    else{
-        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0]);
-    }
-}
 
 sub get_interface {
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
@@ -87,7 +51,7 @@ sub parsecode {
     return MyDef::output_c::parsecode($l);
 }
 sub dumpout {
-    my ($f, $out, $pagetype)=@_;
+    my ($f, $out)=@_;
     my $cnt=0;
     my $cnt_std=0;
     foreach my $k (sort {$b cmp $a} keys(%MyDef::output_c::includes)){
@@ -149,6 +113,6 @@ sub dumpout {
         push @class_dump, "};\n\n";
     }
     @MyDef::output_c::struct_list=();
-    MyDef::output_c::dumpout($f, $out, $pagetype);
+    MyDef::output_c::dumpout($f, $out);
 }
 1;

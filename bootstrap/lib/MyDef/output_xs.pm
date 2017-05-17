@@ -77,7 +77,12 @@ sub parsecode {
         my @post;
         push @post, "DEDENT";
         push @post, "}";
-        return MyDef::output_c::single_block_pre_post(\@pre, \@post);
+        my @src;
+        push @src, @pre;
+        push @src, "BLOCK";
+        push @src, @post;
+        MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+        return "NEWBLOCK-foreach";
     }
     elsif($l=~/^\$foreach\s+\((\w+),\s*(\w+)\)\s+in\s+(hv_\w+)/){
         my ($v_name, $v_val, $v_hv)=($1, $2, $3);
@@ -96,7 +101,12 @@ sub parsecode {
         push @post, "DEDENT";
         push @post, "}";
         push @post, "PARSE:\$unprotect_var $tn";
-        return MyDef::output_c::single_block_pre_post(\@pre, \@post);
+        my @src;
+        push @src, @pre;
+        push @src, "BLOCK";
+        push @src, @post;
+        MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+        return "NEWBLOCK-foreach";
     }
     elsif($l=~/^\$getparam\s+(.*)/){
         my @vlist=split /,\s+/, $1;
@@ -138,7 +148,7 @@ sub parsecode {
     return MyDef::output_c::parsecode($l);
 }
 sub dumpout {
-    my ($f, $out, $pagetype)=@_;
+    my ($f, $out)=@_;
     my $funclist=\@MyDef::output_c::function_list;
     my $funchash=\%MyDef::output_c::list_function_hash;
     foreach my $func (@$funclist){
@@ -211,14 +221,14 @@ sub dumpout {
         push @$block, $l;
     }
     push @$block, "\n";
-    my $pagename=$MyDef::output_c::page->{pagename};
+    my $pagename=$MyDef::output_c::page->{_pagename};
     push @$block, "MODULE = $pagename\t\tPACKAGE = $pagename\n";
     push @$block, "\n";
-    MyDef::output_c::dumpout($f, $out, $pagetype);
+    MyDef::output_c::dumpout($f, $out);
 }
 sub translate_scalar {
     my ($out, $var, $vartype, $sv)=@_;
-    if($vartype =~ /int/){
+    if($vartype =~ /int|bool/){
         push @$out, "$var = SvIV($sv);";
     }
     elsif($vartype eq "double" or $vartype eq "float"){
@@ -238,10 +248,10 @@ sub translate_scalar {
 }
 sub translate_null {
     my ($out, $var, $vartype)=@_;
-    if($vartype !~/int|float|double/){
+    if($vartype !~/int|float|double|bool/){
         push @$out, "    $var = NULL;";
     }
-    elsif($vartype eq "int"){
+    elsif($vartype eq "int" or $vartype eq "bool"){
         push @$out, "    $var = 0;";
     }
     else{
