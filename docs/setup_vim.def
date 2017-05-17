@@ -1,0 +1,18 @@
+page: t
+    my $cwd = `pwd`
+    chomp $cwd
+    my $home = $ENV{HOME}
+
+    $if !-d "$home/.vim"
+        mkdir "$home/.vim"
+    $if !-d "$home/.vim/syntax"
+        mkdir "$home/.vim/syntax"
+
+    open Out, ">>$home/.vim/filetype.vim"
+    print Out "augroup filetypedetect\n"
+    print Out "au BufNewFile,BufRead *.def setf mydef\n"
+    print Out "augroup END\n"
+    close Out
+
+    system "ln -s $cwd/mydef.vim $home/.vim/syntax/"
+
