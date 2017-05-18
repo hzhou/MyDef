@@ -55,6 +55,8 @@ page: mydef_run
             $exe=$1
             # my $cc = "gcc"
             my $cc = "c99"
+            $if $ENV{CC}
+                $cc = $ENV{CC}
             my $cflags
             $if $page->{CFLAGS}
                 $cflags = $page->{CFLAGS}
