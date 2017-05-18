@@ -16,21 +16,28 @@ macros:
 
 ###############################################################
 ## Utility
-subcode: assert(check)
+subcode:@ assert(check)
     $if !($(check))
-        $call assert_action
+        $print "Assert Error: ($(check)) at line %d \n", __LINE__
+        exit(-1)
 
-subcode: assert_action
-    printf("Assert Error: ($(check)) at line %d \n", __LINE__)
-    exit(1)
-
-subcode: die(@msg)
+subcode:@ die(@msg)
     $call warn, $(msg)
     exit(-1)
 
-subcode: warn(@msg)
+subcode:@ warn(@msg)
     $(set:print_to=stderr)
     $print $(msg)
+
+subcode: atexit
+    $function atexit_handler
+        BLOCK
+    atexit($(lambda))
+
+subcode: on_signal(name)
+    $function signal_$(name)
+        BLOCK
+    signal($(name), $(lambda))
 
 #----
 subcode: try
@@ -47,17 +54,6 @@ subcode: catch(exception)
 
 subcode: throw(exception)
     longjmp(tryenv, $(exception))
-
-#----
-subcode: retry_block
-    tn_retry_index=0
-    $while 1
-        tn_retry_index++
-        BLOCK
-        break
-
-subcode: retry
-    continue
 
 #----
 subcode: seq_block
@@ -172,6 +168,13 @@ subcode: fread_frame
         t_n=fread(&$(name), 4, 1, file_in)
     subcode: read_data(name, size)
         t_n=fread($(name), 1, $(size), file_in)
+    # --
+    subcode: gets
+        $local char _gets_line[1024]
+        $while fgets(_gets_line, 1024, file_in)
+            $my s=_gets_line
+            BLOCK
+
 # ---- time -------------------------------------------
 subcode: tick_loop
     $include time
@@ -230,6 +233,16 @@ subcode: qsort(list, size, type)
         $(set:b=(*($(type)*)b))
         BLOCK
     qsort($(list), $(size), sizeof($(type)), $(lambda))
+
+    # -----
+    subcode: numcmp(a, b)
+        $if $(a)<$(b)
+            return -1
+        $elif $(a)>$(b)
+            return 1
+        $else
+            return 0
+        
 
 subcode: numcmp(na, nb)
     $(allow_recurse:10)

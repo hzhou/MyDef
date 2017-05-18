@@ -1,4 +1,3 @@
-
 phpcode: echobig(string)
     $splitString = str_split($(string), 8192)
     $foreach $splitString as $chunk
@@ -29,12 +28,10 @@ phpcode: reqparam(var)
         exit()
 ## ---------------------------------------------------------------------
 phpcode: redirect(url)
-    if($siteroot){
+    $if $siteroot
         header("Location: $siteroot/$(url)");
-    }
-    else{
+    $else
         header("Location: $(url)");
-    }
     exit;
 
 phpcode: session_start
@@ -68,88 +65,6 @@ phpcode: errorpage(errormsg)
     $call showerror
     exit();
 
-phpcode: loadstatelist
-    $statelist=array( "AL"=>"Alabama", "AK"=>"Alaska", "AZ"=>"Arizona", "AR"=>"Arkansas", "CA"=>"California", "CO"=>"Colorado", "CT"=>"Connecticut", "DE"=>"Delaware", "DC"=>"District Of Columbia", "FL"=>"Florida", "GA"=>"Georgia", "HI"=>"Hawaii", "ID"=>"Idaho", "IL"=>"Illinois", "IN"=>"Indiana", "IA"=>"Iowa", "KS"=>"Kansas", "KY"=>"Kentucky", "LA"=>"Louisiana", "ME"=>"Maine", "MD"=>"Maryland", "MA"=>"Massachusetts", "MI"=>"Michigan", "MN"=>"Minnesota", "MS"=>"Mississippi", "MO"=>"Missouri", "MT"=>"Montana", "NE"=>"Nebraska", "NV"=>"Nevada", "NH"=>"New Hampshire", "NJ"=>"New Jersey", "NM"=>"New Mexico", "NY"=>"New York", "NC"=>"North Carolina", "ND"=>"North Dakota", "OH"=>"Ohio", "OK"=>"Oklahoma", "OR"=>"Oregon", "PA"=>"Pennsylvania", "PR"=>"Puerto Rico", "RI"=>"Rhode Island", "SC"=>"South Carolina", "SD"=>"South Dakota", "TN"=>"Tennessee", "TX"=>"Texas", "UT"=>"Utah", "VT"=>"Vermont", "VA"=>"Virginia", "WA"=>"Washington", "WV"=>"West Virginia", "WI"=>"Wisconsin", "WY"=>"Wyoming");
-
-##########################################
-htmlcode: commoncss
-    CSS: fieldset { border: 1px solid #8cacbb; margin: 1em 0em 1em 0em; padding: 0em 1em 1em 1em; line-height: 1.5em; width: auto; }
-    CSS: legend { background: White; padding: 0.5em; font-size: 90%; }
-    CSS: select { font-family: sans-serif; border: 1px solid #8cacbb; color: Black; background-color: white; }
-    CSS: input { font-family: sans-serif; border: 1px solid #8cacbb; color: Black; background-color: white; vertical-align: middle; }
-    CSS: input:focus { border-color: #ffa500; border-width: 1px; }
-
-    CSS: p.center { text-align: center;}
-    CSS: div.center {margin: 0 auto; text-align: center;}
-
-
-htmlcode: framecss
-    CSS: body {position: relative; margin: 0 20px; padding: 0; font-family: arial, sans-serif;}
-    CSS: #header {position: relative; width: 100%; height: 100px; margin: 0 auto; background-color: white;}
-    CSS: #maintitle { position: absolute; top: 20px; width: 100%; text-align: center; font-family: arial, sans-serif; }
-    CSS: #logininfo { position: absolute; right: 0; bottom: 0; }
-    CSS: #leftcol { position: absolute; left: 0; top: 130px; width: 200px; background-color: beige; border-right: 2px solid olive;}
-    CSS: #rightcol { position: absolute; right: 0; top: 130px; width: 200px; background-color: beige; border: 1px solid olive; overflow: hidden;}
-    CSS: #main { margin-left: 240px; margin-right: 220px; }
-    CSS: #rightfloatnote { float: right; width: 200px; border: 4px ridge bisque; }
-    CSS: #footer {visibility: hidden; text-align: center; color: #888; font-size:12px; padding-top: 50px;}
-
-htmlcode: formcss
-    CSS: .form {text-align: center;}
-    CSS: .form1 {text-align: left; line-height: 1.3em;}
-    CSS: .formtable {margin: 0 auto;}
-    CSS: .formspacer {width: 20px; }
-    CSS: .formtitle {font-weight: bold; font-size: 16px; color: #333333;}
-    CSS: label {font-weight: bold; font-size: 12px; color: #333333;}
-    CSS: .formprompt {font-weight: bold; font-size: 12px; color: #333333;}
-    CSS: .formbutton {font-weight: bold; font-size: 14px; color: #333333; border: 1px solid gray; background-color: beige; }
-    CSS: .formhelp {font-size: 90%; color: #76797c;}
-    CSS: .formhelp:hover {color: black;}
-
-htmlcode: menucss
-    CSS: table.menutable {table-layout: fixed; margin-top: 40px; color: purple;}
-    CSS: table.menutable td {width: 120px;}
-    CSS: table.menutable img {border-width: 0px}
-    CSS: table.menutable a {font-weight: bold;}
-    CSS: table.menutable a:link {text-decoration: none;}
-    CSS: table.menutable a:visited {text-decoration: none;}
-    CSS: div.menuheading {background-color: #4444aa; color: white; font-weight: bold; text-align: center;}
-    CSS: .navmenublock {list-style: none; padding: 0; margin:0;}
-    CSS: .navmenublock li.navitem {margin: 0; padding: 0;}
-    CSS: .menulist {list-style: none; margin: 0;  padding: 0;}
-    CSS: .menulist li{border: 1px solid beige; margin: 0; padding: 0;}
-    CSS: ul.menulist a {text-decoration: none; display: block; font-weight: bold; font-size: 12px; padding-left: 20px; margin: 0;}
-    CSS: ul.menulist a:hover {background-color: #a000a0; color: #eee;}
-
-htmlcode: tablelistcss
-    CSS: .tablelistheading {font-size: 16px; font-weight: 700; color: #222;}
-    CSS: .tablelist {margin: 0 auto; table-layout: fixed; width: 80%; border: 1px solid teal;}
-    CSS: .tablelist th {background-color: olive; color: azure; font-weight: 600; font-size: 12px;}
-    CSS: .tablelist td {font-size: 14px; font-weight: 400;}
-    CSS: .tablelist td.odd {background-color: bisque;}
-    CSS: .tablelist td.even {background-color: beige;}
-
-###################################################
-phpcode: textinput(name, size)
-    PRINT <input type="text" name="$(name)" size="$(size)" value="$$(name)">
-
-phpcode: textarea(name, cols, rows)
-    $t=htmlentities($$(name))
-    PRINT <textarea name="$(name)" cols="$(cols)" rows="$(rows)">$t</textarea>
-
-###################################################
-
-htmlcode: menuheading(title)
-    <div class="menuheading">$(title)</div>
-        
-phpcode: logininfo
-    if($_SESSION['user']['username']){
-        PRINT <div id="logininfo">
-        print "[".$_SESSION['user']['username']."]";
-        print '&nbsp;&nbsp;&nbsp;<a href="logout.php">logout</a>';
-        PRINT </div>
-    }
-
 phpcode: showinfo
     CSS: li.info {font-size: 12px; color: green; margin: 10px; }
     CSS: li.error {font-size: 12px; color: red; font-weight: 700; margin: 10px; }
@@ -160,73 +75,8 @@ phpcode: showinfo
 
 phpcode: showerror
     CSS: li.error {font-size: 12px; color: red; font-weight: 700; margin: 10px; }
-    if($errors){
+    $if $errors
         $ul infobox
-            foreach ($errors as $i){
+            $foreach $errors as $i
                 print "<li class=\"error\">$i</li>";
-            }
-    }
-
-htmlcode: std_tab_css(name)
-    CSS: $(name) { position:relative; width:100%; padding:0 0 1.75em 1em; margin:0; list-style:none; line-height:1em; }
-    CSS: $(name) LI { float:left; margin:0; padding:0; }
-    CSS: $(name) A { display:block; color:#444; text-decoration:none; font-weight:bold; background:#ddd; margin:0; padding:0.25em 1em; border-left:1px solid #fff; border-top:1px solid #fff; border-right:1px solid #aaa; }
-    CSS: $(name) A:hover, #globalnav A:active, #globalnav A.here:link, #globalnav A.here:visited { background:#bbb; }
-    CSS: $(name) A.here:link, #globalnav A.here:visited { position:relative; z-index:102; }
-
-phpcode: list_item(item)
-    PRINT <li><a href="$(item.href)"$class>$(item.title)</a></li>
-
-## Forms -------------------------------------------------------
-htmlcode: form_input(label, name)
-    $tr
-        $td form_label
-            $(label):
-        $td
-            $(if:name=password or name=pass)
-                $input name:$(name), value:<?=$$(name)?>, type:password
-            $(else)
-                $input name:$(name), value:<?=$$(name)?>
-
-htmlcode: form_select(label, name, @options)
-    $tr
-        $td form_label
-            $(label):
-        $td
-            $select name:$(name)
-                $map form_option, $(options)
-
-htmlcode: form_option(value)
-    <option value="$(value)">$(value)</option>
-
-htmlcode: hidden(name, value)
-    <input type="hidden" name="$(name)" value="$(value)">
-
-# form show
-phpcode: form_show(field)
-    $tr
-        $td label
-            $div formlabel
-                PRINT $(field.title):
-            $(if: field.help)
-                $div formhelp
-                    PRINT $(field.help)
-        $td input
-            PRINT $$(field)
-
-phpcode: view_input(field)
-    $tr
-        $td label
-            PRINT $(field.title):
-        $td value
-            $(if:field.display)
-                PRINT $(field.display)
-            $(else)
-                print $$(field)
-
-phpcode: submit(label)
-    PRINT <input class="formbutton" type="submit" value="$(label)" onmouseover="this.style.borderColor='silver'" onmouseout="this.style.borderColor='gray'">
-
-phpcode: button(label, mode)
-    PRINT <input class="formbutton" type="submit" value="$(label)" onmouseover="this.style.borderColor='silver'" onmouseout="this.style.borderColor='gray'" onclick="this.form.MODE.value='$(mode)'; return true;">
 
