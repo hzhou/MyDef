@@ -56,7 +56,7 @@ fncode: import_data($file)
     return $def;
 
 fncode: import_file($f, $def, $file_type)
-    # $print import_file [$f]
+    $call @debug_import
     #---- import a single def file, update @include-----
     # ---------------------
     $call @import_file_init

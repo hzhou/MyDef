@@ -7,7 +7,7 @@ page: test
             $print "$(a)-"
         $print
 
-        my @tlist=($(join:,:"*":a-z))
+        my @tlist=($(join:"*":,:a-z))
         print join('-', @tlist), "\n"
         my $x = $(nest:5:sqrt(*):10)
         $print x=$x

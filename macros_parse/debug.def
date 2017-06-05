@@ -20,6 +20,10 @@ fncode: parse_DEBUG($t)
     $else
         $debug->{def}=1
 
+subcode: debug_import
+    $if $debug->{import}
+        $print import_file: $f
+
 fncode: debug_def($def)
     $call dump_macros, $def, 0
     $call dump_pagelist
