@@ -69,6 +69,7 @@ fncode: for_list_expand($pat, $list)
     my $n = @{$tlist[0]}
     my $m = @tlist
 
+    # $print [$m][$pat]
     my @plist
     $if $pat!~/\$\d/ && $m==1 && $pat=~/\*/
         # replaces * 

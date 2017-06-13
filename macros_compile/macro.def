@@ -136,7 +136,7 @@ fncode: set_macro($m, $p)
         $if defined $t
             $m->{$p}=$t
         $else
-            $call warn,  set_macro parse error: [$p]
+            $m->{$p}=1
 
 fncode: calc_op($v, $op, $t)
     $if $op eq "."
@@ -193,7 +193,7 @@ fncode: get_macro($s, $nowarn)
     $if $debug eq "macro"
         $print get_macro: [$s], nowarn: [$nowarn]
 
-    $if $s=~/^((x\d+|nest|map|join|eval|sym|def)\b.+)/
+    $if $s=~/^((x\d+|nest|map|join|subst|eval|sym|def)\b.+)/
         my $t=$1
         $if $t=~/^eval:\s*(.*)/
             # e.g. $(eval:lcfirst "$(word)")
@@ -221,6 +221,10 @@ fncode: get_macro($s, $nowarn)
             my ($pat, $sep, $tlist)=($1, $2, $3)
             my $plist = MyDef::utils::for_list_expand($pat, $tlist)
             return join($sep, @$plist)
+        $elif $t =~ /^subst:(.+):(.+):(.*)/
+            my ($w, $pat, $rpl)=($1,$2,$3)
+            $w =~s/$pat/$rpl/
+            return $w
         $elif $t =~ /^sym:(.+)/
             # $(sym:C++) -> CPlusPlus
             return MyDef::utils::string_symbol_name($1)

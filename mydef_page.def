@@ -18,12 +18,17 @@ page: mydef_page
 
             MyDef::init(%config);
             my $module=$MyDef::var->{module}
+
+            $if $config{"debug-import"}
+                $MyDef::parseutil::debug={import=>1}
             MyDef::import_data($def_file)
 
             $if $config{find}
                 $call find_subcode
             $elif $config{dump}
                 $call dump_source
+            $elif $config{"debug-import"}
+                # done
             $else
                 $call compile_pages
 
@@ -36,8 +41,8 @@ page: mydef_page
                 $config{output_dir} = $1
             $elif $a =~/^-f(\S+)/
                 $config{find} = $1
-            $elif $a =~/^-dump/
-                $config{dump} = 1
+            $elif $a =~/^-(dump|debug.*)/
+                $config{$1} = 1
             $elif $a=~/\.def$/
                 $if $def_file
                     die "Multiple def source files not supported\n"
@@ -55,6 +60,7 @@ page: mydef_page
     subcode: compile_pages
         my $pages=$MyDef::def->{pages}
         my $pagelist=$MyDef::def->{pagelist}
+        my ($n_skip, $n_create)
 
         $foreach $t in @$pagelist
             my $p=$pages->{$t}
@@ -66,9 +72,13 @@ page: mydef_page
                 $t_module=$p->{module}
             $if $t_module and ($t_module ne $module)
                 # $print "skip page $t: module mismatch [page:$t_module][config:$module]"
+                $n_skip++
                 next
 
+            $n_create++
             MyDef::createpage($t);
+        $if $n_create==0
+            $print skiped $n_skip pages (due to module mismatch), use -m to overide default module.
 
     # ---------------------------------------- 
     subcode: find_subcode

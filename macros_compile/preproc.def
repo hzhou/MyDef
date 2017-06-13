@@ -150,7 +150,7 @@ fncode: test_op($a, $test)
         $test=$'
         $a=substr($a, 0, $1);
 
-    $if $test=~/\s*(!?[~=]|<=?|>=?)(.*)/
+    $if $test=~/\s*([!~=<>]+)(.*)/
         my ($op, $b)=($1, $2)
         $if $op eq "="
             if($a eq $b){ return 1;}
@@ -172,6 +172,7 @@ fncode: test_op($a, $test)
         $elsif $op eq "!~"
             if($a!~/^$b/){ return 1;}
         $else
+            $call warn, "test_op: unsupported op $op"
             return 0
     $elif $test=~/\s*in\s+(.*)/
         return test_in($a, $1)
