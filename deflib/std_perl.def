@@ -23,14 +23,6 @@ subcode: block
     }
 
 # -- DATA -------------------------
-subcode: set_hash(hash, @plist)
-    $(if:hash~%)
-        $(set:h=$$(hash:1:strip))
-    $(else)
-        $(set:h=$(hash)->)
-    $(foreach:p)
-        $(h){$(p)}=1
-
 subcode: update_max(max, a)
     $if $(max)<$(a)
         $(max)=$(a)
@@ -39,8 +31,26 @@ subcode: update_min(min, a)
     $if $(min)>$(a)
         $(min)=$(a)
 
+subcode: update_minmax(min, max, a)
+    $if !defined $(min)
+        $(min) = $(a)
+        $(max) = $(a)
+    $else
+        $call update_min, $(min), $(a)
+        $call update_max, $(max), $(a)
+
 subcode: swap(a, b)
     ($(a), $(b)) = ($(b), $(a))
+
+
+subcode: approx_zero(a)
+    $if abs($(a))<1e-8
+        $(a) = 0
+
+subcode: dump(@a)
+    $(for:$(a))
+        print '$1 = ', "$1 "
+    $print
 
 # -- IO -------------------------
 subcode: open_r(name)
@@ -163,3 +173,8 @@ subcode: init_debug_console
 subcode: approx_zero(v)
     $if abs($(v))<1e-8
         $(v) = 0.0
+
+#---------------------------------------- 
+subcode: dump_hash(h)
+    $foreach $k in sort keys(%$(h))
+        print "    $k: ", $$(h){$k}

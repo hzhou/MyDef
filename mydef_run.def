@@ -93,7 +93,8 @@ page: mydef_run
         $call do_script, py, python
         $call do_script, go, go run
         $call do_script, js, node
-        $call do_script, tex, pdflatex  # -interaction=batchmode
+        # $call do_script, tex, pdflatex  # -interaction=batchmode
+        $call do_script, tex, run_tex
         $call do_script, awk, awk -f
 
         $if $config{expect} and $name=~/\b$config{expect_type}$/

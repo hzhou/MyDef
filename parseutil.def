@@ -220,9 +220,7 @@ subcode: get_indentation
         $curindent=$indent
 
 subcode: grab_template
-    $if !$codeitem->{codes}
-        $codeitem->{codes}={}
-    my $codes = $codeitem->{codes}
+    $call get_parent, codes
 
     my @grab
     my $t_code = {type=>"template",source=>\@grab}
