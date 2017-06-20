@@ -105,11 +105,6 @@ subcode: parse_frame
         $(set:c=])
         $call grab_group
 
-    subcode: grab_brace
-        $(set:o=()
-        $(set:c=))
-        $call grab_group
-
     subcode: grab_group
         $(if:type=brace)
         my $t

@@ -169,7 +169,6 @@ subcode: init_debug_console
         $|=1
         select $ofh
     }
-
 #---------------------------------------- 
 subcode: dump_hash(h)
     $foreach $k in sort keys(%$(h))
