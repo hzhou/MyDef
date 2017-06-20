@@ -52,6 +52,10 @@ subcode: dump(@a)
         print '$1 = ', "$1 "
     $print
 
+subcode: dump_hash(h)
+    $foreach $k in sort keys(%$(h))
+        print "    $k: ", $$(h){$k}
+
 # -- IO -------------------------
 subcode: open_r(name)
     $(if:name~")
@@ -169,7 +173,3 @@ subcode: init_debug_console
         $|=1
         select $ofh
     }
-#---------------------------------------- 
-subcode: dump_hash(h)
-    $foreach $k in sort keys(%$(h))
-        print "    $k: ", $$(h){$k}
