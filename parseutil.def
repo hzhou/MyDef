@@ -127,6 +127,8 @@ subcode: start_page
     $if $t=~/([\w\-\$\.]+),\s*(\w.*)/
         $pagename=$1;
         $framecode=$2;
+        $if $framecode=~/^from\s+(\S+)/
+            $framecode = parse_template($def, $1)
     $elif $t=~/([\w\-\$\.]+)/
         $pagename=$1;
     # ---- code
