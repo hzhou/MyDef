@@ -3,11 +3,6 @@ subcode: dump_array(a)
     $foreach my $t in @$(a)
         print "    ", $t, "\n"
 
-subcode: dump_hash(h)
-    print "Dump hash $(h)\n"
-    $while my ($k, $v) = each %$(h)
-        print "    ", "$k: $v\n"
-
 subcode: dump_line(name)
     my $yellow="\033[33;1m";
     my $normal="\033[0m";
