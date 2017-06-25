@@ -45,7 +45,7 @@ subcode: grab_bracket
     $(set:c=])
     $call grab_group
 
-subcode: grab_brace
+subcode: grab_paren
     $(set:o=()
     $(set:c=))
     $call grab_group
