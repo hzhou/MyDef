@@ -193,6 +193,10 @@ subcode:: function_init
     %functions=()
     undef $cur_function
 
+    #- @function_list maintains function index
+    $global @function_list
+    @function_list = ()
+
 #--------------------------------------------------- 
 #- block scope: variable declaration and exit ------
 subcode:: parsecode_special
@@ -206,8 +210,6 @@ fncode: function_block($funcname, $paramline)
 
     my @block
     #------------------------------------------
-    #- @function_list maintains function index
-    $global @function_list
     push @function_list, $func
     my $fidx=$#function_list
 

@@ -170,6 +170,7 @@ subcode: add_default_page
         my $pagename = $def->{name}
         $def->{pages}->{$pagename} = $in_default_page
         push @{$def->{pagelist}}, $pagename
+        $def->{in_default_page}=1
 
 subcode: check_default_page_framecode
     $if $def->{codes}->{basic_frame}
@@ -248,7 +249,10 @@ subcode: _autoload
 
 subcode: add_include
     $if $1 eq "noconfig"
+        # skip config, see below
         $includes{$1}=1
+    $elif substr($1, -1) eq "/"
+        add_path($1)
     $else
         $call dbl_push, includes, $1
 

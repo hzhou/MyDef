@@ -69,7 +69,10 @@ subcode: open_r(name)
 subcode: open_w(name)
     $(if:name~")
         $(set:name=$(name:strip))
-    open Out, ">$(name)" or die "Can't write $(name).\n"
+    $(if:name~>)
+        open Out, "$(name)" or die "Can't write $(name).\n"
+    $(else)
+        open Out, ">$(name)" or die "Can't write $(name).\n"
     BLOCK
     close Out
 

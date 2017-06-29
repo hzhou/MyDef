@@ -150,7 +150,16 @@ fncode: test_op($a, $test)
         $test=$'
         $a=substr($a, 0, $1);
 
-    $if $test=~/\s*([!~=<>]+)(.*)/
+    $if $test=~/^\s*(!?)~(.*)/
+        my ($not, $b) = ($1, $2)
+        $if $b=~/(.*)\$$/
+            if($a=~/$1$/){ return !$not;}
+        $else
+            if($a=~/^$b/){ return !$not;}
+        return $not
+    $elif $test=~/^\s*in\s+(.*)/
+        return test_in($a, $1)
+    $elif $test=~/^\s*([!=<>]+)(.*)/
         my ($op, $b)=($1, $2)
         $if $op eq "="
             if($a eq $b){ return 1;}
@@ -164,18 +173,9 @@ fncode: test_op($a, $test)
             if($a >= $b){ return 1;}
         $elsif $op eq "<="
             if($a <= $b){ return 1;}
-        $elsif $op eq "~"
-            $if $b=~/(.*)\$$/
-                if($a=~/$1$/){ return 1;}
-            $else
-                if($a=~/^$b/){ return 1;}
-        $elsif $op eq "!~"
-            if($a!~/^$b/){ return 1;}
         $else
             $call warn, "test_op: unsupported op $op"
             return 0
-    $elif $test=~/\s*in\s+(.*)/
-        return test_in($a, $1)
     $else
         return defined $a
 

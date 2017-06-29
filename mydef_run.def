@@ -6,22 +6,22 @@ page: mydef_run
     type:
 
     use MyDef
-    my %config
+    my (%config, $pagename)
     $call parse_arg
     $call guess_module
     MyDef::init(%config)
     MyDef::import_data($config{def_file})
-    my $pagename=$MyDef::def->{pagelist}->[0]
+    $if !$pagename
+        $pagename=$MyDef::def->{pagelist}->[0]
     $if $pagename
         MyDef::createpage($pagename)
+        my $page=$MyDef::page
+        $if !$page->{skiprun}
+            $call run_page
     $elif -f "run"
         system "sh run"
     $elif -f "Makefile"
         system "make"
-
-    $if !$config{skiprun}
-        $if $pagename
-            $call run_page
 
     # -------------------------
     subcode: parse_arg
@@ -39,8 +39,8 @@ page: mydef_run
             $if /module:\s*(\w+)/ and !$config{module}
                 $config{module}=$1
                 # last
-            $elif /skiprun:\s*(\w+)/
-                $config{skiprun}=$1
+            $elif /^run:\s*(\w+)/
+                $pagename = $1
             $elif /^\/\*\s*expect (\S+):\s*$/
                 $config{expect_type}=$1
                 $call grab_expect_block
@@ -48,7 +48,6 @@ page: mydef_run
             $config{module}="perl"
 
     subcode: run_page
-        my $page=$MyDef::page
         my $name=$page->{outname}
         my ($exe, $cmd)
         $if $name=~/(.*)\.c(pp)?$/
