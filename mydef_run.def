@@ -50,6 +50,8 @@ page: mydef_run
                 $config{expect_type}=$1
                 $call grab_expect_block
         $if !$config{module}
+            $config{module}=$MyDef::var->{module}
+        $if !$config{module}
             $config{module}="perl"
 
     subcode: run_page
@@ -58,7 +60,7 @@ page: mydef_run
         $if $name=~/(.*)\.c(pp)?$/
             $exe=$1
             # my $cc = "gcc"
-            my $cc = "c99"
+            my $cc = "gcc -std=c99"
             $if $ENV{CC}
                 $cc = $ENV{CC}
             my $cflags
