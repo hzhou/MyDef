@@ -193,7 +193,7 @@ fncode: get_macro($s, $nowarn)
     $if $debug eq "macro"
         $print get_macro: [$s], nowarn: [$nowarn]
 
-    $if $s=~/^((x\d+|nest|map|join|subst|eval|sym|def)\b.+)/
+    $if $s=~/^((x\d+|nest|join|subst|eval|sym|def)\b.+)/
         my $t=$1
         $if $t=~/^eval:\s*(.*)/
             # e.g. $(eval:lcfirst "$(word)")
@@ -209,14 +209,6 @@ fncode: get_macro($s, $nowarn)
             $else
                 $call warn, nest macro not supported
                 return
-        $elif $t=~/^map:(.*):(.*):(.*)/
-            my ($pat, $sep, $param)=($1, $2, $3)
-            my @tlist = MyDef::utils::get_tlist($param)
-            $foreach $t in @tlist
-                my $p = $pat
-                $p=~s/\*/$t/g
-                $t = $p
-            return join($sep, @tlist)
         $elif $t=~/^join:(.*):(.*):(.*)/
             my ($pat, $sep, $tlist)=($1, $2, $3)
             my $plist = MyDef::utils::for_list_expand($pat, $tlist)
@@ -229,7 +221,7 @@ fncode: get_macro($s, $nowarn)
             # $(sym:C++) -> CPlusPlus
             return MyDef::utils::string_symbol_name($1)
         $elif $t =~ /^def:(.+)/
-            # $(def:date) -> yyyy-mm-dd
+            # current def file: $(def:date) -> yyyy-mm-dd
             my $t
             $if $MyDef::def->{file}
                 my @t = stat($MyDef::def->{file})

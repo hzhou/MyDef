@@ -58,7 +58,8 @@ subcode: start_subcode
             push @$source, $src_location
         $elif $debug>1
             # -- skip
-            print STDERR "[$src_location] skip duplicate code: $name [debug:$debug]\n"
+            my $last_src = $(code)->{source}->[0]
+            print STDERR "[$src_location] skip duplicate code: $name [$last_src]\n"
     $else
         #---- new code or overwrite ----
         my @params;

@@ -61,24 +61,42 @@ fncode: get_range($a, $b)
 #--------
 # similar to $(for:1,2,3)
 fncode: for_list_expand($pat, $list)
-    my @vlist=split /\s+and\s+/, $list
+    my ($mult, @vlist)
+    $if $list=~/\s+(and)\s+/
+        $mult = $1
+        @vlist=split /\s+and\s+/, $list
+    $elif $list=~/\s+(mul)\s+/
+        $mult = $1
+        @vlist=split /\s+mul\s+/, $list
+    $else
+        @vlist = ($list)
+
     my @tlist  # list of replacement list
     $foreach $v in @vlist
         my @t = MyDef::utils::get_tlist($v)
         push @tlist, \@t
-    my $n = @{$tlist[0]}
-    my $m = @tlist
 
     # $print [$m][$pat]
     my @plist
-    $if $pat!~/\$\d/ && $m==1 && $pat=~/\*/
+    $if !$mult
+        my $replace
+        $if $pat=~/\$1/
+            $replace = 1
+        $elif $pat=~/\*/
+            $replace = 2
+        $else
+            die "for_list_expand: pattern invalid\n"
         # replaces * 
         $foreach $t in @{$tlist[0]}
             my $l = $pat
-            $l =~s/\*/$t/g
+            $if $replace==1
+                $l =~s/\$1/$t/g
+            $else
+                $l =~s/\*/$t/g
             push @plist, $l
-    $else
+    $elif $mult eq "and"
         # replaces $1, $2, ...
+        my $n = @{$tlist[0]}
         $for $i=0:$n
             my $l = $pat
             my $j=1
@@ -86,6 +104,31 @@ fncode: for_list_expand($pat, $list)
                 $l=~s/\$$j/$tlist->[$i]/g
                 $j++
             push @plist, $l
+    $elif $mult eq "mul"
+        my $m = @tlist
+        my @idx
+        $for $i=0:$m
+            $idx[$i]=0
+        iter_mul:
+        $while 1
+            # pat
+            my $l = $pat
+            $for $i=0:$m
+                my $j=$i+1
+                my $t = $tlist[$i]->[$idx[$i]]
+                $l=~s/\$$j/$t/g
+            push @plist, $l
+            # inc
+            my $i=$m-1
+            $while $i>=0
+                $idx[$i]++
+                $if $idx[$i] < @{$tlist[$i]}
+                    next iter_mul
+                $else
+                    $idx[$i]=0
+                    $i--
+            last iter_mul
+
     return \@plist
 
 #-------------------------------------------------

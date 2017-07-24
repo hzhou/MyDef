@@ -18,6 +18,7 @@ page: mydef_run
         my $page=$MyDef::page
         $if !$page->{skiprun}
             $call run_page
+    # ---- with default page, $pagename will always be set, renders following useless ...
     $elif -f "run"
         system "sh run"
     $elif -f "Makefile"
@@ -35,10 +36,14 @@ page: mydef_run
             die "Usage: $0 input_defile.def\n"
 
     subcode: guess_module
+        guess_module:
         &call open_r, $config{def_file}
             $if /module:\s*(\w+)/ and !$config{module}
                 $config{module}=$1
                 # last
+            $elif /^run:\s*(\S+\.def)/
+                $config{def_file}=$1
+                goto guess_module
             $elif /^run:\s*(\w+)/
                 $pagename = $1
             $elif /^\/\*\s*expect (\S+):\s*$/
