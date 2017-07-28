@@ -129,7 +129,8 @@ subcode: compile
     my $codelist=$MyDef::def->{codes};
     $foreach my $codename  in keys %$codelist
         $if $codename=~/_autoload$/
-            parse_code($codelist->{$codename});
+            # parse_code($codelist->{$codename});
+            call_sub($codename)
     $in_autoload=0
 
     #---- main
