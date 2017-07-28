@@ -9,6 +9,7 @@ page: mydef_run
     my (%config, $pagename)
     $call parse_arg
     $call guess_module
+    $call guess_os
     MyDef::init(%config)
     MyDef::import_data($config{def_file})
     $if !$pagename
@@ -54,6 +55,15 @@ page: mydef_run
         $if !$config{module}
             $config{module}="perl"
 
+    subcode: guess_os
+        my $ostype
+        # $ENV{OSTYPE} dissappears in perl
+        my $uname = `uname`
+        $if $uname=~/CYGWIN/
+            $ostype = "cygwin"
+        $else
+            $ostype = "linux"
+
     subcode: run_page
         my $name=$page->{outname}
         my ($exe, $cmd)
@@ -63,6 +73,8 @@ page: mydef_run
             my $cc = "gcc -std=c99"
             $if $ENV{CC}
                 $cc = $ENV{CC}
+            $elif $ostype eq "cygwin"
+                $cc = "gcc -std=gnu99"
             my $cflags
             $if $page->{CFLAGS}
                 $cflags = $page->{CFLAGS}
