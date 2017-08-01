@@ -70,14 +70,18 @@ page: mydef_run
         $if $name=~/(.*)\.c(pp)?$/
             $exe=$1
             # my $cc = "gcc"
-            my $cc = "gcc -std=c99"
-            $if $ENV{CC}
+            my $cc = "gcc -std=c99 -O2"
+            $if $page->{CC}
+                $cc = $page->{CC}
+            $elif $ENV{CC}
                 $cc = $ENV{CC}
             $elif $ostype =~ /cygwin|linux/
-                $cc = "gcc -std=gnu99"
+                $cc = "gcc -std=gnu99 -O2"
+            # ---------------------
             my $cflags
             $if $page->{CFLAGS}
                 $cflags = $page->{CFLAGS}
+            # ---------------------
             $if $page->{make} eq "win32"
                 $cc = "/usr/bin/x86_64-w64-mingw32-gcc"
                 $cmd = "$cc -o$exe.exe $name $cflags $page->{lib_list}"
