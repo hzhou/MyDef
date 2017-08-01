@@ -73,7 +73,7 @@ page: mydef_run
             my $cc = "gcc -std=c99"
             $if $ENV{CC}
                 $cc = $ENV{CC}
-            $elif $ostype eq "cygwin"
+            $elif $ostype =~ /cygwin|linux/
                 $cc = "gcc -std=gnu99"
             my $cflags
             $if $page->{CFLAGS}
