@@ -16,7 +16,7 @@ subcode:: function_init
     @list_function_list=()
 
 #---- autolist ------------------------------------ 
-subcode: autolist_functions(type)
+subcode: autolist_functions(add_type)
     $global %function_autolist
     &call each_subcode, fn
         my ($return_type)
@@ -39,8 +39,8 @@ subcode: autolist_functions(type)
         # $print function_autolist: $name
         $if $return_type
             $functions{$name}={ret_type=>$return_type}
-        $function_autolist{$name}="$(type)"
-        $(if:type=add)
+        $function_autolist{$name}="$(add_type)"
+        $(if:add_type=add)
             $call add_list_function, $name
 
     # -- lexical parameter ------

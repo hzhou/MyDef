@@ -70,17 +70,19 @@ page: mydef_run
         $if $name=~/(.*)\.c(pp)?$/
             $exe=$1
             # my $cc = "gcc"
-            my $cc = "gcc -std=c99 -O2"
+            my $cc = "gcc -std=c99"
             $if $page->{CC}
                 $cc = $page->{CC}
             $elif $ENV{CC}
                 $cc = $ENV{CC}
             $elif $ostype =~ /cygwin|linux/
-                $cc = "gcc -std=gnu99 -O2"
+                $cc = "gcc -std=gnu99"
             # ---------------------
             my $cflags
             $if $page->{CFLAGS}
                 $cflags = $page->{CFLAGS}
+            $else
+                $cflags = "-O2"
             # ---------------------
             $if $page->{make} eq "win32"
                 $cc = "/usr/bin/x86_64-w64-mingw32-gcc"
@@ -91,7 +93,7 @@ page: mydef_run
             $else
                 $if $name=~/\.cpp$/
                     $cc = "g++"
-                $cmd="$cc -g $cflags -o$exe $name $page->{lib_list}"
+                $cmd="$cc $cflags -o$exe $name $page->{lib_list}"
             $call append_run, $exe
         $elif $name=~/\.java$/
             $if $name=~/(.*)\/(.*)\.java/
