@@ -64,7 +64,7 @@ subcode: compile_line
         my $preproc=$1
         my $tail=$';
         $call parse_preproc
-    $elif $l=~/^\$:\s+(.*)/
+    $elif $l=~/^\$: (.*)/
         # Literal by-pass
         push @$out, $1
     $elif $l=~/^\$::\s+(.*)/

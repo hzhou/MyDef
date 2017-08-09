@@ -65,7 +65,9 @@ fncode: fmt_string($str, $add_newline)
                     $v=check_expression($v)
                 #- $print $var ---------
                 my $var=find_var($v)
-                $if $var->{strlen}
+                $if $var->{direct}
+                    push @fmt_list, $var->{direct}
+                $elif $var->{strlen}
                     push @fmt_list, "%.*s"
                     push @arg_list, $var->{strlen}
                     push @arg_list, $v
