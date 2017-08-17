@@ -10,9 +10,10 @@ subcode: macros_start
     $call get_parent, macros
 
 subcode: process_macros
-    $if $line=~/^(\w+):(:)?\s*(.*\S)/
+    $if $line=~/^(\w+):(:)?\s*(.*)/
         my ($k,$dblcolon, $v)=($1, $2, $3)
         expand_macro(\$v, $macros);
+        $v=~s/\s+$//
         $if $macros->{$k}
             $if $dblcolon
                 $macros->{$k}.=", $v"

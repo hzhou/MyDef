@@ -15,6 +15,8 @@ subcode:: preproc_elifs
         set_macro($deflist->[-1], $1)
     $elif $preproc=~/^set([1-5]|def|macro|page):\s*(.*)/
         my ($i,$t) = ($1, $2)
+        $if $debug eq "macro"
+            $print set[$i]: $t
         $global %named_macros=(def=>0,macro=>1,page=>2)
         $if $i=~/\d/
             $i = -($i+1)

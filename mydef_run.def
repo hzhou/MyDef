@@ -9,6 +9,7 @@ page: mydef_run
     my (%config, $pagename)
     $call parse_arg
     $call guess_module
+    $call guess_os
     MyDef::init(%config)
     MyDef::import_data($config{def_file})
     $if !$pagename
@@ -54,6 +55,15 @@ page: mydef_run
         $if !$config{module}
             $config{module}="general"
 
+    subcode: guess_os
+        my $ostype
+        # $ENV{OSTYPE} dissappears in perl
+        my $uname = `uname`
+        $if $uname=~/CYGWIN/
+            $ostype = "cygwin"
+        $else
+            $ostype = "linux"
+
     subcode: run_page
         my $name=$page->{outname}
         my ($exe, $cmd)
@@ -61,11 +71,19 @@ page: mydef_run
             $exe=$1
             # my $cc = "gcc"
             my $cc = "gcc -std=c99"
-            $if $ENV{CC}
+            $if $page->{CC}
+                $cc = $page->{CC}
+            $elif $ENV{CC}
                 $cc = $ENV{CC}
+            $elif $ostype =~ /cygwin|linux/
+                $cc = "gcc -std=gnu99"
+            # ---------------------
             my $cflags
             $if $page->{CFLAGS}
                 $cflags = $page->{CFLAGS}
+            $else
+                $cflags = "-O2"
+            # ---------------------
             $if $page->{make} eq "win32"
                 $cc = "/usr/bin/x86_64-w64-mingw32-gcc"
                 $cmd = "$cc -o$exe.exe $name $cflags $page->{lib_list}"
@@ -75,7 +93,7 @@ page: mydef_run
             $else
                 $if $name=~/\.cpp$/
                     $cc = "g++"
-                $cmd="$cc -g $cflags -o$exe $name $page->{lib_list}"
+                $cmd="$cc $cflags -o$exe $name $page->{lib_list}"
             $call append_run, $exe
         $elif $name=~/\.java$/
             $if $name=~/(.*)\/(.*)\.java/
