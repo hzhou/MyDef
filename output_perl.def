@@ -167,6 +167,8 @@ subcode: parsecode_foreach
     $elif $param=~/^(\S+),\s*(\S+)\s+in\s+(.*)/
         my ($k, $v, $hash)=($1, $2, $3)
         return single_block("while (my ($k, $v)=each $hash){", "}", "foreach")
+    $else
+        return single_block("foreach ($param){", "}", "foreach")
 
 subcode: loop_var
     $if !$var

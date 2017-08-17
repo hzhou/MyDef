@@ -52,7 +52,7 @@ page: mydef_run
         $if !$config{module}
             $config{module}=$MyDef::var->{module}
         $if !$config{module}
-            $config{module}="perl"
+            $config{module}="general"
 
     subcode: run_page
         my $name=$page->{outname}
@@ -101,6 +101,7 @@ page: mydef_run
         $call do_script, js, node
         # $call do_script, tex, pdflatex  # -interaction=batchmode
         $call do_script, tex, run_tex
+        $call do_script, latex, run_tex
         $call do_script, awk, awk -f
 
         $if $config{expect} and $name=~/\b$config{expect_type}$/
