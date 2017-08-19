@@ -1,5 +1,6 @@
 # basic permutation is permute, n, n
 subcode: permute(n, k)
+    # it is called lexicographic permutations
     my @perm
     $for $i=0:$(n)
         $perm[$i]=$i

@@ -1,5 +1,7 @@
 subcode: parse_preproc
-    my $has_macro = expand_macro(\$preproc)
+    my $has_macro
+    $if $preproc =~ /\$\(/ and $preproc !~ /^set:/
+        $has_macro = expand_macro(\$preproc)
     # $print "parse_preproc: $preproc [$tail] [$l]"
     my $flag_done
     $call parse_preproc_switch

@@ -67,6 +67,7 @@ fncode: import_file($f, $def, $file_type)
     my $cur_line=0
     $if $file_type eq "main"
         $call start_default_page
+        $call parse_default_page_macros
     &call parse_loop
         $call parse
     $if $file_type eq "main"
@@ -90,7 +91,7 @@ fncode: import_file($f, $def, $file_type)
         $elif $line=~/^template:/ && $(top_scope)
             $call grab_template
         $elif $curindent==0 and $line=~/^include:? (.*)/
-            $call add_include
+            $call add_include, $1
         $elif $curindent==0 and $line=~/^(sub)?page:\s*(.*)/
             my ($subpage, $t)=($1, $2)
             $call start_page
@@ -119,6 +120,16 @@ fncode: import_file($f, $def, $file_type)
             my $line = $plines->[$cur_line]
             $cur_line++
             BLOCK
+
+subcode: parse_default_page_macros
+    $while $plines->[$cur_line]=~/^(\w+):\s*(.*)/
+        $if $1 =~ /^(page|macros|\w+code|template)$/
+            last
+        $elif $1 eq "include"
+            $call add_include, $2
+        $else
+            $page->{$1}=$2
+        $cur_line++
 
 #---------------------------------------- 
 subcode: start_page
@@ -247,14 +258,14 @@ subcode: grab_template
 subcode: _autoload
     $call dbl_list, includes
 
-subcode: add_include
-    $if $1 eq "noconfig"
+subcode: add_include(t)
+    $if $(t) eq "noconfig"
         # skip config, see below
-        $includes{$1}=1
-    $elif substr($1, -1) eq "/"
-        add_path($1)
+        $includes{$(t)}=1
+    $elif substr($(t), -1) eq "/"
+        add_path($(t))
     $else
-        $call dbl_push, includes, $1
+        $call dbl_push, includes, $(t)
 
 subcode: load_standard_includes
     my $module = $MyDef::var->{module}
