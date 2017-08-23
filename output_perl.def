@@ -85,10 +85,11 @@ subcode: parsecode_function
             return single_block("while($param){", "}")
         $else
             $call parsecode_while_support, c_style
-    $elif $func eq "for"
-        $call parsecode_for_support, c_style
-    $elif $func eq "foreach"
-        $call parsecode_foreach
+    $elif $func =~ /^for(each)?$/
+        $if $1 or $param=~/ in /
+            $call parsecode_foreach
+        $else
+            $call parsecode_for_support, c_style
     $elif $func eq "boolhash"
         $if $param=~/^\((.*?)\)\s*(.*)/
             my $v = $1
