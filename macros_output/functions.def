@@ -1,12 +1,21 @@
-# All these complex heandling is for languages with types
+# For C, Rust, GO ...
 #     without types, function is just as simple as a flow-control
 #     reference output_perl.def
+#----------------------------------------------- 
+#-  $list funcname -- defines function right there
+#-  alternatively, functiions are auto-listed at 
+#-      NOOP POST_MAIN (injected by compileutil)
 
-# We can use the simple approach with the types as well. But types are a major programming-thought-flow interrupter, so it is nice to have MyDef do something. 
+#-  functions are born with function_block, which defines $func and following placeholders:
+#-      DUMP_STUB fn$fidx_{open,pre,post,close}
+#-    corresponding $func->{{open,pre,post,close}block}
 
-# For C, Rust, Go, ..., here we go.
+#- $function, $list, (autolist), $decl_function
 
-subcode:: function_init
+#-  process_function_std (called at dump time) fills these blocks
+
+#----------------------------------------------- 
+subcode:: _autoload
     $global @function_stack
     @function_stack=()
 
@@ -78,10 +87,13 @@ subcode:: parsecode_func_other
         return 1
 
 subcode:: parsecode_func_other
-    $elsif $func eq "function"
+    $elif $func eq "function"
         $call parse_function
         return
-    $elsif $func eq "list"
+    $elif $func eq "in_function"
+        $call in_function
+        return
+    $elif $func eq "list"
         my @tlist=split /,\s*/, $param
         $foreach $f in @tlist
             $call add_list_function, $f
@@ -189,9 +201,10 @@ subcode:: function_init
     $global_list=[]
     $cur_scope={var_list=>$global_list, var_hash=>$global_hash, name=>"global"}
 
+    $global $main_func={param_list=>[], var_list=>[], var_hash=>{}}
     $global %functions, $cur_function
     %functions=()
-    undef $cur_function
+    $cur_function = $main_func
 
     #- @function_list maintains function index
     $global @function_list
@@ -212,6 +225,7 @@ fncode: function_block($funcname, $paramline)
     #------------------------------------------
     push @function_list, $func
     my $fidx=$#function_list
+    $func->{_idx}=$fidx
 
     $(set:S=MyDef::compileutil::set_named_block)
     $(for:open in open,pre,post,close)
@@ -237,7 +251,6 @@ fncode: open_function($fname, $param)
     $(set:getblk=MyDef::compileutil::get_named_block)
     my $func
     $if $fname eq "main"
-        $global $main_func={param_list=>[], var_list=>[], var_hash=>{}}
         $func = $main_func
         $func->{init} = $(getblk)("main_init")
         $func->{finish} = $(getblk)("main_exit")
@@ -293,7 +306,7 @@ fncode: process_function_std($func)
 
     $call function_open_$(function_style)
     $call function_close_$(function_style)
-    # functions need explicit scope
+    # variables etc. 
     close_scope($func, $pre, $post)
 
     $if @{$func->{var_list}}
@@ -323,18 +336,11 @@ fncode: func_return($t)
 
 # ---- Direct $function ------------------
 subcode: parse_function
-    $if $param=~/(\w+)(.*)/
-        my ($fname, $paramline)=($1, $2)
-        $if $paramline=~/^\s*\((.*)\)/
-            # $function fn (param1, param2, ...)
-            $paramline=$1
-        $elif $paramline=~/^\s*,\s*(.*)/
-            # $function fn, param1, param2, ...
-            $paramline=$1
-
+    &call direct_function_line_parse
         my $funcname=MyDef::utils::uniq_name($fname, \%list_function_hash)
         my ($func, $block)=function_block($funcname, $paramline)
         func_push($func)
+        # redirects all output to a named block
         unshift @$block, "OUTPUT:lambda-$funcname"
         push @$block, "PARSE:\$function_pop"
 
@@ -343,6 +349,37 @@ subcode: parse_function
 
         MyDef::compileutil::set_named_block("NEWBLOCK", $block)
         return "NEWBLOCK"
+
+# ---- $in_function ------------------
+subcode: in_function
+    &call direct_function_line_parse
+        my $func = $functions{$fname}
+        $if !$func
+            # only need $func, $block is discarded
+            #   manually insert DUMP_STUB somewhere
+            my $block
+            ($func, $block)=function_block($fname, $paramline)
+            $(set:B=$MyDef::compileutil::named_blocks{$1})
+            my $idx = $func->{_idx}
+            $(for:pre,close)
+                $(B:"$fname\_$1") = $(B:"fn$idx\_$1")
+        func_push($func)
+        my $block= ["BLOCK", "PARSE:\$function_pop"]
+
+        MyDef::compileutil::set_named_block("NEWBLOCK", $block)
+        return "NEWBLOCK"
+
+# -------------------------------
+subcode: direct_function_line_parse
+    $if $param=~/(\w+)(.*)/
+        my ($fname, $paramline)=($1, $2)
+        $if $paramline=~/^\s*\((.*)\)/
+            # $function fn (param1, param2, ...)
+            $paramline=$1
+        $elif $paramline=~/^\s*,\s*(.*)/
+            # $function fn, param1, param2, ...
+            $paramline=$1
+        BLOCK
     $else
         die "\$function syntax error!\n"
 
