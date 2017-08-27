@@ -158,10 +158,15 @@ subcode: parse_loop(l)
         $if $(l)=~/\G$/sgc
             last
         BLOCK
+        $else
+            die "parse_loop: nothing matches!\n"
 
     subcode: if_lex(@pattern)
         $case $(l)=~/\G$(pattern)/sgc
             BLOCK
+
+    macros:
+        quote: "(?:[^"\\]|\\.)*"
 
 #---------------------------------------- 
 # all print goes to $debug_console

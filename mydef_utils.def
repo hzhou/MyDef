@@ -1,11 +1,10 @@
 include: macros_util/parse_regex.def
 
 page: utils
-    type: pm
     output_dir: lib/MyDef
     package: MyDef::utils
-    subcode: main
-        1;
+
+    1;
 
 /*
 fncode: get_tlist($t)

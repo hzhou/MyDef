@@ -146,13 +146,13 @@ subcode: for_i0_i1_step
     $param = "my $param"
 
 subcode: parsecode_foreach
-    $if $param=~/^(?:my\s+)?(\S+)\s+in\s+(.*)/
-        my ($var, $list)=($1, $2)
-        $call loop_var
-        $if $var=~/^(\S+),(i.?)$/
-            my $v = $1
-            my $idx = '$'.$2
+    $if $param=~/^(\S+),\s*(\S+)\s+in\s+(.*)/
+        my ($k, $v, $hash)=($1, $2, $3)
+        $if $hash=~/^%/
+            return single_block("while (my ($k, $v)=each $hash){", "}", "foreach")
+        $else
             # foreach with index
+            my ($v, $idx, $list)=($k, $v, $hash)
             &call return_newblock, foreach
                 push @src, "my $idx = 0;"
                 push @src, "foreach my $v ($list){"
@@ -161,13 +161,11 @@ subcode: parsecode_foreach
                 push @src, "$idx++;"
                 push @src, "DEDENT"
                 push @src, "}"
-        $else
-            return single_block("foreach my $var ($list){", "}", "foreach")
+    $elif $param=~/^(?:my\s+)?(\S+)\s+in\s+(.*)/
+        my ($var, $list)=($1, $2)
+        return single_block("foreach my $var ($list){", "}", "foreach")
     $elif $param=~/^(%.*)/
         return single_block("while (my (\$k, \$v) = each $1){", "}", "foreach")
-    $elif $param=~/^(\S+),\s*(\S+)\s+in\s+(.*)/
-        my ($k, $v, $hash)=($1, $2, $3)
-        return single_block("while (my ($k, $v)=each $hash){", "}", "foreach")
     $else
         return single_block("foreach ($param){", "}", "foreach")
 

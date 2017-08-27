@@ -12,12 +12,6 @@ subcode: replace_output(name)
     BLOCK
     MyDef::compileutil::set_output($old_out)
 
-subcode: push_open_function
-    push @$out, "OPEN_FUNC_$fidx"
-    push @$out, "SOURCE_INDENT"
-    BLOCK
-    push @$out, "SOURCE_DEDENT"
-
 subcode: push_indent_block
     $(allow_recurse:10)
     push @$out, "INDENT"
@@ -26,29 +20,10 @@ subcode: push_indent_block
 
 #---- &call perlcode [optional approach]
 subcode: grab_codelist
-    my $codelist = $MyDef::compileutil::named_blocks{"last_grab"}
-    $if $codelist
-        $call filter_SOURCE
-    $else
+    require MyDef::ext
+    my $codelist = $MyDef::ext::grab_codelist
+    $if !$codelist
         $call @direct
-
-    subcode: filter_SOURCE
-        #-- remove SOURCE line ---
-        my (@t, $indent)
-        $foreach $t in @$codelist
-            $if $t=~/^SOURCE_INDENT/
-                $indent++
-            $elif $t=~/^SOURCE_DEDENT/
-                $indent--
-            $elif $t!~/^SOURCE/
-                $if $indent>0
-                    push @t, ("    "x$indent) . $t
-                $else
-                    push @t, $t
-        $while $t[-1]=~/^\s*$/
-            pop @t
-        $codelist = \@t
-
 
 subcode: filter_codelist
     my $codelist = $MyDef::compileutil::named_blocks{"last_grab"}
