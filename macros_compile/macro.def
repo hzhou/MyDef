@@ -19,6 +19,7 @@ subcode:: preproc_elifs
             $print set[$i]: $t
         $global %named_macros=(def=>0,macro=>1,page=>2)
         $if $i=~/\d/
+            # set1: sets macro at +1 level up
             $i = -($i+1)
         $else
             $i=$named_macros{$i}

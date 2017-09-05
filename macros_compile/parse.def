@@ -64,13 +64,22 @@ subcode: compile_line
         my $preproc=$1
         my $tail=$';
         $call parse_preproc
-    $elif $l=~/^\$: (.*)/
-        # Literal by-pass
-        push @$out, $1
-    $elif $l=~/^\$::\s+(.*)/
-        my $t = $1
-        expand_macro(\$t)
-        push @$out, $t
+    $elif $l=~/^\$([:\.]+) (.*)/ # note: one space is mandatory
+        my ($opt, $t)=($1,$2)
+        $if $opt eq ":"
+            # Literal by-pass
+            push @$out, $t
+        $elif $opt eq "::"
+            # Literal by-pass + macro expansion
+            expand_macro(\$t)
+            push @$out, $t
+        $elif $opt eq "."
+            # Literal sub-line
+            $out->[-1] .= " $t"
+        $elif $opt eq ":."
+            # Literal sub-line + macro expansion
+            expand_macro(\$t)
+            $out->[-1] .= " $t"
     $elif $l=~/^BLOCK(\d*)\s*$/
         my $callback_idx=$1
         $if $#callback_block_stack <0

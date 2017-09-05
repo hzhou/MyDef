@@ -307,7 +307,7 @@ subcode: call_sub_normal_setup_macro
             print "\n"
 
 #---------------------------------------- 
-fncode: eval_sub($codename)
+fncode: eval_sub($codename, $use_module)
     $global %eval_sub_cache, %eval_sub_error
     $if $eval_sub_cache{$codename}
         return $eval_sub_cache{$codename}
@@ -318,7 +318,8 @@ fncode: eval_sub($codename)
             return undef
         my @t
         &call switch_interface
-            push @$out, "EVAL"
+            $if $use_module eq "perl"
+                push @$out, "EVAL"
             list_sub($codelib)
             # parse_code($codelib)
             $f_dumpout->(\@t, $out, "eval")
@@ -329,7 +330,9 @@ fncode: eval_sub($codename)
     subcode: switch_interface
         my $save_out=$out
         $out=[]
-        push_interface("perl")
+        $if !$use_module
+            $use_module = $codelib->{type}
+        push_interface($use_module)
         BLOCK
         pop_interface()
         $out=$save_out

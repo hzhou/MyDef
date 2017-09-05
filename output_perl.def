@@ -113,8 +113,12 @@ subcode: parsecode_function
 fncode: parse_condition($t)
     $if $t=~/^\//
         # regex default
+        $if $t=~/(.*\S\/\w*)\s*->\s*([^\/]+?)\s*$/
+            $t = "my ($2) = $1"
     $elif $t=~/[!=]~/
         # regex var form
+        $if $t=~/(.*\S\/\w*)\s*->\s*([^\/]+?)\s*$/
+            $t = "my ($2) = $1"
     $elif $t=~/[^!=><]=[^="]/
         $if $t!~/["'].*=.*['"]/
             $call warn, assignment in condition [$t]? 
