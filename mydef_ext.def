@@ -1,0 +1,97 @@
+page: ext
+    output_dir: lib/MyDef
+    package: MyDef::ext
+
+    1;
+
+fncode: grab_codelist(%opt)
+    my $codelist = $MyDef::compileutil::named_blocks{"last_grab"}
+    my $do_macro = $opt{do_macro}
+    my $with_indent = $opt{with_indent}
+    $if $codelist
+        $call filter_SOURCE
+    return $codelist
+
+    subcode: filter_SOURCE
+        #-- remove SOURCE line ---
+        my (@t, $indent)
+        $foreach $t in @$codelist
+            $if $do_macro
+                MyDef::compileutil::expand_macro(\$t)
+            $if $t!~/^SOURCE:/
+                $if $with_indent
+                    push @t, $t
+                $else
+                    $call filter_indent
+                    push @t, $t
+
+        $while $t[-1]=~/^\s*$/
+            pop @t
+        $codelist = \@t
+
+    subcode: filter_indent
+        $if $t=~/^SOURCE_INDENT/
+            $indent++
+        $elif $t=~/^SOURCE_DEDENT/
+            $indent--
+        $elif $indent>0
+            $t =  ("    "x$indent) . $t
+
+#----------------------------------------------- 
+# item1: value 
+# item2: value
+# item3:
+#     value
+# Nested hash, only the top level can be a list
+fncode: grab_ogdl($is_list)
+    my $codelist = grab_codelist("do_macro"=>1, "with_indent"=>1)
+    $if $codelist
+        my $ogdl
+        $if $is_list
+            $ogdl = []
+        $else
+            $ogdl = {}
+        $call parse_ogdl
+        return $ogdl
+    $else
+        return undef
+
+    subcode: parse_ogdl
+        my @stack
+        my $cur=$ogdl
+        my $last_key
+        $foreach $t in @$codelist
+            $if $t=~/^SOURCE_INDENT/
+                $call _push
+            $elif $t=~/^SOURCE_DEDENT/
+                $call _pop
+            $elif $t=~/^\s*$/
+                next
+            $elif !@stack and $is_list
+                push @$cur, $t
+            $elif $t=~/^(\w+):\s*(.*)/
+                $cur->{$1} = $2
+                $last_key = $1
+            $else
+                warn "grab_ogdl: error in [$t]\n"
+                return undef
+
+        subcode: _push
+            $if $last_key
+                my $t = {"_"=>$cur->{$last_key}}
+                $cur->{$last_key} = $t
+                push @stack, $cur
+                $cur = $t
+            $else
+                my $tmp = pop @$cur
+                my $t = {"_"=>$tmp}
+                push @$cur, $t
+                push @stack, $cur
+                $cur = $t
+            undef $last_key
+
+        subcode: _pop
+            $if @stack
+                $cur = pop @stack
+            $else
+                die "grab_ogdl: assert\n"
