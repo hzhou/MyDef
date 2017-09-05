@@ -118,6 +118,7 @@ page: mydef_run
         $call do_script, go, go run
         $call do_script, js, node
         $call do_script, tcl, tclsh
+        $call do_script, lisp, clisp
         # $call do_script, tex, pdflatex  # -interaction=batchmode
         $call do_script, tex, run_tex
         $call do_script, latex, run_tex
