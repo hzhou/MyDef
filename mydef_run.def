@@ -7,23 +7,28 @@ page: mydef_run
 
     use MyDef
     my (%config, $pagename)
+    my $page
     $call parse_arg
-    $call guess_module
-    $call guess_os
-    MyDef::init(%config)
-    MyDef::import_data($config{def_file})
-    $if !$pagename
-        $pagename=$MyDef::def->{pagelist}->[0]
-    $if $pagename
-        MyDef::createpage($pagename)
-        my $page=$MyDef::page
-        $if !$page->{skiprun}
-            $call run_page
-    # ---- with default page, $pagename will always be set, renders following useless ...
-    $elif -f "run"
-        system "sh run"
-    $elif -f "Makefile"
-        system "make"
+    $if $config{def_file}
+        $call guess_module
+        MyDef::init(%config)
+        MyDef::import_data($config{def_file})
+        $if !$pagename
+            $pagename=$MyDef::def->{pagelist}->[0]
+        $if $pagename
+            MyDef::createpage($pagename)
+            $page=$MyDef::page
+            $if $page->{skiprun}
+                # $call run_page
+                exit
+        $else
+            exit
+    $elif $config{_file}
+        $page={outname=>$config{_file}}
+    $else
+        die "Usage: $0 input_defile.def\n"
+
+    $call run_page
 
     # -------------------------
     subcode: parse_arg
@@ -32,9 +37,8 @@ page: mydef_run
                 $config{module}=$1
             $elif $a=~/(.*)\.def/
                 $config{def_file}=$a
-
-        $if !$config{def_file}
-            die "Usage: $0 input_defile.def\n"
+            $elif -f $a
+                $config{_file}=$a
 
     subcode: guess_module
         guess_module:
@@ -65,6 +69,7 @@ page: mydef_run
             $ostype = "linux"
 
     subcode: run_page
+        $call guess_os
         my $name=$page->{outname}
         my ($exe, $cmd)
         $if $name=~/(.*)\.c(pp)?$/
@@ -73,6 +78,8 @@ page: mydef_run
             my $cc = "gcc -std=c99"
             $if $page->{CC}
                 $cc = $page->{CC}
+            $elif $ENV{MY_CC}
+                $cc = $ENV{MY_CC}
             $elif $ENV{CC}
                 $cc = $ENV{CC}
             $elif $ostype =~ /cygwin|linux/
