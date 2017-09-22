@@ -78,8 +78,8 @@ page: mydef_run
             my $cc = "gcc -std=c99"
             $if $page->{CC}
                 $cc = $page->{CC}
-            $elif $ENV{MY_CC}
-                $cc = $ENV{MY_CC}
+            $elif $ENV{MYDEF_RUN_CC}
+                $cc = $ENV{MYDEF_RUN_CC}
             $elif $ENV{CC}
                 $cc = $ENV{CC}
             $elif $ostype =~ /cygwin|linux/
