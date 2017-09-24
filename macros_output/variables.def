@@ -61,7 +61,7 @@ subcode:: parsecode_func_other
 #-     _hash: hash to hash
 #-----------------------------------------------------------------
 fncode: global_add_symbol($name, $type, $value)
-    $call add_var, $global_hash, none
+    $call add_var, $global_hash, undef
 
 fncode: global_add_var($name, $type, $value)
     $call add_var, $global_hash, $global_list
@@ -117,17 +117,21 @@ fncode: temp_add_var($name, $type, $value)
 
 #------------------
 subcode: add_var(hash, list)
+    return f_add_var($(hash), $(list), $name, $type, $value)
+
+fncode: f_add_var($h, $l, $name, $type, $value)
     my $var=parse_var($name, $type, $value)
     $name=$var->{name}
-    $if $(hash)->{$name}
-        $call check_var_collision, $(hash)->{$name}
+    $if $h->{$name}
+        $call check_var_collision, $h->{$name}
         return $name
     $else
-        $(if:list!=none)
-            push @$(list), $name
-        $(hash)->{$name}=$var
-        # $call warn, add_var $(hash) $name
+        $if $l
+            push @$l, $name
+        $h->{$name}=$var
+        # $call warn, add_var $h $name
         return $name
+
     # -------------------------------
     subcode: check_var_collision(exist)
         my $exist=$(exist)

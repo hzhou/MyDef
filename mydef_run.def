@@ -51,6 +51,8 @@ page: mydef_run
                 goto guess_module
             $elif /^run:\s*(\w+)/
                 $pagename = $1
+            $elif /^prerun:\s*(.+)/
+                system $1
             $elif /^\/\*\s*expect (\S+):\s*$/
                 $config{expect_type}=$1
                 $call grab_expect_block

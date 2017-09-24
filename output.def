@@ -95,6 +95,7 @@ subcode: inherit(M)
     $sub init_page
         my ($page)=@_
         # overwrite default .c extension
+        $call @on_init_pre
         $if !$page->{type}
             $page->{type}="$(ext)"
         $(super:init_page)(@_)
