@@ -277,14 +277,15 @@ subcode: each_subcode(type)
     my $codes=$MyDef::def->{codes}
     $call iter_subcodes, $(type)
 
-    subcode: iter_subcodes(type)
-        my @tlist
-        $while my ($k, $v)= each %$codes
-            $if $v->{type} eq "$(type)"
-                push @tlist, $k
-        $if @tlist
-            @tlist=sort { $codes->{$a}->{index} <=> $codes->{$b}->{index} } @tlist
-            $foreach $name in @tlist
-                my $code=$codes->{$name}
-                BLOCK
+# output_python.def uses iter_subcodes directly ...
+subcode: iter_subcodes(type)
+    my @tlist
+    $while my ($k, $v)= each %$codes
+        $if $v->{type} eq "$(type)"
+            push @tlist, $k
+    $if @tlist
+        @tlist=sort { $codes->{$a}->{index} <=> $codes->{$b}->{index} } @tlist
+        $foreach $name in @tlist
+            my $code=$codes->{$name}
+            BLOCK
 
