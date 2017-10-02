@@ -63,17 +63,11 @@ fncode: fmt_string($str, $add_newline)
                 &call if_lex, (\{.*?\})
                     $v.=$1
                     $v=check_expression($v)
-                #- $print $var ---------
-                my $var=find_var($v)
-                $if $var->{direct}
-                    push @fmt_list, $var->{direct}
-                $elif $var->{strlen}
-                    push @fmt_list, "%.*s"
-                    push @arg_list, $var->{strlen}
+                $(if:printf_var)
+                    push @fmt_list, "$(printf_var)"
                     push @arg_list, $v
-                $else
-                    push @fmt_list, get_var_fmt($v, 1)
-                    push @arg_list, $v
+                $(else)
+                    $call printf_var_find_var
                 &call if_lex, -
                     # print $var-follow ----
             &call if_lex, \{(.*?)\}
@@ -104,16 +98,37 @@ fncode: fmt_string($str, $add_newline)
     $elif $missing>0
         $call warn, Missing $missing fmt arguments
 
-    $if $add_newline
-        my $tail=$fmt_list[-1]
-        $if $tail=~/(.*)-$/
-            $fmt_list[-1]=$1
-        $elif $tail!~/\\n$/
-            push @fmt_list, "\\n"
+    $call add_newline
 
     $if !@arg_list
         return (0, '"'.join('',@fmt_list).'"')
     $else
         my $vcnt=@arg_list
-        return ($vcnt, '"'.join('',@fmt_list).'", '.join(', ', @arg_list))
+        my $f = join('', @fmt_list)
+        my $a = join(', ', @arg_list)
+        $(if:printf_python)
+            return ($vcnt, "\"$f\" % ($a)")
+        $(else)
+            return ($vcnt, "\"$f\", $a")
 
+    # ------------------------
+    subcode: add_newline
+        $if $add_newline
+            my $tail=$fmt_list[-1]
+            $if $tail=~/(.*)-$/
+                $fmt_list[-1]=$1
+            $elif $tail!~/\\n$/
+                push @fmt_list, "\\n"
+
+    subcode: printf_var_find_var
+        #- $print $var ---------
+        my $var=find_var($v)
+        $if $var->{direct}
+            push @fmt_list, $var->{direct}
+        $elif $var->{strlen}
+            push @fmt_list, "%.*s"
+            push @arg_list, $var->{strlen}
+            push @arg_list, $v
+        $else
+            push @fmt_list, get_var_fmt($v, 1)
+            push @arg_list, $v
