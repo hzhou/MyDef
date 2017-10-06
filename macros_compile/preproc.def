@@ -11,7 +11,7 @@ subcode: parse_preproc
         $if $preproc=~/^for:\s*(.*)/
             my $t=$1
             my $subblock=grabblock($block, \$lindex);
-            $if $t=~/(\w+)\s+in\s+(.*)/
+            $if $t=~/^(\w+)\s+in\s+(.*)/
                 # $(for:x in x,y,z)
                 my ($vname, $vparam)=($1,$2)
                 $call for_in
@@ -58,6 +58,11 @@ subcode: parse_preproc
     # $(for:x,y,z and 1,2,3 and r,g,b and i,j,k)
     #     $print $2 $3 $4: $1 = $$1
     subcode: for_list
+        my @plist
+        $if $t=~/(.+?)\s+in\s+(.*)/
+            $t = $2
+            @plist = split /,\s*/, $1
+
         my @vlist=split /\s+and\s+/, $t
         my $n      # num of alternatives
         my @tlist  # list of replacement list
@@ -68,15 +73,26 @@ subcode: parse_preproc
             push @tlist, \@t
         my $m = @tlist
 
-        $for $i=0:$n
-            my @block = @$subblock
-            $foreach $l in @block
-                $if $l and $l!~/^SOURCE:/
-                    my $j=1
-                    $foreach $tlist in @tlist
-                        $l=~s/\$$j/$tlist->[$i]/g
-                        $j++
-            parseblock({source=>\@block, name=>"\${for:list}"})
+        $if @plist
+            # $(for a, b, c in 1, 2, 3 and 2, 3, 4 and 3,4,5)
+            $for $i=0:$n
+                my $macro={_i=>$i}
+                $for $j=0:@plist
+                    $macro->{$plist[$j]}=$tlist[$j]->[$i]
+                push @$deflist, $macro;
+                parseblock({source=>$subblock, name=>"\${for}"})
+                pop @$deflist;
+        $else
+            # anonymous
+            $for $i=0:$n
+                my @block = @$subblock
+                $foreach $l in @block
+                    $if $l and $l!~/^SOURCE:/
+                        my $j=1
+                        $foreach $tlist in @tlist
+                            $l=~s/\$$j/$tlist->[$i]/g
+                            $j++
+                parseblock({source=>\@block, name=>"\${for:list}"})
 
     # ---------------------------------------- 
     subcode: foreach_p
