@@ -10,10 +10,8 @@ subcode: parsecode_scope
         return
 
 subcode:: _autoload
-    $global @scope_stack, $cur_scope, $global_scope
-    $global_scope={var_list=>[], var_hash=>{}, name=>"global"}
+    $global @scope_stack, $cur_scope
     $cur_scope={var_list=>[], var_hash=>{}, name=>"default"}
-    push @scope_stack, $global_scope
 
 fncode: open_scope($blk_idx, $scope_name)
     push @scope_stack, $cur_scope

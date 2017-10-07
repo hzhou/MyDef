@@ -24,11 +24,16 @@ subcode:: _autoload
     %list_function_hash=()
     @list_function_list=()
 
-#---- autolist ------------------------------------ 
+#---- autolist ---------------------- 
+subcode: autolist_page_functions
+    my $codes=$page->{codes}
+    &call iter_subcodes, fn
+        $call add_list_function, $name
+
 subcode: autolist_functions(add_type)
     $global %function_autolist
     &call each_subcode, fn
-        my ($return_type, $skip_autolist)
+        my ($return_type, $autolist)
         my $source=$code->{source}
         $foreach $l in @$source
             $if $l=~/^SOURCE/
@@ -43,15 +48,18 @@ subcode: autolist_functions(add_type)
                     $return_type=$2
             $elif $l=~/^\$return_type\s+(.+)/
                 $return_type = $1
-            $elif $l=~/^\$skip_autolist/
-                $skip_autolist = 1
+            $elif $l=~/^\$autolist\s+(\w+)/
+                # $autolist skip, $autolist 
+                $autolist = $1
                 $l="NOOP"
             $else
                 last
         # $print function_autolist: $name
         $if $return_type
             $functions{$name}={ret_type=>$return_type}
-        $if $page->{autolist} and !$skip_autolist
+
+        $if $autolist ne "skip" and ($page->{autolist} eq "global" || $autolist)
+            $function_autolist{$name}=$autolist
             $call add_list_function, $name
         $else
             $function_autolist{$name}="$(add_type)"
