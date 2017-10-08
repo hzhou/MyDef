@@ -389,7 +389,8 @@ subcode: var_declare(scope)
             $else
                 $call dbl_push, globals, $v
             $if $var
-                $global_scope->{var_hash}->{$name}=$var
+                # [fix later]
+                # $global_scope->{var_hash}->{$name}=$var
         $(else)
             push @$out, "my $v;"
             $if $var

@@ -158,8 +158,9 @@ subcode: parse_loop(l)
         $if $(l)=~/\G$/sgc
             last
         BLOCK
-        $else
-            die "parse_loop: nothing matches! [$(l)]\n"
+        $(if:!skip_else)
+            $else
+                die "parse_loop: nothing matches! [$(l)]\n"
 
     subcode: if_lex(@pattern)
         $case $(l)=~/\G$(pattern)/sgc

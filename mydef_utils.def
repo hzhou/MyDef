@@ -46,6 +46,8 @@ fncode: get_range($a, $b)
             $b-=1
         &call ab_range
             push @tlist, sprintf("0x%x", 1<<$i)
+    $else
+        push @tlist, "$a-$b"
 
     return @tlist
 
@@ -242,6 +244,8 @@ fncode: expand_macro($line, $sub)
                     push @$segs, $sub->($t)
             &call if_lex, ([^\$\x80-\xff()]|$(dollar))+
                 push @$segs, $&
+        $(set:skip_else=1)
+
     $call check_paren_stack
     return join('', @$segs)
 
