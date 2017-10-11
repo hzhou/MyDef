@@ -373,27 +373,34 @@ subcode: in_function
             #   manually insert DUMP_STUB somewhere
             my $block
             ($func, $block)=function_block($fname, $paramline)
-            $(set:B=$MyDef::compileutil::named_blocks{$1})
             my $idx = $func->{_idx}
+            $(set:B=$MyDef::compileutil::named_blocks{$1})
             $(for:pre,close)
                 $(B:"$fname\_$1") = $(B:"fn$idx\_$1")
         func_push($func)
-        my $block= ["BLOCK", "PARSE:\$function_pop"]
+        my $block
+        $if $fname=~/^fn-/
+            $block = ["DUMP_STUB $fname\_pre", "BLOCK", "DUMP_STUB $fname\_post", "PARSE:\$function_pop"]
+        $else
+            $block= ["BLOCK", "PARSE:\$function_pop"]
 
         MyDef::compileutil::set_named_block("NEWBLOCK", $block)
         return "NEWBLOCK"
 
 # -------------------------------
 subcode: direct_function_line_parse
+    my ($fname, $paramline)
     $if $param=~/(\w+)(.*)/
-        my ($fname, $paramline)=($1, $2)
+        ($fname, $paramline)=($1, $2)
         $if $paramline=~/^\s*\((.*)\)/
             # $function fn (param1, param2, ...)
             $paramline=$1
         $elif $paramline=~/^\s*,\s*(.*)/
             # $function fn, param1, param2, ...
             $paramline=$1
-        BLOCK
     $else
-        die "\$function syntax error!\n"
+        # die "\$function syntax error!\n"
+        my $fidx=$#function_list
+        $fname = "fn-$fidx"
+    BLOCK
 

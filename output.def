@@ -142,8 +142,8 @@ subcode: parsecode_debug
 #---------------------------------------- 
 subcode: parsecode_common
     # print "parsecode_common: input [$l]\n"
-    $if 0
-        # NOOP
+    $if $l=~/^DUMP_STUB\s/
+        push @$out, $l
     $call @parsecode_special
     $elif $l=~/^\s*\$(\w+)\((.*?)\)\s+(.*?)\s*$/
         # $function(param1) param2 ---------------------------
