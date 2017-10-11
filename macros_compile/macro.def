@@ -204,7 +204,7 @@ fncode: get_macro($s, $nowarn)
         $if $t=~/^eval:\s*(.*)/
             # e.g. $(eval:lcfirst "$(word)")
             return eval($1)
-        $elif $t=~/^x(\d+)([^:]*):(.*)/ and $1>1
+        $elif $t=~/^x(\d+)([^:]*):(.*)/ and $1>0
             # e.g. $(x3,:a) rep $3 with sep=$2, sep can't have ':'
             return "$3$2" x ($1-1) . $3
         $elif $t=~/^nest:(\d+):(.+):(.*)/
