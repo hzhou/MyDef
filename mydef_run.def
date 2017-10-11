@@ -174,7 +174,10 @@ page: mydef_run
             $if $page->{run}
                 $cmd .= " && $page->{run}"
             $else
-                $cmd .= " && $(exe)"
+                $if $(exe)=~/\//
+                    $cmd .= " && $(exe)"
+                $else
+                    $cmd .= " && ./$(exe)"
 
         subcode: append_arg
             $if $page->{arg}
