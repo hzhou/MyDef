@@ -174,7 +174,7 @@ page: mydef_run
             $if $page->{run}
                 $cmd .= " && $page->{run}"
             $else
-                $if $(exe)=~/\//
+                $if $(exe)=~/[\/ ]/
                     $cmd .= " && $(exe)"
                 $else
                     $cmd .= " && ./$(exe)"
