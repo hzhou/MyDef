@@ -42,9 +42,20 @@ INSTALL
 
         $ vim t.def
         page: t
+            module: perl
+
             $print Hello World!
 
         $ mydef_run t.def
+
+    Explanation: 
+        page outputs a file in that name with the default extension -- in this case t.pl
+        $print is special since it is used so often. It is customized in MyDef to provide many conveniece (and a uniform syntax across languages)
+        In this case, it is translated into `print("Hello World!\n");`
+        mydef_run is a convenience for short script. 
+        Formally, `mydef_page` compiles .def into .pl (or whatever language of the module), and the normal toolchain of the language follows. 
+        `mydef_page` is what should be used in a Makefile.
+        
 
 5. If you use vim, there is simple mydef syntax.
 
