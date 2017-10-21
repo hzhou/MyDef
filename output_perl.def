@@ -67,6 +67,7 @@ subcode: parsecode_function
         my @flist = MyDef::utils::proper_split($param)
         $foreach $name in @flist
             $call add_function, $name
+        return 0
     $elif $func eq "sub"
         $if $param=~/^(\w+)\((.*)\)/
             &call return_newblock, sub

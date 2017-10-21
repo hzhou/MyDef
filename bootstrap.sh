@@ -24,8 +24,8 @@ touch bootstrap/script/mydef_make
 touch bootstrap/script/mydef_page
 $MY_INSTALL bootstrap/script . -
 $MY_INSTALL bootstrap/lib    . pm
-$MY_INSTALL bootstrap/deflib . def
 $MY_INSTALL deflib           . def
+$MY_INSTALL bootstrap/deflib . def
 # In case some system do not record file stamps higher than 1 sec.
 
 if [ -z $1 ]; then # so "sh bootstrap.sh skip" will skip these
