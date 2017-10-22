@@ -8,7 +8,6 @@ our %js_globals;
 our @js_globals;
 our %plugin_statement;
 our %plugin_condition;
-our $time_start = time();
 
 sub js_string {
     my ($t) = @_;
@@ -173,41 +172,6 @@ sub fmt_string {
     else{
         my $vcnt=@arg_list;
         return ($vcnt, '"'.join('',@fmt_list).'", '.join(', ', @arg_list));
-    }
-}
-
-sub bases {
-    my ($n, @bases) = @_;
-    my @t;
-    foreach my $b (@bases){
-        push @t, $n % $b;
-        $n = int($n/$b);
-        if($n<=0){
-            last;
-        }
-    }
-    if($n>0){
-        push @t, $n;
-    }
-    return @t;
-}
-
-sub get_time {
-    my $t = time()-$time_start;
-    my @t;
-    push @t, $t % 60;
-    $t = int($t/60);
-    push @t, $t % 60;
-    $t = int($t/60);
-    push @t, $t % 60;
-    $t = int($t/60);
-    if($t>0){
-        push @t, $t % 24;
-        $t = int($t/24);
-        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0]);
-    }
-    else{
-        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0]);
     }
 }
 
@@ -399,8 +363,8 @@ sub parsecode {
     push @$out, $l;
 }
 sub dumpout {
-    my ($f, $out, $pagetype)=@_;
-    my $dump={out=>$out,f=>$f, module=>"output_js"};
+    my ($f, $out)=@_;
+    my $dump={out=>$out,f=>$f};
     my $block=MyDef::compileutil::get_named_block("js_init");
     foreach my $v (@js_globals){
         push @$block, "var $v;\n";

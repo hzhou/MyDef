@@ -1,10 +1,11 @@
 include: std_c.def
 
+/*
 subcode: basic_frame
     $call @c_main
     XS_START
     $call xs_main
-
+*/
 #---------------------------------------- 
 #-- set macro DONOTSET_UNDEF will do NOOP when keys are missing
 subcode: get_hash(hv, var)

@@ -2,1062 +2,165 @@ use strict;
 use MyDef::output_perl;
 
 package MyDef::output_plot;
-our @g_stack;
-our $g_hash={};
 our %colornames;
 our $out;
 our $debug;
-our %eqn_vars;
-our @eqn_list;
-our $n_eqn;
-our $n_var;
 
-sub parse_path {
-    my ($param, $info) = @_;
-    my $has_cycle=0;
-    if($param=~/\s*\.\.\s*cycle\s*$/){
-        $has_cycle=1;
-        $param=$`;
-    }
-    elsif($param=~/\s*--\s*cycle\s*$/){
-        $param=$`;
-        if($param=~/(.*?)(\.\.|--)/){
-            $param.="--$1";
+sub set_attrs {
+    my ($t, $context) = @_;
+    my @t = split /,\s+/, $t;
+    foreach my $t (@t){
+        if($colornames{$t}){
+            if($context=~/fill|text/){
+                $t = "fill $colornames{$t}";
+            }
+            else{
+                $t = "stroke $colornames{$t}";
+            }
         }
+        elsif($t=~/^#.+/){
+            if($context=~/fill|text/){
+                $t = "fill $t";
+            }
+            else{
+                $t = "stroke $t";
+            }
+        }
+        if($t=~/font\s+(.*)/){
+            my $t = $1;
+            if($t=~/\b([0-9.]+)(pt|px)?/){
+                my $size=$1;
+                $t = "$` $'";
+                push @$out, "MyPlot::set_attr(\"font $t\");";
+                $t = "fontsize $size";
+            }
+        }
+        if($t=~/([0-9.]+)(pt|px)/){
+            my $size=$1;
+            if($context=~/text/){
+                $t = "fontsize $size";
+            }
+            else{
+                $t = "linewidth $size";
+            }
+        }
+        elsif($t=~/^(shade|gradient|linear|radial|ball)\s*(.*)/){
+            $t = filter_attr_shading($1, $2);
+        }
+        push @$out, "MyPlot::set_attr(\"$t\");";
     }
-    $param=~s/\.\.\./..tension -1../g;
-    $param=~s/--/{curl 1}..{curl 1}/g;
-    my @segments;
-    my @t_segs = split /\s*&\s*/, $param;
-    foreach my $s (@t_segs){
-        my $plist=[];
-        my $i=0;
-        my @tlist=split /(\.\.(?:(?:tension|controls|arc).*?\.\.)?)/, $s;
-        foreach my $t (@tlist){
-            if($t eq ".."){
+}
+
+sub filter_attr_shading {
+    my ($type, $s) = @_;
+    my @alist = split /\s+/, $s;
+    my %a;
+    foreach my $a (@alist){
+        if($a=~/^(\w+)=(.*)/){
+            my $k = lc($1);
+            $a{$k}=$2;
+        }
+        else{
+            my $t=parse_color($a);
+            if($t){
+                my $k;
+                foreach my $c ("c0", "c1"){
+                    if(!$a{$c}){
+                        $k= $c;
+                        last;
+                    }
+                }
+                if($k){
+                    $a{$k}=$t;
+                }
                 next;
             }
-            elsif($t=~/^\.\.tension\s*(.*?)\s*\.\.$/){
-                if(!$plist->[$i]){
-                    $plist->[$i]={};
-                }
-                my $tt=$1;
-                if($tt=~/^(\S+)\s*and\s*(\S+)$/){
-                    $plist->[$i-1]->{"tension+"}=$1;
-                    $plist->[$i]->{"tension-"}=$2;
-                }
-                else{
-                    $plist->[$i-1]->{"tension+"}=$tt;
-                    $plist->[$i]->{"tension-"}=$tt;
-                }
-            }
-            elsif($t=~/^\.\.controls\s*(.*?)\s*\.\.$/){
-                if(!$plist->[$i]){
-                    $plist->[$i]={};
-                }
-                my $tt=$1;
-                if($tt=~/^(\S+)\s*and\s*(\S+)$/){
-                    my ($t1, $t2)=($1, $2);
-                    ($plist->[$i-1]->{"x+"}, $plist->[$i-1]->{"y+"}) = parse_point($t1);
-                    ($plist->[$i]->{"x-"}, $plist->[$i]->{"y-"}) = parse_point($t2);
-                }
-                else{
-                    die "single control point not supported\n";
-                }
-            }
-            elsif($t=~/^\.\.arc\s*(.*?)\s*\.\.$/){
-                if(!$plist->[$i]){
-                    $plist->[$i]={};
-                }
-                my $tt=$1;
-                if($tt=~/\((\S+),\s*(\S+)\s*\)/){
-                    $plist->[$i-1]->{"arc+"}=$1;
-                    $plist->[$i]->{"arc-"}=$2;
-                }
-            }
-            else{
-                if(!$plist->[$i]){
-                    $plist->[$i]={};
-                }
-                my ($t1, $t2);
-                if($t=~/^{(.*?)}/){
-                    $t1 = $1;
-                    $t=$';
-                }
-                if($t=~/^(.*){(.*)}$/){
-                    $t2 = $2;
-                    $t = $1;
-                }
-                if(!$t1 && $t2){
-                    $t1 = $t2;
-                    undef $t2;
-                }
-                if($t1){
-                    if($t1=~/curl\s*(\S+)/){
-                        $plist->[$i]->{"curl-"}=$1;
-                        if(!$t2){
-                            $plist->[$i]->{"curl+"}=$1;
-                        }
-                    }
-                    else{
-                        my ($x, $y)=parse_dir($t1);
-                        if(!$t2){
-                            $plist->[$i]->{"dx"}=$x;
-                            $plist->[$i]->{"dy"}=$y;
-                        }
-                        else{
-                            $plist->[$i]->{"dx-"}=$x;
-                            $plist->[$i]->{"dy-"}=$y;
-                        }
-                    }
-                }
-                if($t2){
-                    if($t2=~/curl\s*(\S+)/){
-                        $plist->[$i]->{"curl+"}=$1;
-                    }
-                    else{
-                        my ($x, $y)=parse_dir($t2);
-                        $plist->[$i]->{"dx+"}=$x;
-                        $plist->[$i]->{"dy+"}=$y;
-                    }
-                }
-                my ($x, $y)=parse_point($t);
-                $plist->[$i]->{x}=$x;
-                $plist->[$i]->{y}=$y;
-                if($i>0){
-                    if(defined $plist->[$i]->{"x-"} or defined $plist->[$i]->{"arc-"}){
-                        my $t=$plist->[$i];
-                        if($i>1){
-                            pop @$plist;
-                            push @segments, $plist;
-                            push @segments, [$plist->[-1], $t];
-                        }
-                        else{
-                            push @segments, $plist;
-                        }
-                        $plist=[$t];
-                        $i=0;
-                    }
-                    elsif(defined $plist->[$i]->{"dx-"} or defined $plist->[$i]->{"dx"} or defined $plist->[$i]->{"curl-"} or defined $plist->[$i]->{"curl"}){
-                        my $t=$plist->[$i];
-                        push @segments, $plist;
-                        $plist=[$t];
-                        $i=0;
-                    }
-                }
-                $i++;
-            }
-        }
-        if($i==1 and @tlist>1){
-        }
-        else{
-            if(!@segments){
-                if($has_cycle){
-                    $plist->[0]->{cycle}=1;
-                }
-                push @segments, $plist;
-            }
-            elsif(!$has_cycle or $plist->[-1]->{"dx-"} or $plist->[-1]->{"curl-"} or $segments[0]->[0]->{"dx-"} or $segments[0]->[0]->{"curl-"}){
-                push @segments, $plist;
-            }
-            else{
-                my $tlist = shift @segments;
-                push @$plist, @$tlist;
-                push @segments, $plist;
-            }
         }
     }
-    my $last_point="";
-    my $segment_i=0;
-    foreach my $plist (@segments){
-        my $t="$plist->[0]->{x}, $plist->[0]->{y}";
-        if($t ne $last_point){
-            push @$out, "MyPlot::moveto($t);";
+    if(!$a{c0}){
+        $a{c0}='#000000';
+    }
+    if(!$a{c1}){
+        $a{c1}='#ffffff';
+    }
+    if($type=~/(shade|gradient|linear)/){
+        if(!defined $a{theta}){
+            $a{theta}=-90;
         }
-        if(@$plist==1){
-            if($t ne $last_point){
-                push @$out, "MyPlot::lineto($t);";
-                if(($info->{type} eq "drawdblarrow") and $segment_i == 0){
-                }
-                if(($info->{type} eq "drawdblarrow" or $info->{type} eq "drawarrow") and $segment_i == $#segments){
-                }
-                $last_point = $t;
-            }
+        if($a{theta}<0){
+            $a{theta}=-$a{theta};
+            ($a{c0}, $a{c1}) = ($a{c1}, $a{c0});
         }
-        elsif(@$plist==2 and defined $plist->[0]->{"x+"}){
-            my $t = $plist->[0]->{"x+"}.", ";
-            $t .= $plist->[0]->{"y+"}.", ";
-            $t .= $plist->[1]->{"x-"}.", ";
-            $t .= $plist->[1]->{"y-"};
-            my $t2 = $plist->[1]->{"x"}.", ";
-            $t2 .= $plist->[1]->{"y"};
-            push @$out, "MyPlot::curveto($t, $t2);";
-            if(($info->{type} eq "drawdblarrow") and $segment_i == 0){
-                my $t = $plist->[0]->{"x"}.", ";
-                $t .= $plist->[0]->{"y"}.", ";
-                $t .= "atan2(".$plist->[0]->{"y+"}."-".$plist->[0]->{"y"}.",";
-                $t .= $plist->[0]->{"x+"}."-".$plist->[0]->{"x"}.")";
-                $info->{arrow_0_param} = $t;
-            }
-            if(($info->{type} eq "drawdblarrow" or $info->{type} eq "drawarrow") and $segment_i == $#segments){
-                my $t = $plist->[-1]->{"x"}.", ";
-                $t .= $plist->[-1]->{"y"}.", ";
-                $t .= "atan2(".$plist->[1]->{"y-"}."-".$plist->[1]->{"y"}.",";
-                $t .= $plist->[1]->{"x-"}."-".$plist->[1]->{"x"}.")";
-                $info->{arrow_1_param} = $t;
-            }
-            $last_point = $t2;
+        my $s = "linear";
+        foreach my $k (sort keys %a){
+            $s.= " $k=".$a{$k};
         }
-        elsif(@$plist==2 and defined $plist->[0]->{"arc+"} and defined $plist->[1]->{"arc-"}){
-            my $t = $plist->[0]->{"x"}.", ";
-            $t .= $plist->[0]->{"y"};
-            my $t2 = $plist->[1]->{"x"}.", ";
-            $t2 .= $plist->[1]->{"y"};
-            my $arc = $plist->[0]->{"arc+"}.", ";
-            $arc .= $plist->[1]->{"arc-"};
-            push @$out, "MyPlot::arcto($t, $t2, $arc);";
-            if(($info->{type} eq "drawdblarrow") and $segment_i == 0){
-                my $t = $plist->[0]->{"x"}.", ";
-                $t .= $plist->[0]->{"y"}.", ";
-                my $a;
-                if($plist->[1]->{"arc-"} > $plist->[0]->{"arc+"}){
-                    $a = $plist->[0]->{"arc+"}+90;
-                }
-                else{
-                    $a = $plist->[0]->{"arc+"}-90;
-                }
-                $a*=0.0174532925199;
-                $t .= sprintf("%.4f", $a);
-                $info->{arrow_0_param} = $t;
+        return $s;
+    }
+    elsif($type=~/(radial|ball)/){
+        if($type eq "ball"){
+            $a{x0}=-0.45;
+            $a{y0}=0.45;
+            $a{r0}=0;
+            $a{x1}=0;
+            $a{y1}=0;
+            $a{r1}=1;
+            if($a{c1} eq "#ffffff"){
+                ($a{c0}, $a{c1}) = ($a{c1}, $a{c0});
             }
-            if(($info->{type} eq "drawdblarrow" or $info->{type} eq "drawarrow") and $segment_i == $#segments){
-                my $t = $plist->[-1]->{"x"}.", ";
-                $t .= $plist->[-1]->{"y"}.", ";
-                my $a;
-                if($plist->[1]->{"arc-"} > $plist->[0]->{"arc+"}){
-                    $a = $plist->[1]->{"arc-"}-90;
-                }
-                else{
-                    $a = $plist->[1]->{"arc-"}+90;
-                }
-                $a*=0.0174532925199;
-                $t .= sprintf("%.4f", $a);
-                $info->{arrow_1_param} = $t;
-            }
-            $last_point = $t2;
-        }
-        elsif(@$plist==2 and !defined $plist->[0]->{"dx"} and !defined $plist->[1]->{"dx"} and !defined $plist->[0]->{"dx+"} and !defined $plist->[1]->{"dx-"}){
-            my $t2 = $plist->[1]->{"x"}.", ";
-            $t2 .= $plist->[1]->{"y"};
-            push @$out, "MyPlot::lineto($t2);";
-            if(($info->{type} eq "drawdblarrow") and $segment_i == 0){
-                my $t = $plist->[0]->{"x"}.", ";
-                $t .= $plist->[0]->{"y"}.", ";
-                $t .= "atan2(".$plist->[1]->{"y"}."-".$plist->[0]->{"y"}.",";
-                $t .= $plist->[1]->{"x"}."-".$plist->[0]->{"x"}.")";
-                $info->{arrow_0_param} = $t;
-            }
-            if(($info->{type} eq "drawdblarrow" or $info->{type} eq "drawarrow") and $segment_i == $#segments){
-                my $t = $plist->[-1]->{"x"}.", ";
-                $t .= $plist->[-1]->{"y"}.", ";
-                $t .= "atan2(".$plist->[0]->{"y"}."-".$plist->[1]->{"y"}.",";
-                $t .= $plist->[0]->{"x"}."-".$plist->[1]->{"x"}.")";
-                $info->{arrow_1_param} = $t;
-            }
-            $last_point = $t2;
         }
         else{
-            push @$out, "my \@path;\n";
-            foreach my $t (@$plist){
-                my @t;
-                foreach my $k (sort keys %$t){
-                    push @t, "\"$k\"=>$t->{$k}";
-                }
-                push @$out, "push \@path, {".join(', ', @t)."};\n";
+            if(!defined $a{x0}){
+                $a{x0} = 0;
             }
-            push @$out, "MyPlot::solve_path(\\\@path);\n";
-            push @$out, "MyPlot::do_path(\\\@path, 1);";
-            if(($info->{type} eq "drawdblarrow") and $segment_i == 0){
-                my $t = $plist->[0]->{"x"}.", ";
-                $t .= $plist->[0]->{"y"}.", ";
-                my $t2 = "atan2(\$path[0]->{\"y+\"}-\$path[0]->{\"y\"}, ";
-                $t2 .= "\$path[0]->{\"x+\"}-\$path[0]->{\"x\"})";
-                push @$out, "my \$theta0 = $t2;";
-                $t .= "\$theta0";
-                $info->{arrow_0_param} = $t;
+            if(!defined $a{y0}){
+                $a{y0} = 0;
             }
-            if(($info->{type} eq "drawdblarrow" or $info->{type} eq "drawarrow") and $segment_i == $#segments){
-                my $t = $plist->[-1]->{"x"}.", ";
-                $t .= $plist->[-1]->{"y"}.", ";
-                my $t2 = "atan2(\$path[-1]->{\"y-\"}-\$path[-1]->{\"y\"}, ";
-                $t2 .= "\$path[-1]->{\"x-\"}-\$path[-1]->{\"x\"})";
-                $t .= "$t2";
-                $info->{arrow_1_param} = $t;
+            if(!defined $a{r0}){
+                $a{r0} = 0;
             }
-            $last_point="$plist->[-1]->{x}, $plist->[-1]->{y}";
+            if(!defined $a{x1}){
+                $a{x1} = 0;
+            }
+            if(!defined $a{y1}){
+                $a{y1} = 0;
+            }
+            if(!defined $a{r1}){
+                $a{r1} = 1;
+            }
         }
-        $segment_i++;
-    }
-    my $first_point="$segments[0]->[0]->{x}, $segments[0]->[0]->{y}";
-    if($has_cycle or $first_point eq $last_point){
-        push @$out, "MyPlot::close_path();";
+        my $s = "radial";
+        foreach my $k (sort keys %a){
+            $s.= " $k=".$a{$k};
+        }
+        return $s;
     }
 }
 
-sub parse_point {
+sub parse_color {
     my ($t) = @_;
-    my $exp = parse_expr($t, $g_hash->{macro}, {});
-    if($exp->[1] ne "list"){
-        die "point parsing error: [$t]\n";
+    if($t=~/^#(\S+)/){
+        return get_color_rrggbb($1);
     }
-    my @t;
-    for(my $i=0; $i <2; $i++){
-        my $t=$exp->[0]->[$i];
-        if($t->[1] eq "var"){
-            $t[$i]=get_var_string($t);
-        }
-        elsif($t->[1] eq "num"){
-            $t[$i]=$t->[0];
-        }
-        else{
-            die "parse_point illegal type [$t]\n";
-        }
-    }
-    return @t;
 }
 
-sub parse_dir {
-    my ($t) = @_;
-    my ($x, $y);
-    if($t eq "left"){
-        ($x, $y)=(-1,0);
+sub get_color_rrggbb {
+    my ($c) = @_;
+    $c = uc($c);
+    if(length($c)==1){
+        $c = $c x 6;
     }
-    elsif($t eq "right"){
-        ($x, $y)=(1,0);
+    elsif(length($c)==2){
+        $c = $c x 3;
     }
-    elsif($t eq "up"){
-        ($x, $y)=(0,1);
-    }
-    elsif($t eq "down"){
-        ($x, $y)=(0,-1);
-    }
-    elsif($t=~/dir\s*(\S+)/){
-        my $t=$1;
-        my $u=3.1415926/180;
-        if($t=~/^[0-9.]+$/){
-            ($x, $y)=(cos($t), sin($t));
-        }
-        else{
-            ($x, $y)=("cos($t*$u)", "sin($t*$u)");
-        }
+    elsif(length($c)==3){
+        my ($r, $g, $b)=split //, $c;
+        $c = "$r$r$g$g$b$b";
     }
     else{
-        ($x, $y)=parse_point($t);
-        if($x==0 and $y==0){
-            die "Error in parse_dir[$t]\n";
-        }
-        my $d = sqrt($x**2+$y**2);
-        $x/=$d;
-        $y/=$d;
+        die "get_color_rrggbb error: [$c]\n";
     }
-    return ($x, $y);
-}
-
-sub parse_edge {
-    my ($t) = @_;
-    my ($t1, $t2)=MyDef::utils::proper_split($t);
-    my ($x1, $y1)=parse_point($t1);
-    my ($x2, $y2)=parse_point($t2);
-    return ($x1, $y1, $x2, $y2);
-}
-
-sub parse_point_name {
-    my ($v, $macros) = @_;
-    my ($pre, $xyz, $tail);
-    if($v=~/^([xyz])(\w*)/){
-        ($pre, $xyz, $tail)=("", $1, $2);
-    }
-    elsif($v=~/^(\w+_)([xyz])(\w*)/){
-        ($pre, $xyz, $tail)=($1, $2, $3);
-    }
-    else{
-        return;
-    }
-    if($tail){
-        if(defined $macros->{i}){
-            $tail=~s/i/$macros->{i}/g;
-        }
-        if(defined $macros->{j}){
-            $tail=~s/j/$macros->{j}/g;
-        }
-        if(defined $macros->{k}){
-            $tail=~s/k/$macros->{k}/g;
-        }
-    }
-    return ($pre, $xyz, $tail);
-}
-
-sub parse_expr {
-    my ($l, $macros1, $macros2) = @_;
-    if(!$l){
-        return;
-    }
-    if($debug){
-        print "parse_expr [$l]\n";
-    }
-    my @stack;
-    my %prec=(
-        'eof'=>0,
-        ','=>1,
-        "+"=>2, "-"=>2,
-        "*"=>3, "/"=>3, "%"=>3,
-        "^"=>4,
-        "func"=>5,
-        "unary"=>6,
-        "num"=>4,
-        "list"=>4,
-        "var"=>4,
-        '('=>-1, '['=>-1, ')'=>0, ']'=>0,
-        't('=>4, 't['=>4,
-        );
-    my %func=();
-    my @bracket_stack;
-    my %match=('['=>']', '('=>')');
-    while(1){
-        my $cur;
-        if($l=~/\G$/gc){
-            $cur = [undef, "eof"];
-        }
-        elsif($l=~/\G\s+/gc){
-            next;
-        }
-        elsif($l=~/\G([\+\-\*\/,])/gc){
-            $cur = [$1, $1];
-        }
-        elsif($l=~/\G([\(\[\{])/gc){
-            $cur = [$1, "t$1"];
-        }
-        elsif($l=~/\G([\)\]\}])/gc){
-            $cur = [$1, $1];
-        }
-        elsif($l=~/\G(\d+)\/(\d+)/gc){
-            $cur = [$1/$2, "num"];
-        }
-        elsif($l=~/\G(\d+(\.\d+)?)/gc){
-            $cur = [$1, "num"];
-        }
-        elsif($l=~/\G(\$\w+)/gc){
-            $cur = [$1, "num"];
-        }
-        elsif($l=~/\G([ijk])%(\d+)/gc){
-            $cur = [$macros2->{$1} % $2, "num"];
-        }
-        elsif($l=~/\G([ijk])\/(\d+)/gc){
-            use integer;
-            $cur = [$macros2->{$1} / $2, "num"];
-        }
-        elsif($l=~/\G(\w+)/gc){
-            if(defined $macros1->{$1}){
-                $cur = [$macros1->{$1}, "num"];
-            }
-            elsif(defined $macros2->{$1}){
-                $cur = [$macros2->{$1}, "num"];
-            }
-            elsif($func{$1}){
-                $cur = [$1, "func"];
-            }
-            else{
-                my $t=$1;
-                my ($pre, $xyz, $tail)=parse_point_name($1, $macros2);
-                if(!$xyz){
-                    $cur = make_var($t, {});
-                }
-                elsif($xyz eq "z"){
-                    my $x = make_var($pre."x".$tail, $macros2);
-                    my $y = make_var($pre."y".$tail, $macros2);
-                    $cur = [[$x, $y], "list"];
-                }
-                else{
-                    $cur = make_var($pre.$xyz.$tail, $macros2);
-                }
-            }
-        }
-        else{
-            $l=~/\G(.)/gc;
-            $cur = [$1, "extra"];
-        }
-        process:
-        if(!defined $prec{$cur->[1]}){
-            die "precedence $cur->[1] not specified\n";
-        }
-        while(@stack>=2 and ($stack[-1]->[1]=~/num|var|list/) and $prec{$cur->[1]} <= $prec{$stack[-2]->[1]}){
-            reduce_stack(\@stack);
-        }
-        if($cur->[1] eq 't[' or $cur->[1] eq 't('){
-            $cur->[1]=substr($cur->[1], 1, 1);
-            push @bracket_stack, $match{$cur->[1]};
-        }
-        elsif($cur->[1] eq ']' or $cur->[1] eq ')'){
-            if($cur->[1] ne $bracket_stack[-1]){
-                print "cur: $cur->[1], last: $bracket_stack[-1]\n";
-                die "Bracket mismatch\n";
-            }
-            elsif($match{$stack[-1]->[1]} eq $cur->[1]){
-                die "Bracket empty\n";
-            }
-            elsif($match{$stack[-2]->[1]} eq $cur->[1]){
-                my $t = pop @stack;
-                pop @stack;
-                if($cur->[1] eq ")"){
-                    $cur = $t;
-                    goto process;
-                }
-                elsif($cur->[1] eq "]"){
-                    if($t->[1] eq "list" and @{$t->[0]}==2){
-                        if($stack[-1]->[1] eq "num"){
-                            my $t2=pop @stack;
-                            $cur = do_portion($t2, @{$t->[0]});
-                        }
-                        elsif($stack[-1]->[0] eq "-"){
-                            pop @stack;
-                            $cur = do_portion([-1, "num"], @{$t->[0]});
-                        }
-                        else{
-                            die "Error [ ]: wrong scalar\n";
-                        }
-                    }
-                    else{
-                        die "Error [ ]: type mismatch\n";
-                    }
-                    goto process;
-                }
-            }
-            else{
-                die "Error unreduced bracket\n";
-            }
-        }
-        elsif($cur->[1] eq '-' and (@stack==0 or $stack[-1]->[1] !~/num|var|list/)){
-            $cur = ["-", "unary"];
-        }
-        if($cur->[1] eq "eof"){
-            last;
-        }
-        else{
-            push @stack, $cur;
-        }
-    }
-    if(@stack!=1){
-        my $n=@stack;
-        print "---- dump stack [$n] ----\n";
-        foreach my $t (@stack){
-            print_token($t);
-        }
-        die "Unreduced expresion [$l].\n";
-    }
-    return $stack[0];
-}
-
-sub reduce_stack {
-    my ($stack) = @_;
-    my $cur;
-    my $t = pop @$stack;
-    my $op = pop @$stack;
-    if($op->[1] eq "unary"){
-        if($op->[0] eq "-"){
-            $cur = do_unary("neg", $t);
-        }
-        else{
-            die "Non-supported unary operator\n";
-        }
-    }
-    elsif($op->[1] =~/[\+\-\*\/\^,]/){
-        my $t2 = pop @$stack;
-        $cur = do_binary($op->[1], $t2, $t);
-    }
-    elsif($op->[1] eq "num"){
-        $cur = do_binary("*", $op, $t);
-    }
-    elsif($op->[1] eq "func"){
-        $cur = do_function($op->[0], $t);
-    }
-    else{
-        print_token($op, "op");
-        print_token($t, "t");
-        die "not supported operator type $op->[1]\n";
-    }
-    push @$stack, $cur;
-}
-
-sub get_var_string {
-    my ($v) = @_;
-    my %t;
-    foreach my $t (@{$v->[0]}){
-        my ($k, $v)=@$t;
-        if(defined $t{$k}){
-            $t{$k}+=$v;
-        }
-        else{
-            $t{$k}=$v;
-        }
-    }
-    my @t=sort {$a cmp $b} keys %t;
-    my @segs;
-    my $const;
-    foreach my $k (@t){
-        if($k eq "1"){
-            $const=$t{1};
-        }
-        else{
-            my $c=$t{$k};
-            if($c==1){
-                push @segs, "\$$k";
-            }
-            elsif($c<0){
-                push @segs, "($c) * \$$k";
-            }
-            else{
-                push @segs, "$c * \$$k";
-            }
-        }
-    }
-    if(defined $const){
-        if($const<0){
-            push @segs, "($const)";
-        }
-        else{
-            push @segs, $const;
-        }
-    }
-    return join(" + ", @segs);
-}
-
-sub do_unary {
-    my ($op, $t) = @_;
-    if($op eq "neg"){
-        if($t->[1] eq "list"){
-            foreach my $t2 (@{$t->[0]}){
-                $t2=do_unary($op, $t2);
-            }
-            return $t;
-        }
-        elsif($t->[1] eq "num"){
-            $t->[0]=-$t->[0];
-            return $t;
-        }
-        elsif($t->[1] eq "var"){
-            my $tlist = $t->[0];
-            foreach my $t2 (@{$t->[0]}){
-                $t2->[1]= - $t2->[1];
-            }
-            return $t;
-        }
-    }
-    else{
-        die "non supported unary operator\n";
-    }
-}
-
-sub do_binary {
-    my ($op, $t1, $t2) = @_;
-    if($op eq ","){
-        if($t1->[1] eq "list" and $t2->[1] ne "list"){
-            push @{$t1->[0]}, $t2;
-            return $t1;
-        }
-        else{
-            return [[$t1, $t2], "list"];
-        }
-    }
-    elsif($t1->[1] eq "list" and $t2->[1] eq "list"){
-        my $n = @{$t1->[0]};
-        my @t;
-        for(my $i=0; $i <$n; $i++){
-            push @t, do_binary($op, $t1->[0]->[$i], $t2->[0]->[$i]);
-        }
-        return [\@t, "list"];
-    }
-    elsif($t1->[1] eq "num" and $t2->[1] eq "num"){
-        $t1=$t1->[0];
-        $t2=$t2->[0];
-        if($op eq "+"){
-            return [$t1+$t2, "num"];
-        }
-        elsif($op eq "-"){
-            return [$t1-$t2, "num"];
-        }
-        elsif($op eq "*"){
-            return [$t1*$t2, "num"];
-        }
-        elsif($op eq "/"){
-            return [$t1/$t2, "num"];
-        }
-        elsif($op eq "++"){
-            return [sqrt($t1*$t1+$t2*$t2), "num"];
-        }
-        elsif($op eq "+-+"){
-            return [sqrt($t1*$t1-$t2*$t2), "num"];
-        }
-        elsif($op eq "^"){
-            return [$t1**$t2, "num"];
-        }
-        else{
-            die "unsuported binary operator $op\n";
-        }
-    }
-    elsif($t2->[1] eq "num"){
-        if($op eq "-"){
-            $t2->[0] = -$t2->[0];
-            return do_binary("+", $t2, $t1);
-        }
-        elsif($op eq "/"){
-            $t2->[0] = 1.0/$t2->[0];
-            return do_binary("*", $t2, $t1);
-        }
-        elsif($op eq "+" or $op eq "*"){
-            return do_binary($op, $t2, $t1);
-        }
-        else{
-            die "unsuported binary t1->[1] $op num\n";
-        }
-    }
-    elsif($t1->[1] eq "num" and $t2->[1] eq "list"){
-        my $n = @{$t2->[0]};
-        my @t;
-        for(my $i=0; $i <$n; $i++){
-            push @t, do_binary($op, $t1, $t2->[0]->[$i]);
-        }
-        return [\@t, "list"];
-    }
-    elsif($t1->[1] eq "num" and $t2->[1] eq "var"){
-        if($op eq "*"){
-            foreach my $t (@{$t2->[0]}){
-                $t->[1]*=$t1->[0];
-            }
-            return $t2;
-        }
-        elsif($op eq "+"){
-            push @{$t2->[0]}, [1, $t1->[0]];
-            return $t2;
-        }
-        elsif($op eq "-"){
-            foreach my $t (@{$t2->[0]}){
-                $t->[1] = -$t->[1];
-            }
-            push @{$t2->[0]}, [1, $t1->[0]];
-            return $t2;
-        }
-        else{
-            die "unsuported binary num $op var\n";
-        }
-    }
-    elsif($t1->[1] eq "var" and $t2->[1] eq "var"){
-        if($op eq "+"){
-            foreach my $t (@{$t2->[0]}){
-                push @{$t1->[0]}, $t;
-            }
-            return $t1;
-        }
-        elsif($op eq "-"){
-            foreach my $t (@{$t2->[0]}){
-                $t->[1] = -$t->[1];
-                push @{$t1->[0]}, $t;
-            }
-            return $t1;
-        }
-        else{
-            die "unsuported binary var $op var\n";
-        }
-    }
-}
-
-sub make_var {
-    my ($name, $coeff) = @_;
-    if(ref($coeff) ne "HASH"){
-        return [[[$name, $coeff]], "var"];
-    }
-    elsif(defined $coeff->{$name}){
-        return [$coeff->{$name}, "num"];
-    }
-    else{
-        return [[[$name, 1]], "var"];
-    }
-}
-
-sub parse_eqn {
-    my ($left, $right, $macro, $points) = @_;
-    my $eqn = do_binary("-", $left, $right);
-    if($eqn->[1] ne "var"){
-        die "equation contains no variable\n";
-    }
-    my %t;
-    foreach my $t (@{$eqn->[0]}){
-        my ($k, $v)=@$t;
-        if(defined $t{$k}){
-            $t{$k}+=$v;
-        }
-        else{
-            $t{$k}=$v;
-        }
-    }
-    if(!exists $t{1}){
-        $t{1}=0;
-    }
-    my @t=sort {$a cmp $b} keys %t;
-    if($debug){
-        print "eqn: ";
-        foreach my $t (@t){
-            print " $t{$t} $t, ";
-        }
-        print "\n";
-    }
-    if(@t==2){
-        my $k=$t[1];
-        my $v=-$t{1}/$t{$k};
-        if(defined $macro->{$k}){
-            die "variable exist: $k ($macro->{$k} --> $v)\n";
-        }
-        else{
-            $macro->{$k}=$v;
-            if($k=~/(\b|_)[xy]/){
-                $points->{$k}=$v;
-            }
-        }
-    }
-    else{
-        foreach my $k (@t){
-            if($k ne "1" and !exists($eqn_vars{$k})){
-                $eqn_vars{$k}=1;
-                $n_var++;
-            }
-        }
-        push @eqn_list, \%t;
-        $n_eqn++;
-        if($n_eqn == $n_var){
-            die "solving linear equations not implemented\n";
-            reset_eqns();
-        }
-    }
-}
-
-sub reset_eqns {
-    %eqn_vars=();
-    @eqn_list=();
-    $n_eqn=0;
-    $n_var=0;
-}
-
-sub do_portion {
-    my ($a, $t1, $t2) = @_;
-    my $t = do_binary("-", $t2, $t1);
-    $t = do_binary("*", $a, $t);
-    $t = do_binary("+", $t1, $t);
-    return $t;
-}
-
-sub do_function {
-    my ($name, @t) = @_;
-}
-
-sub check_default {
-    my ($type) = @_;
-    if($type eq "draw"){
-        if(!$g_hash->{linewidth}){
-            $g_hash->{linewidth}=2;
-            push @$out, "MyPlot::line_width(2);";
-        }
-        if(!$g_hash->{linecap}){
-            $g_hash->{linecap}="round";
-            push @$out, "MyPlot::line_cap('round');";
-            push @$out, "MyPlot::line_join('round');";
-        }
-    }
-}
-
-sub parse_graphic_state {
-    my ($param) = @_;
-    my $cm_changed;
-    my @tlist = MyDef::utils::proper_split($param);
-    foreach my $t (@tlist){
-        if($t=~/^(\d[0-9.]*)(pt)?/){
-            $g_hash->{linewidth}=$1;
-            push @$out, "MyPlot::line_width($1);";
-        }
-        elsif($t =~/^dash$/){
-            push @$out, "MyPlot::line_dash(1);";
-        }
-        elsif($colornames{$t} or $t=~/^#/){
-            if($colornames{$t}){
-                $t = $colornames{$t};
-            }
-            if($t=~/^#(..)(..)(..)/){
-                if($1 eq $2 and $1 eq $3){
-                    my $t=sprintf("%.2f", hex($1)/255);
-                    push @$out, "MyPlot::stroke_gray($t);";
-                }
-                else{
-                    my $r=sprintf("%.2f",hex($1)/255);
-                    my $g=sprintf("%.2f",hex($2)/255);
-                    my $b=sprintf("%.2f",hex($3)/255);
-                    push @$out, "MyPlot::stroke_rgb($r, $g, $b);";
-                }
-            }
-        }
-        elsif($t=~/fill\s*(.*)/){
-            $t=$1;
-            if($colornames{$t}){
-                $t = $colornames{$t};
-            }
-            if($t=~/^#(..)(..)(..)/){
-                if($1 eq $2 and $1 eq $3){
-                    my $t=sprintf("%.2f", hex($1)/255);
-                    push @$out, "MyPlot::fill_gray($t);";
-                }
-                else{
-                    my $r=sprintf("%.2f",hex($1)/255);
-                    my $g=sprintf("%.2f",hex($2)/255);
-                    my $b=sprintf("%.2f",hex($3)/255);
-                    push @$out, "MyPlot::fill_rgb($r, $g, $b);";
-                }
-            }
-        }
-        elsif($t=~/origin\s*\((.*)\)/){
-            my ($x, $y)=parse_point($1);
-            if(!$g_hash->{cm}){
-                $g_hash->{cm}=[1, 0, 0, 1, $x, $y];
-            }
-            else{
-                my $cm = $g_hash->{cm};
-                $cm->[4]+=$cm->[0]*$x+$cm->[1]*$y;
-                $cm->[5]+=$cm->[2]*$x+$cm->[3]*$y;
-            }
-            $cm_changed=1;
-        }
-        elsif($t=~/rotate\s*(.*)/){
-            my $th=$1*3.14159265/180;
-            my $C=cos($th);
-            my $S=sin($th);
-            if(!$g_hash->{cm}){
-                $g_hash->{cm}=[$C, $S, -$S, $C, 0, 0];
-            }
-            else{
-                my $cm = $g_hash->{cm};
-                my $a0 = $cm->[0]*$C-$cm->[1]*$S;
-                my $a1 = $cm->[0]*$S+$cm->[1]*$C;
-                my $a2 = $cm->[2]*$C-$cm->[3]*$S;
-                my $a3 = $cm->[2]*$S+$cm->[3]*$C;
-                $cm->[0]=$a0;
-                $cm->[1]=$a1;
-                $cm->[2]=$a2;
-                $cm->[3]=$a3;
-            }
-            $cm_changed=1;
-        }
-        elsif($t=~/scale\s*\((.*)\)/){
-            my ($x, $y)=parse_point($1);
-            if(!$g_hash->{cm}){
-                $g_hash->{cm}=[$x, 0, 0, $y, 0, 0];
-            }
-            else{
-                my $cm = $g_hash->{cm};
-                $cm->[0]*=$x;
-                $cm->[1]*=$y;
-                $cm->[2]*=$x;
-                $cm->[3]*=$y;
-            }
-            $cm_changed=1;
-        }
-        elsif($t=~/scale\s*(.*)/){
-            if(!$g_hash->{cm}){
-                $g_hash->{cm}=[$1, 0, 0, $1, 0, 0];
-            }
-            else{
-                my $cm = $g_hash->{cm};
-                $cm->[0]*=$1;
-                $cm->[1]*=$1;
-                $cm->[2]*=$1;
-                $cm->[3]*=$1;
-            }
-            $cm_changed=1;
-        }
-        elsif($t=~/skew\s*\((.*)\)/){
-            my ($x, $y)=parse_point($1);
-            my $ta=tan($x*3.14159265/180);
-            my $tb=tan($y*3.14159265/180);
-            if(!$g_hash->{cm}){
-                $g_hash->{cm}=[1, $ta, $tb, 1, 0, 0];
-            }
-            else{
-                my $cm = $g_hash->{cm};
-                my $a0=$cm->[0]+$cm->[1]*$tb;
-                my $a1=$cm->[0]*$ta+$cm->[1];
-                my $a2=$cm->[2]+$cm->[3]*$tb;
-                my $a3=$cm->[2]*$ta+$cm->[3];
-                $cm->[0]=$a0;
-                $cm->[1]=$a1;
-                $cm->[2]=$a2;
-                $cm->[3]=$a3;
-            }
-            $cm_changed=1;
-        }
-        elsif($t=~/skew\s*(.*)/){
-            my $ta=tan($1*3.14159265/180);
-            my $tb=tan($1*3.14159265/180);
-            if(!$g_hash->{cm}){
-                $g_hash->{cm}=[1, $ta, $tb, 1, 0, 0];
-            }
-            else{
-                my $cm = $g_hash->{cm};
-                my $a0=$cm->[0]+$cm->[1]*$tb;
-                my $a1=$cm->[0]*$ta+$cm->[1];
-                my $a2=$cm->[2]+$cm->[3]*$tb;
-                my $a3=$cm->[2]*$ta+$cm->[3];
-                $cm->[0]=$a0;
-                $cm->[1]=$a1;
-                $cm->[2]=$a2;
-                $cm->[3]=$a3;
-            }
-            $cm_changed=1;
-        }
-        elsif($t=~/(\w+)=([0-9\.]+)/){
-            $g_hash->{macro}->{$1}=$2;
-        }
-    }
-    if($cm_changed){
-        my $t=join(", ",  @{$g_hash->{cm}});
-        push @$out, "MyPlot::set_matrix($t);";
-    }
-}
-
-sub print_token {
-    my ($t, $pre, $post) = @_;
-    if(defined $pre){
-        print $pre;
-    }
-    if(ref($t->[0]) eq "ARRAY"){
-        print "  ( ";
-        foreach my $t2 (@{$t->[0]}){
-            print_token($t2, "", ", ");
-        }
-        print " $t->[1] )";
-    }
-    elsif(ref($t->[0]) eq "HASH"){
-        print "  ( ";
-        while (my ($k, $v) = each %{$t->[0]}){
-            print "$k=>";
-            print_token($v, "", "");
-            print ", ";
-        }
-        print ", $t->[1] )";
-    }
-    else{
-        print "  ( $t->[0], $t->[1] )";
-    }
-    if(defined $post){
-        print $post;
-    }
-    else{
-        print "\n";
-    }
+    return "#".$c;
 }
 
 %colornames=(
@@ -1249,7 +352,48 @@ sub parsecode {
     if($l=~/CALLBACK\s*(\w+)\s*(.*)/){
         my ($func, $param)=($1, $2);
         my $codelist=$MyDef::compileutil::named_blocks{"last_grab"};
-        if($func =~/^set_point/){
+        if($func =~/^(path|draw|fill|clip)/){
+            if(@$codelist){
+                $param .= join(' ', @$codelist);
+            }
+            my $option;
+            if($param=~/^\[(.*?)\]\s*/){
+                $option = $1;
+                $param  = $';
+            }
+            if($option){
+                push @$out, "MyPlot::new_group();";
+                set_attrs($option, $func);
+            }
+            if($param=~/\bz\d+\b/){
+                my $z_base;
+                my $z = MyDef::compileutil::get_macro_word('z', 1);
+                my @t = split /(\bz\d+)/, $param;
+                foreach my $t (@t){
+                    if($t=~/^z(\d+)/){
+                        if(!$z){
+                            $t = "(\$x$1, \$y$1)";
+                        }
+                        else{
+                            my @i = split //, $1;
+                            $t = $z;
+                            $t=~s/\$1/$i[0]/g;
+                            $t=~s/\$2/$i[1]/g;
+                        }
+                    }
+                }
+                $param = join('', @t);
+            }
+            push @$out, "my \$path = MyPlot::path_load(\"$param\");";
+            if($func ne "path"){
+                push @$out, "MyPlot::draw(\$path,\"$func\");";
+            }
+            if($option){
+                push @$out, "MyPlot::close_group();";
+            }
+            return 0;
+        }
+        elsif($func =~/^set_point/){
             my %points;
             my ($origin, $rotate);
             my $macros1={};
@@ -1313,7 +457,7 @@ sub parsecode {
                             if($left->[1] eq "list" and $right->[1] eq "list"){
                                 my $n1=@{$left->[0]};
                                 if($n1==@{$right->[0]}){
-                                    for(my $i=0; $i <$n1; $i++){
+                                    for(my $i=0; $i<$n1; $i++){
                                         parse_eqn($left->[0]->[$i], $right->[0]->[$i], $macros2, \%points);
                                     }
                                 }
@@ -1423,27 +567,7 @@ sub parsecode {
     }
     elsif($l=~/^\$(\w+)\s*(.*)/){
         my ($func, $param)=($1, $2);
-        if($func =~/^draw/){
-            check_default("draw");
-            my $info={type=>$func};
-            parse_path($param, $info);
-            push @$out, "MyPlot::stroke();";
-            if($info->{arrow_0_param}){
-                push @$out, "MyPlot::arrow($info->{arrow_0_param}, $g_hash->{linewidth}+4);";
-            }
-            if($info->{arrow_1_param}){
-                push @$out, "MyPlot::arrow($info->{arrow_1_param}, $g_hash->{linewidth}+4);";
-            }
-            return 0;
-        }
-        elsif($func =~/^fill/){
-            check_default("fill");
-            my $info={type=>$func};
-            parse_path($param, $info);
-            push @$out, "MyPlot::fill();";
-            return 0;
-        }
-        elsif($func =~/^label/){
+        if($func =~/^label/){
             if($param=~/^\[(.*?)\](.*)/){
                 my ($param, $tail)=($1, $2);
                 $tail=~s/^\s*[:,]?\s*//;
@@ -1487,25 +611,33 @@ sub parsecode {
             }
             return 0;
         }
+        elsif($func eq "path"){
+            return "CALLBACK path $param";
+        }
+        elsif($func eq "draw"){
+            return "CALLBACK draw $param";
+        }
+        elsif($func eq "fill"){
+            return "CALLBACK fill $param";
+        }
+        elsif($func eq "clip"){
+            return "CALLBACK clip $param";
+        }
+        elsif($func eq "drawclip"){
+            return "CALLBACK drawclip $param";
+        }
+        elsif($func eq "drawfill"){
+            return "CALLBACK drawfill $param";
+        }
         elsif($func eq "set_point"){
             return "CALLBACK set_point $param";
         }
         elsif($func eq "tex"){
             return "CALLBACK tex $param";
         }
-        elsif($func eq "line" or $func eq "style"){
-            parse_graphic_state($param, $func);
-            return 0;
-        }
         elsif($func eq "group"){
-            check_default("draw");
-            push @g_stack, $g_hash;
-            my %t=%$g_hash;
-            $g_hash=\%t;
-            $g_hash->{cm}=undef;
-            $g_hash->{macro}={};
-            push @$out, "MyPlot::save_state();";
-            parse_graphic_state($param, "group");
+            push @$out, "MyPlot::new_group();";
+            set_attrs($param);
             my @src;
             push @src, "BLOCK";
             push @src, "\$ungroup";
@@ -1513,15 +645,89 @@ sub parsecode {
             return "NEWBLOCK-group";
         }
         elsif($func eq "ungroup"){
-            $g_hash=pop @g_stack;
-            push @$out, "MyPlot::restore_state();";
+            push @$out, "MyPlot::close_group();";
+            return 0;
+        }
+        if($func eq "pattern"){
+            if($param=~/(\w+)\s+(\d+)\s+(\d+)/){
+                push @$out, "MyPlot::newpattern(\"$1\", $2, $3);";
+            }
+            elsif($param=~/(\w+)\s+(\d+)/){
+                push @$out, "MyPlot::newpattern(\"$1\", $2, $2);";
+            }
+            else{
+                die "unrecognized \$pattern $param\n";
+            }
+            my @src;
+            push @src, "BLOCK";
+            push @src, "\$unpattern";
+            MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+            return "NEWBLOCK-pattern";
+        }
+        elsif($func eq "unpattern"){
+            push @$out, "MyPlot::pop_pattern();";
+            return 0;
+        }
+        if($func eq "attr"){
+            push @$out, "MyPlot::set_attr(\"$param\");";
+            return 0;
+        }
+        elsif($func eq "text"){
+            if($param=~/\bz\d+\b/){
+                my $z_base;
+                my $z = MyDef::compileutil::get_macro_word('z', 1);
+                my @t = split /(\bz\d+)/, $param;
+                foreach my $t (@t){
+                    if($t=~/^z(\d+)/){
+                        if(!$z){
+                            $t = "(\$x$1, \$y$1)";
+                        }
+                        else{
+                            my @i = split //, $1;
+                            $t = $z;
+                            $t=~s/\$1/$i[0]/g;
+                            $t=~s/\$2/$i[1]/g;
+                        }
+                    }
+                }
+                $param = join('', @t);
+            }
+            my $option;
+            if($param=~/^\[(.*?)\]\s*/){
+                $option = $1;
+                $param  = $';
+            }
+            if($option){
+                push @$out, "MyPlot::new_group();";
+                set_attrs($option, "text");
+            }
+            push @$out, "MyPlot::text(\"$param\");";
+            if($option){
+                push @$out, "MyPlot::close_group();";
+            }
+            return 0;
+        }
+        elsif($func eq "plot"){
+            my $option;
+            if($param=~/^\[(.*?)\]\s*/){
+                $option = $1;
+                $param  = $';
+            }
+            if($option){
+                push @$out, "MyPlot::new_group();";
+                set_attrs($option, "draw");
+            }
+            push @$out, "MyPlot::plot($param);";
+            if($option){
+                push @$out, "MyPlot::close_group();";
+            }
             return 0;
         }
     }
     return MyDef::output_perl::parsecode($l);
 }
 sub dumpout {
-    my ($f, $out, $pagetype)=@_;
-    MyDef::output_perl::dumpout($f, $out, $pagetype);
+    my ($f, $out)=@_;
+    MyDef::output_perl::dumpout($f, $out);
 }
 1;

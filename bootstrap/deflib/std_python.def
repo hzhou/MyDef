@@ -2,13 +2,22 @@ macros:
     comment: #
 
 subcode: basic_frame
-    $(block:_main)
+    # I don't really see point of this, albeit works.
+    $def main
         $call @main2
+
     $if __name__ == "__main__"
         main()
 
-fncode: main
-    DUMP_STUB _main
+#---------------------------------------- 
+subcode: open_r(name)
+    with open($(name), "r" as In:
+        for line in In:
+            BLOCK
+
+subcode: open_w(name)
+    with open($(name), "w" as Out:
+        BLOCK
 
 #---------------------------------------- 
 include: ext.def
@@ -22,8 +31,18 @@ perlcode: quote
         push @$out, "\"\"\"\n"
 
 
+#---- timing --------------------------- 
+subcode: start_time
+    $import datetime from datetime
+    start_time = datetime.now()
+
+subcode: print_time(msg)
+    time_diff = datetime.now()-start_time
+    $print $(msg): $time_diff
+
 #---------------------
 subcode: error(@msg)
     # $print stack: $stack
     raise Exception($(msg))
+
 

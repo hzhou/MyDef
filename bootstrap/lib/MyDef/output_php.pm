@@ -8,7 +8,12 @@ our %php_globals;
 our @php_globals;
 our %plugin_statement;
 our %plugin_condition;
-our $time_start = time();
+
+sub php_print {
+    my ($s) = @_;
+    $s=~s/"/\\"/g;
+    return "echo \"$s\";";
+}
 
 sub echo_php {
     my ($t, $ln) = @_;
@@ -42,39 +47,48 @@ sub test_var {
     }
 }
 
-sub bases {
-    my ($n, @bases) = @_;
-    my @t;
-    foreach my $b (@bases){
-        push @t, $n % $b;
-        $n = int($n/$b);
-        if($n<=0){
-            last;
+sub parse_tag_attributes {
+    my ($tt_list) = @_;
+    my $func=shift @$tt_list;
+    my $attr="";
+    my $quick_content;
+    foreach my $tt (@$tt_list){
+        if($tt eq "/"){
+            $quick_content="";
+        }
+        elsif($tt=~/^#(\S+)$/){
+            $attr.=" id=\"$1\"";
+        }
+        elsif($tt=~/^(\S+?)[:=]"(.*)"/){
+            $attr.=" $1=\"$2\"";
+        }
+        elsif($tt=~/^(\S+?)[:=](.*)/){
+            $attr.=" $1=\"$2\"";
+        }
+        elsif($tt=~/^"(.*)"/){
+            $quick_content=$1;
+        }
+        else{
+            $attr.=" class=\"$tt\"";
         }
     }
-    if($n>0){
-        push @t, $n;
+    if($func eq "input"){
+        if($attr !~ /type=/){
+            $attr.=" type=\"text\"";
+        }
+        if($quick_content){
+            $attr.=" placeholder=\"$quick_content\"";
+        }
     }
-    return @t;
-}
-
-sub get_time {
-    my $t = time()-$time_start;
-    my @t;
-    push @t, $t % 60;
-    $t = int($t/60);
-    push @t, $t % 60;
-    $t = int($t/60);
-    push @t, $t % 60;
-    $t = int($t/60);
-    if($t>0){
-        push @t, $t % 24;
-        $t = int($t/24);
-        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0]);
+    elsif($func eq "form"){
+        if($attr !~ /action=/){
+            $attr.=" action=\"<?=\$_SERVER['PHP_SELF'] ?>\"";
+        }
+        if($attr !~ /method=/){
+            $attr.=" method=\"POST\"";
+        }
     }
-    else{
-        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0]);
-    }
+    return ($func, $attr, $quick_content);
 }
 
 sub get_interface {
@@ -148,6 +162,9 @@ sub parsecode {
     }
     if(0){
     }
+    elsif($l=~/^CSS:\s*(.*)/){
+        return MyDef::output_www::parse_css($1);
+    }
     elsif($l=~/^\s*\$(\w+)\((.*?)\)\s+(.*?)\s*$/){
         my ($func, $param1, $param2)=($1, $2, $3);
         if($func eq "plugin"){
@@ -175,7 +192,45 @@ sub parsecode {
                 }
                 return;
             }
-            if($func =~/^if(\w*)/){
+            if($func =~ /^(tag|div|span|ol|ul|li|table|tr|td|th|h[1-5]|p|pre|html|head|body|form|label|fieldset|button|input|textarea|select|option|img|a|center|b|style)$/){
+                my @tt_list=split /,\s*/, $param;
+                if($func ne "tag"){
+                    unshift @tt_list, $func;
+                }
+                my ($func, $attr, $quick_content)= parse_tag_attributes(\@tt_list);
+                if($func=~ /img|input/){
+                    push @$out, php_print("<$func$attr />");
+                }
+                elsif(defined $quick_content){
+                    push @$out, php_print("<$func$attr>$quick_content</$func>");
+                }
+                elsif($func eq "pre"){
+                    my @src;
+                    push @src, php_print("<$func$attr>");
+                    push @src, "PUSHDENT";
+                    push @src, "BLOCK";
+                    push @src, "POPDENT";
+                    push @src, php_print("</$func>");
+                    MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+                    return "NEWBLOCK-pre";
+                }
+                else{
+                    my @src;
+                    push @src, php_print("<$func$attr>");
+                    push @src, "INDENT";
+                    push @src, "BLOCK";
+                    push @src, "DEDENT";
+                    push @src, php_print("</$func>");
+                    MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+                    return "NEWBLOCK-tag";
+                }
+                return 0;
+            }
+            if($func =~/^echo/){
+                push @$out, php_print($param);
+                return;
+            }
+            elsif($func =~/^if(\w*)/){
                 if($1 and $param!~/^!/){
                     $param=test_var($param, $1 eq 'z');
                 }
@@ -289,14 +344,10 @@ sub parsecode {
             }
             elsif($func eq "print"){
                 my $str=$param;
-                my $need_escape;
                 if($str=~/^\s*\"(.*)\"\s*$/){
                     $str=$1;
                 }
-                else{
-                    $need_escape=1;
-                }
-                push @$out, "echo \"$str\";";
+                push @$out, php_print($str);
                 return;
             }
         }
@@ -307,15 +358,13 @@ sub parsecode {
     push @$out, $l;
 }
 sub dumpout {
-    my ($f, $out, $pagetype)=@_;
-    my $dump={out=>$out,f=>$f, module=>"output_php"};
-    push @$f, "<?php\n";
+    my ($f, $out)=@_;
+    my $dump={out=>$out,f=>$f};
     if(@php_globals){
         foreach my $v (@php_globals){
             push @$f, "$v;\n";
         }
     }
-    push @$out, "?>\n";
     MyDef::dumpout::dumpout($dump);
 }
 sub single_block {

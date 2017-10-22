@@ -5,6 +5,50 @@ package MyDef::output_win32;
 our $out;
 our $debug;
 
+sub window_proc_core {
+    my ($name, $type) = @_;
+    my $out=$MyDef::output_c::out;
+    my $codes=$MyDef::def->{codes};
+    MyDef::compileutil::call_sub("\@pre_WndProc_$name");
+    push @$out, "switch(msg){";
+    push @$out, "INDENT";
+    my %msg_hash;
+    foreach my $k (sort(keys(%$codes))){
+        if($k=~/$name\_on\_(WM_\w+)/){
+            my $msg=$1;
+            $msg_hash{$msg}=1;
+            if($msg eq "WM_ALLKEY"){
+                push @$out, "case WM_KEYDOWN:";
+                push @$out, "case WM_KEYUP:";
+                push @$out, "case WM_SYSKEYDOWN:";
+                push @$out, "case WM_SYSKEYUP:";
+            }
+            elsif($msg eq "WM_ALLCOMMAND"){
+                push @$out, "case WM_COMMAND:";
+                push @$out, "case WM_SYSCOMMAND:";
+            }
+            else{
+                push @$out, "case $msg:";
+            }
+            push @$out, "INDENT";
+            MyDef::compileutil::call_sub("\@$name\_on_$msg");
+            push @$out, "break;";
+            push @$out, "DEDENT";
+        }
+    }
+    if(!$msg_hash{"WM_DESTROY"} and $name eq "main"){
+        MyDef::compileutil::call_sub("msg_destroy");
+    }
+    push @$out, "DEDENT";
+    push @$out, "}";
+    if($type eq "WndProc"){
+        push @$out, "return DefWindowProc(hwnd, msg, wparam, lparam);";
+    }
+    elsif($type eq "DlgProc"){
+        push @$out, "return FALSE;";
+    }
+}
+
 sub get_interface {
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
 }
@@ -50,10 +94,15 @@ sub parsecode {
         }
         return;
     }
+    if($l=~/^\$wndproc\s+(WndProc|DlgProc)_(\w+)/){
+        my ($type, $name) = ($1, $2);
+        window_proc_core($name, $type);
+        return;
+    }
     return MyDef::output_c::parsecode($l);
 }
 sub dumpout {
-    my ($f, $out, $pagetype)=@_;
+    my ($f, $out)=@_;
     my $extern;
     my $winmain=$MyDef::output_c::functions{"WinMain"};
     if($winmain){
@@ -81,6 +130,6 @@ sub dumpout {
             }
         }
     }
-    MyDef::output_c::dumpout($f, $out, $pagetype);
+    MyDef::output_c::dumpout($f, $out);
 }
 1;

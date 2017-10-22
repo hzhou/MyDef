@@ -2,6 +2,10 @@ page: mydef_install
     type:
     output_dir: script
 
+    $global $b_force
+    $if $ARGV[0] eq "-f"
+        $b_force = 1
+        shift @ARGV
     # mydef_install deflib . def      --> *.def -> ${MYDEFLIB}
     # mydef_install MyDef/lib . pm    --> *.pm  -> ${PERL5LIB}
     # mydef_install MyDef/script . -  --> *     -> ${PATH}
@@ -53,7 +57,7 @@ fncode: install_all($install_dir, $ext)
         my $dst="$install_dir/$src";
         $(if:0)
             $print src [$src] dst [$dst]
-        $if !-e $dst or -M $src < -M $dst
+        $if !-e $dst or $b_force or -M $src < -M $dst
             $if $i==0
                 $print install_all: $install_dir [$ext]
             $i++

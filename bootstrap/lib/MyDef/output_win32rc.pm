@@ -1,5 +1,5 @@
 use strict;
-package output_win32rc;
+package MyDef::output_win32rc;
 our $debug=0;
 our $out;
 our $mode;
@@ -79,7 +79,8 @@ sub parsecode {
     elsif($l=~/^\$write\s+(.*)/i){
         my @plist=split /,\s*/, $1;
         foreach my $name (@plist){
-            if($name=~/^IDI_/){
+            if($name=~/^IDI_(\w+)/){
+                my $file = "$1.ico";
                 resource_define($name, "other");
                 push @$out, "";
                 push @$out, "$name ICON \"$file\"";
@@ -91,7 +92,7 @@ sub parsecode {
                 push @$out, "";
                 push @$out, "$name MENU";
                 push @$out, "{";
-                ogdl_menu_rc($ogdl, $level);
+                ogdl_menu_rc($ogdl, 0);
                 push @$out, "}";
             }
             elsif($name=~/^dialog_/){
@@ -252,7 +253,7 @@ sub parsecode {
         push @$out, "";
         push @$out, "$name MENU";
         push @$out, "{";
-        ogdl_menu_rc($ogdl, $level);
+        ogdl_menu_rc($ogdl, 0);
         push @$out, "}";
         return 1;
     }
@@ -394,11 +395,15 @@ sub parsecode {
         push @$out, "END";
         return 1;
     }
+    elsif($l!~/^NOOP/){
+        my $curfile=MyDef::compileutil::curfile_curline();
+        print "[$curfile]\x1b[33m unparsed: $l\n\x1b[0m";
+    }
 }
 sub dumpout {
-    my ($f, $out, $pagetype)=@_;
-    my $dump={out=>$out,f=>$f, module=>"output_win32rc"};
-    my $pagename=$page->{pagename};
+    my ($f, $out)=@_;
+    my $dump={out=>$out,f=>$f};
+    my $pagename=$page->{_pagename};
     my $outdir=$page->{outdir};
     my $res_h="$pagename-res.h";
     print "  --> [$outdir/$res_h]\n";
@@ -413,27 +418,13 @@ sub dumpout {
 }
 sub single_block {
     my ($t1, $t2, $scope)=@_;
-    push @$out, "$t1";
-    push @$out, "INDENT";
-    push @$out, "BLOCK";
-    push @$out, "DEDENT";
-    push @$out, "$t2";
-    if($scope){
-        return "NEWBLOCK-$scope";
-    }
-    else{
-        return "NEWBLOCK";
-    }
-}
-sub single_block_pre_post {
-    my ($pre, $post, $scope)=@_;
-    if($pre){
-        push @$out, @$pre;
-    }
-    push @$out, "BLOCK";
-    if($post){
-        push @$out, @$post;
-    }
+    my @src;
+    push @src, "$t1";
+    push @src, "INDENT";
+    push @src, "BLOCK";
+    push @src, "DEDENT";
+    push @src, "$t2";
+    MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
     if($scope){
         return "NEWBLOCK-$scope";
     }

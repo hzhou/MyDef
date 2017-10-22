@@ -8,9 +8,28 @@ our @globals;
 our %globals;
 our @imports;
 our %imports;
+our @future;
+our %future;
 our $re_index=0;
 our %re_cache;
 our $fn_block=[];
+our %stub;
+
+sub add_import {
+    my ($t) = @_;
+    if(!$imports{$t}){
+        $imports{$t}=1;
+        push @imports, $t;
+    }
+}
+
+sub future_import {
+    my ($t) = @_;
+    if(!$future{$t}){
+        $future{$t}=1;
+        push @future, $t;
+    }
+}
 
 sub parse_function {
     my ($name, $code) = @_;
@@ -59,6 +78,143 @@ sub parse_function {
     push @$out, "NEWLINE";
 }
 
+sub fmt_string {
+    my ($str, $add_newline) = @_;
+    if(!$str){
+        if($add_newline){
+            return (0, '"\n"');
+        }
+        else{
+            return (0, '""');
+        }
+    }
+    $str=~s/\s*$//;
+    my @pre_list;
+    if($str=~/^\s*\"(.*)\"\s*,\s*(.*)$/){
+        $str=$1;
+        @pre_list=MyDef::utils::proper_split($2);
+    }
+    elsif($str=~/^\s*\"(.*)\"\s*$/){
+        $str=$1;
+    }
+    if($add_newline and $str=~/(.*)-$/){
+        $add_newline=0;
+        $str=$1;
+    }
+    my %colors=(red=>31,green=>32,yellow=>33,blue=>34,magenta=>35,cyan=>36);
+    my @fmt_list;
+    my @arg_list;
+    my $missing = 0;
+    my @group;
+    my $flag_hyphen=0;
+    while(1){
+        if($str=~/\G$/sgc){
+            last;
+        }
+        elsif($str=~/\G%/sgc){
+            if($str=~/\G%/sgc){
+                push @fmt_list, '%%';
+            }
+            elsif($str=~/\G[-+ #]*[0-9]*(\.\d+)?[sbcdoxXneEfFgGn]/sgc){
+                if(!@pre_list){
+                    $missing++;
+                }
+                push @arg_list, shift @pre_list;
+                push @fmt_list, "%$&";
+            }
+            else{
+                push @fmt_list, '%%';
+            }
+        }
+        elsif($str=~/\G\$/sgc){
+            if($str=~/\G(red|green|yellow|blue|magenta|cyan)/sgc){
+                push @fmt_list, "\\x1b[$colors{$1}m";
+                if($str=~/\G\{/sgc){
+                    push @group, $1;
+                }
+            }
+            elsif($str=~/\Greset/sgc){
+                push @fmt_list, "\\x1b[0m";
+            }
+            elsif($str=~/\Gclear/sgc){
+                push @fmt_list, "\\x1b[H\\x1b[J";
+            }
+            elsif($str=~/\G(\w+)/sgc){
+                my $v=$1;
+                if($str=~/\G(\[.*?\])/sgc){
+                    $v.=$1;
+                }
+                elsif($str=~/\G(\{.*?\})/sgc){
+                    $v.=$1;
+                    $v=check_expression($v);
+                }
+                push @fmt_list, "%s";
+                push @arg_list, $v;
+                if($str=~/\G-/sgc){
+                }
+            }
+            elsif($str=~/\G\{(.*?)\}/sgc){
+                push @arg_list, $1;
+                push @fmt_list, get_var_fmt($1, 1);
+            }
+            else{
+                push @fmt_list, '$';
+            }
+        }
+        elsif($str=~/\G\\\$/sgc){
+            push @fmt_list, '$';
+        }
+        elsif($str=~/\G\}/sgc){
+            if(@group){
+                pop @group;
+                if(!@group){
+                    push @fmt_list, "\\x1b[0m";
+                }
+                else{
+                    my $c=$group[-1];
+                    push @fmt_list, "\\x1b[$colors{$c}m";
+                }
+            }
+            else{
+                push @fmt_list, '}';
+            }
+        }
+        elsif($str=~/\G[^%\$\}]+/sgc){
+            push @fmt_list, $&;
+        }
+        else{
+            die "parse_loop: nothing matches! [$str]\n";
+        }
+    }
+    if(@pre_list){
+        my $s = join(', ', @pre_list);
+        my $curfile=MyDef::compileutil::curfile_curline();
+        print "[$curfile]\x1b[33m Extra fmt arg list: $s\n\x1b[0m";
+    }
+    elsif($missing>0){
+        my $curfile=MyDef::compileutil::curfile_curline();
+        print "[$curfile]\x1b[33m Missing $missing fmt arguments\n\x1b[0m";
+    }
+    if($add_newline){
+        my $tail=$fmt_list[-1];
+        if($tail=~/(.*)-$/){
+            $fmt_list[-1]=$1;
+        }
+        elsif($tail!~/\\n$/){
+            push @fmt_list, "\\n";
+        }
+    }
+    if(!@arg_list){
+        return (0, '"'.join('',@fmt_list).'"');
+    }
+    else{
+        my $vcnt=@arg_list;
+        my $f = join('', @fmt_list);
+        my $a = join(', ', @arg_list);
+        return ($vcnt, "\"$f\" % ($a)");
+    }
+}
+
 sub get_interface {
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
 }
@@ -71,6 +227,8 @@ sub init_page {
     %globals=();
     @imports=();
     %imports=();
+    @future=();
+    %future=();
     return $init_mode;
 }
 sub set_output {
@@ -92,8 +250,15 @@ sub parsecode {
         print "[$curfile]\x1b[33m $1\n\x1b[0m";
         return;
     }
-    elsif($l=~/^\$template\s*(.*)/){
-        open In, $1 or die "Can't open template $1\n";
+    elsif($l=~/^\$template\s+(.*)/){
+        my $file = $1;
+        if($file !~ /^\.*\//){
+            my $dir = MyDef::compileutil::get_macro_word("TemplateDir", 1);
+            if($dir){
+                $file = "$dir/$file";
+            }
+        }
+        open In, $file or die "Can't open template $file\n";
         my @all=<In>;
         close In;
         foreach my $a (@all){
@@ -128,26 +293,15 @@ sub parsecode {
         if($func eq "global"){
             my @tlist = MyDef::utils::proper_split($param);
             foreach my $v (@tlist){
-                my $t_name=$v;
-                if($v=~/^(\S+)\s*=/){
-                    $t_name=$1;
-                }
-                if(!$globals{$t_name}){
-                    $globals{$t_name}=1;
+                if(!$globals{$v}){
+                    $globals{$v}=1;
                     push @globals, $v;
                 }
             }
             return 0;
         }
         elsif($func eq "import"){
-            my $t_name=$param;
-            if($param=~/^(\S+)\s*=/){
-                $t_name=$1;
-            }
-            if(!$imports{$t_name}){
-                $imports{$t_name}=1;
-                push @imports, $param;
-            }
+            add_import($param);
             return 0;
         }
         elsif($func eq "list"){
@@ -163,7 +317,26 @@ sub parsecode {
             push @$out, "$func $param:";
             return 0;
         }
-        elsif($func=~/^(def|for)$/){
+        elsif($func=~/^(for)$/){
+            if($param =~/^(\w+)=(.*)/){
+                my ($v, $t) =($1, $2);
+                if($t=~/^0:([^:]+)$/){
+                    $t=$1;
+                }
+                else{
+                    $t=~s/:/,/g;
+                }
+                push @$out, "for $v in range($t):";
+            }
+            else{
+                push @$out, "$func $param:";
+            }
+            return 0;
+        }
+        elsif($func=~/^def$/){
+            if($param=~/^\w+$/){
+                $param.="()";
+            }
             push @$out, "$func $param:";
             return 0;
         }
@@ -180,93 +353,38 @@ sub parsecode {
             return 0;
         }
         elsif($func eq "print"){
-            my $str=$param;
-            my $need_escape;
-            if($str=~/^\s*\"(.*)\"\s*$/){
-                $str=$1;
+            if(!$param){
+                push @$out, "print('')";
             }
             else{
-                $need_escape=1;
-            }
-            my %colors=(red=>31,green=>32,yellow=>33,blue=>34,magenta=>35,cyan=>36);
-            my @fmt_list;
-            my @seg_list;
-            my @group;
-            my $n_escape=0;
-            while(1){
-                if($str=~/\G$/gc){
-                    last;
+                future_import("print_function");
+                my ($n, $fmt)=fmt_string($param, 1);
+                my $add_newline = 1;
+                if($fmt=~/^"(.*)\\n"(.*)/){
+                    $fmt = "\"$1\"$2";
                 }
-                elsif($str=~/\G\$/gc){
-                    if($str=~/\G(red|green|yellow|blue|magenta|cyan)/gc){
-                        push @fmt_list, "\\x1b[$colors{$1}m";
-                        $n_escape++;
-                        if($str=~/\G\{/gc){
-                            push @group, $1;
-                        }
-                    }
-                    elsif($str=~/\G(\w+)/gc){
-                        if(@fmt_list){
-                            my $t = join('', @fmt_list);
-                            @fmt_list=();
-                            push @seg_list, "\"$t\"";
-                        }
-                        push @seg_list, $1;
+                else{
+                    $add_newline = 0;
+                }
+                my $print_to = MyDef::compileutil::get_macro_word("print_to", 1);
+                if($print_to){
+                    if($add_newline){
+                        push @$out, "print($fmt, file=$print_to)";
                     }
                     else{
-                        push @fmt_list, '$';
+                        push @$out, "print($fmt, end='', file=$print_to)";
                     }
                 }
-                elsif($str=~/\G(\\.)/gc){
-                    push @fmt_list, $1;
-                }
-                elsif($str=~/\G"/gc){
-                    if($need_escape){
-                        push @fmt_list, "\\\"";
+                else{
+                    if($add_newline){
+                        push @$out, "print($fmt)";
                     }
                     else{
-                        push @fmt_list, "\"";
+                        push @$out, "print($fmt, end='')";
                     }
                 }
-                elsif($str=~/\G\}/gc){
-                    if(@group){
-                        pop @group;
-                        if(!@group){
-                            push @fmt_list, "\\x1b[0m";
-                            $n_escape=0;
-                        }
-                        else{
-                            my $c=$group[-1];
-                            push @fmt_list, "\\x1b[$colors{$c}m";
-                            $n_escape++;
-                        }
-                    }
-                    else{
-                        push @fmt_list, '}';
-                    }
-                }
-                elsif($str=~/\G[^\$\}"]+/gc){
-                    push @fmt_list, $&;
-                }
             }
-            if(@fmt_list){
-                my $t = join('', @fmt_list);
-                @fmt_list=();
-                push @seg_list, "\"$t\"";
-            }
-            my $tail=$fmt_list[-1];
-            if($tail=~/(.*)-$/){
-                $fmt_list[-1]=$1;
-            }
-            elsif($tail!~/\\n$/){
-                push @fmt_list, "\\n";
-            }
-            if($n_escape){
-                push @fmt_list, "\\x1b[0m";
-            }
-            my $p = "print";
-            push @$out, "$p(".join(', ',@seg_list).");";
-            return;
+            return 0;
         }
         elsif($func eq "if_match"){
             my $n=0;
@@ -276,14 +394,7 @@ sub parsecode {
             if($param=~/^([^*|?+()\[\]{}'"]+)$/){
                 $param="r\"$param\\b\"";
             }
-            my $t_name="re";
-            if("re"=~/^(\S+)\s*=/){
-                $t_name=$1;
-            }
-            if(!$imports{$t_name}){
-                $imports{$t_name}=1;
-                push @imports, "re";
-            }
+            add_import("re");
             my $re;
             if($param!~/^r['"]/){
                 $param = "r\"$param\"";
@@ -336,15 +447,27 @@ sub parsecode {
     elsif($l=~/^(print)\s+(.*)$/){
         $l="$1($2)";
     }
+    elsif($l=~/^DUMP_STUB\s+(\w+)/){
+        $stub{$1}++;
+    }
     push @$out, $l;
     return 0;
 }
 sub dumpout {
-    my ($f, $out, $pagetype)=@_;
-    my $dump={out=>$out,f=>$f, module=>"output_python"};
+    my ($f, $out)=@_;
+    my $dump={out=>$out,f=>$f};
+    if(@future){
+        push $f, "from __future__ import ".join(', ', @future)."\n";
+        push @$f, "\n";
+    }
     if(@imports){
         foreach my $t (@imports){
-            push @$f, "import $t\n";
+            if($t=~/(.*)\s+(from\s+\w+)$/){
+                push @$f, "$2 import $1\n";
+            }
+            else{
+                push @$f, "import $t\n";
+            }
         }
         push @$f, "\n";
     }
@@ -354,7 +477,9 @@ sub dumpout {
         }
         push @$f, "\n";
     }
-    unshift @$out, "DUMP_STUB regex_compile";
+    if(!$stub{"regex_compile"}){
+        unshift @$out, "DUMP_STUB regex_compile";
+    }
     if(@$fn_block){
         $dump->{fn_block}=$fn_block;
         unshift @$out, "INCLUDE_BLOCK fn_block";
@@ -363,27 +488,13 @@ sub dumpout {
 }
 sub single_block {
     my ($t1, $t2, $scope)=@_;
-    push @$out, "$t1";
-    push @$out, "INDENT";
-    push @$out, "BLOCK";
-    push @$out, "DEDENT";
-    push @$out, "$t2";
-    if($scope){
-        return "NEWBLOCK-$scope";
-    }
-    else{
-        return "NEWBLOCK";
-    }
-}
-sub single_block_pre_post {
-    my ($pre, $post, $scope)=@_;
-    if($pre){
-        push @$out, @$pre;
-    }
-    push @$out, "BLOCK";
-    if($post){
-        push @$out, @$post;
-    }
+    my @src;
+    push @src, "$t1";
+    push @src, "INDENT";
+    push @src, "BLOCK";
+    push @src, "DEDENT";
+    push @src, "$t2";
+    MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
     if($scope){
         return "NEWBLOCK-$scope";
     }

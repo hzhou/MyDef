@@ -14,6 +14,9 @@ subcode: win32_autoload
     $register_prefix(rect) RECT
     $register_prefix(hfont) HFONT
 
+    $register_prefix(hbrush) HBRUSH
+    $register_prefix(hpen) HPEN
+
     $register_prefix(bmph) BITMAPINFOHEADER
     $register_prefix(bmp) DWORD *
 
@@ -28,8 +31,11 @@ fncode: WinMain
 
 #---------------------------------------- 
 subcode: win_main(mainname)
-    $call register_wndclass, "$(mainname)", WndProc_main
-    $call create_window, hwnd_main, "$(mainname)"
+    $global hwnd_main
+    &call register_wndclass, "$(mainname)", WndProc_main
+        NOOP
+    &call create_window, hwnd_main, "$(mainname)"
+        NOOP
     $call win_show, hwnd_main
 
 #---------------------------------------- 
@@ -54,6 +60,13 @@ subcode: on_paint
     BLOCK
     EndPaint(hwnd, &ps)
     return 0
+
+    subcode: background(color)
+        $if ps.fErase
+            hbrush_temp = CreateSolidBrush($(color))
+            FillRect(hdc, &ps.rcPaint, hbrush_temp)
+            DeleteObject(hbrush_temp)
+            
 
 subcode: draw_hello
     $my rect_client
@@ -111,6 +124,7 @@ subcode: fillrect(left, top, right, bot)
     FillRect(hdc, &t_rect, (HBRUSH)(COLOR_WINDOW+1))
 ###############################################################
 subcode: msgbox(@msg)
+    $include stdio
     $local ts_msg_buffer[1000]
     sprintf(ts_msg_buffer, $(msg))
     MessageBox(hwnd_main, ts_msg_buffer, "Message Box", MB_OK)

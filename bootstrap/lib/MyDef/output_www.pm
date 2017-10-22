@@ -11,7 +11,22 @@ our @mode_stack;
 our $cur_mode="html";
 our %plugin_statement;
 our %plugin_condition;
-our $time_start = time();
+
+sub parse_css {
+    my ($t) = @_;
+    if($t=~/(.*?)\s*\{(.*)\}/){
+        if($style->{$1}){
+            $style->{$1}.=";$2";
+        }
+        else{
+            $style->{$1}=$2;
+            push @style_key_list, $1;
+        }
+    }
+    elsif($t=~/(\S*\.css)/){
+        push @$style_sheets, $1;
+    }
+}
 
 sub parse_tag_attributes {
     my ($tt_list) = @_;
@@ -55,41 +70,6 @@ sub parse_tag_attributes {
         }
     }
     return ($func, $attr, $quick_content);
-}
-
-sub bases {
-    my ($n, @bases) = @_;
-    my @t;
-    foreach my $b (@bases){
-        push @t, $n % $b;
-        $n = int($n/$b);
-        if($n<=0){
-            last;
-        }
-    }
-    if($n>0){
-        push @t, $n;
-    }
-    return @t;
-}
-
-sub get_time {
-    my $t = time()-$time_start;
-    my @t;
-    push @t, $t % 60;
-    $t = int($t/60);
-    push @t, $t % 60;
-    $t = int($t/60);
-    push @t, $t % 60;
-    $t = int($t/60);
-    if($t>0){
-        push @t, $t % 24;
-        $t = int($t/24);
-        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0]);
-    }
-    else{
-        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0]);
-    }
 }
 
 use Term::ANSIColor qw(:constants);
@@ -200,20 +180,7 @@ sub parsecode {
     if(0){
     }
     elsif($l=~/^CSS:\s*(.*)/){
-        my $t=$1;
-        if($t=~/(.*?)\s*\{(.*)\}/){
-            if($style->{$1}){
-                $style->{$1}.=";$2";
-            }
-            else{
-                $style->{$1}=$2;
-                push @style_key_list, $1;
-            }
-        }
-        elsif($t=~/(\S*\.css)/){
-            push @$style_sheets, $1;
-        }
-        return;
+        return parse_css($1);
     }
     elsif($l=~/^\s*\$(\w+)\((.*?)\)\s+(.*?)\s*$/){
         my ($func, $param1, $param2)=($1, $2, $3);
@@ -249,7 +216,7 @@ sub parsecode {
                 }
                 my ($func, $attr, $quick_content)= parse_tag_attributes(\@tt_list);
                 if($func=~ /img|input/){
-                    push @$out, "<$func$attr>";
+                    push @$out, "<$func$attr />";
                 }
                 elsif(defined $quick_content){
                     push @$out, "<$func$attr>$quick_content</$func>";
@@ -276,7 +243,11 @@ sub parsecode {
                 }
                 return 0;
             }
-            if($func eq "script"){
+            if($func eq "echo"){
+                push @$out, $param;
+                return;
+            }
+            elsif($func eq "script"){
                 MyDef::compileutil::modepush("js");
                 my @src;
                 push @src, "INDENT";
@@ -332,8 +303,8 @@ sub parsecode {
     push @$out, $l;
 }
 sub dumpout {
-    my ($f, $out, $pagetype)=@_;
-    my $dump={out=>$out,f=>$f, module=>"output_www"};
+    my ($f, $out)=@_;
+    my $dump={out=>$out,f=>$f};
     if($MyDef::page->{type} && $MyDef::page->{type} eq "css"){
         foreach my $k (@style_key_list){
             my %attr;

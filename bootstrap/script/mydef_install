@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 use strict;
+our $b_force;
+
 sub install_all {
     my ($install_dir, $ext) = @_;
     my @files=glob("*");
@@ -37,7 +39,7 @@ sub install_all {
     my $i = 0;
     foreach my $src (@srcs){
         my $dst="$install_dir/$src";
-        if(!-e $dst or -M $src < -M $dst){
+        if(!-e $dst or $b_force or -M $src < -M $dst){
             if($i==0){
                 print "install_all: $install_dir [$ext]\n";
             }
@@ -53,6 +55,10 @@ sub install_all {
     }
 }
 
+if($ARGV[0] eq "-f"){
+    $b_force = 1;
+    shift @ARGV;
+}
 my ($src, $dst, $ext)=($ARGV[0], $ARGV[1], $ARGV[2]);
 if(!$ext){
     $ext = "def";

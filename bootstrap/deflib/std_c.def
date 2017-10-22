@@ -1,5 +1,5 @@
 ## frame
-subcode: basic_frame
+subcode:@ basic_frame
     $include stdio
     $include stdlib
     $call @global
@@ -90,6 +90,9 @@ subcode: free(v)
     free($(v))
 
 ## FILE IO
+subcode: get_file_in_s(file)
+    s = get_file_s($(file), NULL)
+
 fncode: get_file_s(s_file, pn_size)
     &call2 try_open_r, s_file
         $my n, s
@@ -120,7 +123,7 @@ subcode: open_w(file)
         t_n = fwrite($(a), $(size), $(n), file_out)
     # --
     subcode: write_sig(name)
-        t_n=fwrite("$(name)", 1, $(name:len), file_out)
+        t_n=fwrite("$(name)", 1, $(name:strlen), file_out)
     subcode: write_sig_n(quoted_sig, n)
         t_n=fwrite($(quoted_sig), 1, $(n), file_out)
 
@@ -171,9 +174,48 @@ subcode: fread_frame
     # --
     subcode: gets
         $local char _gets_line[1024]
+        $my s=_gets_line
         $while fgets(_gets_line, 1024, file_in)
-            $my s=_gets_line
             BLOCK
+
+subcode: open_rs(file)
+    &call open_r, $(file)
+        &call gets
+            BLOCK
+
+subcode: fread_s_frame
+    &call fread_frame
+        &call gets
+            BLOCK
+
+# ---- sscanf ------------------------------------- 
+subcode: sscanf(s, @plist)
+    $(unset:fmt, vars)
+    $(for:p in $(plist))
+        # init var
+        $(if:p~tf)
+            $local $(p)=0.0
+        $(elif:p~tn)
+            $local $(p)=0
+        $(elif:p~ts)
+            $local $(p)[100]
+        # $(vars)
+        $(if:p~t?s)
+            $(set1:vars.=,$(p))
+        $(else)
+            $(set1:vars.=,&$(p))
+        # $(fmt)
+        $(if:p~t?f)
+            $(if:use_double)
+                $(set1:fmt.= %lf)
+            $(else)
+                $(set1:fmt.= %f)
+        $(elif:p~t?n)
+            $(set1:fmt.= %i)
+        $(elif:p~t?s)
+            $(set1:fmt.= %99s)
+
+    sscanf($(s), "$(fmt)" $(vars));
 
 # ---- time -------------------------------------------
 subcode: tick_loop

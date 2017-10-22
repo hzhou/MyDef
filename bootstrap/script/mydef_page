@@ -14,8 +14,8 @@ foreach my $a (@ARGV){
     elsif($a =~/^-f(\S+)/){
         $config{find} = $1;
     }
-    elsif($a =~/^-dump/){
-        $config{dump} = 1;
+    elsif($a =~/^-(dump|debug.*)/){
+        $config{$1} = 1;
     }
     elsif($a=~/\.def$/){
         if($def_file){
@@ -42,6 +42,9 @@ else{
     $config{def_file}=$def_file;
     MyDef::init(%config);
     my $module=$MyDef::var->{module};
+    if($config{"debug-import"}){
+        $MyDef::parseutil::debug={import=>1};
+    }
     MyDef::import_data($def_file);
     if($config{find}){
         my $def=$MyDef::def;
@@ -86,9 +89,12 @@ else{
             print "$v->{type}code: $k\n";
         }
     }
+    elsif($config{"debug-import"}){
+    }
     else{
         my $pages=$MyDef::def->{pages};
         my $pagelist=$MyDef::def->{pagelist};
+        my ($n_skip, $n_create);
         foreach my $t (@$pagelist){
             my $p=$pages->{$t};
             if($p->{subpage}){
@@ -99,9 +105,14 @@ else{
                 $t_module=$p->{module};
             }
             if($t_module and ($t_module ne $module)){
+                $n_skip++;
                 next;
             }
+            $n_create++;
             MyDef::createpage($t);
+        }
+        if($n_create==0){
+            print "skiped $n_skip pages (due to module mismatch), use -m to overide default module.\n";
         }
     }
 }

@@ -2,6 +2,7 @@ macros:
     pi: 3.14159265359
     to_rad: 0.0174532925199
     to_deg: 57.2957795131  
+    ln10: 2.30258509299
 
 #---------------------------------------- 
 subcode: sub_new
@@ -23,14 +24,6 @@ subcode: block
     }
 
 # -- DATA -------------------------
-subcode: set_hash(hash, @plist)
-    $(if:hash~%)
-        $(set:h=$$(hash:1:strip))
-    $(else)
-        $(set:h=$(hash)->)
-    $(foreach:p)
-        $(h){$(p)}=1
-
 subcode: update_max(max, a)
     $if $(max)<$(a)
         $(max)=$(a)
@@ -39,8 +32,30 @@ subcode: update_min(min, a)
     $if $(min)>$(a)
         $(min)=$(a)
 
+subcode: update_minmax(min, max, a)
+    $if !defined $(min)
+        $(min) = $(a)
+        $(max) = $(a)
+    $else
+        $call update_min, $(min), $(a)
+        $call update_max, $(max), $(a)
+
 subcode: swap(a, b)
     ($(a), $(b)) = ($(b), $(a))
+
+
+subcode: approx_zero(a)
+    $if abs($(a))<1e-8
+        $(a) = 0
+
+subcode: dump(@a)
+    $(for:$(a))
+        print '$1 = ', "$1 "
+    $print
+
+subcode: dump_hash(h)
+    $foreach $k in sort keys(%$(h))
+        print "    $k: ", $$(h){$k}
 
 # -- IO -------------------------
 subcode: open_r(name)
@@ -54,7 +69,10 @@ subcode: open_r(name)
 subcode: open_w(name)
     $(if:name~")
         $(set:name=$(name:strip))
-    open Out, ">$(name)" or die "Can't write $(name).\n"
+    $(if:name~[>|])
+        open Out, "$(name)" or die "Can't write $(name).\n"
+    $(else)
+        open Out, ">$(name)" or die "Can't write $(name).\n"
     BLOCK
     close Out
 
@@ -140,10 +158,16 @@ subcode: parse_loop(l)
         $if $(l)=~/\G$/sgc
             last
         BLOCK
+        $(if:!skip_else)
+            $else
+                die "parse_loop: nothing matches! [$(l)]\n"
 
     subcode: if_lex(@pattern)
         $case $(l)=~/\G$(pattern)/sgc
             BLOCK
+
+    macros:
+        quote: "(?:[^"\\]|\\.)*"
 
 #---------------------------------------- 
 # all print goes to $debug_console
@@ -159,7 +183,3 @@ subcode: init_debug_console
         $|=1
         select $ofh
     }
-#----------------------------------------------- 
-subcode: approx_zero(v)
-    $if abs($(v))<1e-8
-        $(v) = 0.0

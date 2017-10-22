@@ -2,7 +2,9 @@ use strict;
 package MyDef::output_c;
 our @scope_stack;
 our $cur_scope;
-our $global_scope;
+our @function_stack;
+our %list_function_hash;
+our @list_function_list;
 our %basic_types;
 our %type_name;
 our %type_prefix;
@@ -11,6 +13,7 @@ our %stock_functions;
 our %lib_include;
 our %type_include;
 our %text_include;
+our %var_fmts;
 our $debug=0;
 our $out;
 our $mode;
@@ -34,13 +37,12 @@ our @declare_list;
 our %structs;
 our @struct_list;
 our @initcodes;
-our @function_stack;
-our %list_function_hash;
-our @list_function_list;
 our $global_hash;
 our $global_list;
+our $main_func;
 our %functions;
 our $cur_function;
+our @function_list;
 our %structure_autolist;
 our %function_autolist;
 our %function_defaults;
@@ -58,8 +60,6 @@ our $yield;
 our $print_type=1;
 our $has_main;
 our $dump_classes;
-our @function_list;
-our $main_func={param_list=>[], var_list=>[], var_hash=>{}};
 our %protected_var;
 our %tuple_hash;
 our $union_hash;
@@ -185,6 +185,7 @@ sub function_block {
     my @block;
     push @function_list, $func;
     my $fidx=$#function_list;
+    $func->{_idx}=$fidx;
     $func->{openblock}=[];
     MyDef::compileutil::set_named_block("fn$fidx\_open", $func->{openblock});
     $func->{preblock}=[];
@@ -386,96 +387,27 @@ sub func_return {
 
 sub global_add_symbol {
     my ($name, $type, $value) = @_;
-    my $var=parse_var($name, $type, $value);
-    $name=$var->{name};
-    if($global_hash->{$name}){
-        my $exist=$global_hash->{$name};
-        if($var->{type} eq $exist->{type}){
-            if($var->{array} > $exist->{array}){
-                $exist->{array}=$var->{array};
-                $exist->{dimension}=$var->{array};
-            }
-        }
-        return $name;
-    }
-    else{
-        $global_hash->{$name}=$var;
-        return $name;
-    }
+    return f_add_var($global_hash, undef, $name, $type, $value);
 }
 
 sub global_add_var {
     my ($name, $type, $value) = @_;
-    my $var=parse_var($name, $type, $value);
-    $name=$var->{name};
-    if($global_hash->{$name}){
-        my $exist=$global_hash->{$name};
-        if($var->{type} eq $exist->{type}){
-            if($var->{array} > $exist->{array}){
-                $exist->{array}=$var->{array};
-                $exist->{dimension}=$var->{array};
-            }
-        }
-        return $name;
-    }
-    else{
-        push @$global_list, $name;
-        $global_hash->{$name}=$var;
-        return $name;
-    }
+    return f_add_var($global_hash, $global_list, $name, $type, $value);
 }
 
 sub func_add_var {
     my ($name, $type, $value) = @_;
     my ($var_list, $var_hash);
-    if(!$cur_function){
-        $var_list=$main_func->{var_list};
-        $var_hash=$main_func->{var_hash};
-    }
-    else{
-        $var_list=$cur_function->{var_list};
-        $var_hash=$cur_function->{var_hash};
-    }
-    my $var=parse_var($name, $type, $value);
-    $name=$var->{name};
-    if($var_hash->{$name}){
-        my $exist=$var_hash->{$name};
-        if($var->{type} eq $exist->{type}){
-            if($var->{array} > $exist->{array}){
-                $exist->{array}=$var->{array};
-                $exist->{dimension}=$var->{array};
-            }
-        }
-        return $name;
-    }
-    else{
-        push @$var_list, $name;
-        $var_hash->{$name}=$var;
-        return $name;
-    }
+    $var_list=$cur_function->{var_list};
+    $var_hash=$cur_function->{var_hash};
+    return f_add_var($var_hash, $var_list, $name, $type, $value);
 }
 
 sub scope_add_var {
     my ($name, $type, $value) = @_;
     my $var_list=$cur_scope->{var_list};
     my $var_hash=$cur_scope->{var_hash};
-    my $var=parse_var($name, $type, $value);
-    $name=$var->{name};
-    if($var_hash->{$name}){
-        my $exist=$var_hash->{$name};
-        if($var->{type} eq $exist->{type}){
-            if($var->{array} > $exist->{array}){
-                $exist->{array}=$var->{array};
-                $exist->{dimension}=$var->{array};
-            }
-        }
-        return $name;
-    }
-    else{
-        push @$var_list, $name;
-        $var_hash->{$name}=$var;
-        return $name;
-    }
+    return f_add_var($var_hash, $var_list, $name, $type, $value);
 }
 
 sub my_add_var {
@@ -519,6 +451,29 @@ sub temp_add_var {
     }
     MyDef::compileutil::set_current_macro($macro_name, $name);
     return $name;
+}
+
+sub f_add_var {
+    my ($h, $l, $name, $type, $value) = @_;
+    my $var=parse_var($name, $type, $value);
+    $name=$var->{name};
+    if($h->{$name}){
+        my $exist=$h->{$name};
+        if($var->{type} eq $exist->{type}){
+            if($var->{array} > $exist->{array}){
+                $exist->{array}=$var->{array};
+                $exist->{dimension}=$var->{array};
+            }
+        }
+        return $name;
+    }
+    else{
+        if($l){
+            push @$l, $name;
+        }
+        $h->{$name}=$var;
+        return $name;
+    }
 }
 
 sub find_var_x {
@@ -1041,20 +996,23 @@ sub parse_var {
                 if(!$type){
                     $type= $val_type;
                 }
+                elsif($val_type =~/\*$/ and $type eq "void*"){
+                    $type = $val_type;
+                }
                 else{
                     $val_type=~s/\s+(\*+)$/\1/;
                     if($type ne $val_type){
                         if($val_type eq "void"){
                         }
-                        elsif($val_type eq "float" and $type=~/double/){
+                        elsif($val_type=~/float|double/ and $type=~/float|double/){
                         }
-                        elsif($val_type eq "char" and $type=~/unsigned|int/){
+                        elsif($val_type=~/char/ and $type=~/unsigned|int/){
                         }
                         elsif($val_type eq "int" and $type=~/(double|float|bool|int|char)/){
                         }
-                        elsif($val_type eq "void*" and $type=~/\*$/){
+                        elsif($val_type eq "bool" and $type=~/boolean/){
                         }
-                        elsif($val_type =~/\*$/ and $type eq "void*"){
+                        elsif($val_type eq "void*" and $type=~/\*$/){
                         }
                         else{
                             my $curfile=MyDef::compileutil::curfile_curline();
@@ -1318,31 +1276,26 @@ sub get_var_fmt {
     if(!$type or $type eq "void"){
         $type=get_c_type($v);
     }
-    if($type=~/^char\*/){
+    if($var_fmts{$type}){
+        return $var_fmts{$type};
+    }
+    elsif($type=~/^char\s*\*/){
         return "\%s";
     }
     elsif($type=~/\*\s*$/){
         return "\%p";
     }
-    elsif($type=~/^(float|double)/){
-        return "\%g";
-    }
-    elsif($type =~ /^int64_t/){
+    elsif($type =~ /^(u?)int64_t/){
         add_include("<inttypes.h>");
-        return '%" PRId64 "';
+        if($1){
+            return '%" PRIu64 "';
+        }
+        else{
+            return '%" PRId64 "';
+        }
     }
-    elsif($type =~ /^uint64_t/){
-        add_include("<inttypes.h>");
-        return '%" PRIu64 "';
-    }
-    elsif($type=~/(int|long|bool|u?int\d+_t)\s*$/){
+    elsif($type=~/(int|long|u?int\d+_t)\s*$/){
         return "\%d";
-    }
-    elsif($type=~/^unsigned char/){
-        return "\%d";
-    }
-    elsif($type=~/char/){
-        return "\%c";
     }
     else{
         if($warn){
@@ -1365,6 +1318,10 @@ sub add_include {
     my ($l) = @_;
     my @flist=split /,\s*/, $l;
     foreach my $f (@flist){
+        if($f=~/^define\s+(.*)/){
+            push @include_list, $f;
+            next;
+        }
         my $key;
         if($f=~/\.\w+$/){
             $key="\"$f\"";
@@ -1596,6 +1553,10 @@ sub allocate {
                     push @$out, "}";
                 }
             }
+        }
+        else{
+            my $curfile=MyDef::compileutil::curfile_curline();
+            print "[$curfile]\x1b[33m allocate [empty]\n\x1b[0m";
         }
     }
 }
@@ -2043,6 +2004,12 @@ sub check_expression {
                         if(ord($op) < 91 or !($n1 || $n2)){
                             $token= "strcmp($exp, $token) $sop";
                         }
+                        elsif($op=~/.[A-Z]$/ && $n2>0 && $exp=~/^\w+$/){
+                            if(!$n1){
+                                $n1 = "strlen($exp)";
+                            }
+                            $token = "$n1>=$n2 && strcmp($exp + $n1 - $n2, $token) $sop";
+                        }
                         else{
                             if($n1 and $n2 and ($op eq "eq")){
                                 $token= "$n1==$n2 && strncmp($exp, $token, $n2)==0";
@@ -2148,7 +2115,11 @@ sub debug_dump {
     my @a1;
     my @a2;
     foreach my $v (@vlist){
-        if($v=~/^(\w+):(.*)/){
+        if($v=~/^(%.*):(.*)/){
+            push @a2, $2;
+            push @a1, "$2=$1";
+        }
+        elsif($v=~/^(\w+):(.*)/){
             my ($color,$v)=($1,$2);
             push @a2, $v;
             push @a1, "\\x1b[$colors{$color}m" . "$v=".get_var_fmt($v, 1) . "\\x1b[0m";
@@ -3041,7 +3012,10 @@ sub fmt_string {
                     $v=check_expression($v);
                 }
                 my $var=find_var($v);
-                if($var->{strlen}){
+                if($var->{direct}){
+                    push @fmt_list, $var->{direct};
+                }
+                elsif($var->{strlen}){
                     push @fmt_list, "%.*s";
                     push @arg_list, $var->{strlen};
                     push @arg_list, $v;
@@ -3082,6 +3056,9 @@ sub fmt_string {
         elsif($str=~/\G[^%\$\}]+/sgc){
             push @fmt_list, $&;
         }
+        else{
+            die "parse_loop: nothing matches! [$str]\n";
+        }
     }
     if(@pre_list){
         my $s = join(', ', @pre_list);
@@ -3106,13 +3083,16 @@ sub fmt_string {
     }
     else{
         my $vcnt=@arg_list;
-        return ($vcnt, '"'.join('',@fmt_list).'", '.join(', ', @arg_list));
+        my $f = join('', @fmt_list);
+        my $a = join(', ', @arg_list);
+        return ($vcnt, "\"$f\", $a");
     }
 }
 
-$global_scope={var_list=>[], var_hash=>{}, name=>"global"};
 $cur_scope={var_list=>[], var_hash=>{}, name=>"default"};
-push @scope_stack, $global_scope;
+@function_stack=();
+%list_function_hash=();
+@list_function_list=();
 %basic_types=(
     "int"=>1,
     "char"=>1,
@@ -3151,8 +3131,6 @@ push @scope_stack, $global_scope;
     u2=>"uint16_t",
     u4=>"uint32_t",
     u8=>"uint64_t",
-    i8=>"int8_t",
-    u8=>"uint8_t",
     i16=>"int16_t",
     u16=>"uint16_t",
     i32=>"int32_t",
@@ -3201,6 +3179,13 @@ push @scope_stack, $global_scope;
     "fstat"=>"sys/stat",
     "assert"=>"assert",
 );
+%var_fmts = (
+    float=>'%g',
+    double=>'%g',
+    "unsigned char"=>'%d',
+    char=>'%c',
+    bool=>'%d',
+);
 our $except;
 sub get_interface {
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
@@ -3227,15 +3212,14 @@ sub init_page {
     %structs=();
     @struct_list=();
     @initcodes=();
-    @function_stack=();
-    %list_function_hash=();
-    @list_function_list=();
     @scope_stack=();
     $global_hash={};
     $global_list=[];
     $cur_scope={var_list=>$global_list, var_hash=>$global_hash, name=>"global"};
+    $main_func={param_list=>[], var_list=>[], var_hash=>{}};
     %functions=();
-    undef $cur_function;
+    $cur_function = $main_func;
+    @function_list = ();
     my $macros=$MyDef::def->{macros};
     if($macros->{use_double} and !defined $page->{use_double}){
         $page->{use_double}=$macros->{use_double};
@@ -3347,15 +3331,14 @@ sub init_page {
     if(@t){
         unshift @$source, @t;
     }
-    @function_stack=();
-    %list_function_hash=();
-    @list_function_list=();
     @scope_stack=();
     $global_hash={};
     $global_list=[];
     $cur_scope={var_list=>$global_list, var_hash=>$global_hash, name=>"global"};
+    $main_func={param_list=>[], var_list=>[], var_hash=>{}};
     %functions=();
-    undef $cur_function;
+    $cur_function = $main_func;
+    @function_list = ();
     my $codes=$MyDef::def->{codes};
     my @tlist;
     while(my ($k, $v)= each %$codes){
@@ -3367,7 +3350,7 @@ sub init_page {
         @tlist=sort { $codes->{$a}->{index} <=> $codes->{$b}->{index} } @tlist;
         foreach my $name (@tlist){
             my $code=$codes->{$name};
-            my ($return_type);
+            my ($return_type, $autolist);
             my $source=$code->{source};
             foreach my $l (@$source){
                 if($l=~/^SOURCE/){
@@ -3406,6 +3389,10 @@ sub init_page {
                 elsif($l=~/^\$return_type\s+(.+)/){
                     $return_type = $1;
                 }
+                elsif($l=~/^\$autolist\s+(\w+)/){
+                    $autolist = $1;
+                    $l="NOOP";
+                }
                 else{
                     last;
                 }
@@ -3413,7 +3400,41 @@ sub init_page {
             if($return_type){
                 $functions{$name}={ret_type=>$return_type};
             }
-            $function_autolist{$name}="fn";
+            if($autolist ne "skip" and ($page->{autolist} eq "global" || $autolist)){
+                $function_autolist{$name}=$autolist;
+                if(!$list_function_hash{$name}){
+                    $list_function_hash{$name}=1;
+                    push @list_function_list, $name;
+                }
+                else{
+                    $list_function_hash{$name}++;
+                }
+            }
+            else{
+                $function_autolist{$name}="static";
+            }
+        }
+    }
+    if($page->{autolist} eq "page"){
+        my $codes=$page->{codes};
+        my @tlist;
+        while(my ($k, $v)= each %$codes){
+            if($v->{type} eq "fn"){
+                push @tlist, $k;
+            }
+        }
+        if(@tlist){
+            @tlist=sort { $codes->{$a}->{index} <=> $codes->{$b}->{index} } @tlist;
+            foreach my $name (@tlist){
+                my $code=$codes->{$name};
+                if(!$list_function_hash{$name}){
+                    $list_function_hash{$name}=1;
+                    push @list_function_list, $name;
+                }
+                else{
+                    $list_function_hash{$name}++;
+                }
+            }
         }
     }
     return $init_mode;
@@ -4041,6 +4062,33 @@ sub parsecode {
                 }
                 return;
             }
+            elsif($func eq "in_function"){
+                if($param=~/(\w+)(.*)/){
+                    my ($fname, $paramline)=($1, $2);
+                    if($paramline=~/^\s*\((.*)\)/){
+                        $paramline=$1;
+                    }
+                    elsif($paramline=~/^\s*,\s*(.*)/){
+                        $paramline=$1;
+                    }
+                    my $func = $functions{$fname};
+                    if(!$func){
+                        my $block;
+                        ($func, $block)=function_block($fname, $paramline);
+                        my $idx = $func->{_idx};
+                        $MyDef::compileutil::named_blocks{"$fname\_pre"} = $MyDef::compileutil::named_blocks{"fn$idx\_pre"};
+                        $MyDef::compileutil::named_blocks{"$fname\_close"} = $MyDef::compileutil::named_blocks{"fn$idx\_close"};
+                    }
+                    func_push($func);
+                    my $block= ["BLOCK", "PARSE:\$function_pop"];
+                    MyDef::compileutil::set_named_block("NEWBLOCK", $block);
+                    return "NEWBLOCK";
+                }
+                else{
+                    die "\$function syntax error!\n";
+                }
+                return;
+            }
             elsif($func eq "list"){
                 my @tlist=split /,\s*/, $param;
                 foreach my $f (@tlist){
@@ -4620,7 +4668,7 @@ sub parsecode {
     }
     elsif($l=~/[:\(\{;,]\s*$/){
     }
-    elsif($l=~/^\s*}\s*$/){
+    elsif($l=~/^\s*[)\]}].*$/){
     }
     else{
         if($l=~/^(\w+)\s+(.*)$/){
@@ -4731,7 +4779,12 @@ sub dumpout {
     }
     if(@include_list){
         foreach my $k (@include_list){
-            push @$dump_out, "#include $k\n";
+            if($k=~/^define\s+(.*)/){
+                push @$dump_out, "#define $1\n";
+            }
+            else{
+                push @$dump_out, "#include $k\n";
+            }
         }
         push @$dump_out, "\n";
     }
@@ -4895,7 +4948,42 @@ sub dumpout {
             my $v=$global_hash->{$name};
             my $decl=var_declare($v);
             if($decl){
-                if($decl=~/(.*=\s*)\{DUMP_STUB\s*(\w+)\s*\}/){
+                if($decl=~/^(char\* \w+\s*=\s*)\[(\w.*)\]/){
+                    my ($pre, $spec)=($1, $2);
+                    my @lines;
+                    if($spec=~/eval:\s*(\w+)/){
+                        my $t=MyDef::compileutil::eval_sub($1);
+                        @lines=split /\n/, $t;
+                    }
+                    elsif($spec=~/file:\s*(\S+)/){
+                        if(open In, $1){
+                            @lines = <In>;
+                            close In;
+                        }
+                        else{
+                            die "collect_file_str: Can't open $1\n";
+                        }
+                        foreach my $t (@lines){
+                            $t=~s/\s*$//;
+                        }
+                    }
+                    else{
+                        die "unhandled global_static_string: [$spec]\n";
+                    }
+                    foreach my $t (@lines){
+                        $t=~s/"/\\"/g;
+                        $t.='\n';
+                    }
+                    my $t0=shift @lines;
+                    my $tn=pop @lines;
+                    push @$dump_out, "$pre\"$t0\"\n";
+                    my $spc='    ';
+                    foreach my $t (@lines){
+                        push @$dump_out, "$spc\"$t\"\n";
+                    }
+                    push @$dump_out, "$spc\"$tn\";\n";
+                }
+                elsif($decl=~/(.*=\s*)\{DUMP_STUB\s*(\w+)\s*\}/){
                     push @$dump_out, "$1\{\n";
                     push @$dump_out, "INDENT";
                     push @$dump_out, "DUMP_STUB $2";

@@ -1,15 +1,19 @@
 include: std_perl.def
 
 macros:
+    PDF: MyPlot::pdf
     PLOT: MyPlot
     PUSH: push @$MyPlot::page_content, 
 
-subcode: basic_frame(@outname)
+subcode: _autoload
     $use $(PLOT)
 
-    &call open_pdf, "$(outname)"
-        $call main2
-
+subcode: basic_frame(@outname)
+    $(PLOT)::init()
+    $(PLOT)::newpage()
+    $call main2
+    $print "  --> $(outname)"
+    $(PLOT)::write_pdf("$(outname)")
 
 #---------------------------------------- 
 #- Common Shapes
@@ -28,14 +32,20 @@ macros:
 subcode: open_pdf(f)
     $(if:f~")
 	$(set:f=$(f:strip))
-    $(PLOT)::init()
-    $call newpage
+    $(setmacro:fmt=pdf)
+
+    $use $(PDF)
+    $(PDF)::init()
+    $(PDF)::newpage()
     BLOCK
-    $(PLOT)::write_pdf("$(f)")
+    # ToDo: multiple page support
+    $(PDF)::write_pdf("$(f)")
     print " --> $(f)\n"
 
 subcode: newpage
-    $(PLOT)::newpage()
+    $global @contents
+    $(if:fmt=pdf)
+        $(PDF)::newpage()
 
 subcode: newshape
     BLOCK

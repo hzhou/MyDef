@@ -2,7 +2,6 @@ use strict;
 package MyDef::output_perl;
 our @scope_stack;
 our $cur_scope;
-our $global_scope;
 our $debug=0;
 our $out;
 our $mode;
@@ -25,8 +24,14 @@ our $loop_idx;
 sub parse_condition {
     my ($t) = @_;
     if($t=~/^\//){
+        if($t=~/(.*\S\/\w*)\s*->\s*([^\/]+?)\s*$/){
+            $t = "my ($2) = $1";
+        }
     }
     elsif($t=~/[!=]~/){
+        if($t=~/(.*\S\/\w*)\s*->\s*([^\/]+?)\s*$/){
+            $t = "my ($2) = $1";
+        }
     }
     elsif($t=~/[^!=><]=[^="]/){
         if($t!~/["'].*=.*['"]/){
@@ -297,9 +302,7 @@ sub sumcode_generate {
     return \@code;
 }
 
-$global_scope={var_list=>[], var_hash=>{}, name=>"global"};
 $cur_scope={var_list=>[], var_hash=>{}, name=>"default"};
-push @scope_stack, $global_scope;
 sub get_interface {
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
 }
@@ -530,7 +533,6 @@ sub parsecode {
                         }
                     }
                     if($var){
-                        $global_scope->{var_hash}->{$name}=$var;
                     }
                 }
                 return 0;
@@ -587,6 +589,7 @@ sub parsecode {
                         }
                     }
                 }
+                return 0;
             }
             elsif($func eq "sub"){
                 if($param=~/^(\w+)\((.*)\)/){
@@ -647,118 +650,116 @@ sub parsecode {
                     return "NEWBLOCK-while";
                 }
             }
-            elsif($func eq "for"){
-                if($param=~/(.*);(.*);(.*)/){
-                    my @src;
-                    push @src, "for($param){";
-                    push @src, "INDENT";
-                    push @src, "BLOCK";
-                    push @src, "DEDENT";
-                    push @src, "}";
-                    MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
-                    return "NEWBLOCK-for";
-                }
-                else{
-                    my $var;
-                    if($param=~/^(\S+)\s*=\s*(.*)/){
-                        $var=$1;
-                        $param=$2;
-                    }
-                    my @tlist=split /:/, $param;
-                    my ($i0, $i1, $step);
-                    if(@tlist==1){
-                        $i0="0";
-                        $i1="<$param";
-                        $step="1";
-                    }
-                    elsif(@tlist==2){
-                        if($tlist[1] eq "0"){
-                            $i0="$tlist[0]-1";
-                            $i1=">=$tlist[1]";
-                            $step="-1";
-                        }
-                        elsif($tlist[1]=~/^[-0-9]+$/ && $tlist[0]=~/^[-0-9]+$/ && $tlist[0]>$tlist[1]){
-                            $i0=$tlist[0];
-                            $i1=">=$tlist[1]";
-                            $step="-1";
+            elsif($func =~ /^for(each)?$/){
+                if($1 or $param=~/ in /){
+                    if($param=~/^(\S+),\s*(\S+)\s+in\s+(.*)/){
+                        my ($k, $v, $hash)=($1, $2, $3);
+                        if($hash=~/^%/){
+                            return single_block("while (my ($k, $v)=each $hash){", "}", "foreach");
                         }
                         else{
-                            $i0=$tlist[0];
-                            $i1="<$tlist[1]";
-                            $step="1";
+                            my ($v, $idx, $list)=($k, $v, $hash);
+                            my @src;
+                            push @src, "my $idx = 0;";
+                            push @src, "foreach my $v ($list){";
+                            push @src, "INDENT";
+                            push @src, "BLOCK";
+                            push @src, "$idx++;";
+                            push @src, "DEDENT";
+                            push @src, "}";
+                            MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+                            return "NEWBLOCK-foreach";
                         }
                     }
-                    elsif(@tlist==3){
-                        $i0=$tlist[0];
-                        $step=$tlist[2];
-                        if($step=~/^-/){
-                            $i1=">=$tlist[1]";
-                        }
-                        else{
-                            $i1="<$tlist[1]";
-                        }
+                    elsif($param=~/^(?:my\s+)?(\S+)\s+in\s+(.*)/){
+                        my ($var, $list)=($1, $2);
+                        return single_block("foreach my $var ($list){", "}", "foreach");
                     }
-                    if($step eq "1"){
-                        $step="++";
-                    }
-                    elsif($step eq "-1"){
-                        $step="--";
+                    elsif($param=~/^(%.*)/){
+                        return single_block("while (my (\$k, \$v) = each $1){", "}", "foreach");
                     }
                     else{
-                        $step="+=$step";
+                        return single_block("foreach ($param){", "}", "foreach");
                     }
-                    my $my="";
-                    if(!$var){
-                        $var="\$i";
-                    }
-                    elsif($var=~/^(\w+)/){
-                        $var='$'.$var;
-                    }
-                    $param="$my$var=$i0; $var$i1; $var$step";
-                    $param = "my $param";
-                    my @src;
-                    push @src, "for($param){";
-                    push @src, "INDENT";
-                    push @src, "BLOCK";
-                    push @src, "DEDENT";
-                    push @src, "}";
-                    MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
-                    return "NEWBLOCK-for";
                 }
-            }
-            elsif($func eq "foreach"){
-                if($param=~/^(?:my\s+)?(\S+)\s+in\s+(.*)/){
-                    my ($var, $list)=($1, $2);
-                    if(!$var){
-                        $var="\$i";
-                    }
-                    elsif($var=~/^(\w+)/){
-                        $var='$'.$var;
-                    }
-                    if($var=~/^(\S+),(i.?)$/){
-                        my $v = $1;
-                        my $idx = '$'.$2;
+                else{
+                    if($param=~/(.*);(.*);(.*)/){
                         my @src;
-                        push @src, "my $idx = 0;";
-                        push @src, "foreach my $v ($list){";
+                        push @src, "for($param){";
                         push @src, "INDENT";
                         push @src, "BLOCK";
-                        push @src, "$idx++;";
                         push @src, "DEDENT";
                         push @src, "}";
                         MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
-                        return "NEWBLOCK-foreach";
+                        return "NEWBLOCK-for";
                     }
                     else{
-                        return single_block("foreach my $var ($list){", "}", "foreach");
+                        my $var;
+                        if($param=~/^(\S+)\s*=\s*(.*)/){
+                            $var=$1;
+                            $param=$2;
+                        }
+                        my @tlist=split /:/, $param;
+                        my ($i0, $i1, $step);
+                        if(@tlist==1){
+                            $i0="0";
+                            $i1="<$param";
+                            $step="1";
+                        }
+                        elsif(@tlist==2){
+                            if($tlist[1] eq "0"){
+                                $i0="$tlist[0]-1";
+                                $i1=">=$tlist[1]";
+                                $step="-1";
+                            }
+                            elsif($tlist[1]=~/^[-0-9]+$/ && $tlist[0]=~/^[-0-9]+$/ && $tlist[0]>$tlist[1]){
+                                $i0=$tlist[0];
+                                $i1=">=$tlist[1]";
+                                $step="-1";
+                            }
+                            else{
+                                $i0=$tlist[0];
+                                $i1="<$tlist[1]";
+                                $step="1";
+                            }
+                        }
+                        elsif(@tlist==3){
+                            $i0=$tlist[0];
+                            $step=$tlist[2];
+                            if($step=~/^-/){
+                                $i1=">=$tlist[1]";
+                            }
+                            else{
+                                $i1="<$tlist[1]";
+                            }
+                        }
+                        if($step eq "1"){
+                            $step="++";
+                        }
+                        elsif($step eq "-1"){
+                            $step="--";
+                        }
+                        else{
+                            $step="+=$step";
+                        }
+                        my $my="";
+                        if(!$var){
+                            $var="\$i";
+                        }
+                        elsif($var=~/^(\w+)/){
+                            $var='$'.$var;
+                        }
+                        $param="$my$var=$i0; $var$i1; $var$step";
+                        $param = "my $param";
+                        my @src;
+                        push @src, "for($param){";
+                        push @src, "INDENT";
+                        push @src, "BLOCK";
+                        push @src, "DEDENT";
+                        push @src, "}";
+                        MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
+                        return "NEWBLOCK-for";
                     }
-                }
-                elsif($param=~/^(%.*)/){
-                    return single_block("while (my (\$k, \$v) = each $1){", "}", "foreach");
-                }
-                elsif($param=~/^(\S+),\s*(\S+)\s+in\s+(.*)/){
-                    my ($k, $v, $hash)=($1, $2, $3);
-                    return single_block("while (my ($k, $v)=each $hash){", "}", "foreach");
                 }
             }
             elsif($func eq "boolhash"){
@@ -1079,6 +1080,9 @@ sub parsecode {
                     }
                     elsif($str=~/\G[^\$\}"]+/gc){
                         push @fmt_list, $&;
+                    }
+                    else{
+                        die "parse_loop: nothing matches! [$str]\n";
                     }
                 }
                 my $tail=$fmt_list[-1];

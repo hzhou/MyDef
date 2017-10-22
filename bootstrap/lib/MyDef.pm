@@ -80,6 +80,10 @@ sub init {
         require MyDef::output_asm;
         MyDef::compileutil::set_interface(MyDef::output_asm::get_interface());
     }
+    elsif($module eq "tcl"){
+        require MyDef::output_tcl;
+        MyDef::compileutil::set_interface(MyDef::output_tcl::get_interface());
+    }
     elsif($module eq "www"){
         require MyDef::output_www;
         MyDef::compileutil::set_interface(MyDef::output_www::get_interface());
@@ -197,6 +201,10 @@ sub pipe_page {
     elsif($module eq "asm"){
         require MyDef::output_asm;
         MyDef::compileutil::set_interface(MyDef::output_asm::get_interface());
+    }
+    elsif($module eq "tcl"){
+        require MyDef::output_tcl;
+        MyDef::compileutil::set_interface(MyDef::output_tcl::get_interface());
     }
     elsif($module eq "www"){
         require MyDef::output_www;

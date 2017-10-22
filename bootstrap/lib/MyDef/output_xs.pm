@@ -234,7 +234,7 @@ sub translate_scalar {
     elsif($vartype eq "double" or $vartype eq "float"){
         push @$out, "$var = SvNV($sv);";
     }
-    elsif($vartype eq "char *"){
+    elsif($vartype =~ /char *\*/){
         MyDef::output_c::func_add_var("t_strlen", "STRLEN");
         push @$out, "$var = SvPV($sv, t_strlen);";
         push @$out, "$var\[t_strlen\] = '\\0';";
