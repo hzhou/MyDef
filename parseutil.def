@@ -105,12 +105,14 @@ fncode: import_file($f, $def, $file_type)
         $elif $(in_macro)
             $call process_macros
         $elif $(in_page)
-            $if $line=~/^(\w+):\s*(.*)/
+            $if !$page->{_got_code} and $line=~/^(\w+):\s*(.*)/
                 $call process_page_macros
             $elif $line=~/^\s*$/
+                $page->{_got_code}=1
                 next
             $else
                 # $print jump_to_main_code [$line]
+                $page->{_got_code}=1
                 $call jump_to_main_code
 
     subcode: parse_loop
