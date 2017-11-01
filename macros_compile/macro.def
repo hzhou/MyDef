@@ -128,6 +128,12 @@ fncode: set_macro($m, $p)
     $if $p=~/(\w+)([\+\-\*\/\.])=(.+)/
         my ($t1, $op, $num)=($1, $2, $3)
         $m->{$t1} = calc_op($m->{$t1}, $op, $num)
+    $elif $p=~/(\w+)\[(.*?)\]=(.+)/
+        my ($t1, $sep, $item)=($1, $2, $3)
+        $if $m->{$t1}
+            $m->{$t1}.="$sep$item"
+        $else
+            $m->{$t1}=$item
     $elif $p=~/(\S+?):=(.*)/
         $m->{$1}=$2
     $elif $p=~/(\S+?)=(.*)/
