@@ -1,0 +1,23 @@
+page: mydef_update
+    output_dir: script
+    type:
+
+    my $dir
+    $if $ENV{MYDEFSRC}=~/(.*)\/MyDef/
+        $dir = $1
+
+    $if !$dir
+        die "Missing MYDEFSRC location\n"
+    $if !-d $dir
+        die "Not a directory [$dir]\n"
+
+    chdir "$dir/MyDef" or die "Cannot chdir $dir/MyDef"
+    system "git pull && make && make install"
+
+    my @all = glob("$dir/output_*")
+    $foreach $a in @all
+        $if -d $a and -d "$a/.git"
+            chdir $a or die
+            system "git pull && make && make install"
+
+
