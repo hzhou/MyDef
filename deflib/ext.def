@@ -6,6 +6,7 @@ macros:
 
 #---------------------------------------- 
 #-- level 2 facility, called within perlcode
+#--    ref: output_www/deflib/html/code.def
 
 subcode: replace_output(name)
     my $old_out=MyDef::compileutil::set_output($(name))
