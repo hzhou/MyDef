@@ -1,5 +1,0 @@
-
-subcode: check_make_version(ver)
-    $ifneq_ (${firstword ${sort ${MAKE_VERSION} $(ver)}},$(ver))
-        ${error You have make '${MAKE_VERSION}' installed. GNU make >= $(ver) is required}
-
