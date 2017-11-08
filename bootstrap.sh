@@ -32,7 +32,7 @@ if [ -z $1 ]; then # so "sh bootstrap.sh skip" will skip these
     sleep 1
     printf "\n${C}#---- Compile from fresh MyDef source ----${NC}\n"
     mydef_make
-    touch mydef.def
+    touch *.def
     make
     printf "\n${C}#---- Install updated MyDef ----${NC}\n"
     $MY_INSTALL MyDef/lib    . pm

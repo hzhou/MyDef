@@ -322,7 +322,7 @@ sub testcondition {
     elsif($cond=~/^\s*(\w+)(.*)/){
         my $t=get_def($1);
         if(!$2){
-            return defined $t;
+            return (defined $t && $t ne '');
         }
         elsif(!defined $t and $has_macro){
             return test_op($1, $2);
