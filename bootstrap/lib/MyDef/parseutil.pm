@@ -5,7 +5,7 @@ our %includes;
 our $in_default_page;
 our $page;
 our $code_index=0;
-our $template_index = 0;
+our $template_idx=0;
 our $debug;
 our @path;
 our %path;
@@ -76,6 +76,9 @@ sub import_data {
 
 sub import_file {
     my ($f, $def, $file_type) = @_;
+    if($debug->{import}){
+        print "import_file: $f\n";
+    }
     my $curindent=0;
     my $codetype = "top";
     my $codeindent = 0;
@@ -115,6 +118,29 @@ sub import_file {
         $codeindent = 0;
         $curindent = 0;
         $lastindent = 0;
+        while($plines->[$cur_line]=~/^(\w+):\s*(.*)/){
+            if($1 =~ /^(page|macros|\w+code|template)$/){
+                last;
+            }
+            elsif($1 eq "include"){
+                if($2 eq "noconfig"){
+                    $includes{$2}=1;
+                }
+                elsif(substr($2, -1) eq "/"){
+                    add_path($2);
+                }
+                else{
+                    if(!$includes{$2}){
+                        $includes{$2}=1;
+                        push @includes, $2;
+                    }
+                }
+            }
+            else{
+                $page->{$1}=$2;
+            }
+            $cur_line++;
+        }
     }
     while($cur_line < @$plines){
         my $line = $plines->[$cur_line];
@@ -228,7 +254,8 @@ sub import_file {
                         push @$source, $src_location;
                     }
                     elsif($debug>1){
-                        print STDERR "[$src_location] skip duplicate code: $name [debug:$debug]\n";
+                        my $last_src = $codes->{$name}->{source}->[0];
+                        print STDERR "[$src_location] skip duplicate code: $name [$last_src]\n";
                     }
                 }
                 else{
@@ -281,10 +308,23 @@ sub import_file {
             $lastindent = $curindent;
         }
         elsif($line=~/^template:/ && $curindent == $codeindent and $codetype ne "macro"){
-            if(!$codeitem->{codes}){
-                $codeitem->{codes}={};
+            my $parent;
+            if($curindent==0){
+                $parent = $def;
             }
-            my $codes = $codeitem->{codes};
+            elsif(!$in_default_page and $curindent==1 and $page){
+                $parent = $page;
+            }
+            else{
+                $parent = $codeitem;
+            }
+            if(!$parent->{codes}){
+                $codes = {};
+                $parent->{codes}=$codes;
+            }
+            else{
+                $codes = $parent->{codes};
+            }
             my @grab;
             my $t_code = {type=>"template",source=>\@grab};
             if($line =~ /^template:\s*(\w+)/){
@@ -333,6 +373,9 @@ sub import_file {
             if($1 eq "noconfig"){
                 $includes{$1}=1;
             }
+            elsif(substr($1, -1) eq "/"){
+                add_path($1);
+            }
             else{
                 if(!$includes{$1}){
                     $includes{$1}=1;
@@ -346,6 +389,9 @@ sub import_file {
             if($t=~/([\w\-\$\.]+),\s*(\w.*)/){
                 $pagename=$1;
                 $framecode=$2;
+                if($framecode=~/^from\s+(\S+)/){
+                    $framecode = parse_template($def, $1);
+                }
             }
             elsif($t=~/([\w\-\$\.]+)/){
                 $pagename=$1;
@@ -391,16 +437,19 @@ sub import_file {
             push @$source, $line;
         }
         elsif($codeindent>0 and $codetype eq "macro"){
-            if($line=~/^(\w+):(:)?\s*(.*\S)/){
+            if($line=~/^(\w+):([:=])?\s*(.*)/){
                 my ($k,$dblcolon, $v)=($1, $2, $3);
                 expand_macro(\$v, $macros);
+                $v=~s/\s+$//;
                 if($macros->{$k}){
-                    if($dblcolon){
+                    if($dblcolon eq ':'){
                         $macros->{$k}.=", $v";
                     }
                     elsif($macros->{$k} ne $v){
-                        print "Denied overwriting macro $k\n";
                     }
+                }
+                elsif($dblcolon eq '='){
+                    $macros->{$k} = eval($v);
                 }
                 else{
                     $macros->{$k}=$v;
@@ -408,16 +457,18 @@ sub import_file {
             }
         }
         elsif($codetype eq "page" and (($in_default_page and $codeindent==0)  or (!$in_default_page and $codeindent==1))){
-            if($line=~/^(\w+):\s*(.*)/){
+            if(!$page->{_got_code} and $line=~/^(\w+):\s*(.*)/){
                 my $k=$1;
                 my $v=$2;
                 expand_macro(\$v, $macros);
                 $page->{$k}=$v;
             }
             elsif($line=~/^\s*$/){
+                $page->{_got_code}=1;
                 next;
             }
             else{
+                $page->{_got_code}=1;
                 my $t_code;
                 if($page->{codes}->{main}){
                     $t_code = $page->{codes}->{main};
@@ -446,6 +497,7 @@ sub import_file {
             my $pagename = $def->{name};
             $def->{pages}->{$pagename} = $in_default_page;
             push @{$def->{pagelist}}, $pagename;
+            $def->{in_default_page}=1;
         }
     }
 }
@@ -499,14 +551,8 @@ sub expand_macro {
     }
 }
 
-sub get_template_sub_name {
-    my $sub_name = "TMP_$template_index";
-    $template_index++;
-    return $sub_name;
-}
-
 sub parse_template {
-    my ($def, $pagecodes, $template_file, $sub_name) = @_;
+    my ($def, $template_file) = @_;
     my $template_dir;
     if($def->{macros}->{TemplateDir}){
         $template_dir=$def->{macros}->{TemplateDir};
@@ -519,88 +565,19 @@ sub parse_template {
             $template_file = $template_dir.'/'.$template_file;
         }
     }
-    my @new_source;
-    push @new_source, "subcode: $sub_name";
-    my $t_idx = 0;
-    $t_idx++;
+    $template_idx++;
     my $cur_source=[];
-    $pagecodes->{"_T_$t_idx"} = {type=>'template', source=>$cur_source, 'params'=>[]};
-    push @new_source, "    \$call _T_$t_idx";
-    my $cur_grab_spaces;
-    my $start_grab;
-    my $cur_grab;
+    my $codes = $def->{codes};
+    $codes->{"_T$template_idx"} = {type=>'template', source=>$cur_source, 'params'=>[]};
     open In, "$template_file" or die "Can't open $template_file.\n";
     while(<In>){
-        if($start_grab){
-            if(/^\s*$/){
-                push @$cur_grab, $_;
-            }
-            elsif(/^(\s*)(.*)/){
-                my $n= get_indent_spaces($1);
-                if($n <= $cur_grab_spaces){
-                    if($start_grab eq "mydef"){
-                        my $len = $cur_grab_spaces;
-                        my $n=int($len/4);
-                        if($len % 4){
-                            $n++;
-                        }
-                        for(my $i=0; $i<$n; $i++){
-                            push @new_source, "    INDENT";
-                        }
-                        push @new_source, @$cur_grab;
-                        for(my $i=0; $i<$n; $i++){
-                            push @new_source, "    DEDENT";
-                        }
-                        $t_idx++;
-                        my $cur_source=[];
-                        $pagecodes->{"_T_$t_idx"} = {type=>'template', source=>$cur_source, 'params'=>[]};
-                        push @new_source, "    \$call _T_$t_idx";
-                        push @$cur_source, $_;
-                    }
-                    undef $start_grab;
-                    next;
-                }
-                else{
-                    my $new_spaces = $n-$cur_grab_spaces;
-                    if($start_grab eq "mydef"){
-                        if($new_spaces<4){
-                            push @$cur_grab, "    $2\n";
-                        }
-                        else{
-                            push @$cur_grab, ' 'x$new_spaces . "$2\n";
-                        }
-                    }
-                    elsif($start_grab eq "template"){
-                        if($new_spaces<4){
-                            push @$cur_grab, "$2\n";
-                        }
-                        else{
-                            push @$cur_grab, ' 'x($new_spaces-4) . "$2\n";
-                        }
-                    }
-                }
-            }
+        if(/^\s*DUMP_STUB\s+(\w+)/){
+            $page->{"has_stub_$1"}=1;
         }
-        elsif(/^(\s*)(mydef):/){
-            $cur_grab_spaces=get_indent_spaces($1);
-            $start_grab = $2;
-            $cur_grab=[];
-        }
-        elsif(/^(\s*)template:\s*(\w+)/){
-            $cur_grab_spaces=get_indent_spaces($1);
-            $start_grab = "template";
-            $cur_grab=[];
-            $pagecodes->{$2}={type=>"template", source=>$cur_grab, 'params'=>[]};
-        }
-        else{
-            if(/^\s*DUMP_STUB\s+(\w+)/){
-                $page->{"has_stub_$1"}=1;
-            }
-            push @$cur_source, $_;
-        }
+        push @$cur_source, $_;
     }
     close In;
-    return \@new_source;
+    return "_T$template_idx";
 }
 
 sub parse_DEBUG {

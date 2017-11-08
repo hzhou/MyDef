@@ -42,7 +42,7 @@ sub parse_print {
                         push @$out, "$print_to = String.format($fmt);";
                     }
                     else{
-                        push @$out, "System.$print_to.printf($fmt);";
+                        push @$out, "$print_to.printf($fmt);";
                     }
                 }
                 else{
@@ -194,47 +194,57 @@ sub parsecode {
         }
         my @plist = MyDef::utils::proper_split($param);
         foreach my $p (@plist){
-            my $val;
+            my ($val, $type);
             if($p=~/(.*?)\s*=\s*(.*)/){
                 $p=$1;
                 $val = $2;
+                if($val=~/^\s*new\s+(\w+)(.*)/){
+                    my ($cls, $p)=($1, $2);
+                    if($p=~/^<(.*?)>(.*)/){
+                        $type = "$cls<$1>";
+                    }
+                    elsif($p=~/\[(.*?)\](.*)/){
+                        $type = "$cls"."[]";
+                    }
+                    else{
+                        $type = $cls;
+                    }
+                    if($common_classes{$cls}){
+                        add_import($common_classes{$cls});
+                    }
+                }
             }
-            my $name=MyDef::output_c::f_add_var($h, $l, $p);
+            my $name=MyDef::output_c::f_add_var($h, $l, $p, $type);
             if($val){
                 push @$out, "$p = $val;";
             }
         }
         return;
     }
-    elsif($l=~/^(\w+)\s*=\s*new\s*(\w+)\s*(.*)\s*;?/){
-        my ($v, $cls, $p)=($1, $2, $3);
-        my $type = $cls;
-        if($p=~/<(.*?)>(.*)/){
-            $type = "$cls<$1>";
-            $cls = "$cls<>";
-            $p = $2;
+    elsif($l=~/^(\w+)\s*=\s*(new\s+.*)/){
+        my ($name, $val) = ($1, $2);
+        my $type;
+        if($val=~/^\s*new\s+(\w+)(.*)/){
+            my ($cls, $p)=($1, $2);
+            if($p=~/^<(.*?)>(.*)/){
+                $type = "$cls<$1>";
+            }
+            elsif($p=~/\[(.*?)\](.*)/){
+                $type = "$cls"."[]";
+            }
+            else{
+                $type = $cls;
+            }
+            if($common_classes{$cls}){
+                add_import($common_classes{$cls});
+            }
         }
-        elsif($p=~/\[(.*?)\](.*)/){
-            $type = "$cls"."[]";
-        }
-        MyDef::output_c::auto_add_var($v, $type);
-        if(!$p){
-            push @$out, "$v = new $cls();";
-        }
-        elsif($p=~/\{\s*$/){
-            push @$out, "$v = new $cls$p";
-        }
-        elsif($p=~/^\((.*)\)/){
-            push @$out, "$v = new $cls$p;";
-        }
-        elsif($p=~/^\[(.*)\]/){
-            push @$out, "$v = new $cls$p;";
+        MyDef::output_c::auto_add_var($name, $type);
+        if($val=~/{\s*$/){
+            push @$out, "$name = $val";
         }
         else{
-            push @$out, "$v = new $cls($p);";
-        }
-        if($common_classes{$cls}){
-            add_import($common_classes{$cls});
+            push @$out, "$name = $val;";
         }
         return;
     }

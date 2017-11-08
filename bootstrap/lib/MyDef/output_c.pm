@@ -3609,7 +3609,8 @@ sub parsecode {
             return 0;
         }
     }
-    if(0){
+    if($l=~/^DUMP_STUB\s/){
+        push @$out, $l;
     }
     elsif($l=~/^SUBBLOCK BEGIN (\d+) (.*)/){
         open_scope($1, $2);
@@ -4033,60 +4034,70 @@ sub parsecode {
                 return 1;
             }
             elsif($func eq "function"){
+                my ($fname, $paramline);
                 if($param=~/(\w+)(.*)/){
-                    my ($fname, $paramline)=($1, $2);
+                    ($fname, $paramline)=($1, $2);
                     if($paramline=~/^\s*\((.*)\)/){
                         $paramline=$1;
                     }
                     elsif($paramline=~/^\s*,\s*(.*)/){
                         $paramline=$1;
                     }
-                    my $funcname=MyDef::utils::uniq_name($fname, \%list_function_hash);
-                    my ($func, $block)=function_block($funcname, $paramline);
-                    func_push($func);
-                    unshift @$block, "OUTPUT:lambda-$funcname";
-                    push @$block, "PARSE:\$function_pop";
-                    if(!$list_function_hash{$funcname}){
-                        $list_function_hash{$funcname}=1;
-                        push @list_function_list, $funcname;
-                    }
-                    else{
-                        $list_function_hash{$funcname}++;
-                    }
-                    MyDef::compileutil::set_current_macro("lambda", $funcname);
-                    MyDef::compileutil::set_named_block("NEWBLOCK", $block);
-                    return "NEWBLOCK";
                 }
                 else{
-                    die "\$function syntax error!\n";
+                    my $fidx=$#function_list;
+                    $fname = "fn-$fidx";
                 }
+                my $funcname=MyDef::utils::uniq_name($fname, \%list_function_hash);
+                my ($func, $block)=function_block($funcname, $paramline);
+                func_push($func);
+                unshift @$block, "OUTPUT:lambda-$funcname";
+                push @$block, "PARSE:\$function_pop";
+                if(!$list_function_hash{$funcname}){
+                    $list_function_hash{$funcname}=1;
+                    push @list_function_list, $funcname;
+                }
+                else{
+                    $list_function_hash{$funcname}++;
+                }
+                MyDef::compileutil::set_current_macro("lambda", $funcname);
+                MyDef::compileutil::set_named_block("NEWBLOCK", $block);
+                return "NEWBLOCK";
                 return;
             }
             elsif($func eq "in_function"){
+                my ($fname, $paramline);
                 if($param=~/(\w+)(.*)/){
-                    my ($fname, $paramline)=($1, $2);
+                    ($fname, $paramline)=($1, $2);
                     if($paramline=~/^\s*\((.*)\)/){
                         $paramline=$1;
                     }
                     elsif($paramline=~/^\s*,\s*(.*)/){
                         $paramline=$1;
                     }
-                    my $func = $functions{$fname};
-                    if(!$func){
-                        my $block;
-                        ($func, $block)=function_block($fname, $paramline);
-                        my $idx = $func->{_idx};
-                        $MyDef::compileutil::named_blocks{"$fname\_pre"} = $MyDef::compileutil::named_blocks{"fn$idx\_pre"};
-                        $MyDef::compileutil::named_blocks{"$fname\_close"} = $MyDef::compileutil::named_blocks{"fn$idx\_close"};
-                    }
-                    func_push($func);
-                    my $block= ["BLOCK", "PARSE:\$function_pop"];
-                    MyDef::compileutil::set_named_block("NEWBLOCK", $block);
-                    return "NEWBLOCK";
                 }
                 else{
-                    die "\$function syntax error!\n";
+                    my $fidx=$#function_list;
+                    $fname = "fn-$fidx";
                 }
+                my $func = $functions{$fname};
+                if(!$func){
+                    my $block;
+                    ($func, $block)=function_block($fname, $paramline);
+                    my $idx = $func->{_idx};
+                    $MyDef::compileutil::named_blocks{"$fname\_pre"} = $MyDef::compileutil::named_blocks{"fn$idx\_pre"};
+                    $MyDef::compileutil::named_blocks{"$fname\_close"} = $MyDef::compileutil::named_blocks{"fn$idx\_close"};
+                }
+                func_push($func);
+                my $block;
+                if($fname=~/^fn-/){
+                    $block = ["DUMP_STUB $fname\_pre", "BLOCK", "DUMP_STUB $fname\_post", "PARSE:\$function_pop"];
+                }
+                else{
+                    $block= ["BLOCK", "PARSE:\$function_pop"];
+                }
+                MyDef::compileutil::set_named_block("NEWBLOCK", $block);
+                return "NEWBLOCK";
                 return;
             }
             elsif($func eq "list"){

@@ -9,6 +9,7 @@ our @style_key_list;
 our $style_sheets;
 our @mode_stack;
 our $cur_mode="html";
+our $enter_js_count;
 our %plugin_statement;
 our %plugin_condition;
 
@@ -121,6 +122,7 @@ sub modeswitch {
     if($mode eq "js"){
         MyDef::compileutil::push_interface("js");
         push @$out, "<script type=\"text/javascript\">\n";
+        $enter_js_count++;
         push @mode_stack, $cur_mode;
         $cur_mode=$mode;
         goto modeswitch_done;
@@ -177,7 +179,8 @@ sub parsecode {
         }
         return;
     }
-    if(0){
+    if($l=~/^DUMP_STUB\s/){
+        push @$out, $l;
     }
     elsif($l=~/^CSS:\s*(.*)/){
         return parse_css($1);
@@ -305,6 +308,9 @@ sub parsecode {
 sub dumpout {
     my ($f, $out)=@_;
     my $dump={out=>$out,f=>$f};
+    if($enter_js_count>0){
+        MyDef::output_js::dump_js_globals();
+    }
     if($MyDef::page->{type} && $MyDef::page->{type} eq "css"){
         foreach my $k (@style_key_list){
             my %attr;

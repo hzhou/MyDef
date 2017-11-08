@@ -9,6 +9,13 @@ our @js_globals;
 our %plugin_statement;
 our %plugin_condition;
 
+sub dump_js_globals {
+    my $block=MyDef::compileutil::get_named_block("js_init");
+    foreach my $v (@js_globals){
+        push @$block, "var $v;\n";
+    }
+}
+
 sub js_string {
     my ($t) = @_;
     my @parts=split /(\$\w+)/, $t;
@@ -28,6 +35,11 @@ sub js_string {
         }
     }
     return join(' + ', @parts);
+}
+
+sub find_var {
+    my ($v) = @_;
+    return {direct=>"\"+$v+\""};
 }
 
 sub get_var_fmt {
@@ -106,7 +118,10 @@ sub fmt_string {
                     $v=check_expression($v);
                 }
                 my $var=find_var($v);
-                if($var->{strlen}){
+                if($var->{direct}){
+                    push @fmt_list, $var->{direct};
+                }
+                elsif($var->{strlen}){
                     push @fmt_list, "%.*s";
                     push @arg_list, $var->{strlen};
                     push @arg_list, $v;
@@ -147,6 +162,9 @@ sub fmt_string {
         elsif($str=~/\G[^%\$\}]+/sgc){
             push @fmt_list, $&;
         }
+        else{
+            die "parse_loop: nothing matches! [$str]\n";
+        }
     }
     if(@pre_list){
         my $s = join(', ', @pre_list);
@@ -171,7 +189,9 @@ sub fmt_string {
     }
     else{
         my $vcnt=@arg_list;
-        return ($vcnt, '"'.join('',@fmt_list).'", '.join(', ', @arg_list));
+        my $f = join('', @fmt_list);
+        my $a = join(', ', @arg_list);
+        return ($vcnt, "\"$f\", $a");
     }
 }
 
@@ -244,7 +264,8 @@ sub parsecode {
         }
         return;
     }
-    if(0){
+    if($l=~/^DUMP_STUB\s/){
+        push @$out, $l;
     }
     elsif($l=~/^(\S+)\s*=\s*"(.*\$\w+.*)"\s*$/){
         push @$out, "$1=". js_string($2);
@@ -365,10 +386,7 @@ sub parsecode {
 sub dumpout {
     my ($f, $out)=@_;
     my $dump={out=>$out,f=>$f};
-    my $block=MyDef::compileutil::get_named_block("js_init");
-    foreach my $v (@js_globals){
-        push @$block, "var $v;\n";
-    }
+    dump_js_globals();
     MyDef::dumpout::dumpout($dump);
 }
 sub single_block {

@@ -30,8 +30,8 @@ sub dumpout {
             push @source_stack, $out;
             $out=$dump->{$1};
         }
-        elsif($l =~ /^DUMP_STUB\s+([\w-]+)/){
-            my $source=$MyDef::compileutil::named_blocks{$1};
+        elsif($l =~ /^(\s*)DUMP_STUB\s+([\w\-]+)/){
+            my $source=$MyDef::compileutil::named_blocks{$2};
             if($source){
                 push @source_stack, $out;
                 $out=$source;

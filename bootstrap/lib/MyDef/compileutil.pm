@@ -103,6 +103,10 @@ sub push_interface {
         require MyDef::output_asm;
         set_interface_partial(MyDef::output_asm::get_interface());
     }
+    elsif($module eq "tcl"){
+        require MyDef::output_tcl;
+        set_interface_partial(MyDef::output_tcl::get_interface());
+    }
     elsif($module eq "www"){
         require MyDef::output_www;
         set_interface_partial(MyDef::output_www::get_interface());
@@ -169,7 +173,20 @@ sub test_op {
         $test=$';
         $a=substr($a, 0, $1);
     }
-    if($test=~/\s*(!?[~=]|<=?|>=?)(.*)/){
+    if($test=~/^\s*(!?)~(.*)/){
+        my ($not, $b) = ($1, $2);
+        if($b=~/(.*)\$$/){
+            if($a=~/$1$/){ return !$not;};
+        }
+        else{
+            if($a=~/^$b/){ return !$not;};
+        }
+        return $not;
+    }
+    elsif($test=~/^\s*in\s+(.*)/){
+        return test_in($a, $1);
+    }
+    elsif($test=~/^\s*([!=<>]+)(.*)/){
         my ($op, $b)=($1, $2);
         if($op eq "="){
             if($a eq $b){ return 1;};
@@ -189,23 +206,10 @@ sub test_op {
         elsif($op eq "<="){
             if($a <= $b){ return 1;};
         }
-        elsif($op eq "~"){
-            if($b=~/(.*)\$$/){
-                if($a=~/$1$/){ return 1;};
-            }
-            else{
-                if($a=~/^$b/){ return 1;};
-            }
-        }
-        elsif($op eq "!~"){
-            if($a!~/^$b/){ return 1;};
-        }
         else{
+            print "[$cur_file:$cur_line]\x1b[32m test_op: unsupported op $op\n\x1b[0m";
             return 0;
         }
-    }
-    elsif($test=~/\s*in\s+(.*)/){
-        return test_in($a, $1);
     }
     else{
         return defined $a;
@@ -840,7 +844,7 @@ sub list_sub {
 }
 
 sub eval_sub {
-    my ($codename) = @_;
+    my ($codename, $use_module) = @_;
     if($eval_sub_cache{$codename}){
         return $eval_sub_cache{$codename};
     }
@@ -853,8 +857,13 @@ sub eval_sub {
         my @t;
         my $save_out=$out;
         $out=[];
-        push_interface("perl");
-        push @$out, "EVAL";
+        if(!$use_module){
+            $use_module = $codelib->{type};
+        }
+        push_interface($use_module);
+        if($use_module eq "perl"){
+            push @$out, "EVAL";
+        }
         list_sub($codelib);
         $f_dumpout->(\@t, $out, "eval");
         pop_interface();
@@ -1013,7 +1022,10 @@ sub parseblock {
             elsif($l=~/^\$\((.*)\)/){
                 my $preproc=$1;
                 my $tail=$';
-                my $has_macro = expand_macro(\$preproc);
+                my $has_macro;
+                if($preproc =~ /\$\(/ and $preproc !~ /^set:/){
+                    $has_macro = expand_macro(\$preproc);
+                }
                 my $flag_done;
                 $flag_done=1;
                 if($preproc=~/^if:\s*(.*)/){
@@ -1085,7 +1097,7 @@ sub parseblock {
                     if($preproc=~/^for:\s*(.*)/){
                         my $t=$1;
                         my $subblock=grabblock($block, \$lindex);
-                        if($t=~/(\w+)\s+in\s+(.*)/){
+                        if($t=~/^(\w+)\s+in\s+(.*)/){
                             my ($vname, $vparam)=($1,$2);
                             my @tlist = MyDef::utils::get_tlist($vparam);
                             my $i=0;
@@ -1098,6 +1110,11 @@ sub parseblock {
                             }
                         }
                         else{
+                            my @plist;
+                            if($t=~/(.+?)\s+in\s+(.*)/){
+                                $t = $2;
+                                @plist = split /,\s*/, $1;
+                            }
                             my @vlist=split /\s+and\s+/, $t;
                             my $n;
                             my @tlist;
@@ -1109,18 +1126,31 @@ sub parseblock {
                                 push @tlist, \@t;
                             }
                             my $m = @tlist;
-                            for(my $i=0; $i<$n; $i++){
-                                my @block = @$subblock;
-                                foreach my $l (@block){
-                                    if($l and $l!~/^SOURCE:/){
-                                        my $j=1;
-                                        foreach my $tlist (@tlist){
-                                            $l=~s/\$$j/$tlist->[$i]/g;
-                                            $j++;
+                            if(@plist){
+                                for(my $i=0; $i<$n; $i++){
+                                    my $macro={_i=>$i};
+                                    for(my $j=0; $j<@plist; $j++){
+                                        $macro->{$plist[$j]}=$tlist[$j]->[$i];
+                                    }
+                                    push @$deflist, $macro;
+                                    parseblock({source=>$subblock, name=>"\${for}"});
+                                    pop @$deflist;
+                                }
+                            }
+                            else{
+                                for(my $i=0; $i<$n; $i++){
+                                    my @block = @$subblock;
+                                    foreach my $l (@block){
+                                        if($l and $l!~/^SOURCE:/){
+                                            my $j=1;
+                                            foreach my $tlist (@tlist){
+                                                $l=~s/\$$j/$tlist->[$i]/g;
+                                                $j++;
+                                            }
                                         }
                                     }
+                                    parseblock({source=>\@block, name=>"\${for:list}"});
                                 }
-                                parseblock({source=>\@block, name=>"\${for:list}"});
                             }
                         }
                     }
@@ -1191,15 +1221,24 @@ sub parseblock {
                     elsif($preproc=~/^set:\s*(.*)/){
                         set_macro($deflist->[-1], $1);
                     }
-                    elsif($preproc=~/^set(-?[012]|def|macro|page):\s*(.*)/){
+                    elsif($preproc=~/^set([1-5]|def|macro|page):\s*(.*)/){
                         my ($i,$t) = ($1, $2);
-                        if($i!~/^-?\d/){
+                        if($debug eq "macro"){
+                            print "set[$i]: $t\n";
+                        }
+                        if($i=~/\d/){
+                            $i = -($i+1);
+                        }
+                        else{
                             $i=$named_macros{$i};
                         }
                         set_macro($deflist->[$i], $t);
                     }
                     elsif($preproc=~/^unset:\s*(.*)/){
                         my @t = split /,\s*/, $1;
+                        if($debug eq "macro"){
+                            print "unset: $deflist->[-1] @t\n";
+                        }
                         foreach my $t (@t){
                             if($t=~/^(\w+)/){
                                 $deflist->[-1]->{$t}=undef;
@@ -1242,11 +1281,6 @@ sub parseblock {
                         my @plist=split /,\s*/, $1;
                         foreach my $p (@plist){
                             set_macro($deflist->[-2], $p);
-                        }
-                    }
-                    elsif($preproc=~/^unset:\s*(\w+)/){
-                        foreach my $m (@$deflist){
-                            delete $m->{$1};
                         }
                     }
                     elsif($preproc=~/^eval:\s*(\S+)=(.*)/){
@@ -1376,13 +1410,22 @@ sub parseblock {
                     }
                 }
             }
-            elsif($l=~/^\$:\s+(.*)/){
-                push @$out, $1;
-            }
-            elsif($l=~/^\$::\s+(.*)/){
-                my $t = $1;
-                expand_macro(\$t);
-                push @$out, $t;
+            elsif($l=~/^\$([:\.]+) (.*)/){
+                my ($opt, $t)=($1,$2);
+                if($opt eq ":"){
+                    push @$out, $t;
+                }
+                elsif($opt eq "::"){
+                    expand_macro(\$t);
+                    push @$out, $t;
+                }
+                elsif($opt eq "."){
+                    $out->[-1] .= " $t";
+                }
+                elsif($opt eq ":."){
+                    expand_macro(\$t);
+                    $out->[-1] .= " $t";
+                }
             }
             elsif($l=~/^BLOCK(\d*)\s*$/){
                 my $callback_idx=$1;
@@ -1422,8 +1465,8 @@ sub parseblock {
                 NormalParse:
                 expand_macro(\$l);
                 while(1){
-                    if($l=~/^(&call\d?|\$call|\$map\d?|\$nest)\s+(.*)$/){
-                        my ($func, $param)=($1, $2);
+                    if($l=~/^(&call\d?|\$call|\$map\d?|\$nest)\s+(.*)$/i){
+                        my ($func, $param)=(lc($1), $2);
                         $param=~s/\s*$//;
                         if($func eq "\$map"){
                             map_sub($param, 1);
@@ -1631,6 +1674,18 @@ sub set_macro {
         my ($t1, $op, $num)=($1, $2, $3);
         $m->{$t1} = calc_op($m->{$t1}, $op, $num);
     }
+    elsif($p=~/(\w+)\[(.*?)\]=(.+)/){
+        my ($t1, $sep, $item)=($1, $2, $3);
+        if($m->{$t1}){
+            $m->{$t1}.="$sep$item";
+        }
+        else{
+            $m->{$t1}=$item;
+        }
+    }
+    elsif($p=~/(\S+?):=(.*)/){
+        $m->{$1}=$2;
+    }
     elsif($p=~/(\S+?)=(.*)/){
         my ($t1, $t2)=($1, $2);
         if($t1=~/\$\(.*\)/){
@@ -1647,7 +1702,7 @@ sub set_macro {
             $m->{$p}=$t;
         }
         else{
-            print "[$cur_file:$cur_line]\x1b[32m set_macro parse error: [$p]\n\x1b[0m";
+            $m->{$p}=1;
         }
     }
 }
@@ -1720,13 +1775,21 @@ sub get_macro {
     if($debug eq "macro"){
         print "get_macro: [$s], nowarn: [$nowarn]\n";
     }
-    if($s=~/^((x\d+|nest|map|join|eval|sym|def)\b.+)/){
+    if($s=~/^((x\d+|nest|join|subst|eval|sym|def)\b.+)/){
         my $t=$1;
         if($t=~/^eval:\s*(.*)/){
             return eval($1);
         }
-        elsif($t=~/^x(\d+)([^:]*):(.*)/ and $1>1){
-            return "$3$2" x ($1-1) . $3;
+        elsif($t=~/^x(\d+)([^:]*):(.*)/){
+            if($1>1){
+                return "$3$2" x ($1-1) . $3;
+            }
+            elsif($1==1){
+                return $3;
+            }
+            else{
+                return "";
+            }
         }
         elsif($t=~/^nest:(\d+):(.+):(.*)/){
             my ($n, $pat, $x)=($1, $2, $3);
@@ -1738,20 +1801,15 @@ sub get_macro {
                 return;
             }
         }
-        elsif($t=~/^map:(.*):(.*):(.*)/){
-            my ($pat, $sep, $param)=($1, $2, $3);
-            my @tlist = MyDef::utils::get_tlist($param);
-            foreach my $t (@tlist){
-                my $p = $pat;
-                $p=~s/\*/$t/g;
-                $t = $p;
-            }
-            return join($sep, @tlist);
-        }
         elsif($t=~/^join:(.*):(.*):(.*)/){
             my ($pat, $sep, $tlist)=($1, $2, $3);
             my $plist = MyDef::utils::for_list_expand($pat, $tlist);
             return join($sep, @$plist);
+        }
+        elsif($t =~ /^subst:(.+):(.+):(.*)/){
+            my ($w, $pat, $rpl)=($1,$2,$3);
+            $w =~s/$pat/$rpl/;
+            return $w;
         }
         elsif($t =~ /^sym:(.+)/){
             return MyDef::utils::string_symbol_name($1);
@@ -1920,6 +1978,44 @@ sub debug_def_stack {
     }
 }
 
+sub set_named_block {
+    my ($name, $block) = @_;
+    $named_blocks{$name}=$block;
+}
+
+sub get_named_block {
+    my ($name) = @_;
+    if($name=~/^_(post|pre)(\d*)$/){
+        my $idx;
+        if(!$2){
+            $idx=$block_stack[-1]->{eindex};
+        }
+        else{
+            $idx=$block_stack[-$2]->{eindex};
+        }
+        $name="block$idx\_$1";
+    }
+    elsif($name=~/^_init_block$/){
+        my $page=$deflist->[2];
+        $name=$page->{_init_block};
+    }
+    if(!$named_blocks{$name}){
+        $named_blocks{$name}=[];
+    }
+    return $named_blocks{$name};
+}
+
+sub trigger_block_post {
+    my $cur_idx=$block_stack[-1]->{eindex};
+    my $name="block$cur_idx\_post";
+    if($named_blocks{$name}){
+        my $new_name=$name.'_';
+        push @$out, "DUMP_STUB $new_name";
+        $named_blocks{$new_name}=$named_blocks{$name};
+        undef $named_blocks{$name};
+    }
+}
+
 sub init_output {
     @output_list=([]);
     set_output($output_list[0]);
@@ -1979,41 +2075,6 @@ sub get_def_attr {
         }
     }
     return undef;
-}
-sub set_named_block {
-    my ($name, $block)=@_;
-    $named_blocks{$name}=$block;
-}
-sub get_named_block {
-    my ($name)=@_;
-    if($name=~/^_(post|pre)(\d*)$/){
-        my $idx;
-        if(!$2){
-            $idx=$block_stack[-1]->{eindex};
-        }
-        else{
-            $idx=$block_stack[-$2]->{eindex};
-        }
-        $name="block$idx\_$1";
-    }
-    elsif($name=~/^_init_block$/){
-        my $page=$deflist->[2];
-        $name=$page->{_init_block};
-    }
-    if(!$named_blocks{$name}){
-        $named_blocks{$name}=[];
-    }
-    return $named_blocks{$name};
-}
-sub trigger_block_post {
-    my $cur_idx=$block_stack[-1]->{eindex};
-    my $name="block$cur_idx\_post";
-    if($named_blocks{$name}){
-        my $new_name=$name.'_';
-        push @$out, "DUMP_STUB $new_name";
-        $named_blocks{$new_name}=$named_blocks{$name};
-        undef $named_blocks{$name};
-    }
 }
 sub modepush {
     my ($mode)=@_;
@@ -2110,7 +2171,7 @@ sub compile {
     my $codelist=$MyDef::def->{codes};
     foreach my $codename (keys %$codelist){
         if($codename=~/_autoload$/){
-            parse_code($codelist->{$codename});
+            call_sub($codename);
         }
     }
     $in_autoload=0;

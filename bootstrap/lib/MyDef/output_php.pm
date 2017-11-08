@@ -160,7 +160,8 @@ sub parsecode {
         }
         return;
     }
-    if(0){
+    if($l=~/^DUMP_STUB\s/){
+        push @$out, $l;
     }
     elsif($l=~/^CSS:\s*(.*)/){
         return MyDef::output_www::parse_css($1);
