@@ -3,8 +3,13 @@ subcode: subcode_start
     $call get_parent, codes
     my $t_code
 
-    $if $line=~/^(\w+)code:([:-@]?)\s*(\w+)(.*)/
-        my ($type, $dblcolon, $name, $t)=($1, $2, $3, $4)
+    $if $line=~/^(\w+)code:([:-@]?)\s*(\w+)/
+        my ($type, $dblcolon, $name)=($1, $2, $3)
+        my $t = $';
+        $if $t=~/^(\.\w+)/
+            # fncode: class.method
+            $name .= $1
+            $t = $';
         #---- $dblcolon -----------
         #-        :: concat
         #-        :@ optional default
