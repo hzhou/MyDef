@@ -29,7 +29,7 @@ subcode: parsecode
     $(set:parse_condition=1)
     $if $l!~/;\s*$/
         $call parsecode_scope
-        $call parsecode_case_support, if, elsif, c_style
+        $call parsecode_case_support, if, elsif, perl_style
         $if $l=~/^\s*\$(\w+)\s*(.*)$/
             my $func=$1;
             my $param=$2;
@@ -112,14 +112,9 @@ subcode: parsecode_function
     $call @parsecode_func_other
 
 fncode: parse_condition($t)
-    $if $t=~/^\//
-        # regex default
-        $if $t=~/(.*\S\/\w*)\s*->\s*([^\/]+?)\s*$/
-            $t = "my ($2) = $1"
-    $elif $t=~/[!=]~/
-        # regex var form
-        $if $t=~/(.*\S\/\w*)\s*->\s*([^\/]+?)\s*$/
-            $t = "my ($2) = $1"
+    $if $t=~/^\/|[!=]~\s*\//
+        # regex 
+        $call check_regex_capture
     $elif $t=~/[^!=><]=[^="]/
         $if $t!~/["'].*=.*['"]/
             $call warn, assignment in condition [$t]? 
@@ -132,6 +127,18 @@ fncode: parse_condition($t)
                 #-- remember to use () when necessary
                 $t=$1."!$2 || $2 ne $4"
     return $t
+
+subcode: check_regex_capture
+    $if $t=~/(.*\S\/\w*)\s*->\s*([^\/]+?)\s*$/
+        $t = $1
+        my @tlist=MyDef::utils::proper_split($2)
+        my (@t1, @t2)
+        $foreach $v, $i in @tlist
+            $if $v ne "-"
+                push @t1, $v
+                push @t2, '$'.($i+1)
+        $global $regex_capture
+        $regex_capture = "my (".join(', ', @t1).") = (".join(', ', @t2).");"
 
 #---------------------------------------- 
 subcode: define_loop_var
@@ -149,6 +156,19 @@ subcode: add_loop_var
 subcode: for_i0_i1_step
     $call for_i0_i1_step_default, loop_var
     $param = "my $param"
+
+subcode: case_perl_style
+    push @src, "$case($cond){";
+    push @src, "INDENT";
+    $if $regex_capture
+        push @src, $regex_capture
+        undef $regex_capture
+    push @src, "BLOCK";
+    push @src, "DEDENT";
+    push @src, "}";
+
+subcode: else_perl_style
+    $call push_single_block, "else{", "}"
 
 subcode: parsecode_foreach
     $if $param=~/^(\S+),\s*(\S+)\s+in\s+(.*)/
