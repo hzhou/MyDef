@@ -228,8 +228,13 @@ sub import_file {
                 $codes = $parent->{codes};
             }
             my $t_code;
-            if($line=~/^(\w+)code:([:-@]?)\s*(\w+)(.*)/){
-                my ($type, $dblcolon, $name, $t)=($1, $2, $3, $4);
+            if($line=~/^(\w+)code:([:-@]?)\s*(\w+)/){
+                my ($type, $dblcolon, $name)=($1, $2, $3);
+                my $t = $';
+                if($t=~/^(\.\w+)/){
+                    $name .= $1;
+                    $t = $';
+                }
                 if($name eq "_autoload" or $name eq "main"){
                     $dblcolon=":";
                 }
