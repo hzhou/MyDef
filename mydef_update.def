@@ -18,6 +18,7 @@ page: mydef_update
     $foreach $a in @all
         $if -d $a and -d "$a/.git"
             chdir $a or die
+            $print .... [$dir] ....
             system "git pull && mydef_make && make && make install"
 
 
