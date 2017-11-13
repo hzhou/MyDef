@@ -2,23 +2,32 @@ page: mydef_update
     output_dir: script
     type:
 
-    my $dir
-    $if $ENV{MYDEFSRC}=~/(.*)\/MyDef/
-        $dir = $1
+    $call get_MYDEFSRC_or_die
+    system "cd MyDef && git pull && make && make install"
 
-    $if !$dir
-        die "Missing MYDEFSRC location\n"
-    $if !-d $dir
-        die "Not a directory [$dir]\n"
+    my @all = glob("output_*")
+    $foreach $a in @ARGV
+        $if $a=~/(output_\w+)/
+            push @all, $1
 
-    chdir "$dir/MyDef" or die "Cannot chdir $dir/MyDef"
-    system "git pull && make && make install"
-
-    my @all = glob("$dir/output_*")
     $foreach $a in @all
+        $if !-d $a
+            system "git clone https://github.com/hzhou/$a"
         $if -d $a and -d "$a/.git"
             chdir $a or die
             $print .... [$dir] ....
-            system "git pull && mydef_make && make && make install"
+            system "cd $a && git pull && mydef_make && make && make install"
+
+    # -------------------------
+    subcode: get_MYDEFSRC_or_die
+        my $dir
+        $if $ENV{MYDEFSRC}=~/(.*)\/MyDef/
+            $dir = $1
+        $if !$dir
+            die "Missing MYDEFSRC location\n"
+        $if !-d $dir
+            die "Not a directory [$dir]\n"
+        chdir $dir or die "Cannot chdir $dir\n"
+
 
 
