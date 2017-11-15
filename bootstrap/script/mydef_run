@@ -79,52 +79,32 @@ elsif($config{_file}){
 else{
     die "Usage: $0 input_defile.def\n";
 }
-my $ostype;
-my $uname = `uname`;
-if($uname=~/CYGWIN/){
-    $ostype = "cygwin";
+my $file=$page->{outname};
+if($file=~/(.*)\/(.+)/){
+    chdir $1;
+    $file=$2;
 }
-else{
-    $ostype = "linux";
+my ($name, $type);
+if($file=~/^(.*)\.(\w+)$/){
+    ($name, $type)=($1, $2);
 }
-my $name=$page->{outname};
-my ($exe, $cmd);
-if($name=~/(.*)\.c(pp)?$/){
-    $exe=$1;
-    my $cc = "gcc -std=c99";
+my $exe = "$name";
+if($config{module} eq "win32"){
+    $exe .= ".exe";
+}
+my $cmd;
+if($type=~/^c(pp)?$/){
+    my $cc = "gcc -std=c99 -O2";
+    if($name=~/\.cpp$/){
+        $cc = "g++ -O2";
+    }
     if($page->{CC}){
         $cc = $page->{CC};
     }
-    elsif($ENV{MYDEF_RUN_CC}){
-        $cc = $ENV{MYDEF_RUN_CC};
+    elsif($MyDef::var->{CC}){
+        $cc = $MyDef::var->{CC};
     }
-    elsif($ENV{CC}){
-        $cc = $ENV{CC};
-    }
-    elsif($ostype =~ /cygwin|linux/){
-        $cc = "gcc -std=gnu99";
-    }
-    my $cflags;
-    if($page->{CFLAGS}){
-        $cflags = $page->{CFLAGS};
-    }
-    elsif($cc !~/-O\d/){
-        $cflags = "-O2";
-    }
-    if($page->{make} eq "win32"){
-        $cc = "/usr/bin/x86_64-w64-mingw32-gcc";
-        $cmd = "$cc -o$exe.exe $name $cflags $page->{lib_list}";
-    }
-    elsif($config{module} eq "win32"){
-        $cc = "/usr/bin/x86_64-w64-mingw32-gcc";
-        $cmd = "$cc -o$exe.exe $name $cflags $page->{lib_list} -Wl,--subsystem,windows";
-    }
-    else{
-        if($name=~/\.cpp$/){
-            $cc = "g++";
-        }
-        $cmd="$cc $cflags -o$exe $name $page->{lib_list}";
-    }
+    $cmd="$cc -o$exe $file $page->{lib_list}";
     if($config{dump_rule}){
         if($exe=~/([^\/]+)$/){
             $exe = "script/$1";
@@ -133,132 +113,139 @@ if($name=~/(.*)\.c(pp)?$/){
             $name = "$1";
         }
         $cmd = '$'."{CC} -o\$@ \$< $page->{lib_list}";
-        print "\nCC=$cc $cflags\n\n";
+        print "\nCC=$cc\n\n";
         print "$exe: $name\n";
         print "\t$cmd\n";
         exit;
     }
     else{
+        if($exe!~/\//){
+            $exe = "./$exe";
+        }
+        my $run = "$exe";
         if($page->{run}){
-            $cmd .= " && $page->{run}";
+            $run = $page->{run};
         }
-        else{
-            if($exe!~/\//){
-                $exe = "./$exe";
-            }
-            $cmd .= " && $exe";
+        elsif($MyDef::var->{run}){
+            $run = $MyDef::var->{run};
         }
-    }
-}
-elsif($name=~/\.java$/){
-    if($name=~/(.*)\/(.*)\.java/){
-        chdir $1;
-        $cmd="javac $2.java";
-        if($page->{run}){
-            $cmd .= " && $page->{run}";
-        }
-        else{
-            $cmd .= " && java $2";
-        }
-    }
-    else{
-        $cmd="javac $name";
-        $name=~s/\.java$//;
-        if($page->{run}){
-            $cmd .= " && $page->{run}";
-        }
-        else{
-            $cmd .= " && java $name";
+        if($run ne "none"){
+            $cmd .= " && $run";
         }
     }
 }
-elsif($name=~/(.*)\.f$/){
-    $exe = $1;
-    $cmd="gfortran -g -o$exe $name $page->{lib_list}";
+elsif($type eq "java"){
+    $cmd="javac $file";
+    my $run = "java $name";
     if($page->{run}){
-        $cmd .= " && $page->{run}";
+        $run = $page->{run};
     }
-    else{
-        if($exe!~/\//){
-            $exe = "./$exe";
-        }
-        $cmd .= " && $exe";
+    elsif($MyDef::var->{run}){
+        $run = $MyDef::var->{run};
     }
-}
-elsif($name=~/(.*)\.rs$/){
-    $exe = $1;
-    $cmd="rustc $name";
-    if($page->{run}){
-        $cmd .= " && $page->{run}";
-    }
-    else{
-        if($exe!~/\//){
-            $exe = "./$exe";
-        }
-        $cmd .= " && $exe";
+    if($run ne "none"){
+        $cmd .= " && $run";
     }
 }
-elsif($name=~/(.*)\.hs$/){
-    $exe = $1;
-    $cmd="ghc -o$exe $name";
-    if($page->{run}){
-        $cmd .= " && $page->{run}";
+elsif($type eq "f"){
+    $cmd="gfortran -g -o$exe $file $page->{lib_list}";
+    if($exe!~/\//){
+        $exe = "./$exe";
     }
-    else{
-        if($exe!~/\//){
-            $exe = "./$exe";
-        }
-        $cmd .= " && $exe";
+    my $run = "$exe";
+    if($page->{run}){
+        $run = $page->{run};
+    }
+    elsif($MyDef::var->{run}){
+        $run = $MyDef::var->{run};
+    }
+    if($run ne "none"){
+        $cmd .= " && $run";
     }
 }
-elsif($name=~/(.*)\.asm$/){
-    $exe = $1;
-    $cmd="nasm -f elf $name && ld -m elf_i386 $exe.o -o$exe";
-    if($page->{run}){
-        $cmd .= " && $page->{run}";
+elsif($type eq "rs"){
+    $cmd="rustc $file";
+    if($exe!~/\//){
+        $exe = "./$exe";
     }
-    else{
-        if($exe!~/\//){
-            $exe = "./$exe";
-        }
-        $cmd .= " && $exe";
+    my $run = "$exe";
+    if($page->{run}){
+        $run = $page->{run};
+    }
+    elsif($MyDef::var->{run}){
+        $run = $MyDef::var->{run};
+    }
+    if($run ne "none"){
+        $cmd .= " && $run";
+    }
+}
+elsif($type eq "hs"){
+    $cmd="ghc -o$exe $file";
+    if($exe!~/\//){
+        $exe = "./$exe";
+    }
+    my $run = "$exe";
+    if($page->{run}){
+        $run = $page->{run};
+    }
+    elsif($MyDef::var->{run}){
+        $run = $MyDef::var->{run};
+    }
+    if($run ne "none"){
+        $cmd .= " && $run";
+    }
+}
+elsif($type eq "asm"){
+    $cmd="nasm -f elf $file && ld -m elf_i386 $name.o -o$exe";
+    if($exe!~/\//){
+        $exe = "./$exe";
+    }
+    my $run = "$exe";
+    if($page->{run}){
+        $run = $page->{run};
+    }
+    elsif($MyDef::var->{run}){
+        $run = $MyDef::var->{run};
+    }
+    if($run ne "none"){
+        $cmd .= " && $run";
     }
 }
 elsif($page->{run}){
     $cmd=$page->{run};
 }
-elsif($name=~/\.sh$/){
-    $cmd = "sh $name";
+elsif($type eq "sh"){
+    $cmd = "sh $file";
 }
-elsif($name=~/\.pl$/){
-    $cmd = "perl $name";
+elsif($type eq "pl"){
+    $cmd = "perl $file";
 }
-elsif($name=~/\.php$/){
-    $cmd = "php $name";
+elsif($type eq "php"){
+    $cmd = "php $file";
 }
-elsif($name=~/\.py$/){
-    $cmd = "python $name";
+elsif($type eq "py"){
+    $cmd = "python $file";
 }
-elsif($name=~/\.go$/){
-    $cmd = "go run $name";
+elsif($type eq "go"){
+    $cmd = "go run $file";
 }
-elsif($name=~/\.js$/){
-    $cmd = "node $name";
+elsif($type eq "js"){
+    $cmd = "node $file";
 }
-elsif($name=~/\.tcl$/){
-    $cmd = "tclsh $name";
+elsif($type eq "tcl"){
+    $cmd = "tclsh $file";
 }
-elsif($name=~/\.lisp$/){
-    $cmd = "clisp $name";
+elsif($type eq "lisp"){
+    $cmd = "clisp $file";
 }
-elsif($name=~/\.tex$/){
-    $cmd = "run_tex $name";
+elsif($type eq "tex"){
+    $cmd = "run_tex $file";
 }
-elsif($name=~/\.latex$/){
-    $cmd = "run_tex $name";
+elsif($type eq "latex"){
+    $cmd = "run_tex $file";
 }
-elsif($name=~/\.awk$/){
-    $cmd = "awk -f $name";
+elsif($type eq "awk"){
+    $cmd = "awk -f $file";
 }
 if($config{expect} and $name=~/\b$config{expect_type}$/){
     my $expect = $config{expect};
