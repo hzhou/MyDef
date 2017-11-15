@@ -127,14 +127,14 @@ page: mydef_run
             die "do not know how to run it\n"
 
         # --------------------
-        subcode: do_compile(ext, cc, run)
+        subcode: do_compile(ext, cmd, run)
             $case $type eq "$(ext)"
                 $(if:$(ext)_CMD)
-                    $(set:cc=$($(ext)_CMD))
+                    $(set:cmd=$($(ext)_CMD))
                 $(if:$(ext)_RUN)
                     $(set:run=$($(ext)_RUN))
 
-                $cmd="$(cc)"
+                $cmd="$(cmd)"
                 $call append_run, $(run)
 
         subcode: do_script(ext, cmd)
