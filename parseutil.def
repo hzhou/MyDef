@@ -61,6 +61,8 @@ fncode: import_file($f, $def, $file_type)
     # ---------------------
     $call @import_file_init
     my $plines=get_lines($f);
+    $if !$plines
+        return
     # Insert an END to flush all the indentations
     push @$plines, "END"
     my $cur_file=$f
@@ -288,6 +290,8 @@ fncode: get_lines($file)
         return \@lines
     $else
         my $filename=find_file($file)
-        $call get_file_lines, $filename
-        return \@lines;
+        $if $filename
+            $call get_file_lines, $filename
+            return \@lines;
+        return undef
 

@@ -1,3 +1,4 @@
+include: custom_run.def?
 ########################################
 #---- Run the mydef scripts directly 
 
@@ -11,7 +12,9 @@ page: mydef_run
     $call parse_arg
     $if $config{def_file}
         $call guess_module
+        # reads in config file
         MyDef::init(%config)
+        # reads in def file
         MyDef::import_data($config{def_file})
         $if !$pagename
             $pagename=$MyDef::def->{pagelist}->[0]
@@ -38,8 +41,10 @@ page: mydef_run
             $elif $a=~/-rule$/
                 $config{dump_rule}=1
             $elif $a=~/(.*)\.def/
+                # compile && run_page
                 $config{def_file}=$a
             $elif -f $a
+                # just run_page
                 $config{_file}=$a
 
     subcode: guess_module
@@ -73,64 +78,26 @@ page: mydef_run
             $ostype = "linux"
 
     subcode: run_page
-        $call guess_os
-        my $name=$page->{outname}
-        my ($exe, $cmd)
-        $if $name=~/(.*)\.c(pp)?$/
-            $exe=$1
-            # my $cc = "gcc"
-            my $cc = "gcc -std=c99"
-            $if $page->{CC}
-                $cc = $page->{CC}
-            $elif $ENV{MYDEF_RUN_CC}
-                $cc = $ENV{MYDEF_RUN_CC}
-            $elif $ENV{CC}
-                $cc = $ENV{CC}
-            $elif $ostype =~ /cygwin|linux/
-                $cc = "gcc -std=gnu99"
-            # ---------------------
-            my $cflags
-            $if $page->{CFLAGS}
-                $cflags = $page->{CFLAGS}
-            $elif $cc !~/-O\d/
-                $cflags = "-O2"
-            # ---------------------
-            $if $page->{make} eq "win32"
-                $cc = "/usr/bin/x86_64-w64-mingw32-gcc"
-                $cmd = "$cc -o$exe.exe $name $cflags $page->{lib_list}"
-            $elif $config{module} eq "win32"
-                $cc = "/usr/bin/x86_64-w64-mingw32-gcc"
-                $cmd = "$cc -o$exe.exe $name $cflags $page->{lib_list} -Wl,--subsystem,windows"
-            $else
-                $if $name=~/\.cpp$/
-                    $cc = "g++"
-                $cmd="$cc $cflags -o$exe $name $page->{lib_list}"
+        # $call guess_os
+        my $file=$page->{outname}
+        $if $file=~/(.*)\/(.+)/
+            chdir $1
+            $file=$2
+        my ($name, $type)
+        $if $file=~/^(.*)\.(\w+)$/
+            ($name, $type)=($1, $2)
 
-            $if $config{dump_rule}
-                $if $exe=~/([^\/]+)$/
-                    $exe = "script/$1"
-                $if $name=~/([^\/]+)$/
-                    $name = "$1"
-                $cmd = '$'."{CC} -o\$@ \$< $page->{lib_list}"
-                print "\nCC=$cc $cflags\n\n"
-                print "$exe: $name\n"
-                print "\t$cmd\n"
-                exit
-            $else
-                $call append_run, $exe
-        $elif $name=~/\.java$/
-            $if $name=~/(.*)\/(.*)\.java/
-                chdir $1
-                $cmd="javac $2.java"
-                $call append_run, java $2
-            $else
-                $cmd="javac $name"
-                $name=~s/\.java$//
-                $call append_run, java $name
-        $call do_compile, f, gfortran -g -o$exe $name $page->{lib_list}
-        $call do_compile, rs, rustc $name
-        $call do_compile, hs, ghc -o$exe $name
-        $call do_compile, asm, nasm -f elf $name && ld -m elf_i386 $exe.o -o$exe
+        my $exe = "$name"
+        $if $config{module} eq "win32"
+            $exe .= ".exe"
+        my $cmd
+        $if $type=~/^c(pp)?$/
+            $call run_c
+        $call do_compile, java, javac $file, java $name
+        $call do_compile, f, gfortran -g -o$exe $file $page->{lib_list}, $exe
+        $call do_compile, rs, rustc $file, $exe
+        $call do_compile, hs, ghc -o$exe $file, $exe
+        $call do_compile, asm, nasm -f elf $file && ld -m elf_i386 $name.o -o$exe, $exe
         # $call do_compile, prolog, gplc $name    ? no idea how to make it work
         $elif $page->{run}
             $cmd=$page->{run}
@@ -146,7 +113,7 @@ page: mydef_run
         $call do_script, tex, run_tex
         $call do_script, latex, run_tex
         $call do_script, awk, awk -f
-
+        # --------------------------------
         $if $config{expect} and $name=~/\b$config{expect_type}$/
             $call cmp_expect, $name
         $elif $cmd
@@ -160,28 +127,38 @@ page: mydef_run
             die "do not know how to run it\n"
 
         # --------------------
-        subcode: do_compile(ext, cc)
-            $case $name=~/(.*)\.$(ext)$/
-                $exe = $1
+        subcode: do_compile(ext, cc, run)
+            $case $type eq "$(ext)"
+                $(if:$(ext)_CMD)
+                    $(set:cc=$($(ext)_CMD))
+                $(if:$(ext)_RUN)
+                    $(set:run=$($(ext)_RUN))
+
                 $cmd="$(cc)"
-                $call append_run, $exe
+                $call append_run, $(run)
 
         subcode: do_script(ext, cmd)
-            $case $name=~/\.$(ext)$/
-                $cmd = "$(cmd) $name"
+            $case $type eq "$(ext)"
+                $cmd = "$(cmd) $file"
 
         subcode: append_run(exe)
-            $if $page->{run}
-                $cmd .= " && $page->{run}"
-            $else
-                $(if:exe=$exe)
-                    $if $exe!~/\//
-                        $exe = "./$(exe)"
-                $cmd .= " && $(exe)"
+            $(if:exe=$exe)
+                $if $exe!~/\//
+                    $exe = "./$(exe)"
+            my $run = "$(exe)"
+            $call set_config, $run, run
+            $if $run ne "none"
+                $cmd .= " && $run"
 
         subcode: append_arg
             $if $page->{arg}
                 $cmd .= " $page->{arg}"
+
+        subcode: set_config(var, key)
+            $if $page->{$(key)}
+                $(var) = $page->{$(key)}
+            $elif $MyDef::var->{$(key)}
+                $(var) = $MyDef::var->{$(key)}
 
         # --------------------------
         subcode: run_cmd_expect
@@ -195,6 +172,36 @@ page: mydef_run
                 $cmd = $2
 
             $call cmp_expect, cmd
+
+        # ------------------------
+        subcode: run_c
+            $(if:CC)
+                my $cc="$(CC)"
+            $(else)
+                my $cc = "gcc -std=c99 -O2"
+                # my $cc = "gcc"
+                # my $cc = "gcc -std=gnu99"
+                # my $cc = "x86_64-w64-mingw32-gcc"
+                # my $cc = "x86_64-w64-mingw32-gcc -O2 -Wl,--subsystem,windows"
+            $if $name=~/\.cpp$/
+                $cc = "g++ -O2"
+
+            $call set_config, $cc, CC
+            # ---------------------
+            $cmd="$cc -o$exe $file $page->{lib_list}"
+
+            $if $config{dump_rule}
+                $if $exe=~/([^\/]+)$/
+                    $exe = "script/$1"
+                $if $name=~/([^\/]+)$/
+                    $name = "$1"
+                $cmd = '$'."{CC} -o\$@ \$< $page->{lib_list}"
+                print "\nCC=$cc\n\n"
+                print "$exe: $name\n"
+                print "\t$cmd\n"
+                exit
+            $else
+                $call append_run, $exe
 
 #---------------------------------------- 
 subcode: grab_expect_block
