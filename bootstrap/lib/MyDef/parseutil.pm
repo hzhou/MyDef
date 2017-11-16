@@ -92,6 +92,9 @@ sub import_file {
     my $source;
     my $code_prepend;
     my $plines=get_lines($f);
+    if(!$plines){
+        return;
+    }
     push @$plines, "END";
     my $cur_file=$f;
     my $cur_line=0;
@@ -518,13 +521,16 @@ sub get_lines {
     }
     else{
         my $filename=find_file($file);
-        my @lines;
-        {
-            open In, "$filename" or die "Can't open $filename.\n";
-            @lines=<In>;
-            close In;
+        if($filename){
+            my @lines;
+            {
+                open In, "$filename" or die "Can't open $filename.\n";
+                @lines=<In>;
+                close In;
+            }
+            return \@lines;
         }
-        return \@lines;
+        return undef;
     }
 }
 
@@ -781,6 +787,11 @@ sub add_path {
 
 sub find_file {
     my ($file) = @_;
+    my $nowarn;
+    if($file=~/^(\S+)\?/){
+        $file=$1;
+        $nowarn = 1;
+    }
     if(-f $file){
         return $file;
     }
@@ -791,7 +802,7 @@ sub find_file {
             }
         }
     }
-    if(1){
+    if(!$nowarn){
         warn "$file not found\n";
         warn "  search path: ".join(":", @path)."\n";
     }

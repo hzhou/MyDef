@@ -14,8 +14,8 @@ page: mydef_update
         $if !-d $a
             system "git clone https://github.com/hzhou/$a"
         $if -d $a and -d "$a/.git"
-            $print [$a] ....
-            system "cd $a && git pull && mydef_make && make && make install"
+            $print $green{$a} ....
+            system "cd $a && git pull origin master && mydef_make && make && make install"
 
     # -------------------------
     subcode: get_MYDEFSRC_or_die

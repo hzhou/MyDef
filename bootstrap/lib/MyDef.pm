@@ -9,6 +9,11 @@ our $def;
 our $page;
 our $var={};
 
+sub debug {
+    my @info = caller;
+    print "MyDef::debug @info\n";
+}
+
 sub init {
     my (%config) = @_;
     while(my ($k, $v) = each %config){

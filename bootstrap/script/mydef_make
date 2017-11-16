@@ -18,6 +18,11 @@ our %path;
 
 sub find_file {
     my ($file) = @_;
+    my $nowarn;
+    if($file=~/^(\S+)\?/){
+        $file=$1;
+        $nowarn = 1;
+    }
     if(-f $file){
         return $file;
     }
@@ -28,7 +33,7 @@ sub find_file {
             }
         }
     }
-    if(1){
+    if(!$nowarn){
         warn "$file not found\n";
         warn "  search path: ".join(":", @path)."\n";
     }
