@@ -49,9 +49,13 @@ page: mydef_run
 
     subcode: guess_module
         guess_module:
+        my $under_page
         &call open_r, $config{def_file}
-            $if /module:\s*(\w+)/ and !$config{module}
-                $config{module}=$1
+            $if /^page:\s*(\w+)/
+                $under_page = $1
+            $if /module:\s*(\w+)/
+                $if !$config{module} or $pagename eq $under_page
+                    $config{module}=$1
                 # last
             $elif /^run:\s*(\S+\.def)/
                 $config{def_file}=$1

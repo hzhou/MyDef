@@ -23,7 +23,9 @@ fncode: add_xy_data($name, $x, $y, $r)
 
 #----------------------------------------------- 
 subcode: get_plot(title)
-    my (@plot_x, @plot_list, $data_idx, $ls_idx, @extra_settings)
+    $(if:title~")
+        $(set:title=$(title:strip))
+    my ($plot_x, @plot_list, $data_idx, $ls_idx, @extra_settings)
     my $tempdata=tempname()
     BLOCK
 
@@ -42,16 +44,26 @@ subcode: get_plot(title)
     $for $j=1:$data_idx+1
         unlink "$tempdata-$j.dat";
 
-    # ---------------------------------------------- 
+    # -------------------------------------- 
+    subcode: set(name, value)
+        push @extra_settings, "set $(name) $(value)"
     subcode: set_yrange(y0, yn)
         push @extra_settings, "set yrange [$(y0):$(yn)]"
-    # ---------------------------------------------- 
+    # -------------------------------------- 
+    subcode: set_x(x)
+        $(if:x~@)
+            $plot_x = \$(x)
+        $(else)
+            $plot_x = $(x)
     subcode: set_x_n(n)
-        @plot_x=1..$(n)
-    subcode: set_x(n, x0, xn)
+        $plot_x=[]
+        $for $i=0:$(n)
+            push @$plot_x, $i
+    subcode: set_x_range(n, x0, xn)
+        $plot_x=[]
         my $dx = ($(xn)-$(x0))/$(n)
         $for $i=0:$(n)
-            $plot_x[$i] = $(x0) + $i*$dx
+            push @$plot_x, $(x0) + $i*$dx
 
     subcode: append_attr(label, lw)
         $(if:linestyle)
@@ -77,15 +89,15 @@ subcode: get_plot(title)
         $data_idx++ 
         my $name = "$tempdata-$data_idx.dat"
         $(if:data~@)
-            $if !@plot_x
+            $if !$plot_x
                 my $n = $(data)
                 $call set_x_n, $n
-            add_xy_data($name, \@plot_x, \$(data))
+            add_xy_data($name, $plot_x, \$(data))
         $(else)
-            $if !@plot_x
+            $if !$plot_x
                 my $n = @{$(data)}
                 $call set_x_n, $n
-            add_xy_data($name, \@plot_x, $(data))
+            add_xy_data($name, $plot_x, $(data))
         my $t = "'$name' u 1:2 with lines"
         $call append_attr, $(label), 2
 
