@@ -1,0 +1,112 @@
+
+fncode: tempname
+    $global $temp_seq=0
+    $temp_seq++
+    my $timestamp=time()
+    $: my $t = "$timestamp.$$.$temp_seq";
+    $if -d "/dev/shm"
+        return "/dev/shm/$t"
+    $elif -d "/tmp"
+        return "/tmp/$t"
+    $else
+        return $t
+
+fncode: add_xy_data($name, $x, $y, $r)
+    my $n = @$x
+    &call open_w, $name
+        $if !$r
+            $for $i=0:$n
+                print Out "$x->[$i], $y->[$i]\n"
+        $else
+            $for $i=0:$n
+                print Out "$x->[$i], $y->[$i], $r->[$i]\n"
+
+#----------------------------------------------- 
+subcode: get_plot(title)
+    my (@plot_x, @plot_list, $data_idx, $ls_idx, @extra_settings)
+    my $tempdata=tempname()
+    BLOCK
+
+    $print "    --> [t.eps]"
+    open Out, "|gnuplot" or die "Can't execute gnuplot\n";;
+    $(set:print_to=Out)
+    $print "set terminal postscript enhanced color"
+    $print "set output 't.eps'"
+    $print "set title '$(title)'"
+    $foreach $set in @extra_settings
+        print Out "$set\n"
+    $print "plot \\\n"
+    print Out join(",\\\n", @plot_list), "\n"
+    close Out
+
+    $for $j=1:$data_idx+1
+        unlink "$tempdata-$j.dat";
+
+    # ---------------------------------------------- 
+    subcode: set_yrange(y0, yn)
+        push @extra_settings, "set yrange [$(y0):$(yn)]"
+    # ---------------------------------------------- 
+    subcode: set_x_n(n)
+        @plot_x=1..$(n)
+    subcode: set_x(n, x0, xn)
+        my $dx = ($(xn)-$(x0))/$(n)
+        $for $i=0:$(n)
+            $plot_x[$i] = $(x0) + $i*$dx
+
+    subcode: append_attr(label, lw)
+        $(if:linestyle)
+            $ls_idx++
+            $t.=" ls $ls_idx"
+
+        $(if:attr)
+            $t.=" $(attr)"
+        $(elif:lw!=-)
+            $t.=" lw $(lw)"
+
+        $(if:label!=-)
+            $t.=" title '$(label)'"
+
+        push @plot_list, "    $t"
+
+    # ----------------------------
+    subcode: add_function(f, label)
+        my $t = "$(f) with lines"
+        $call append_attr, $(label), 1
+
+    subcode: add_data(data, label)
+        $data_idx++ 
+        my $name = "$tempdata-$data_idx.dat"
+        $(if:data~@)
+            $if !@plot_x
+                my $n = $(data)
+                $call set_x_n, $n
+            add_xy_data($name, \@plot_x, \$(data))
+        $(else)
+            $if !@plot_x
+                my $n = @{$(data)}
+                $call set_x_n, $n
+            add_xy_data($name, \@plot_x, $(data))
+        my $t = "'$name' u 1:2 with lines"
+        $call append_attr, $(label), 2
+
+    subcode: add_xy(x, y, label)
+        $data_idx++ 
+        my $name = "$tempdata-$data_idx.dat"
+        add_xy_data($name, $(x), $(y))
+        my $t = "'$name' u 1:2 with lines"
+        $call append_attr, $(label), 2
+        
+    subcode: add_points(x, y, label)
+        $data_idx++ 
+        my $name = "$tempdata-$data_idx.dat"
+        add_xy_data($name, $(x), $(y))
+        my $t = "'$name' u 1:2 with points"
+        $call append_attr, $(label), -
+        
+    subcode: add_xyr(x,y,r, label)
+        $data_idx++ 
+        my $name = "$tempdata-$data_idx.dat"
+        add_xy_data($name, $(x), $(y), $(r))
+        my $t = "'$name' u 1:2:3 with errorbars"
+        $call append_attr, $(label), 1
+
