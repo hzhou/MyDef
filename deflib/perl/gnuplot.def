@@ -1,54 +1,108 @@
-
-fncode: tempname
-    $global $temp_seq=0
-    $temp_seq++
-    my $timestamp=time()
-    $: my $t = "$timestamp.$$.$temp_seq";
-    $if -d "/dev/shm"
-        return "/dev/shm/$t"
-    $elif -d "/tmp"
-        return "/tmp/$t"
-    $else
-        return $t
-
-fncode: add_xy_data($name, $x, $y, $r)
-    my $n = @$x
-    &call open_w, $name
-        $if !$r
-            $for $i=0:$n
-                print Out "$x->[$i], $y->[$i]\n"
-        $else
-            $for $i=0:$n
-                print Out "$x->[$i], $y->[$i], $r->[$i]\n"
-
-#----------------------------------------------- 
-subcode: get_plot(title)
-    $(if:title~")
-        $(set:title=$(title:strip))
-    my ($plot_x, @plot_list, $data_idx, $ls_idx, @extra_settings)
-    my $tempdata=tempname()
+subcode: gnuplot(output)
+    my (@extra_settings, @plot_list, @splot_list)
     BLOCK
 
-    $print "    --> [t.eps]"
+    $print "    --> [$(output)]"
     open Out, "|gnuplot" or die "Can't execute gnuplot\n";;
     $(set:print_to=Out)
-    $print "set terminal postscript enhanced color"
-    $print "set output 't.eps'"
-    $print "set title '$(title)'"
+    $(if:terminal)
+        $print "set terminal $(terminal)"
+    $(elif:output~.*\.eps)
+        $print "set terminal postscript enhanced color"
+    $(else)
+        $print "set terminal png truecolor enhanced"
+    $print "set output '$(output)'"
+
     $foreach $set in @extra_settings
-        print Out "$set\n"
-    $print "plot \\\n"
-    print Out join(",\\\n", @plot_list), "\n"
+        $print $set
+    $if @plot_list
+        $print "plot -"
+        print Out join(",\\\n    ", @plot_list), "\n"
+    $if @splot_list
+        $print "splot -"
+        print Out join(",\\\n    ", @splot_list), "\n"
     close Out
 
+    # -------------------------------------- 
+    subcode: set(name, @value)
+        push @extra_settings, "set $(name) $(value)"
+        # $call set, yrange, [y0:yn]
+
+    subcode: plot(@p)
+        push @plot_list, "$(p)"
+
+    subcode: splot(@p)
+        push @plot_list, "$(p)"
+
+    # --------------------------------------- 
+    subcode: set_3d
+        push @extra_settings, "set view 60,210,1.5,1"
+        push @extra_settings, "set pm3d depthorder hidden3d 1"
+        push @extra_settings, "set hidden3d"
+
+    subcode: set_3d_none
+        push @extra_settings, "unset colorbox"
+        push @extra_settings, "unset key"
+        push @extra_settings, "unset border"
+        push @extra_settings, "unset tics"
+        push @extra_settings, "set ticslevel 0"
+
+    # --------------------------------------- 
+    subcode: border_xy
+        push @extra_settings, "set border 3 front lc rgb '#808080' lt 1 lw 1"
+        push @extra_settings, "set tics nomirror out scale 0.75"
+        push @extra_settings, "set format '%g'"
+
+    subcode: border_none
+        push @extra_settings, "set border 0"
+        push @extra_settings, "unset xlabel"
+        push @extra_settings, "unset ylabel"
+        push @extra_settings, "set format x ''"
+        push @extra_settings, "set format y ''"
+        push @extra_settings, "set tics scale 0"
+
+    subcode: grid
+        push @extra_settings, "set grid back lc rgb '#d6d7d9' lt 0 lw 1"
+
+    subcode: filledcurves
+        push @extra_settings, "set style fill transparent solid 0.5 noborder"
+        push @extra_settings, "set style function filledcurves y1=0"
+        push @extra_settings, "set clip two"
+
+    # ---------------------------------
+    subcode: set_line_colors(@colors)
+        $(export:linestyle=1)
+        $(for:c in $(colors))
+            $(eval:i=$(_i)+1)
+            push @extra_settings, "set style line $(i) lt 1 lc rgb '#$(c)'"
+
+    subcode: set_palette(@colors)
+        my @t
+        $(for:c in $(colors))
+            push @t, "$(_i) '#$(c)'"
+        # push @extra_settings, "set palette maxcolors $(colors:list:n)"
+        push @extra_settings, "set palette defined (".join(', ', @t).")"
+
+    #----------------------------------------------- 
+    subcode: x_in_pi
+        # push @extra_settings, "set encoding utf8"
+        # push @extra_settings, "set format x '%.1Pπ'"
+        push @extra_settings, "set xtics pi"
+        push @extra_settings, "set format x '%.0P{/Symbol p}'"
+
+
+subcode: get_plot(title)
+    my ($plot_x, $data_idx, $ls_idx)
+    &call gnuplot, t.eps
+        $(if:title!=-)
+            $(if:title~")
+                $(set:title=$(title:strip))
+            $call set, title, '$(title)'
+        my $tempdata=tempname()
+        BLOCK
     $for $j=1:$data_idx+1
         unlink "$tempdata-$j.dat";
 
-    # -------------------------------------- 
-    subcode: set(name, value)
-        push @extra_settings, "set $(name) $(value)"
-    subcode: set_yrange(y0, yn)
-        push @extra_settings, "set yrange [$(y0):$(yn)]"
     # -------------------------------------- 
     subcode: set_x(x)
         $(if:x~@)
@@ -76,6 +130,8 @@ subcode: get_plot(title)
             $t.=" lw $(lw)"
 
         $(if:label!=-)
+            $(if:label~")
+                $(set:label=$(label:strip))
             $t.=" title '$(label)'"
 
         push @plot_list, "    $t"
@@ -85,6 +141,7 @@ subcode: get_plot(title)
         my $t = "$(f) with lines"
         $call append_attr, $(label), 1
 
+    # -----
     subcode: add_data(data, label)
         $data_idx++ 
         my $name = "$tempdata-$data_idx.dat"
@@ -121,4 +178,35 @@ subcode: get_plot(title)
         add_xy_data($name, $(x), $(y), $(r))
         my $t = "'$name' u 1:2:3 with errorbars"
         $call append_attr, $(label), 1
+
+#----------------------------------------------- 
+fncode: tempname
+    $global $temp_seq=0
+    $temp_seq++
+    my $timestamp=time()
+    $: my $t = "$timestamp.$$.$temp_seq";
+    $if -d "/dev/shm"
+        return "/dev/shm/$t"
+    $elif -d "/tmp"
+        return "/tmp/$t"
+    $else
+        return $t
+
+fncode: add_xy_data($name, $x, $y, $r)
+    my $n = @$x
+    &call open_w, $name
+        $if !$r
+            $for $i=0:$n
+                print Out "$x->[$i], $y->[$i]\n"
+        $else
+            $for $i=0:$n
+                print Out "$x->[$i], $y->[$i], $r->[$i]\n"
+
+#----------------------------------------------- 
+macros:
+    COLOR_line: 0072bd,d95319,edb120,7e2f8e,77ac30,4dbeee,a2142f
+    #           blue orange yellow purple green light-blue red
+    COLOR_jet:  000090,000fff,0090ff,0fffee,90ff70,ffee00,ff7000,ee0000,7f0000
+    #           blue ... red
+    COLOR_dark2: 1B9E77,D95F02,7570B3,E7298A,66A61E,E6AB02,A6761D,666666
 
