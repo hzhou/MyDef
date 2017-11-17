@@ -1,4 +1,5 @@
-subcode: gnuplot(output)
+include: ext.def
+subcode: gnuplot(output, @size)
     my (@extra_settings, @plot_list, @splot_list)
     BLOCK
 
@@ -7,10 +8,18 @@ subcode: gnuplot(output)
     $(set:print_to=Out)
     $(if:terminal)
         $print "set terminal $(terminal)"
+    $(elif:output~.*\.pdf)
+        $(if:!size)
+            $(set:size=size 4,3)
+            $(for:l,r,b,t and 0.1, 0.9, 0.15, 0.85)
+                push @extra_settings, "set $1margin at screen $2;"
+        $print "set terminal pdfcairo $(size) enhanced color"
     $(elif:output~.*\.eps)
-        $print "set terminal postscript enhanced color"
+        $print "set terminal postscript $(size) enhanced color"
+    $(elif:output~.*\.png)
+        $print "set terminal pngcairo $(size) enhanced truecolor"
     $(else)
-        $print "set terminal png truecolor enhanced"
+        $print "set terminal png $(size) enhanced truecolor"
     $print "set output '$(output)'"
 
     $foreach $set in @extra_settings
@@ -24,6 +33,15 @@ subcode: gnuplot(output)
     close Out
 
     # -------------------------------------- 
+    perlcode: extra_settings
+        $call grab_codelist
+        $if $codelist
+            $foreach $t in @$codelist
+                $if $t eq "NOOP"
+                    next
+                MyDef::compileutil::expand_macro(\$t)
+                push @$out, "push \@extra_settings, \"$t\";"
+    # -------------------------------------- 
     subcode: set(name, @value)
         push @extra_settings, "set $(name) $(value)"
         # $call set, yrange, [y0:yn]
@@ -32,42 +50,48 @@ subcode: gnuplot(output)
         push @plot_list, "$(p)"
 
     subcode: splot(@p)
-        push @plot_list, "$(p)"
+        push @splot_list, "$(p)"
 
-    # --------------------------------------- 
+    # ---- gnuplot macros --------------------------- 
     subcode: set_3d
-        push @extra_settings, "set view 60,210,1.5,1"
-        push @extra_settings, "set pm3d depthorder hidden3d 1"
-        push @extra_settings, "set hidden3d"
+        &call extra_settings
+            set view 60,210,1.5,1
+            set pm3d depthorder hidden3d 1
+            set hidden3d
 
     subcode: set_3d_none
-        push @extra_settings, "unset colorbox"
-        push @extra_settings, "unset key"
-        push @extra_settings, "unset border"
-        push @extra_settings, "unset tics"
-        push @extra_settings, "set ticslevel 0"
+        &call extra_settings
+            unset colorbox
+            unset key
+            unset border
+            unset tics
+            set ticslevel 0
 
     # --------------------------------------- 
     subcode: border_xy
-        push @extra_settings, "set border 3 front lc rgb '#808080' lt 1 lw 1"
-        push @extra_settings, "set tics nomirror out scale 0.75"
-        push @extra_settings, "set format '%g'"
+        &call extra_settings
+            set border 3 front lc rgb '#808080' lt 1 lw 1
+            set tics nomirror out scale 0.75
+            set format '%g'
 
     subcode: border_none
-        push @extra_settings, "set border 0"
-        push @extra_settings, "unset xlabel"
-        push @extra_settings, "unset ylabel"
-        push @extra_settings, "set format x ''"
-        push @extra_settings, "set format y ''"
-        push @extra_settings, "set tics scale 0"
+        &call extra_settings
+            set border 0
+            unset xlabel
+            unset ylabel
+            set format x ''
+            set format y ''
+            set tics scale 0
 
     subcode: grid
-        push @extra_settings, "set grid back lc rgb '#d6d7d9' lt 0 lw 1"
+        &call extra_settings
+            set grid back lc rgb '#d6d7d9' lt 0 lw 1
 
     subcode: filledcurves
-        push @extra_settings, "set style fill transparent solid 0.5 noborder"
-        push @extra_settings, "set style function filledcurves y1=0"
-        push @extra_settings, "set clip two"
+        &call extra_settings
+            set style fill transparent solid 0.5 noborder
+            set style function filledcurves y1=0
+            set clip two
 
     # ---------------------------------
     subcode: set_line_colors(@colors)
@@ -85,15 +109,16 @@ subcode: gnuplot(output)
 
     #----------------------------------------------- 
     subcode: x_in_pi
-        # push @extra_settings, "set encoding utf8"
-        # push @extra_settings, "set format x '%.1Pπ'"
-        push @extra_settings, "set xtics pi"
-        push @extra_settings, "set format x '%.0P{/Symbol p}'"
+        &call extra_settings
+            # set encoding utf8
+            # set format x '%.1Pπ'
+            set xtics pi
+            set format x '%.0P{/Symbol p}'
 
-
+#---- add_data ------------------------------------------- 
 subcode: get_plot(title)
     my ($plot_x, $data_idx, $ls_idx)
-    &call gnuplot, t.eps
+    &call gnuplot, t.pdf
         $(if:title!=-)
             $(if:title~")
                 $(set:title=$(title:strip))
