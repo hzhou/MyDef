@@ -42,7 +42,7 @@ subcode: parsecode_sum_frame
 subcode: sumcode_init_style(style)
     $(if:style=c)
         my $type="double"
-        $(export:mytype=\$my $type)
+        $(export:mytype=\$my)
         $(export:my=\$my int)
         $(mexport:sum=sum,i=i,k=k)
     $(elif:style=perl)

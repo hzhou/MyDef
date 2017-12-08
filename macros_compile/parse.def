@@ -105,8 +105,16 @@ subcode: compile_line
             #-- parse_line could return a new $l
             #-- otherwise, last in the end breaks the loop
             $if $l=~/^(&call\d?|\$call|\$map\d?|\$nest)\s+(.*)$/i
-                my ($func, $param)=(lc($1), $2);
+                my ($func, $param)=(lc($1), $2)
                 $call parse_call_sub
+            $elif $l=~/^(\S+)\s*=\s*\$call\s+(.*)/
+                my ($var, $param)=($1, $2)
+                call_sub($param)
+                $if $out->[-1]=~/^YIELD\s+(.+)/
+                    $out->[-1]="$var = $1"
+                $else
+                    $print "[$cur_file:$cur_line] $yellow{MISSING YIELD!}"
+
             $elif $l=~/^\$-:\s*(.*)/
                 push @$out, "MAKE_STRING:$1"
                 my $subblock=grabblock($block, \$lindex)
