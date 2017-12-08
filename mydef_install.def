@@ -31,13 +31,16 @@ subcode: parse_args
         $foreach $a in @ARGV
             $if -f $a
                 push @$src_list, $a
+            $elif -d $a
+                my $tlist = load_srcs_dir($a,"-")
+                push @$src_list, @$tlist
     $else
         my $src = $ARGV[0]
         ($dst, $ext)=($ARGV[1], $ARGV[2])
         $if !$ext
             $ext = "def"
         $if -d $src
-            $src_list = load_srcs_dir($src)
+            $src_list = load_srcs_dir($src, $ext)
 
 #---------------------------------------- 
 fncode: load_srcs_dir($dir, $ext)
