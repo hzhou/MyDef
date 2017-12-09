@@ -65,39 +65,9 @@ subcode: compile_line
         my $tail=$';
         $call parse_preproc
     $elif $l=~/^\$([:\.]+) (.*)/ # note: one space is mandatory
-        my ($opt, $t)=($1,$2)
-        $if $opt eq ":"
-            # Literal by-pass
-            push @$out, $t
-        $elif $opt eq "::"
-            # Literal by-pass + macro expansion
-            expand_macro(\$t)
-            push @$out, $t
-        $elif $opt eq "."
-            # Literal sub-line
-            $out->[-1] .= " $t"
-        $elif $opt eq ":."
-            # Literal sub-line + macro expansion
-            expand_macro(\$t)
-            $out->[-1] .= " $t"
+        $call by_pass
     $elif $l=~/^BLOCK(\d*)\s*$/
-        my $callback_idx=$1
-        $if $#callback_block_stack <0
-            $call parse_stack_dump
-            $print "[$cur_file:$cur_line] $yellow{BLOCK called out of context!}"
-        $else
-            my $block=pop @callback_block_stack
-            my $src_block
-            $if $block->{name} eq "MULTIBLOCK"
-                $if !$callback_idx
-                    $callback_idx=1
-                $src_block = $block->{blocks}->[$callback_idx-1]
-            $else
-                $src_block = $block
-            $call @debug_callback_block
-            parseblock($src_block)
-            $block->{parsed_counter}++
-            push @callback_block_stack, $block
+        $call call_back
     $else
         NormalParse:
         expand_macro(\$l);
@@ -130,6 +100,44 @@ subcode: compile_line
             $else
                 $call parse_line
             last
+    # ---------------
+    subcode: by_pass
+        my ($opt, $t)=($1,$2)
+        $if $opt eq "::" or $opt eq ":."
+            expand_macro(\$t)
+            $opt = substr($opt, 1, 1)
+
+        $if $opt eq ":"
+            # Literal by_pass
+            my $sub = get_macro_word("by_pass", 1)
+            $if $sub
+                # typically, $sub is a perlcode
+                $l = "\$call $sub $t"
+                goto NormalParse;
+
+            push @$out, $t
+        $elif $opt eq "."
+            # Literal sub-line
+            $out->[-1] .= " $t"
+    # ----------------
+    subcode: call_back
+        my $callback_idx=$1
+        $if $#callback_block_stack <0
+            $call parse_stack_dump
+            $print "[$cur_file:$cur_line] $yellow{BLOCK called out of context!}"
+        $else
+            my $block=pop @callback_block_stack
+            my $src_block
+            $if $block->{name} eq "MULTIBLOCK"
+                $if !$callback_idx
+                    $callback_idx=1
+                $src_block = $block->{blocks}->[$callback_idx-1]
+            $else
+                $src_block = $block
+            $call @debug_callback_block
+            parseblock($src_block)
+            $block->{parsed_counter}++
+            push @callback_block_stack, $block
     # ---------------------------
     subcode: debug_callback_block
         my $depth=$#callback_block_stack+1
