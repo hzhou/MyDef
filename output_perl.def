@@ -111,6 +111,11 @@ subcode: parsecode_function
         return "SKIPBLOCK"
     $call @parsecode_func_other
 
+# -------
+macros:
+    sumcode_idx: \$_$1
+
+# -------
 fncode: parse_condition($t)
     $if $t=~/^\/|[!=]~\s*\//
         # regex 
