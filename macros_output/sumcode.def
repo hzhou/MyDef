@@ -135,7 +135,6 @@ subcode: parsecode_sum_frame
 #- '$' is not an operator, so if it appears, let's assume it is 
 #-     part of variable name
 #---------------------------------------- 
-#----------------------------------------------- 
 #- ToDo: Factor a[i,j]=b[i,k]*c[k,l]*d[l,j]
 #-       maybe: a[i,j]=b[i,k]*{c[k,l]*d[l,j]}
 #----------------------------------------------- 

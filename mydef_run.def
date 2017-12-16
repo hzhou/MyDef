@@ -84,9 +84,12 @@ page: mydef_run
     subcode: run_page
         # $call guess_os
         my $file=$page->{outname}
+
+        my $file_dir
         $if $file=~/(.*)\/(.+)/
-            chdir $1
-            $file=$2
+            $file_dir=$1
+            # chdir $1
+            # $file=$2
         my ($name, $type)
         $if $file=~/^(.*)\.(\w+)$/
             ($name, $type)=($1, $2)
@@ -97,7 +100,7 @@ page: mydef_run
         my $cmd
         $if $type=~/^c(pp)?$/
             $call run_c
-        $call do_compile, java, javac $file, java $name
+        $call do_compile, java, javac $file, CD java $name
         $call do_compile, f, gfortran -g -o$exe $file $page->{lib_list}, $exe
         $call do_compile, rs, rustc $file, $exe
         $call do_compile, hs, ghc -o$exe $file, $exe
@@ -152,6 +155,10 @@ page: mydef_run
             my $run = "$(exe)"
             $call set_config, $run, run
             $if $run ne "none"
+                $if $file_dir and $run=~/CD\s+(.*)/
+                    my $t = $1
+                    $t=~s/$file_dir\///g
+                    $run = "chdir $file_dir && $t"
                 $cmd .= " && $run"
 
         subcode: append_arg
