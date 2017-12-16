@@ -82,6 +82,7 @@ subcode: parsecode_sum_frame
     return
 
     subcode: set_idx(dim)
+        # $print set_idx $idx dim $(dim)
         $h->{"$idx-dim"}=$(dim)
         # sumcode_idx defined in, e.g. output_perl
         $h->{"$idx-var"}="$(sumcode_idx:$idx)"
@@ -99,17 +100,18 @@ subcode: parsecode_sum_frame
                 $if $var_hash{$s}
                     $s=$var_hash{$s}
                 $else
-                    my $t
-                    $call translate_idx
+                    my ($v, $idx_str)=($1, $2)
+                    my @idxlist=split /,/, $idx_str
                     $(if:mode=full)
                         $call get_var_hash_dim
+                    my $t
+                    $call translate_idx
                     $var_hash{$s}=$t
                     $s=$t
         $$(left)=join '', @segs
         $$(left)=~s/\b([ijkl])\b/$(sumcode_idx:$1)/g
+
         subcode: translate_idx
-            my ($v, $idx_str)=($1, $2)
-            my @idxlist=split /,/, $idx_str
             $if @idxlist==1
                 my $idx=$idx_str
                 $t="$v\[$(sumcode_idx:$idx)\]"
@@ -139,6 +141,7 @@ subcode: parsecode_sum_frame
 #----------------------------------------------- 
 #- Used to manual k index increment
 #-       now simplified since c optimizing compiler appears to do good job
+#- ref: http://nadeausoftware.com/articles/2012/06/c_c_tip_how_loop_through_multi_dimensional_arrays_quickly
 fncode: sumcode_generate($h)
     $(for:left, right, left_idx, right_idx, klist)
         my $$1 = $h->{$1}
@@ -156,7 +159,7 @@ fncode: sumcode_generate($h)
             push @code, "$left = 0"
             &call sumcode_loop, right
                 push @code, "$left += $right"
-        $elif $right
+        $elif defined $right
             push @code, "$left = $right"
         $else
             push @code, $left
