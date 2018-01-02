@@ -63,32 +63,38 @@ subcode: permute_frame(n, k)
 
     # -------------------------
     subcode: choose_inc
-        $if $perm[0]==$(n)-$(k)
-            break
         choose_inc:
         &call find_tail_descending
+            $if $perm[$i]==$(n)-$(k)+$i
+                $call skip_ahead
             $call swap_least_bigger
             $call choose_order
 
+        subcode: skip_ahead
+            # C(10,4) 0 1 8 9 ... -> 0 1 9 8 ...
+            $while $perm[$i]==$(n)-$(k)+$i
+                $i--
+            $if $i<0
+                break
+            $for $j=$i+1:$(k)
+                $perm[$j]=$(n)-($j-$i)
+
         subcode: choose_order
             # after [i], is in strict descending order
-            $if $perm[$i]>$perm[$i+1]
-                $if $i<$(k)-1
-                    # C(4,3): 0 3 2 ; 1
-                    goto choose_inc
-            $else
-                # first k digits in ascending order
-                # after [k], in descending order
-                $i++
-                $while $i<$(k)
-                    $for $j=$(n):0
-                        $if $perm[$j]>$perm[$i-1]
-                            my $t = $perm[$j]
-                            $for my $_j=$j;$_j>$i;$_j--
-                                $perm[$_j]=$perm[$_j-1]
-                            $perm[$i]=$t
-                            $i++
-                            last
+            # first k digits in ascending order
+            # after [k], in descending order
+            #   it results in minimal ascending [i]-[k-1]
+            $i++
+            $while $i<$(k) and $perm[$i]>$perm[$i-1]
+                # $print choose_order $i: @perm
+                $for $j=$(n):0
+                    $if $perm[$j]>$perm[$i-1]
+                        my $t = $perm[$j]
+                        $for my $_j=$j;$_j>$i;$_j--
+                            $perm[$_j]=$perm[$_j-1]
+                        $perm[$i]=$t
+                        $i++
+                        last
 
 #---------------------------------------- 
 #- n-digit count up 

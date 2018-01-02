@@ -15,7 +15,8 @@ page: test
                 $call inc 
 
     $(if:1)
-        $(set:p=4,3)
+        # $(set:p=10,4)
+        $(set:p=4,2)
         &call test, choose, $(p)
             &call choose, $(p)
                 $print [ @perm ]
