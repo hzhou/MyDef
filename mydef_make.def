@@ -306,7 +306,8 @@ subcode: read_eachfile
             $elif /^\s*\$include\s+(\S*)/ and $module ne "c" and -f $1
                 $page->{include}->{$1}=1;
             $elif /^\s*(type|module):\s*(\w+)/
-                $page->{$1}=$2
+                $if !$page->{$1}
+                    $page->{$1}=$2
             $elif /^\s*type:\s*$/
                 $page->{type}="none"
             $elif /^\s*package:/
