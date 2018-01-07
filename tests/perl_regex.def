@@ -1,5 +1,19 @@
+/*
 include: perl/parse_regex.def
 
 page: test
     my $r=parse_regex("ab(c|de)*")
     debug_regex($r)
+*/
+
+
+page: test
+    module: perl
+
+    $_ = "Hello Default!"
+    $if /Hello (\w+)/ -> $name
+        $print Hello [$name]
+
+    my $s = "Hello world!"
+    $if $s=~/Hello (\w+)/ -> $name
+        $print Hello [$name]

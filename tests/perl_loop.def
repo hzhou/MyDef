@@ -2,10 +2,11 @@
 
 #-- $sum, $loop, $sumcode means the same thing
 page: test
-    type: pl
+    module: perl
 
-    $(if:1)
+    $(if:0)
         $call test_1
+    $(elif:1)
         $print \n== sumcode simple =============
         $call test_sumcode
         $call test_sumcode_2

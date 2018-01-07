@@ -65,22 +65,62 @@ subcode: compile_line
         my $tail=$';
         $call parse_preproc
     $elif $l=~/^\$([:\.]+) (.*)/ # note: one space is mandatory
+        $call by_pass
+    $elif $l=~/^BLOCK(\d*)\s*$/
+        $call call_back
+    $else
+        NormalParse:
+        expand_macro(\$l);
+        $while 1
+            #-- parse_line could return a new $l
+            #-- otherwise, last in the end breaks the loop
+            $if $l=~/^(&call\d?|\$call|\$map\d?|\$nest)\s+(.*)$/i
+                my ($func, $param)=(lc($1), $2)
+                $call parse_call_sub
+            $elif $l=~/^(\S+)\s*=\s*\$call\s+(.*)/
+                my ($var, $param)=($1, $2)
+                call_sub($param)
+                $if $out->[-1]=~/^YIELD\s+(.+)/
+                    $out->[-1]="$var = $1"
+                $else
+                    $print "[$cur_file:$cur_line] $yellow{MISSING YIELD!}"
+
+            $elif $l=~/^\$-:\s*(.*)/
+                push @$out, "MAKE_STRING:$1"
+                my $subblock=grabblock($block, \$lindex)
+                $global $MAKE_STRING
+                $MAKE_STRING++
+                parseblock({source=>$subblock, name=>"MAKE_STRING"})
+                $MAKE_STRING--
+                push @$out, "POP_STRING"
+            $elif defined $parse_capture
+                push @$parse_capture, $l
+            $elif $MAKE_STRING>0
+                push @$out, $l
+            $else
+                $call parse_line
+            last
+    # ---------------
+    subcode: by_pass
         my ($opt, $t)=($1,$2)
-        $if $opt eq ":"
-            # Literal by-pass
-            push @$out, $t
-        $elif $opt eq "::"
-            # Literal by-pass + macro expansion
+        $if $opt eq "::" or $opt eq ":."
             expand_macro(\$t)
+            $opt = substr($opt, 1, 1)
+
+        $if $opt eq ":"
+            # Literal by_pass
+            my $sub = get_macro_word("by_pass", 1)
+            $if $sub
+                # typically, $sub is a perlcode
+                $l = "\$call $sub $t"
+                goto NormalParse;
+
             push @$out, $t
         $elif $opt eq "."
             # Literal sub-line
             $out->[-1] .= " $t"
-        $elif $opt eq ":."
-            # Literal sub-line + macro expansion
-            expand_macro(\$t)
-            $out->[-1] .= " $t"
-    $elif $l=~/^BLOCK(\d*)\s*$/
+    # ----------------
+    subcode: call_back
         my $callback_idx=$1
         $if $#callback_block_stack <0
             $call parse_stack_dump
@@ -98,30 +138,6 @@ subcode: compile_line
             parseblock($src_block)
             $block->{parsed_counter}++
             push @callback_block_stack, $block
-    $else
-        NormalParse:
-        expand_macro(\$l);
-        $while 1
-            #-- parse_line could return a new $l
-            #-- otherwise, last in the end breaks the loop
-            $if $l=~/^(&call\d?|\$call|\$map\d?|\$nest)\s+(.*)$/i
-                my ($func, $param)=(lc($1), $2);
-                $call parse_call_sub
-            $elif $l=~/^\$-:\s*(.*)/
-                push @$out, "MAKE_STRING:$1"
-                my $subblock=grabblock($block, \$lindex)
-                $global $MAKE_STRING
-                $MAKE_STRING++
-                parseblock({source=>$subblock, name=>"MAKE_STRING"})
-                $MAKE_STRING--
-                push @$out, "POP_STRING"
-            $elif defined $parse_capture
-                push @$parse_capture, $l
-            $elif $MAKE_STRING>0
-                push @$out, $l
-            $else
-                $call parse_line
-            last
     # ---------------------------
     subcode: debug_callback_block
         my $depth=$#callback_block_stack+1

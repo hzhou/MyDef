@@ -20,17 +20,24 @@ our $case_state;
 our $case_wrap;
 our $fn_block=[];
 our $loop_idx;
+our $regex_capture;
 
 sub parse_condition {
     my ($t) = @_;
-    if($t=~/^\//){
+    if($t=~/^\/|[!=]~\s*\//){
         if($t=~/(.*\S\/\w*)\s*->\s*([^\/]+?)\s*$/){
-            $t = "my ($2) = $1";
-        }
-    }
-    elsif($t=~/[!=]~/){
-        if($t=~/(.*\S\/\w*)\s*->\s*([^\/]+?)\s*$/){
-            $t = "my ($2) = $1";
+            $t = $1;
+            my @tlist=MyDef::utils::proper_split($2);
+            my (@t1, @t2);
+            my $i = 0;
+            foreach my $v (@tlist){
+                if($v ne "-"){
+                    push @t1, $v;
+                    push @t2, '$'.($i+1);
+                }
+                $i++;
+            }
+            $regex_capture = "my (".join(', ', @t1).") = (".join(', ', @t2).");";
         }
     }
     elsif($t=~/[^!=><]=[^="]/){
@@ -442,6 +449,10 @@ sub parsecode {
             my @src;
             push @src, "$case($cond){";
             push @src, "INDENT";
+            if($regex_capture){
+                push @src, $regex_capture;
+                undef $regex_capture;
+            }
             push @src, "BLOCK";
             push @src, "DEDENT";
             push @src, "}";

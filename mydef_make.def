@@ -490,10 +490,11 @@ subcode: module_specific
             $if $module eq "c" || $module eq "win32"
                 &call need_makefile
                     $call makefile_c, $dir
-            $elif $module eq "perl"  and $dir=~/^[A-Z]/
-                $call makefile_perl, $dir
-            $elif $module eq "xs"  and $dir=~/^[A-Z]/
-                $call makefile_xs, $dir
+            $(if:0)
+                $elif $module eq "perl"  and $dir=~/^[A-Z]/
+                    $call makefile_perl, $dir
+                $elif $module eq "xs"  and $dir=~/^[A-Z]/
+                    $call makefile_xs, $dir
 
     subcode: need_makefile
         # $print need_makefile: $dir ...

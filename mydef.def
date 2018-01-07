@@ -23,6 +23,12 @@ subcode: mydef_main
     1;
 
 #---------------------------------------- 
+#- embed "MyDef::debug()" and rund perl -d and break at MyDef::debug
+fncode: debug
+    my @info = caller;
+    $print "MyDef::debug @info"
+
+#---------------------------------------- 
 fncode: init(%config)
     $while my ($k, $v) = each %config
         $var->{$k}=$v;

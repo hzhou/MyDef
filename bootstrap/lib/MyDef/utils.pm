@@ -1,7 +1,5 @@
 use strict;
 package MyDef::utils;
-our $time_start = time();
-
 sub get_tlist {
     my ($t) = @_;
     my @vlist = split /,\s*/, $t;
@@ -65,29 +63,57 @@ sub get_range {
             }
         }
     }
+    else{
+        push @tlist, "$a-$b";
+    }
     return @tlist;
 }
 
 sub for_list_expand {
     my ($pat, $list) = @_;
-    my @vlist=split /\s+and\s+/, $list;
+    my ($mult, @vlist);
+    if($list=~/\s+(and)\s+/){
+        $mult = $1;
+        @vlist=split /\s+and\s+/, $list;
+    }
+    elsif($list=~/\s+(mul)\s+/){
+        $mult = $1;
+        @vlist=split /\s+mul\s+/, $list;
+    }
+    else{
+        @vlist = ($list);
+    }
     my @tlist;
     foreach my $v (@vlist){
         my @t = MyDef::utils::get_tlist($v);
         push @tlist, \@t;
     }
-    my $n = @{$tlist[0]};
-    my $m = @tlist;
     my @plist;
-    if($pat!~/\$\d/ && $m==1 && $pat=~/\*/){
+    if(!$mult){
+        my $replace;
+        if($pat=~/\$1/){
+            $replace = 1;
+        }
+        elsif($pat=~/\*/){
+            $replace = 2;
+        }
+        else{
+            die "for_list_expand: pattern invalid\n";
+        }
         foreach my $t (@{$tlist[0]}){
             my $l = $pat;
-            $l =~s/\*/$t/g;
+            if($replace==1){
+                $l =~s/\$1/$t/g;
+            }
+            else{
+                $l =~s/\*/$t/g;
+            }
             push @plist, $l;
         }
     }
-    else{
-        for(my $i=0; $i <$n; $i++){
+    elsif($mult eq "and"){
+        my $n = @{$tlist[0]};
+        for(my $i=0; $i<$n; $i++){
             my $l = $pat;
             my $j=1;
             foreach my $tlist (@tlist){
@@ -95,6 +121,35 @@ sub for_list_expand {
                 $j++;
             }
             push @plist, $l;
+        }
+    }
+    elsif($mult eq "mul"){
+        my $m = @tlist;
+        my @idx;
+        for(my $i=0; $i<$m; $i++){
+            $idx[$i]=0;
+        }
+        iter_mul:
+        while(1){
+            my $l = $pat;
+            for(my $i=0; $i<$m; $i++){
+                my $j=$i+1;
+                my $t = $tlist[$i]->[$idx[$i]];
+                $l=~s/\$$j/$t/g;
+            }
+            push @plist, $l;
+            my $i=$m-1;
+            while($i>=0){
+                $idx[$i]++;
+                if($idx[$i] < @{$tlist[$i]}){
+                    next iter_mul;
+                }
+                else{
+                    $idx[$i]=0;
+                    $i--;
+                }
+            }
+            last iter_mul;
         }
     }
     return \@plist;
@@ -122,7 +177,6 @@ sub proper_split {
     }
     my @closure_stack;
     my $t;
-    ;
     while(1){
         if($param=~/\G$/sgc){
             last;
@@ -170,7 +224,7 @@ sub proper_split {
                     $match='{';
                 }
                 my $pos=-1;
-                for(my $i=0; $i <@closure_stack; $i++){
+                for(my $i=0; $i<@closure_stack; $i++){
                     if($match==$closure_stack[$i]){
                         $pos=$i;
                     }
@@ -188,6 +242,9 @@ sub proper_split {
             print "[$curfile]proper_split: unmatched $1 [$param]\n";
             $t.=$1;
         }
+        else{
+            die "parse_loop: nothing matches! [$param]\n";
+        }
     }
     if($t){
         $t=~s/\s+$//;
@@ -202,7 +259,6 @@ sub expand_macro {
     my ($line, $sub) = @_;
     my @paren_stack;
     my $segs=[];
-    ;
     while(1){
         if($line=~/\G$/sgc){
             last;
@@ -252,7 +308,6 @@ sub expand_macro {
             }
         }
     }
-    ;
     while(@paren_stack){
         my $t = join('', @$segs);
         my $open = pop @paren_stack;
@@ -273,7 +328,6 @@ sub uniq_name {
         if($name=~/[0-9_]/){
             $name.="_";
         }
-        ;
         while($hash->{"$name$i"}){
             $i++;
         }
@@ -285,7 +339,7 @@ sub string_symbol_name {
     my ($s) = @_;
     my $n=length($s);
     my $name="";
-    for(my $i=0; $i <$n; $i++){
+    for(my $i=0; $i<$n; $i++){
         my $c = substr($s, $i, 1);
         if($c=~/\w/){
             $name.=$c;
@@ -384,7 +438,6 @@ sub parse_regex {
     my $escape;
     my $_recurse="[1]";
     my $i=0;
-    ;
     while($i<length($re)){
         my $c=substr($re, $i, 1);
         $i++;
@@ -569,7 +622,6 @@ sub parse_regex {
             my @class=();
             my $escape;
             my $_recurse="[2]";
-            ;
             while($i<length($re)){
                 my $c=substr($re, $i, 1);
                 $i++;
@@ -729,41 +781,6 @@ sub debug_regex {
         elsif($r->{atom}){
             debug_regex($r->{atom}, $level+1);
         }
-    }
-}
-
-sub bases {
-    my ($n, @bases) = @_;
-    my @t;
-    foreach my $b (@bases){
-        push @t, $n % $b;
-        $n = int($n/$b);
-        if($n<=0){
-            last;
-        }
-    }
-    if($n>0){
-        push @t, $n;
-    }
-    return @t;
-}
-
-sub get_time {
-    my $t = time()-$time_start;
-    my @t;
-    push @t, $t % 60;
-    $t = int($t/60);
-    push @t, $t % 60;
-    $t = int($t/60);
-    push @t, $t % 60;
-    $t = int($t/60);
-    if($t>0){
-        push @t, $t % 24;
-        $t = int($t/24);
-        return sprintf("%d day %02d:%02d:%02d", $t[3], $t[2], $t[1], $t[0]);
-    }
-    else{
-        return sprintf("%02d:%02d:%02d", $t[2], $t[1], $t[0]);
     }
 }
 

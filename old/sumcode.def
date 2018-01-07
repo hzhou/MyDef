@@ -82,7 +82,6 @@ subcode: parsecode_sum_frame
     return
 
     subcode: set_idx(dim)
-        # $print set_idx $idx dim $(dim)
         $h->{"$idx-dim"}=$(dim)
         # sumcode_idx defined in, e.g. output_perl
         $h->{"$idx-var"}="$(sumcode_idx:$idx)"
@@ -100,55 +99,52 @@ subcode: parsecode_sum_frame
                 $if $var_hash{$s}
                     $s=$var_hash{$s}
                 $else
-                    my ($v, $idx_str)=($1, $2)
-                    my @idxlist=split /,/, $idx_str
-                    $(if:mode=full)
-                        $call get_var_hash_dim
                     my $t
                     $call translate_idx
+                    $(if:mode=full)
+                        $call get_var_hash_dim
                     $var_hash{$s}=$t
                     $s=$t
         $$(left)=join '', @segs
         $$(left)=~s/\b([ijkl])\b/$(sumcode_idx:$1)/g
-
         subcode: translate_idx
+            my ($v, $idx_str)=($1, $2)
+            my @idxlist=split /,/, $idx_str
             $if @idxlist==1
                 my $idx=$idx_str
                 $t="$v\[$(sumcode_idx:$idx)\]"
             $else
-                my $s
-                $foreach $idx in @idxlist
-                    $if !$s
-                        $s="$(sumcode_idx:$idx)"
-                    $else
-                        my $dim=$h->{"$idx-dim"}
-                        $if $s=~/\+/
-                            $s="($s)"
-                        $s= "$s*$dim+$(sumcode_idx:$idx)"
-                $t="$v\[$s\]"
+                # mult-dim index is the sole source for half of the complexity
+                my $k=join('', @idxlist)
+                $if !$k_hash{$k}
+                    $k_hash{$k}=1
+                    push @k_list, $k
+                $t="$v\[$(sumcode_idx:$k)\]"
 
     subcode: parsecode_sum_common
         $(for:left in left, right)
             $h->{$(left)}=$$(left)
             $h->{$(left)_idx}=\@$(left)_idx
+        $h->{klist} = \@k_list
+        $foreach $k in @k_list
+            $h->{"$k-init"}="$(my) $(sumcode_idx:$k)"
+            $h->{"$k-var"}="$(sumcode_idx:$k)"
 #---------------------------------------- 
 #- '$' is not an operator, so if it appears, let's assume it is 
 #-     part of variable name
 #---------------------------------------- 
+#----------------------------------------------- 
 #- ToDo: Factor a[i,j]=b[i,k]*c[k,l]*d[l,j]
 #-       maybe: a[i,j]=b[i,k]*{c[k,l]*d[l,j]}
-#----------------------------------------------- 
-#- Used to manual k index increment
-#-       now simplified since c optimizing compiler appears to do good job
-#- ref: http://nadeausoftware.com/articles/2012/06/c_c_tip_how_loop_through_multi_dimensional_arrays_quickly
 fncode: sumcode_generate($h)
     $(for:left, right, left_idx, right_idx, klist)
         my $$1 = $h->{$1}
-    # $call sumcode_process_k
+    $call sumcode_process_k
 
     my @code
     my %loop_i_hash
-    # $call sumcode_init_each_k
+    my %loop_k_hash
+    $call sumcode_init_each_k
     $if $debug
         print "left indexs: ", join(", ", @$left_idx), "\n"
         print "right indexs: ", join(", ", @$right_idx), "\n"
@@ -158,7 +154,7 @@ fncode: sumcode_generate($h)
             push @code, "$left = 0"
             &call sumcode_loop, right
                 push @code, "$left += $right"
-        $elif defined $right
+        $elif $right
             push @code, "$left = $right"
         $else
             push @code, $left
@@ -172,9 +168,115 @@ subcode: sumcode_loop(left)
         my $var=$h->{"$i-var"}
         push @code, "\$for $var=0:$dim"
         push @code, "SOURCE_INDENT"
-        # $call sumcode_set_each_k
+        $call sumcode_set_each_k
     BLOCK
     $foreach $i in reverse @$$(left)_idx
-        # $call sumcode_inc_each_k
+        $call sumcode_inc_each_k
         push @code, "SOURCE_DEDENT"
+
+#---------------------------------------- 
+subcode: sumcode_process_k
+    my %k_calc_hash
+    my %k_inc_hash
+    #-- prepare above three hashes ----
+    my @allidx=(@$left_idx, @$right_idx)
+    # print "left_idx: @$left_idx, right_idx: @$right_idx\n"
+    EACH_K:
+    $foreach $k in @$klist
+        $call find_inner_idx
+        $(set:i=$allidx[$i])
+        $if index(substr($k, $pos+1), $(i))>=0
+            #--- repeated index such as k_ii
+            # $print k_calc_hash $k - $(i): repeated index
+            $k_calc_hash{"$k-$(i)"}=1
+            next EACH_K
+        $else
+            $k_inc_hash{"$k-$(i)"}=1
+
+            $pos--
+            $i--
+            $while $pos>=0 and $i>=0 and substr($k, $pos, 1) eq $(i)
+                $if index(substr($k, $pos+1), $(i))>=0 or ($pos>0 && index(substr($k, 0, $pos), $(i))>=0)
+                    # $print k_calc_hash $k - $pos - $(i): repeated index
+                    $k_calc_hash{"$k-$(i)"}=1
+                    next EACH_K
+                $pos--
+                $i--
+
+            $if $i>=0
+                # $print k_calc_hash $k - $i - $(i)
+                $k_calc_hash{"$k-$(i)"}=1
+
+subcode: find_inner_idx
+    my $pos
+    my $i=$#allidx
+    $while $i>=0
+        $pos=index($k, $allidx[$i])
+        $if $pos>=0
+            break
+        $i--
+#----------------------------------------------- 
+#---- inc k rather than recalc ----
+subcode: sumcode_init_each_k
+    $if $h->{style} eq "perl"
+        my @t
+        $foreach $k in @$klist
+            push @t, $h->{"$k-var"}
+        push @code, "my (".join(',', @t).")"
+    $elif $h->{style} eq "c"
+        my @t
+        $foreach $k in @$klist
+            push @t, "int ".$h->{"$k-var"}
+        push @code, "\$my ".join(',', @t)
+
+subcode: sumcode_set_each_k
+    $foreach $k in @$klist
+        my $kvar=$h->{"$k-var"}
+        $if $k_calc_hash{"$k-$i"}
+            # $print "    k_calc_hash: $k - $i"
+            $call sumcode_calc_k
+
+subcode: sumcode_inc_each_k
+    $foreach $k in @$klist
+        my $kvar=$h->{"$k-var"}
+        $if $k_inc_hash{"$k-$i"}
+            $call sumcode_inc_k
+
+#---------------------------------------- 
+subcode: sumcode_inc_k
+    $if substr($k, -1, 1) eq $i
+        push @code, "$kvar++"
+    $else
+        my @tlist
+        my $pos=index($k, $i)
+        $pos++
+        $while $pos<length($k); $pos++
+            my $j=substr($k, $pos, 1)
+            my $dim=$h->{"$j-dim"}
+            push @tlist, $dim
+        push @code, "$kvar += ".join("*", @tlist)
+
+subcode: sumcode_calc_k
+    #- k_ij = i*n+j
+    my $t
+    $for $j=0:length($k)-1
+        my $idx=substr($k, $j, 1)
+        $if $loop_i_hash{$idx}
+            my $dim=$h->{substr($k, $j+1, 1)."-dim"}
+            my $var=$h->{"$idx-var"}
+            $if !$t
+                $t = "$var*$dim"
+            $else
+                $t = "($t+$var)*$dim"
+    my $idx=substr($k, -1, 1)
+    $if $loop_i_hash{$idx}
+        my $var=$h->{"$idx-var"}
+        $if !$t
+            $t = $var
+        $else
+            $t.="+$var"
+
+    $if !$t
+        $t = "0"
+    push @code, "$kvar = $t"
 

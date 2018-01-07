@@ -61,6 +61,8 @@ fncode: import_file($f, $def, $file_type)
     # ---------------------
     $call @import_file_init
     my $plines=get_lines($f);
+    $if !$plines
+        return
     # Insert an END to flush all the indentations
     push @$plines, "END"
     my $cur_file=$f
@@ -105,12 +107,14 @@ fncode: import_file($f, $def, $file_type)
         $elif $(in_macro)
             $call process_macros
         $elif $(in_page)
-            $if $line=~/^(\w+):\s*(.*)/
+            $if !$page->{_got_code} and $line=~/^(\w+):\s*(.*)/
                 $call process_page_macros
             $elif $line=~/^\s*$/
+                $page->{_got_code}=1
                 next
             $else
                 # $print jump_to_main_code [$line]
+                $page->{_got_code}=1
                 $call jump_to_main_code
 
     subcode: parse_loop
@@ -289,6 +293,8 @@ fncode: get_lines($file)
         return \@lines
     $else
         my $filename=find_file($file)
-        $call get_file_lines, $filename
-        return \@lines;
+        $if $filename
+            $call get_file_lines, $filename
+            return \@lines;
+        return undef
 

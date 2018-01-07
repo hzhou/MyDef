@@ -1,0 +1,54 @@
+include: perl/permutation.def
+
+page: test
+    module: perl
+
+    $(if:1)
+        &call test, permutation, 4
+            &call permutation, 4
+                $print [ @perm ]
+                $call inc
+    $(if:1)
+        &call test, permute, 4, 2
+            &call permute, 4, 2
+                $print [ $perm[0] $perm[1] ]
+                $call inc 
+
+    $(if:1)
+        # $(set:p=10,4)
+        $(set:p=4,2)
+        &call test, choose, $(p)
+            &call choose, $(p)
+                $print [ @perm ]
+                $call inc 
+
+    $(if:0)
+        &call test, enum_count, 4, 2
+            &call enum_count, 4, 2
+                $print [ @perm ]
+                $call inc
+
+    $(if:0)
+        my @limit=(60, 60, 24, 2)
+        &call test, enum_count, 4, \$limit[\$i]
+            &call enum_count, 4, $limit[$i]
+                $if $perm[0] % 15 == 0 and $perm[1]==10 and $perm[2] % 6 == 0
+                    $print [ @perm ]
+                $call inc
+
+    $(if:0)
+        &call test, ordered_count, 4, 2, 5
+            &call ordered_count, 4, 2, 5
+                $for $i=0:4
+                    print $perm[$i], ' '
+                $print
+                $call inc
+
+    subcode: test(@msg)
+        $print ----\n$(msg)
+        my $cnt
+        BLOCK
+        $print count: $cnt
+
+        subcode: inc
+            $cnt++

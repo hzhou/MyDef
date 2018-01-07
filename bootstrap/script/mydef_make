@@ -18,6 +18,11 @@ our %path;
 
 sub find_file {
     my ($file) = @_;
+    my $nowarn;
+    if($file=~/^(\S+)\?/){
+        $file=$1;
+        $nowarn = 1;
+    }
     if(-f $file){
         return $file;
     }
@@ -28,7 +33,7 @@ sub find_file {
             }
         }
     }
-    if(1){
+    if(!$nowarn){
         warn "$file not found\n";
         warn "  search path: ".join(":", @path)."\n";
     }
@@ -679,36 +684,6 @@ while(my ($dir, $list) = each %folder){
                         print Out "\n";
                     }
                     close Out;
-                }
-            }
-        }
-        elsif($module eq "perl"  and $dir=~/^[A-Z]/){
-            if($dir=~/^(\w[0-9a-zA-Z_\-]*)\/lib/){
-                my $name=$1;
-                $name=~s/-/::/g;
-                if(!-d $dir){
-                    my $pm_count=0;
-                    while(my ($p, $h) = each %h_page){
-                        if($h->{type} eq "pm"){
-                            $pm_count++;
-                        }
-                    }
-                    if($pm_count>0){
-                        print "Running h2xs -X $name ... ...\n";
-                        system "h2xs -X $name";
-                    }
-                    else{
-                    }
-                }
-            }
-        }
-        elsif($module eq "xs"  and $dir=~/^[A-Z]/){
-            if($dir=~/^(\w[0-9a-zA-Z_\-]*)\/lib/){
-                my $name=$1;
-                $name=~s/-/::/g;
-                if(!-d $dir){
-                    print "Running h2xs -n $name ... ...\n";
-                    system "h2xs -n $name";
                 }
             }
         }

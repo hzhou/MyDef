@@ -245,7 +245,7 @@ fncode: testcondition($cond, $has_macro)
     $elsif $cond=~/^\s*(\w+)(.*)/
         my $t=get_def($1);
         $if !$2
-            return defined $t
+            return (defined $t && $t ne '')
         $elif !defined $t and $has_macro
             # $(if:$(type:list:n)=1)
             return test_op($1, $2)

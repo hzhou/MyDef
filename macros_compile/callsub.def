@@ -14,6 +14,11 @@ subcode: parse_call_sub
     $elif $func =~ /^\$map(\d+)/
         map_sub($param, $1);
     $elif $func =~ /^\&call(\d+)/
+        $call multi_call
+    $elif $func eq "\$nest"
+        $call nest_call
+    # -----------------
+    subcode: multi_call
         my $n=$1
         my @sub_blocks
         $for $i=0:$n
@@ -29,7 +34,7 @@ subcode: parse_call_sub
         my $multi_blk = {blocks=>\@sub_blocks, name=>"MULTIBLOCK", parsed_counter=>0}
         multi_call_back($param, $multi_blk)
 
-    $elif $func eq "\$nest"
+    subcode: nest_call
         my $subblock=grabblock($block, \$lindex)
         my @tlist = MyDef::utils::proper_split($param)
         my $codename=shift @tlist

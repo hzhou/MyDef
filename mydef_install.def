@@ -2,32 +2,51 @@ page: mydef_install
     type:
     output_dir: script
 
+    $call parse_args
+    # mydef_install deflib . def      --> *.def -> ${MYDEFLIB}
+    # mydef_install MyDef/lib . pm    --> *.pm  -> ${PERL5LIB}
+    # mydef_install MyDef/script . -  --> *     -> ${PATH}
+    # mydef_install - out/{a,b,c}     --> *     -> ${PATH}
+
+    $call check_install_dir
+
+    $if $dst ne "."
+        $install_dir.="/$dst"
+
+    $if @$src_list
+        install_all($src_list, $install_dir, $ext)
+
+subcode: parse_args
     $global $b_force
     $if $ARGV[0] eq "-f"
         $b_force = 1
         shift @ARGV
-    # mydef_install deflib . def      --> *.def -> ${MYDEFLIB}
-    # mydef_install MyDef/lib . pm    --> *.pm  -> ${PERL5LIB}
-    # mydef_install MyDef/script . -  --> *     -> ${PATH}
-    my ($src, $dst, $ext)=($ARGV[0], $ARGV[1], $ARGV[2])
-    $if !$ext
-        $ext = "def"
 
-    $call check_install_dir
-    $if !$src or !$dst
-        die "Usage: $0 src dst\n"
-    $if $src ne "."
-        chdir $src or die "Can't chdir $src\n";
+    my ($dst, $ext) 
+    my $src_list
+    $if $ARGV[0] eq "-"
+        ($dst, $ext) = (".", "-")
+        shift @ARGV
+        $src_list=[]
+        $foreach $a in @ARGV
+            $if -f $a
+                push @$src_list, $a
+            $elif -d $a
+                my $tlist = load_srcs_dir($a,"-")
+                push @$src_list, @$tlist
+    $else
+        my $src = $ARGV[0]
+        ($dst, $ext)=($ARGV[1], $ARGV[2])
+        $if !$ext
+            $ext = "def"
+        $if -d $src
+            $src_list = load_srcs_dir($src, $ext)
 
-    $if $dst ne "."
-        $install_dir.="/$dst"
-        $if  !-d $install_dir
-            mkdir $install_dir or die "Can't mkdir $install_dir\n";
+#---------------------------------------- 
+fncode: load_srcs_dir($dir, $ext)
+    $if $dir ne "."
+        chdir $dir or die "Can't chdir $dir\n";
 
-    install_all($install_dir, $ext)
-
-    #---------------------------------------- 
-fncode: install_all($install_dir, $ext)
     my @files=glob("*");
 
     my @srcs;
@@ -39,34 +58,51 @@ fncode: install_all($install_dir, $ext)
             push @srcs, $f;
         $elif $f=~/\.$ext$/
             push @srcs, $f;
-    $foreach $d in @dirs
-        $if -f "$d/skip"
-            next
-        my $pat = "$d/*.$ext"
-        $if $ext eq "-"
-            $pat = "$d/*"
-        my @files=glob($pat);
-        $if @files
-            $if !-d "$install_dir/$d"
-                mkdir "$install_dir/$d" or die "Can't mkdir $install_dir/$d";
-            $foreach $f in @files
-                push @srcs, $f;
+    $call load_dirs
+    return \@srcs
 
-    my $i = 0
-    $foreach $src in @srcs
-        my $dst="$install_dir/$src";
-        $(if:0)
-            $print src [$src] dst [$dst]
-        $if !-e $dst or $b_force or -M $src < -M $dst
-            $if $i==0
-                $print install_all: $install_dir [$ext]
-            $i++
-
-            print "  :| $src -> $dst\n";
+    # ---- load a single level of dirs ----
+    subcode: load_dirs
+        $foreach $d in @dirs
+            $if -f "$d/skip"
+                next
+            my $pat = "$d/*.$ext"
             $if $ext eq "-"
-                system "install -m555 $src $dst"
-            $else
-                system "install -m644 $src $dst";
+                $pat = "$d/*"
+            my @files=glob($pat);
+            $if @files
+                $foreach $f in @files
+                    push @srcs, $f;
+#----------------------------------------------
+fncode: install_all($src_list, $install_dir, $ext)
+    $call check_exist, $install_dir
+    my @cmds
+    $if $ext eq "-"
+        &call load_cmds, install -m555
+            my $t=$src
+            $t=~s/^.*\///
+            my $dst = "$install_dir/$t"
+    $else
+        &call load_cmds, install -m644
+            $if $src=~/(.*)\//
+                $call check_exist, $install_dir/$1
+            my $dst="$install_dir/$src"
+
+    $if @cmds
+        $print install_all: $install_dir [$ext]
+        $foreach $cmd in @cmds
+            $print "  :| $cmd"
+            system $cmd
+
+    subcode: load_cmds(install)
+        $foreach $src in @$src_list
+            BLOCK
+            $if !-e $dst or $b_force or (-M $src < -M $dst)
+                push @cmds, "$(install) $src $dst"
+
+    subcode: check_exist(d)
+        $if !-d "$(d)"
+            mkdir "$(d)" or die "Can't mkdir $(d)"
 
 #----------------------------------------------- 
 subcode: check_install_dir

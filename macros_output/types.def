@@ -23,10 +23,12 @@ fncode: get_type_word_prefix($prefix, $type)
 #---- type from name ------
 fncode: get_type_name($name, $no_prefix)
     # typename
-    $if $type_name{$name}
+    $if $type_name{$name} or $type_prefix{$name}
         return $type_name{$name}
     $elif $type_prefix{$name}
         return $type_prefix{$name}
+    $elif $name=~/^([a-zA-Z]+)\d+$/ and ($type_name{$1} or $type_prefix{$1})
+        return get_type_name($1)
     # ---------------------
     $elif !$no_prefix and $name=~/^([t$(type_prefix_char)]+)_(.+)$/ 
         # p_nxxx

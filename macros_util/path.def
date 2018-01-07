@@ -22,6 +22,11 @@ fncode: add_path($dir)
                 warn "add_path: [$t] not a directory\n"
 
 fncode: find_file($file)
+    my $nowarn
+    $if $file=~/^(\S+)\?/
+        $file=$1
+        $nowarn = 1
+
     $if -f $file
         return $file
 
@@ -29,7 +34,7 @@ fncode: find_file($file)
         $foreach $dir in @path
             $if -f "$dir/$file"
                 return "$dir/$file";
-    $if 1
+    $if !$nowarn
         warn "$file not found\n"
         warn "  search path: ".join(":", @path)."\n"
 
