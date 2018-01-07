@@ -23,7 +23,6 @@ fncode: grab_codelist(%opt)
                     push @t, $t
                 $else
                     $call filter_indent
-                    push @t, $t
 
         $while $t[-1]=~/^\s*$/
             pop @t
@@ -35,7 +34,9 @@ fncode: grab_codelist(%opt)
         $elif $t=~/^SOURCE_DEDENT/
             $indent--
         $elif $indent>0
-            $t =  ("    "x$indent) . $t
+            push @t, "    "x$indent . $t
+        $else
+            push @t, $t
 
 #----------------------------------------------- 
 # item1: value 
