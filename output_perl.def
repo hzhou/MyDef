@@ -5,7 +5,6 @@ include: macros_output/for.def
 include: macros_output/scope.def
 include: macros_output/sumcode.def
 
-
 page: output_perl, output_main
     output_dir: lib/MyDef
     ext: pl
