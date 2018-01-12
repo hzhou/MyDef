@@ -1097,7 +1097,7 @@ sub dumpout {
     else{
         my $pagetype = $page->{_pageext};
         if(!$pagetype or $pagetype eq "pl"){
-            push @$f, "#!/usr/bin/perl\n";
+            push @$f, "#!$^X\n";
         }
         if(!$MyDef::page->{relax}){
             push @$f, "use strict;\n";
