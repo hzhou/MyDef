@@ -276,7 +276,9 @@ while(my $f=pop @files){
                     $page->{include}->{$1}=1;
                 }
                 elsif(/^\s*(type|module):\s*(\w+)/){
-                    $page->{$1}=$2;
+                    if(!$page->{$1}){
+                        $page->{$1}=$2;
+                    }
                 }
                 elsif(/^\s*type:\s*$/){
                     $page->{type}="none";
@@ -427,7 +429,12 @@ while(my ($f, $l) = each %h_def){
     }
 }
 open Out, ">Makefile" or die "Can't write Makefile.\n";
-print Out "MakePage=mydef_page\n";
+if($0=~/(bootstrap\/script)\/mydef_make/){
+    print Out "MakePage=perl $1/mydef_page\n";
+}
+else{
+    print Out "MakePage=mydef_page\n";
+}
 print Out "\n";
 my %var_hash;
 my @tlist;

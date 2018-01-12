@@ -31,7 +31,7 @@ $MY_INSTALL -f deflib        . def
 if [ -z $1 ]; then # so "sh bootstrap.sh skip" will skip these
     sleep 1
     printf "\n${C}#---- Compile from fresh MyDef source ----${NC}\n"
-    mydef_make
+    perl bootstrap/script/mydef_make
     touch *.def
     make
     printf "\n${C}#---- Install updated MyDef ----${NC}\n"
