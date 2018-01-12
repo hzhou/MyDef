@@ -213,7 +213,7 @@ subcode: dumpout
     $else
         my $pagetype = $page->{_pageext}
         $if !$pagetype or $pagetype eq "pl"
-            push @$f, "#!/usr/bin/perl\n"
+            push @$f, "#!$^X\n" # typically /usr/bin/perl
         $call dump_accessories
     # ---------------
     subcode: dump_accessories
