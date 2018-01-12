@@ -10,7 +10,7 @@ if [ -z "$MYDEFLIB" ]; then
     install -d $HOME/lib/perl5
     install -d $HOME/lib/MyDef
 
-    PATH=$HOME/bin:/bin:/usr/bin:/usr/local/bin
+    PATH=$HOME/bin:$PATH
     export PERL5LIB=$HOME/lib/perl5
     export MYDEFLIB=$HOME/lib/MyDef
 fi
