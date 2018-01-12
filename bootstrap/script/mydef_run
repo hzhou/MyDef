@@ -19,10 +19,16 @@ foreach my $a (@ARGV){
 }
 if($config{def_file}){
     guess_module:
+    my $under_page;
     open In, "$config{def_file}" or die "Can't open $config{def_file}.\n";
     while(<In>){
-        if(/module:\s*(\w+)/ and !$config{module}){
-            $config{module}=$1;
+        if(/^page:\s*(\w+)/){
+            $under_page = $1;
+        }
+        if(/module:\s*(\w+)/){
+            if(!$config{module} or $pagename eq $under_page){
+                $config{module}=$1;
+            }
         }
         elsif(/^run:\s*(\S+\.def)/){
             $config{def_file}=$1;
@@ -80,9 +86,9 @@ else{
     die "Usage: $0 input_defile.def\n";
 }
 my $file=$page->{outname};
+my $file_dir;
 if($file=~/(.*)\/(.+)/){
-    chdir $1;
-    $file=$2;
+    $file_dir=$1;
 }
 my ($name, $type);
 if($file=~/^(.*)\.(\w+)$/){
@@ -130,13 +136,18 @@ if($type=~/^c(pp)?$/){
             $run = $MyDef::var->{run};
         }
         if($run ne "none"){
+            if($file_dir and $run=~/CD\s+(.*)/){
+                my $t = $1;
+                $t=~s/$file_dir\///g;
+                $run = "cd $file_dir && $t";
+            }
             $cmd .= " && $run";
         }
     }
 }
 elsif($type eq "java"){
     $cmd="javac $file";
-    my $run = "java $name";
+    my $run = "CD java $name";
     if($page->{run}){
         $run = $page->{run};
     }
@@ -144,6 +155,11 @@ elsif($type eq "java"){
         $run = $MyDef::var->{run};
     }
     if($run ne "none"){
+        if($file_dir and $run=~/CD\s+(.*)/){
+            my $t = $1;
+            $t=~s/$file_dir\///g;
+            $run = "cd $file_dir && $t";
+        }
         $cmd .= " && $run";
     }
 }
@@ -160,6 +176,11 @@ elsif($type eq "f"){
         $run = $MyDef::var->{run};
     }
     if($run ne "none"){
+        if($file_dir and $run=~/CD\s+(.*)/){
+            my $t = $1;
+            $t=~s/$file_dir\///g;
+            $run = "cd $file_dir && $t";
+        }
         $cmd .= " && $run";
     }
 }
@@ -176,6 +197,11 @@ elsif($type eq "rs"){
         $run = $MyDef::var->{run};
     }
     if($run ne "none"){
+        if($file_dir and $run=~/CD\s+(.*)/){
+            my $t = $1;
+            $t=~s/$file_dir\///g;
+            $run = "cd $file_dir && $t";
+        }
         $cmd .= " && $run";
     }
 }
@@ -192,6 +218,11 @@ elsif($type eq "hs"){
         $run = $MyDef::var->{run};
     }
     if($run ne "none"){
+        if($file_dir and $run=~/CD\s+(.*)/){
+            my $t = $1;
+            $t=~s/$file_dir\///g;
+            $run = "cd $file_dir && $t";
+        }
         $cmd .= " && $run";
     }
 }
@@ -208,6 +239,11 @@ elsif($type eq "asm"){
         $run = $MyDef::var->{run};
     }
     if($run ne "none"){
+        if($file_dir and $run=~/CD\s+(.*)/){
+            my $t = $1;
+            $t=~s/$file_dir\///g;
+            $run = "cd $file_dir && $t";
+        }
         $cmd .= " && $run";
     }
 }

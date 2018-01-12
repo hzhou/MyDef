@@ -1412,18 +1412,19 @@ sub parseblock {
             }
             elsif($l=~/^\$([:\.]+) (.*)/){
                 my ($opt, $t)=($1,$2);
-                if($opt eq ":"){
-                    push @$out, $t;
-                }
-                elsif($opt eq "::"){
+                if($opt eq "::" or $opt eq ":."){
                     expand_macro(\$t);
+                    $opt = substr($opt, 1, 1);
+                }
+                if($opt eq ":"){
+                    my $sub = get_macro_word("by_pass", 1);
+                    if($sub){
+                        $l = "\$call $sub $t";
+                        goto NormalParse;
+                    }
                     push @$out, $t;
                 }
                 elsif($opt eq "."){
-                    $out->[-1] .= " $t";
-                }
-                elsif($opt eq ":."){
-                    expand_macro(\$t);
                     $out->[-1] .= " $t";
                 }
             }
@@ -1521,6 +1522,16 @@ sub parseblock {
                             }
                             my $blk = {source=>\@t_block, name=>"BLOCK", cur_file=>$cur_file, cur_line=>$cur_line, parsed_counter=>0};
                             call_back("$codename, $param_0", $blk);
+                        }
+                    }
+                    elsif($l=~/^(\S+)\s*=\s*\$call\s+(.*)/){
+                        my ($var, $param)=($1, $2);
+                        call_sub($param);
+                        if($out->[-1]=~/^YIELD\s+(.+)/){
+                            $out->[-1]="$var = $1";
+                        }
+                        else{
+                            print "[$cur_file:$cur_line] \x1b[33mMISSING YIELD!\x1b[0m\n";
                         }
                     }
                     elsif($l=~/^\$-:\s*(.*)/){

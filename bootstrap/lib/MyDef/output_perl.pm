@@ -113,56 +113,8 @@ sub sumcode_generate {
     my $left_idx = $h->{left_idx};
     my $right_idx = $h->{right_idx};
     my $klist = $h->{klist};
-    my %k_calc_hash;
-    my %k_inc_hash;
-    my %k_init_hash;
-    my @allidx=(@$left_idx, @$right_idx);
-    EACH_K:
-    foreach my $k (@$klist){
-        my $pos;
-        my $i=$#allidx;
-        while($i>=0){
-            $pos=index($k, $allidx[$i]);
-            if($pos>=0){
-                last;
-            }
-            $i--;
-        }
-        if(index(substr($k, $pos+1), $allidx[$i])>=0){
-            $k_calc_hash{"$k-$allidx[$i]"}=1;
-            next EACH_K;
-        }
-        else{
-            $k_inc_hash{"$k-$allidx[$i]"}=1;
-            $pos--;
-            $i--;
-            while($pos>=0 and $i>=0 and substr($k, $pos, 1) eq $allidx[$i]){
-                if(index(substr($k, $pos+1), $allidx[$i])>=0 or ($pos>0 && index(substr($k, 0, $pos), $allidx[$i])>=0)){
-                    $k_calc_hash{"$k-$allidx[$i]"}=1;
-                    next EACH_K;
-                }
-                $pos--;
-                $i--;
-            }
-            if($i>=0){
-                $k_calc_hash{"$k-$allidx[$i]"}=1;
-            }
-            else{
-                $k_init_hash{$k}=1;
-            }
-        }
-    }
     my @code;
     my %loop_i_hash;
-    my %loop_k_hash;
-    foreach my $k (@$klist){
-        my $kvar=$h->{"$k-var"};
-        if($k_init_hash{$k}){
-            push @code, $h->{"$k-init"};
-            push @code, "$kvar = 0";
-            $loop_k_hash{$k}=1;
-        }
-    }
     if($debug){
         print "left indexs: ", join(", ", @$left_idx), "\n";
         print "right indexs: ", join(", ", @$right_idx), "\n";
@@ -173,137 +125,28 @@ sub sumcode_generate {
         my $var=$h->{"$i-var"};
         push @code, "\$for $var=0:$dim";
         push @code, "SOURCE_INDENT";
-        foreach my $k (@$klist){
-            my $kvar=$h->{"$k-var"};
-            if($k_calc_hash{"$k-$i"}){
-                if(!$loop_k_hash{$k}){
-                    push @code, $h->{"$k-init"};
-                    $loop_k_hash{$k}=1;
-                }
-                my $t;
-                for(my $j=0; $j<length($k)-1; $j++){
-                    my $idx=substr($k, $j, 1);
-                    if($loop_i_hash{$idx}){
-                        my $dim=$h->{substr($k, $j+1, 1)."-dim"};
-                        my $var=$h->{"$idx-var"};
-                        if(!$t){
-                            $t = "$var*$dim";
-                        }
-                        else{
-                            $t = "($t+$var)*$dim";
-                        }
-                    }
-                }
-                my $idx=substr($k, -1, 1);
-                if($loop_i_hash{$idx}){
-                    my $var=$h->{"$idx-var"};
-                    $t.="+$var";
-                }
-                if(!$t){
-                    $t = "0";
-                }
-                push @code, "$kvar = $t";
-            }
-        }
     }
     if(@$right_idx){
-        my $sum=$h->{sum};
-        push @code, $h->{"sum-init"};
-        push @code, "$h->{sum}=0";
+        push @code, "$left = 0";
         foreach my $i (@$right_idx){
             $loop_i_hash{$i}=1;
             my $dim=$h->{"$i-dim"};
             my $var=$h->{"$i-var"};
             push @code, "\$for $var=0:$dim";
             push @code, "SOURCE_INDENT";
-            foreach my $k (@$klist){
-                my $kvar=$h->{"$k-var"};
-                if($k_calc_hash{"$k-$i"}){
-                    if(!$loop_k_hash{$k}){
-                        push @code, $h->{"$k-init"};
-                        $loop_k_hash{$k}=1;
-                    }
-                    my $t;
-                    for(my $j=0; $j<length($k)-1; $j++){
-                        my $idx=substr($k, $j, 1);
-                        if($loop_i_hash{$idx}){
-                            my $dim=$h->{substr($k, $j+1, 1)."-dim"};
-                            my $var=$h->{"$idx-var"};
-                            if(!$t){
-                                $t = "$var*$dim";
-                            }
-                            else{
-                                $t = "($t+$var)*$dim";
-                            }
-                        }
-                    }
-                    my $idx=substr($k, -1, 1);
-                    if($loop_i_hash{$idx}){
-                        my $var=$h->{"$idx-var"};
-                        $t.="+$var";
-                    }
-                    if(!$t){
-                        $t = "0";
-                    }
-                    push @code, "$kvar = $t";
-                }
-            }
         }
-        push @code, "$sum += $right";
+        push @code, "$left += $right";
         foreach my $i (reverse @$right_idx){
-            foreach my $k (@$klist){
-                my $kvar=$h->{"$k-var"};
-                if($k_inc_hash{"$k-$i"}){
-                    if(substr($k, -1, 1) eq $i){
-                        push @code, "$kvar++";
-                    }
-                    else{
-                        my @tlist;
-                        my $pos=index($k, $i);
-                        $pos++;
-                        while($pos<length($k)){
-                            my $j=substr($k, $pos, 1);
-                            my $dim=$h->{"$j-dim"};
-                            push @tlist, $dim;
-                            $pos++;
-                        }
-                        push @code, "$kvar += ".join("*", @tlist);
-                    }
-                }
-            }
             push @code, "SOURCE_DEDENT";
         }
-        if($left ne $sum){
-            push @code, "$left = $sum";
-        }
     }
-    elsif($right){
+    elsif(defined $right){
         push @code, "$left = $right";
     }
     else{
         push @code, $left;
     }
     foreach my $i (reverse @$left_idx){
-        foreach my $k (@$klist){
-            my $kvar=$h->{"$k-var"};
-            if($k_inc_hash{"$k-$i"}){
-                if(substr($k, -1, 1) eq $i){
-                    push @code, "$kvar++";
-                }
-                else{
-                    my @tlist;
-                    my $pos=index($k, $i);
-                    $pos++;
-                    while($pos<length($k)){
-                        my $j=substr($k, $pos, 1);
-                        my $dim=$h->{"$j-dim"};
-                        push @tlist, $dim;
-                        $pos++;
-                    }
-                    push @code, "$kvar += ".join("*", @tlist);
-                }
-            }
-        }
         push @code, "SOURCE_DEDENT";
     }
     return \@code;
@@ -793,6 +636,10 @@ sub parsecode {
                         print "parsecode_sum: [$param]\n";
                     }
                     my $h={};
+                    my (%k_hash, @k_list);
+                    my %var_hash;
+                    my (@left_idx, @right_idx);
+                    $h->{style}="perl";
                     my ($left, $right);
                     if($param=~/(.*?)\s*(?<![\+\-\*\/%&\|><=])=(?!=)\s*(.*)/){
                         ($left, $right)=($1, $2);
@@ -802,11 +649,10 @@ sub parsecode {
                     }
                     my @idxlist=('i','j','k','l');
                     my @dimlist=MyDef::utils::proper_split($dimstr);
-                    my (@left_idx, @right_idx);
                     foreach my $dim (@dimlist){
                         my $idx=shift @idxlist;
                         $h->{"$idx-dim"}=$dim;
-                        $h->{"$idx-var"}="\$i_$idx";
+                        $h->{"$idx-var"}="\$_$idx";
                         if($left=~/\b$idx\b/){
                             push @left_idx, $idx;
                         }
@@ -814,59 +660,86 @@ sub parsecode {
                             push @right_idx, $idx;
                         }
                     }
-                    my (%k_hash, @k_list);
-                    my @segs=split /(\[[ijkl,]*?\])/, $left;
+                    my @segs=split /(\w+\[[ijkl,]*?\])/, $left;
                     foreach my $s (@segs){
-                        if($s=~/^\[([ijkl,]*?)\]$/){
-                            my @idxlist=split /,/, $1;
-                            if(@idxlist > 1){
-                                my $k=join('', @idxlist);
-                                if(!$k_hash{$k}){
-                                    $k_hash{$k}=1;
-                                    push @k_list, $k;
+                        if($s=~/^(\w+)\[([ijkl,]*?)\]$/){
+                            if($var_hash{$s}){
+                                $s=$var_hash{$s};
+                            }
+                            else{
+                                my ($v, $idx_str)=($1, $2);
+                                my @idxlist=split /,/, $idx_str;
+                                my $t;
+                                if(@idxlist==1){
+                                    my $idx=$idx_str;
+                                    $t="$v\[\$_$idx\]";
                                 }
-                                $s="[\$k_$k\]";
+                                else{
+                                    my $s;
+                                    foreach my $idx (@idxlist){
+                                        if(!$s){
+                                            $s="\$_$idx";
+                                        }
+                                        else{
+                                            my $dim=$h->{"$idx-dim"};
+                                            if($s=~/\+/){
+                                                $s="($s)";
+                                            }
+                                            $s= "$s*$dim+\$_$idx";
+                                        }
+                                    }
+                                    $t="$v\[$s\]";
+                                }
+                                $var_hash{$s}=$t;
+                                $s=$t;
                             }
                         }
                     }
                     $left=join '', @segs;
-                    $left=~s/\b([ijkl])\b/\$i_$1/g;
+                    $left=~s/\b([ijkl])\b/\$_$1/g;
                     if($right){
-                        my @segs=split /(\[[ijkl,]*?\])/, $right;
+                        my @segs=split /(\w+\[[ijkl,]*?\])/, $right;
                         foreach my $s (@segs){
-                            if($s=~/^\[([ijkl,]*?)\]$/){
-                                my @idxlist=split /,/, $1;
-                                if(@idxlist > 1){
-                                    my $k=join('', @idxlist);
-                                    if(!$k_hash{$k}){
-                                        $k_hash{$k}=1;
-                                        push @k_list, $k;
+                            if($s=~/^(\w+)\[([ijkl,]*?)\]$/){
+                                if($var_hash{$s}){
+                                    $s=$var_hash{$s};
+                                }
+                                else{
+                                    my ($v, $idx_str)=($1, $2);
+                                    my @idxlist=split /,/, $idx_str;
+                                    my $t;
+                                    if(@idxlist==1){
+                                        my $idx=$idx_str;
+                                        $t="$v\[\$_$idx\]";
                                     }
-                                    $s="[\$k_$k\]";
+                                    else{
+                                        my $s;
+                                        foreach my $idx (@idxlist){
+                                            if(!$s){
+                                                $s="\$_$idx";
+                                            }
+                                            else{
+                                                my $dim=$h->{"$idx-dim"};
+                                                if($s=~/\+/){
+                                                    $s="($s)";
+                                                }
+                                                $s= "$s*$dim+\$_$idx";
+                                            }
+                                        }
+                                        $t="$v\[$s\]";
+                                    }
+                                    $var_hash{$s}=$t;
+                                    $s=$t;
                                 }
                             }
                         }
                         $right=join '', @segs;
-                        $right=~s/\b([ijkl])\b/\$i_$1/g;
+                        $right=~s/\b([ijkl])\b/\$_$1/g;
                     }
                     $h->{left}=$left;
                     $h->{left_idx}=\@left_idx;
                     $h->{right}=$right;
                     $h->{right_idx}=\@right_idx;
-                    $h->{klist} = \@k_list;
-                    foreach my $k (@k_list){
-                        $h->{"$k-init"}="my \$k_$k";
-                        $h->{"$k-var"}="\$k_$k";
-                    }
-                    if(@right_idx){
-                        if($left=~/^(\$?\w+)$/){
-                            $h->{sum}=$1;
-                        }
-                        else{
-                            $h->{sum}="\$sum";
-                        }
-                        $h->{"sum-init"}="my $h->{sum}";
-                    }
                     my $codelist=sumcode_generate($h);
                     MyDef::compileutil::parseblock({source=>$codelist, name=>"sumcode"});
                     return;
@@ -876,6 +749,10 @@ sub parsecode {
                         print "parsecode_sum: [$param]\n";
                     }
                     my $h={};
+                    my (%k_hash, @k_list);
+                    my %var_hash;
+                    my (@left_idx, @right_idx);
+                    $h->{style}="perl";
                     my ($left, $right);
                     if($param=~/(.*?)\s*(?<![\+\-\*\/%&\|><=])=(?!=)\s*(.*)/){
                         ($left, $right)=($1, $2);
@@ -883,9 +760,6 @@ sub parsecode {
                     else{
                         $left=$param;
                     }
-                    my (%k_hash, @k_list);
-                    my %var_hash;
-                    my (@left_idx, @right_idx);
                     my @segs=split /(\w+\[[ijkl,]*?\])/, $left;
                     foreach my $s (@segs){
                         if($s=~/^(\w+)\[([ijkl,]*?)\]$/){
@@ -893,26 +767,13 @@ sub parsecode {
                                 $s=$var_hash{$s};
                             }
                             else{
-                                my $t;
                                 my ($v, $idx_str)=($1, $2);
-                                my $var=find_var($v);
                                 my @idxlist=split /,/, $idx_str;
-                                if(@idxlist==1){
-                                    my $idx=$idx_str;
-                                    $t="$v\[\$i_$idx\]";
-                                }
-                                else{
-                                    my $k=join('', @idxlist);
-                                    if(!$k_hash{$k}){
-                                        $k_hash{$k}=1;
-                                        push @k_list, $k;
-                                    }
-                                    $t="$v\[\$k_$k\]";
-                                }
+                                my $var=find_var($v);
                                 my $i=0;
                                 foreach my $idx (@idxlist){
                                     $i++;
-                                    my ($dim, $inc);
+                                    my $dim;
                                     if($var->{"dim$i"}){
                                         $dim=$var->{"dim$i"};
                                     }
@@ -926,7 +787,7 @@ sub parsecode {
                                     if(!$h->{"$idx-dim"}){
                                         push @left_idx, $idx;
                                         $h->{"$idx-dim"}=$dim;
-                                        $h->{"$idx-var"}="\$i_$idx";
+                                        $h->{"$idx-var"}="\$_$idx";
                                     }
                                     else{
                                         if($h->{"$idx-dim"} ne $dim){
@@ -935,13 +796,34 @@ sub parsecode {
                                         }
                                     }
                                 }
+                                my $t;
+                                if(@idxlist==1){
+                                    my $idx=$idx_str;
+                                    $t="$v\[\$_$idx\]";
+                                }
+                                else{
+                                    my $s;
+                                    foreach my $idx (@idxlist){
+                                        if(!$s){
+                                            $s="\$_$idx";
+                                        }
+                                        else{
+                                            my $dim=$h->{"$idx-dim"};
+                                            if($s=~/\+/){
+                                                $s="($s)";
+                                            }
+                                            $s= "$s*$dim+\$_$idx";
+                                        }
+                                    }
+                                    $t="$v\[$s\]";
+                                }
                                 $var_hash{$s}=$t;
                                 $s=$t;
                             }
                         }
                     }
                     $left=join '', @segs;
-                    $left=~s/\b([ijkl])\b/\$i_$1/g;
+                    $left=~s/\b([ijkl])\b/\$_$1/g;
                     if($right){
                         my @segs=split /(\w+\[[ijkl,]*?\])/, $right;
                         foreach my $s (@segs){
@@ -950,26 +832,13 @@ sub parsecode {
                                     $s=$var_hash{$s};
                                 }
                                 else{
-                                    my $t;
                                     my ($v, $idx_str)=($1, $2);
-                                    my $var=find_var($v);
                                     my @idxlist=split /,/, $idx_str;
-                                    if(@idxlist==1){
-                                        my $idx=$idx_str;
-                                        $t="$v\[\$i_$idx\]";
-                                    }
-                                    else{
-                                        my $k=join('', @idxlist);
-                                        if(!$k_hash{$k}){
-                                            $k_hash{$k}=1;
-                                            push @k_list, $k;
-                                        }
-                                        $t="$v\[\$k_$k\]";
-                                    }
+                                    my $var=find_var($v);
                                     my $i=0;
                                     foreach my $idx (@idxlist){
                                         $i++;
-                                        my ($dim, $inc);
+                                        my $dim;
                                         if($var->{"dim$i"}){
                                             $dim=$var->{"dim$i"};
                                         }
@@ -983,7 +852,7 @@ sub parsecode {
                                         if(!$h->{"$idx-dim"}){
                                             push @right_idx, $idx;
                                             $h->{"$idx-dim"}=$dim;
-                                            $h->{"$idx-var"}="\$i_$idx";
+                                            $h->{"$idx-var"}="\$_$idx";
                                         }
                                         else{
                                             if($h->{"$idx-dim"} ne $dim){
@@ -992,32 +861,39 @@ sub parsecode {
                                             }
                                         }
                                     }
+                                    my $t;
+                                    if(@idxlist==1){
+                                        my $idx=$idx_str;
+                                        $t="$v\[\$_$idx\]";
+                                    }
+                                    else{
+                                        my $s;
+                                        foreach my $idx (@idxlist){
+                                            if(!$s){
+                                                $s="\$_$idx";
+                                            }
+                                            else{
+                                                my $dim=$h->{"$idx-dim"};
+                                                if($s=~/\+/){
+                                                    $s="($s)";
+                                                }
+                                                $s= "$s*$dim+\$_$idx";
+                                            }
+                                        }
+                                        $t="$v\[$s\]";
+                                    }
                                     $var_hash{$s}=$t;
                                     $s=$t;
                                 }
                             }
                         }
                         $right=join '', @segs;
-                        $right=~s/\b([ijkl])\b/\$i_$1/g;
+                        $right=~s/\b([ijkl])\b/\$_$1/g;
                     }
                     $h->{left}=$left;
                     $h->{left_idx}=\@left_idx;
                     $h->{right}=$right;
                     $h->{right_idx}=\@right_idx;
-                    $h->{klist} = \@k_list;
-                    foreach my $k (@k_list){
-                        $h->{"$k-init"}="my \$k_$k";
-                        $h->{"$k-var"}="\$k_$k";
-                    }
-                    if(@right_idx){
-                        if($left=~/^(\$?\w+)$/){
-                            $h->{sum}=$1;
-                        }
-                        else{
-                            $h->{sum}="\$sum";
-                        }
-                        $h->{"sum-init"}="my $h->{sum}";
-                    }
                     my $codelist=sumcode_generate($h);
                     MyDef::compileutil::parseblock({source=>$codelist, name=>"sumcode"});
                     return;
