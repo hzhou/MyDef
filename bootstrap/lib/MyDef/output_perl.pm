@@ -1,5 +1,6 @@
 use strict;
 package MyDef::output_perl;
+our $perl = $^X;
 our @scope_stack;
 our $cur_scope;
 our $debug=0;
@@ -152,6 +153,9 @@ sub sumcode_generate {
     return \@code;
 }
 
+if($perl!~/^\//){
+    $perl = "/usr/bin/perl";
+}
 $cur_scope={var_list=>[], var_hash=>{}, name=>"default"};
 sub get_interface {
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
@@ -1097,7 +1101,7 @@ sub dumpout {
     else{
         my $pagetype = $page->{_pageext};
         if(!$pagetype or $pagetype eq "pl"){
-            push @$f, "#!$^X\n";
+            push @$f, "#!$perl\n";
         }
         if(!$MyDef::page->{relax}){
             push @$f, "use strict;\n";
