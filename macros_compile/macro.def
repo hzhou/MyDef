@@ -1,4 +1,3 @@
-
 # -------------------------------------------------------
 #  $deflist=[$MyDef::def, $MyDef::def->{macros}, $page];
 
@@ -7,8 +6,11 @@ subcode: strip_quote(v)
         $(v)=$1
 
 subcode:: preproc_elifs
-    $elif $preproc=~/^set:\s*(\w+)$/
+    $elif $preproc=~/^set:\s*(\w+)(\)|$)/
         my $name=$1
+        $if $2 eq ')'
+            $if $l=~/\$\(.*?\)\s*(.*)/
+                $tail = $1
         $call set_macro_join
     $elif $preproc=~/^set:\s*(.*)/
         # immediate macros

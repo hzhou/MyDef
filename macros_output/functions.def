@@ -30,6 +30,8 @@ subcode: autolist_page_functions
     &call iter_subcodes, fn
         $call add_list_function, $name
 
+#-- cache all fncode to make autolist possible
+#-    also return type for type deduction
 subcode: autolist_functions(add_type)
     $global %function_autolist
     &call each_subcode, fn
@@ -54,10 +56,10 @@ subcode: autolist_functions(add_type)
                 $l="NOOP"
             $else
                 last
-        # $print function_autolist: $name
         $if $return_type
             $functions{$name}={ret_type=>$return_type}
-
+        # ---- autolist
+        # $print func $name - autolist: $autolist
         $if $autolist ne "skip" and ($page->{autolist} eq "global" || $autolist)
             $function_autolist{$name}=$autolist
             $call add_list_function, $name
@@ -89,13 +91,10 @@ subcode: autolist_functions(add_type)
 #----
 subcode:: parsecode_func_other
     $elif $func =~/^(return_type|parameter|lexical)/
-        $if $cur_function
-            $if $1 eq "return_type"
-                $cur_function->{ret_type}=$param;
-                return
-            $elif $1 eq "parameter"
-                $call add_function_params, $cur_function
-                return
+        $if $1 eq "return_type"
+            $cur_function->{ret_type}=$param;
+        $elif $1 eq "parameter"
+            $call add_function_params, $cur_function
         return 1
 
 subcode:: parsecode_func_other
@@ -117,8 +116,9 @@ subcode: function_list_all
     $(set:lambda=$MyDef::compileutil::named_blocks{"lambda-$1"})
     $while my $f=shift @list_function_list
         $if $(lambda:$f)
-            my $blk = $(lambda:$f)
-            push @$out, @$blk
+            # my $blk = $(lambda:$f)
+            # push @$out, @$blk
+            push @$out, "DUMP_STUB lambda-$f"
         $else
             $call list_function, $f
 
@@ -271,11 +271,15 @@ fncode: open_function($fname, $param)
     $else
         $func= {param_list=>[], var_list=>[], var_hash=>{}, init=>[], finish=>[]};
     #---- reserve fn_init and fn_finish for user def use.----
+    #-    e.g. $(block:fn_init) 
     $(setblk)("fn_init", $func->{init})
     $(setblk)("fn_finish", $func->{finish})
     #---------
     $func->{name}=$fname;
     # -- parsing param list
+    $(if:hascode:function_override)
+        $if !$param
+            $call function_override
     $(if:hascode:function_param_api)
         my $api_name
         $if $param eq "api" and $fname=~/.+?_(.+)/

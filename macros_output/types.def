@@ -11,19 +11,10 @@ subcode:: parsecode_func_param_other
             $type_name{$t}=$param2
         return
 
-fncode: get_type_word_prefix($prefix, $type)
-    $foreach $c in reverse(split //, $prefix)
-        $if $c eq "t"
-            # NOOP
-        $call @type_word_prefix
-        $else
-            return undef
-    return $type
-
 #---- type from name ------
 fncode: get_type_name($name, $no_prefix)
     # typename
-    $if $type_name{$name} or $type_prefix{$name}
+    $if $type_name{$name}
         return $type_name{$name}
     $elif $type_prefix{$name}
         return $type_prefix{$name}
@@ -47,3 +38,14 @@ fncode: get_type_name($name, $no_prefix)
     $elif $name=~/_([^_]+)$/ && length{$1}>1 && $type_name{$1}
         return $type_name{$1}
     return undef
+
+#--   modify $type with $(type_prefix_char) --
+fncode: get_type_word_prefix($prefix, $type)
+    $foreach $c in reverse(split //, $prefix)
+        $if $c eq "t"
+            # NOOP
+        $call @type_word_prefix
+        $else
+            return undef
+    return $type
+
