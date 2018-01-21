@@ -158,7 +158,7 @@ page: mydef_run
                 $if $file_dir and $run=~/CD\s+(.*)/
                     my $t = $1
                     $t=~s/$file_dir\///g
-                    $run = "chdir $file_dir && $t"
+                    $run = "cd $file_dir && $t"
                 $cmd .= " && $run"
 
         subcode: append_arg

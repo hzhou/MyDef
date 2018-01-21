@@ -226,7 +226,10 @@ subcode: get_indentation
         my $indent=get_indent($1)
         $line=$2
         $if $line=~/^#(?!(define|undef|include|line|error|pragma|if|ifdef|ifndef|elif|else|endif)\b)/
-            $if $indent != $curindent
+            # Leading # with exclusions
+            $if $line=~/^#\\n/
+                $line="NEWLINE"
+            $elif $indent != $curindent
                 $line="NOOP"
             $else
                 next

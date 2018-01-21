@@ -5,11 +5,15 @@ include: macros_output/for.def
 include: macros_output/scope.def
 include: macros_output/sumcode.def
 
-
 page: output_perl, output_main
     output_dir: lib/MyDef
     ext: pl
     package: MyDef::output_perl
+
+subcode:: _autoload
+    $global $perl = $^X
+    $if $perl!~/^\//
+        $perl = "/usr/bin/perl"
 
 subcode: init_page
     $if $page->{package} and !$page->{type}
@@ -215,7 +219,7 @@ subcode: dumpout
     $else
         my $pagetype = $page->{_pageext}
         $if !$pagetype or $pagetype eq "pl"
-            push @$f, "#!/usr/bin/perl\n"
+            push @$f, "#!$perl\n"
         $call dump_accessories
     # ---------------
     subcode: dump_accessories

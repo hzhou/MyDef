@@ -167,7 +167,10 @@ sub import_file {
             my $indent=get_indent($1);
             $line=$2;
             if($line=~/^#(?!(define|undef|include|line|error|pragma|if|ifdef|ifndef|elif|else|endif)\b)/){
-                if($indent != $curindent){
+                if($line=~/^#\\n/){
+                    $line="NEWLINE";
+                }
+                elsif($indent != $curindent){
                     $line="NOOP";
                 }
                 else{
@@ -352,7 +355,10 @@ sub import_file {
                     my $indent=get_indent($1);
                     $line=$2;
                     if($line=~/^#(?!(define|undef|include|line|error|pragma|if|ifdef|ifndef|elif|else|endif)\b)/){
-                        if($indent != $curindent){
+                        if($line=~/^#\\n/){
+                            $line="NEWLINE";
+                        }
+                        elsif($indent != $curindent){
                             $line="NOOP";
                         }
                         else{

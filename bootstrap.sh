@@ -10,7 +10,7 @@ if [ -z "$MYDEFLIB" ]; then
     install -d $HOME/lib/perl5
     install -d $HOME/lib/MyDef
 
-    PATH=$HOME/bin:/bin:/usr/bin:/usr/local/bin
+    PATH=$HOME/bin:$PATH
     export PERL5LIB=$HOME/lib/perl5
     export MYDEFLIB=$HOME/lib/MyDef
 fi
@@ -31,7 +31,7 @@ $MY_INSTALL -f deflib        . def
 if [ -z $1 ]; then # so "sh bootstrap.sh skip" will skip these
     sleep 1
     printf "\n${C}#---- Compile from fresh MyDef source ----${NC}\n"
-    mydef_make
+    perl bootstrap/script/mydef_make
     touch *.def
     make
     printf "\n${C}#---- Install updated MyDef ----${NC}\n"

@@ -306,7 +306,8 @@ subcode: read_eachfile
             $elif /^\s*\$include\s+(\S*)/ and $module ne "c" and -f $1
                 $page->{include}->{$1}=1;
             $elif /^\s*(type|module):\s*(\w+)/
-                $page->{$1}=$2
+                $if !$page->{$1}
+                    $page->{$1}=$2
             $elif /^\s*type:\s*$/
                 $page->{type}="none"
             $elif /^\s*package:/
@@ -377,7 +378,11 @@ subcode: check_eachpage
 
 subcode: write_makefile
     &call open_w, Makefile
-        print Out "MakePage=mydef_page\n";
+        $if $0=~/(bootstrap\/script)\/mydef_make/
+            # android termux, /usr/bin/perl won't work
+            print Out "MakePage=perl $1/mydef_page\n";
+        $else
+            print Out "MakePage=mydef_page\n";
         print Out "\n";
 
         $call write_var_folder

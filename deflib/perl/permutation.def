@@ -1,31 +1,44 @@
-# basic permutation is permute, n, n
+subcode: permutation(n)
+    &call permute_frame, $(n), $(n)
+        BLOCK
+        $call permute_inc
+
 subcode: permute(n, k)
+    &call permute_frame, $(n), $(k)
+        BLOCK
+        $call permute_inc
+
+subcode: choose(n, k)
+    &call permute_frame, $(n), $(k)
+        BLOCK
+        $call choose_inc
+
+subcode: permute_frame(n, k)
     # it is called lexicographic permutations
     my @perm
     $for $i=0:$(n)
         $perm[$i]=$i
-    $call reverse_tail, $(k)
+    $call @skip_k
 
     $while 1
         BLOCK
-        $call permute_inc
+        # $call permute_inc
 
+    # 0 1 2 3 -> 0 1 3 2 -> 0 2 1 3 -> 0 2 3 1 -> ...
+    #              ^ \ 0 2 3 1 / 
     subcode: permute_inc
         &call find_tail_descending
             $call swap_least_bigger
             $call reverse_tail, $i+1
-            $call reverse_tail, $(k)
+            $call @skip_k
 
     subcode: find_tail_descending
-        my $max=-1
-        my $i=$(n)-1
-        $while $i>=0
-            $if $max < $perm[$i]
-                $max = $perm[$i]
-            $else
+        my $i=$(n)-2
+        $while $i>=0; $i--
+            $if $perm[$i] < $perm[$i+1]
                 break
-            $i--
         $if $i<0
+            # ALL DONE
             break
         $else
             BLOCK
@@ -36,42 +49,56 @@ subcode: permute(n, k)
                 $call swap, $perm[$j], $perm[$i]
                 break
 
+    subcode: skip_k
+        $(if:k!=$(n))
+            $call reverse_tail, $(k)
+
     subcode: reverse_tail(lead)
-        $(if:lead!=$(n))
-            my $j=$(lead)
-            my $k=$(n)-1
-            $while $j<$k
-                $call swap, $perm[$j], $perm[$k]
-                $j++
-                $k--
+        my $j=$(lead)
+        my $k=$(n)-1
+        $while $j<$k
+            $call swap, $perm[$j], $perm[$k]
+            $j++
+            $k--
+
+    # -------------------------
+    subcode: choose_inc
+        choose_inc:
+        &call find_tail_descending
+            $if $perm[$i]==$(n)-$(k)+$i
+                $call skip_ahead
+            $call swap_least_bigger
+            $call choose_order
+
+        subcode: skip_ahead
+            # C(10,4) 0 1 8 9 ... -> 0 1 9 8 ...
+            $while $perm[$i]==$(n)-$(k)+$i
+                $i--
+            $if $i<0
+                break
+            $for $j=$i+1:$(k)
+                $perm[$j]=$(n)-($j-$i)
+
+        subcode: choose_order
+            # after [i], is in strict descending order
+            # first k digits in ascending order
+            # after [k], in descending order
+            #   it results in minimal ascending [i]-[k-1]
+            $i++
+            $while $i<$(k) and $perm[$i]>$perm[$i-1]
+                # $print choose_order $i: @perm
+                $for $j=$(n):0
+                    $if $perm[$j]>$perm[$i-1]
+                        my $t = $perm[$j]
+                        $for my $_j=$j;$_j>$i;$_j--
+                            $perm[$_j]=$perm[$_j-1]
+                        $perm[$i]=$t
+                        $i++
+                        last
 
 #---------------------------------------- 
-subcode: ret_tlist(n)
-    my @tlist
-    BLOCK
-    return \@tlist
-
-    subcode: add_perm
-        my @t
-        $for $i=0:$(n)
-            push @t, $_[$perm[$i]]
-        push @tlist, \@t
-
-fncode: get_perm_list
-    my $n=@_
-    &call ret_tlist, $n
-        &call permute, $n, $n
-            $call add_perm
-
-fncode: get_enum_list
-    my $n = shift @_
-    my $k = @_
-    &call ret_tlist, $n
-        &call enum_count, $n, $k
-            $call add_perm
-
-#---------------------------------------- 
-#- n-digit count up (first digit at i=0)
+#- n-digit count up 
+#-    1st digit at i=0, each digit limit by k
 subcode: enum_count(n, k)
     my @perm
     $for $i=0:$(n)
@@ -94,13 +121,55 @@ subcode: enum_count(n, k)
             last
 
 #---------------------------------------- 
-#- n-digit @ limit[k]
-subcode: enum_limit(n, limit)
-    &call enum_count, $(limit)[$i]
+#- n-digit count up, non-descending digits k0<=[]<=k1
+subcode: ordered_count(n, k0, k1)
+    my @perm
+    $for $i=0:$(n)
+        $perm[$i] = $(k0)
+    $perm[$(n)]=$(k1) # sentinel
+    $while 1
         BLOCK
+        $call count_inc
 
-#---------------------------------------- 
+    subcode: count_inc
+        my $flag=0
+        $for $i=0:$(n)
+            $if $perm[$i]<$perm[$i+1]
+                $perm[$i]++
+                $for $j=0:$i
+                    $perm[$j]=$(k0)
+                $flag = 1
+                # $call @check_limit
+                last
+        $if !$flag
+            last
+
+#---- return a list ----
+fncode: get_perm_list
+    my $n=@_
+    &call ret_tlist, $n
+        &call permute, $n, $n
+            $call add_perm
+
+fncode: get_enum_list
+    my $n = shift @_
+    my $k = @_
+    &call ret_tlist, $n
+        &call enum_count, $n, $k
+            $call add_perm
+
+subcode: ret_tlist(n)
+    my @tlist
+    BLOCK
+    return \@tlist
+
+    subcode: add_perm
+        my @t
+        $for $i=0:$(n)
+            push @t, $_[$perm[$i]]
+        push @tlist, \@t
+
+#---- 168 primes under 1000 -------------
 macros:
-    # 168 primes under 1000
     prime_list: 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271, 277, 281, 283, 293, 307, 311, 313, 317, 331, 337, 347, 349, 353, 359, 367, 373, 379, 383, 389, 397, 401, 409, 419, 421, 431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487, 491, 499, 503, 509, 521, 523, 541, 547, 557, 563, 569, 571, 577, 587, 593, 599, 601, 607, 613, 617, 619, 631, 641, 643, 647, 653, 659, 661, 673, 677, 683, 691, 701, 709, 719, 727, 733, 739, 743, 751, 757, 761, 769, 773, 787, 797, 809, 811, 821, 823, 827, 829, 839, 853, 857, 859, 863, 877, 881, 883, 887, 907, 911, 919, 929, 937, 941, 947, 953, 967, 971, 977, 983, 991, 997 
 
