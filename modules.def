@@ -4,7 +4,8 @@ macros:
     module_type: general=>"txt",perl=>"pl"
 
 subcode: _autoload
-    $map add_module, c, xs, php, js, cpp, java, go, awk, ino, glsl, asm, tcl
+    $map add_module, c, xs, php, js, cpp, java, go, awk, ino, glsl, asm, tcl, lua
+    $call add_module2, as, s
     $call add_module2, www, html
     $call add_module2, win32, c
     $call add_module2, win32rc, rc

@@ -41,6 +41,8 @@ subcode: parse_args
             $ext = "def"
         $if -d $src
             $src_list = load_srcs_dir($src, $ext)
+        $else
+            die "Not a directory [$src]\n"
 
 #---------------------------------------- 
 fncode: load_srcs_dir($dir, $ext)
