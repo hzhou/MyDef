@@ -2,6 +2,10 @@
 # -------------------------------------------------------
 #  $deflist=[$MyDef::def, $MyDef::def->{macros}, $page];
 
+#  crossref preproc.def: 
+#      $(if:...) do not add additional macro level
+#      $(for:...) do add macro level
+
 subcode: strip_quote(v)
     $if $(v)=~/^["'](.*)["']$/
         $(v)=$1
@@ -13,15 +17,16 @@ subcode:: preproc_elifs
     $elif $preproc=~/^set:\s*(.*)/
         # immediate macros
         set_macro($deflist->[-1], $1)
-    $elif $preproc=~/^set([1-5]|def|macro|page):\s*(.*)/
-        my ($i,$t) = ($1, $2)
+    $elif $preproc=~/^set(-?\d+|\w+):\s*(.*)/ -> $i, $t
+        # $(set-1:name=value) : one level up
+        # $(set1:name=value)  : macro
         $if $debug eq "macro"
             $print set[$i]: $t
         $global %named_macros=(def=>0,macro=>1,page=>2)
-        $if $i=~/\d/
-            # set1: sets macro at +1 level up
-            $i = -($i+1)
-        $else
+        $if $i=~/^-/
+            # -1 means 1 level up, which is -2
+            $i-=1
+        $elif $i!~/^\d/
             $i=$named_macros{$i}
         set_macro($deflist->[$i], $t)
     $elif $preproc=~/^unset:\s*(.*)/
@@ -33,7 +38,7 @@ subcode:: preproc_elifs
                 $deflist->[-1]->{$t}=undef
             $else
                 $call warn, unset only accepts single word(s)
-    # autoinc -> $(set2:v+=1)
+    # autoinc -> $(set-2:v+=1)
     # enuminc -> use subcode which increments bases
     $elif $preproc=~/^enumset:\s*(.*)/
         my $t=$1

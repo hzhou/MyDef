@@ -95,8 +95,8 @@ page: mydef_run
             ($name, $type)=($1, $2)
 
         my $exe = "$name"
-        $if $config{module} eq "win32"
-            $exe .= ".exe"
+        $call @set_config_exe_type
+
         my $cmd
         $if $page->{run}
             $cmd=$page->{run}
@@ -162,6 +162,14 @@ page: mydef_run
                     $cmd = "$(cmd) $file"
 
         # ---------------------
+        subcode: set_config_exe_type
+            $if $page->{exe_type}
+                $exe .= "." . $page->{exe_type}
+            $elif $MyDef::var->{exe_type}
+                $exe .= "." . $MyDef::var->{exe_type}
+            $elif $config{module} eq "win32"
+                $exe .= ".exe"
+
         subcode: append_exe(exe)
             $(if:exe=$exe)
                 $if $exe!~/\//
@@ -204,14 +212,11 @@ page: mydef_run
                 my $cc="$(CC)"
             $(else)
                 my $cc = "gcc -std=c99 -O2"
-                # my $cc = "gcc"
-                # my $cc = "gcc -std=gnu99"
-                # my $cc = "x86_64-w64-mingw32-gcc"
                 # my $cc = "x86_64-w64-mingw32-gcc -O2 -Wl,--subsystem,windows"
             $if $name=~/\.cpp$/
                 $cc = "g++ -O2"
 
-            $call set_config, $cc, CC
+            $call set_config, $cc, cc
             # ---------------------
             $cmd="$cc -o$exe $file $page->{lib_list}"
 

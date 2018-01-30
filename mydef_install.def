@@ -109,6 +109,7 @@ fncode: install_all($src_list, $install_dir, $ext)
 #----------------------------------------------- 
 subcode: check_install_dir
     my $home = $ENV{HOME}
+    $call @get_home2
     my $install_dir
     $if $dst=~/^(\/.*)/
         $install_dir=$1
@@ -130,7 +131,7 @@ subcode: check_install_dir
     $elif $ext eq "-"
         $install_dir=$ENV{PATH}
         $install_dir=~s/:.*//
-        $if $install_dir ne "$home/bin"
+        $if $install_dir ne "$home/bin" and $install_dir ne "$home2/bin"
             $print "This will install script into your leading path: [$install_dir]"
             $print "  press 'y' to continute (abort otherwise)"
             my $t =<STDIN>
@@ -144,4 +145,8 @@ subcode: check_install_dir
     $if  !-d $install_dir
         mkdir $install_dir or die "Can't mkdir $install_dir\n";
 
+    subcode: get_home2
+        my $home2
+        $if $ENV{MYDEFLIB}=~/(.*)\/lib\/MyDef/
+            $home2 = $1
 
