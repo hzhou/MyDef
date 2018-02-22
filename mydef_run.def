@@ -95,31 +95,12 @@ page: mydef_run
             ($name, $type)=($1, $2)
 
         my $exe = "$name"
-        $if $config{module} eq "win32"
-            $exe .= ".exe"
+        $call @set_config_exe_type
+
         my $cmd
-        $if $type=~/^c(pp)?$/
-            $call run_c
-        $call do_compile, java, javac $file, CD java $name
-        $call do_compile, f, gfortran -g -o$exe $file $page->{lib_list}, $exe
-        $call do_compile, rs, rustc $file, $exe
-        $call do_compile, hs, ghc -o$exe $file, $exe
-        $call do_compile, asm, nasm -f elf $file && ld -m elf_i386 $name.o -o$exe, $exe
-        # $call do_compile, prolog, gplc $name    ? no idea how to make it work
-        $elif $page->{run}
+        $if $page->{run}
             $cmd=$page->{run}
-        $call do_script, sh, sh
-        $call do_script, pl, perl
-        $call do_script, php, php
-        $call do_script, py, python
-        $call do_script, go, go run
-        $call do_script, js, node
-        $call do_script, tcl, tclsh
-        $call do_script, lisp, clisp
-        # $call do_script, tex, pdflatex  # -interaction=batchmode
-        $call do_script, tex, run_tex
-        $call do_script, latex, run_tex
-        $call do_script, awk, awk -f
+        $call @construct_cmd_from_type
         # --------------------------------
         $if $config{expect} and $config{expect_type} ne "output"
             $call cmp_expect, $file
@@ -133,33 +114,74 @@ page: mydef_run
         $else
             die "do not know how to run it\n"
 
+        # ---- construc $cmd based on $type ------
+        subcode: construct_cmd_from_type
+            $elif $type=~/^c(pp)?$/
+                $call run_c
+            $call do_compile, java, javac $file, CD java $name
+            $call do_compile, f, gfortran -g -o$exe $file $page->{lib_list}, $exe
+            $call do_compile, rs, rustc $file, $exe
+            $call do_compile, hs, ghc -o$exe $file, $exe
+            $call do_compile, asm, nasm -f elf $file && ld -m elf_i386 $name.o -o$exe, $exe
+            $call do_compile, s, gcc -masm=intel -o$exe $file, $exe
+            $call do_compile, pas, fpc $file, $exe
+            # $call do_compile, prolog, gplc $name    ? no idea how to make it work
+            $call do_script, sh, sh
+            $call do_script, pl, perl
+            $call do_script, php, php
+            $call do_script, py, python
+            $call do_script, go, go run
+            $call do_script, js, node
+            $call do_script, tcl, tclsh
+            $call do_script, lua, lua
+            $call do_script, lisp, clisp
+            # $call do_script, tex, pdflatex  # -interaction=batchmode
+            $call do_script, tex, run_tex
+            $call do_script, latex, run_tex
+            $call do_script, awk, awk -f
         # --------------------
-        subcode: do_compile(ext, cmd, run)
+        # support custom_run.def 
+        subcode: do_compile(ext, cmd, exe)
             $case $type eq "$(ext)"
-                $(if:$(ext)_CMD)
-                    $(set:cmd=$($(ext)_CMD))
-                $(if:$(ext)_RUN)
-                    $(set:run=$($(ext)_RUN))
+                $(if:$(ext)_COMPILE)
+                    $(set:cmd=$($(ext)_COMPILE))
+                $(if:$(ext)_EXE)
+                    $(set:exe=$($(ext)_EXE))
 
-                $cmd="$(cmd)"
-                $call append_run, $(run)
+                $(if:$(ext)_RUN)
+                    $cmd = "$($(ext)_RUN))"
+                $(else)
+                    $cmd="$(cmd)"
+                    $call append_exe, $(exe)
 
         subcode: do_script(ext, cmd)
             $case $type eq "$(ext)"
-                $cmd = "$(cmd) $file"
+                $(if:$(ext)_RUN)
+                    $cmd = "$($(ext)_RUN))"
+                $(else)
+                    $cmd = "$(cmd) $file"
 
-        subcode: append_run(exe)
+        # ---------------------
+        subcode: set_config_exe_type
+            $if $page->{exe_type}
+                $exe .= "." . $page->{exe_type}
+            $elif $MyDef::var->{exe_type}
+                $exe .= "." . $MyDef::var->{exe_type}
+            $elif $config{module} eq "win32"
+                $exe .= ".exe"
+
+        subcode: append_exe(exe)
             $(if:exe=$exe)
                 $if $exe!~/\//
                     $exe = "./$(exe)"
-            my $run = "$(exe)"
-            $call set_config, $run, run
-            $if $run ne "none"
-                $if $file_dir and $run=~/CD\s+(.*)/
+            my $exe = "$(exe)"
+            $call set_config, $exe, exe
+            $if $exe ne "none"
+                $if $file_dir and $exe=~/CD\s+(.*)/
                     my $t = $1
                     $t=~s/$file_dir\///g
-                    $run = "cd $file_dir && $t"
-                $cmd .= " && $run"
+                    $exe = "cd $file_dir && $t"
+                $cmd .= " && $exe"
 
         subcode: append_arg
             $if $page->{arg}
@@ -190,14 +212,11 @@ page: mydef_run
                 my $cc="$(CC)"
             $(else)
                 my $cc = "gcc -std=c99 -O2"
-                # my $cc = "gcc"
-                # my $cc = "gcc -std=gnu99"
-                # my $cc = "x86_64-w64-mingw32-gcc"
                 # my $cc = "x86_64-w64-mingw32-gcc -O2 -Wl,--subsystem,windows"
             $if $name=~/\.cpp$/
                 $cc = "g++ -O2"
 
-            $call set_config, $cc, CC
+            $call set_config, $cc, cc
             # ---------------------
             $cmd="$cc -o$exe $file $page->{lib_list}"
 
@@ -212,7 +231,7 @@ page: mydef_run
                 print "\t$cmd\n"
                 exit
             $else
-                $call append_run, $exe
+                $call append_exe, $exe
 
 #---------------------------------------- 
 subcode: grab_expect_block

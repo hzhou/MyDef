@@ -7,6 +7,7 @@ if [ -z "$MYDEFLIB" ]; then
     printf "\n${C}#---- New install, set PERL5LIB, MYDEFLIB, and PATH ----${NC}\n"
     NEWINSTALL=1
     install -d $HOME/bin
+    install -d $HOME/lib
     install -d $HOME/lib/perl5
     install -d $HOME/lib/MyDef
 

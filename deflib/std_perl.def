@@ -1,16 +1,3 @@
-subcode: sub_new
-    $sub new($class, $self)
-      $class = ref($class) || $class;
-      if (!defined $self) { $self = { }; }
-      bless ($self, $class);
-      BLOCK
-      return $self
-
-subcode: export(list)
-    use Exporter
-    our @ISA = qw(Exporter)
-    our @EXPORT = qw($(list))
-
 subcode: block
     {
         BLOCK
