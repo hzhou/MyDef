@@ -5,10 +5,6 @@ page: MyDef
     output_dir: lib
     package: MyDef
 
-    subcode: main
-        $call mydef_main
-
-subcode: mydef_main
     $global $def, $page, $var={}
     $use MyDef::utils
     $use MyDef::parseutil

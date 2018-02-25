@@ -1,36 +1,36 @@
 page: mydef_page
     output_dir: script
     type:
-    subcode: main
-        #Usage: perl createpages.pl def_file
-        use MyDef;
-        my $def_file
-        my %config;
-        my $default_module=$MyDef::var->{module}
-        $call parse_arg
 
-        $if $def_file eq "-pipe"
-            #-- reads from STDIN
-            #-- dump to STDOUT
-            MyDef::pipe_page($config{module})
+    #Usage: perl createpages.pl def_file
+    use MyDef;
+    my $def_file
+    my %config;
+    my $default_module=$MyDef::var->{module}
+    $call parse_arg
+
+    $if $def_file eq "-pipe"
+        #-- reads from STDIN
+        #-- dump to STDOUT
+        MyDef::pipe_page($config{module})
+    $else
+        $config{def_file}=$def_file
+
+        MyDef::init(%config);
+        my $module=$MyDef::var->{module}
+
+        $if $config{"debug-import"}
+            $MyDef::parseutil::debug={import=>1}
+        MyDef::import_data($def_file)
+
+        $if $config{find}
+            $call find_subcode
+        $elif $config{dump}
+            $call dump_source
+        $elif $config{"debug-import"}
+            # done
         $else
-            $config{def_file}=$def_file
-
-            MyDef::init(%config);
-            my $module=$MyDef::var->{module}
-
-            $if $config{"debug-import"}
-                $MyDef::parseutil::debug={import=>1}
-            MyDef::import_data($def_file)
-
-            $if $config{find}
-                $call find_subcode
-            $elif $config{dump}
-                $call dump_source
-            $elif $config{"debug-import"}
-                # done
-            $else
-                $call compile_pages
+            $call compile_pages
 
     # ---------------------------------------- 
     subcode: parse_arg
