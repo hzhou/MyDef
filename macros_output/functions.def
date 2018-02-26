@@ -115,6 +115,7 @@ subcode:: parsecode_func_other
 subcode: function_list_all
     $(set:lambda=$MyDef::compileutil::named_blocks{"lambda-$1"})
     $while my $f=shift @list_function_list
+        push @$out, "NEWLINE"
         $if $(lambda:$f)
             # my $blk = $(lambda:$f)
             # push @$out, @$blk
