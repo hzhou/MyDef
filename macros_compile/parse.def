@@ -30,6 +30,7 @@ fncode: parseblock($code)
         $call parse_filter_meta
 
         $if $cur_mode eq "template"
+            # -- only $call is honored
             $if $l=~/^(\s*)\$call\s+(.+)/
                 $call template_call_sub
             $else
@@ -64,7 +65,12 @@ subcode: compile_line
         my $preproc=$1
         my $tail=$';
         $call parse_preproc
-    $elif $l=~/^\$([:\.]+) (.*)/ # note: one space is mandatory
+    $elif $cur_mode=~/^(bypass)([:\.]+)/ or $l=~/^\$([:\.]+) (.*)/ # note: one space is mandatory
+        my ($opt, $t)
+        $if $1 eq "bypass"
+            ($opt, $t)=($2,$l)
+        $else
+            ($opt, $t)=($1,$2)
         $call by_pass
     $elif $l=~/^BLOCK(\d*)\s*$/
         $call call_back
@@ -83,42 +89,32 @@ subcode: compile_line
                 $if $out->[-1]=~/^YIELD\s+(.+)/
                     $out->[-1]="$var = $1"
                 $else
-                    $print "[$cur_file:$cur_line] $yellow{MISSING YIELD!}"
-
-            $elif $l=~/^\$-:\s*(.*)/
-                push @$out, "MAKE_STRING:$1"
-                my $subblock=grabblock($block, \$lindex)
-                $global $MAKE_STRING
-                $MAKE_STRING++
-                parseblock({source=>$subblock, name=>"MAKE_STRING"})
-                $MAKE_STRING--
-                push @$out, "POP_STRING"
-            $elif defined $parse_capture
-                push @$parse_capture, $l
-            $elif $MAKE_STRING>0
-                push @$out, $l
-            $else
+                    $call warn, $yellow{MISSING YIELD!}
+            $call @compile_make_string
+            $else NoWarn
                 $call parse_line
             last
     # ---------------
     subcode: by_pass
-        my ($opt, $t)=($1,$2)
         $if $opt eq "::" or $opt eq ":."
             expand_macro(\$t)
             $opt = substr($opt, 1, 1)
 
         $if $opt eq ":"
             # Literal by_pass
+            $call @sub_by_pass
+            push @$out, $t
+        $elif $opt eq "."
+            # Literal sub-line
+            $out->[-1] .= " $t"
+
+        subcode: sub_by_pass
             my $sub = get_macro_word("by_pass", 1)
             $if $sub
                 # typically, $sub is a perlcode
                 $l = "\$call $sub $t"
                 goto NormalParse;
 
-            push @$out, $t
-        $elif $opt eq "."
-            # Literal sub-line
-            $out->[-1] .= " $t"
     # ----------------
     subcode: call_back
         my $callback_idx=$1

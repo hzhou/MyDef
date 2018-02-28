@@ -8,9 +8,8 @@ subcode: parse_preproc
 
     $if !$flag_done
         undef $switch_context
-        $if $preproc=~/^for:\s*(.*)/
-            my $t=$1
-            my $subblock=grabblock($block, \$lindex);
+        $if $preproc=~/^for:\s*(.*)/ -> $t
+            $call grab
             $if $t=~/^(\w+)\s+in\s+(.*)/
                 # $(for:x in x,y,z)
                 my ($vname, $vparam)=($1,$2)
@@ -18,11 +17,11 @@ subcode: parse_preproc
             $else
                 # $(for:x,y,z and 0,1,2)
                 $call for_list
-        $elsif $preproc=~/^foreach:p/
-            my $subblock=grabblock($block, \$lindex);
+        $elif $preproc=~/^foreach:p/
+            $call grab
             $call foreach_p
         $call @preproc_elifs
-        $elsif $preproc=~/^allow_recurse:(\d+)/
+        $elif $preproc=~/^allow_recurse:(\d+)/
             my $code=$block_stack[-1]->{code}
             $if $code->{allow_recurse}
                 $deflist->[-1]->{recurse}=$code->{recurse}
@@ -34,23 +33,42 @@ subcode: parse_preproc
             push @$out, "DUMP_STUB _init_$idx"
             my $page=$deflist->[2]
             $page->{_init_block}="_init_$idx"
-        $elsif $preproc=~/^block:\s*(\w+)/
+        $elif $preproc=~/^block:\s*(\w+)/
             my $name=$1;
-            my $subblock=grabblock($block, \$lindex);
+            $call grab
             &call with_named_block, $name
-                parseblock({source=>$subblock, name=>"block:$name"})
+                $call parseblock, block:$name
+        $elif $preproc=~/^insert_block$/
+            # insert into {STUB} in the last line
+            $call grab
+            &call with_stub_block
+                $call parseblock, stub
+            push @$out, "INSERT_STUB $name"
+        $elif $preproc=~/^insert_call:\s*(.*)/
+            $print [$preproc]
+            &call with_stub_block
+                call_sub($1)
+            push @$out, "INSERT_STUB $name"
+        $elif $preproc=~/^mode:(.*)/
+            # $(mode:bypass::)
+            $cur_mode = $1
         $else
             goto NormalParse
+    # ---------------------------------------- 
+    subcode: grab
+        my $subblock=grabblock($block, \$lindex);
+    subcode: parseblock(name)
+        parseblock({source=>$subblock, name=>"$(name)"})
     # ---------------------------------------- 
     subcode: for_in
         my @tlist = MyDef::utils::get_tlist($vparam)
 
         my $i=0
         $foreach $t in @tlist
-            #-- new layer of macro context -------------
+            #-- new layer of macro context ----
             my $macro={$vname=>$t, _i=>$i}
             push @$deflist, $macro;
-            parseblock({source=>$subblock, name=>"\${for}"})
+            $call parseblock, foreach_p
             pop @$deflist;
             $i++
 
@@ -75,24 +93,32 @@ subcode: parse_preproc
 
         $if @plist
             # $(for a, b, c in 1, 2, 3 and 2, 3, 4 and 3,4,5)
+            $call for_list_macros
+        $else
+            $call for_list_anonymous
+        # ----
+        subcode: for_list_macros
             $for $i=0:$n
                 my $macro={_i=>$i}
                 $for $j=0:@plist
                     $macro->{$plist[$j]}=$tlist[$j]->[$i]
                 push @$deflist, $macro;
-                parseblock({source=>$subblock, name=>"\${for}"})
+                $call parseblock, for_list
                 pop @$deflist;
-        $else
-            # anonymous
+
+        # ----
+        subcode: for_list_anonymous
+            my $block_ref = $subblock
             $for $i=0:$n
-                my @block = @$subblock
+                my @block = @$block_ref
                 $foreach $l in @block
                     $if $l and $l!~/^SOURCE:/
                         my $j=1
                         $foreach $tlist in @tlist
                             $l=~s/\$$j/$tlist->[$i]/g
                             $j++
-                parseblock({source=>\@block, name=>"\${for:list}"})
+                my $subblock = \@block
+                $call parseblock, for_list
 
     # ---------------------------------------- 
     subcode: foreach_p

@@ -303,7 +303,8 @@ fncode: open_function($fname, $param)
 
 #----
 # ref: used here and $param ...
-subcode: add_function_params(func)
+#     e.g. output_pascal choose to overwrite it
+subcode:@ add_function_params(func)
     my $param_list=$(func)->{param_list}
     my $var_hash=$(func)->{var_hash}
     my @plist=split /,\s*/, $param

@@ -81,6 +81,19 @@ subcode: with_named_block(name)
     BLOCK
     set_output($temp)
 
+subcode: with_stub_block
+    my $i=1
+    my $name = "_stub_$i"
+    $while $named_blocks{$name}
+        $i++
+        $name = "_stub_$i"
+    my $output = []
+    $named_blocks{$name}=$output
+    my $temp=$out;
+    set_output($output)
+    BLOCK
+    set_output($temp)
+
 subcode: dump_deflist
     $for my $i=0;$i<=$#$deflist;$i++
         print "DUMP DEFLIST $i:\n"

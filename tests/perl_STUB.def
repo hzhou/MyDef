@@ -1,0 +1,31 @@
+page: test
+    module: perl
+
+    DUMP_STUB init
+    $call test_1
+    $(block:init)
+        $a = "Changed in \x24(block:init)"
+
+    $print A STUB: {STUB}
+    $(insert_block)
+        $(mode:bypass::)
+        Hello 
+        World!
+        $(mode:sub)
+
+
+    $print Another stub: {STUB}
+    $(insert_call: make_string)
+
+    $print All is well
+
+subcode: test_1
+    $global $a = 1
+    $print a = $a
+
+subcode: make_string
+    $(mode:bypass::)
+    Hello
+    World,
+    again.
+    
