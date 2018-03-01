@@ -11,19 +11,9 @@ fncode: parseblock($code)
     my $indent=0
     parse_stack_push($code)
 
-    my @last_line
     my $lindex=0;
-
-    my @callback_stack; # &call
-    my $pending_mode_pop;
-
-    $while $lindex<@$block
-        my $l=$block->[$lindex];
-        $if $debug eq "compile"
-            $call dump_line, compile
-        $lindex++
-        $cur_line++
-
+    &call loop_block_lines # ref: util.def
+        # $call dump_line, compile
         # -- such as DEBUG
         $call parse_catch_meta
         # -- such as indentation and BLOCK_n
@@ -35,7 +25,7 @@ fncode: parseblock($code)
                 $call template_call_sub
             $else
                 push @$out, $l
-        $else
+        $elif $l
             $call compile_line
     parse_stack_pop()
 
@@ -59,9 +49,7 @@ fncode: parseblock($code)
 #----------------------------------------------
 subcode: compile_line
     # -- handle preproc and out-of-switch
-    $if !$l
-        # skip
-    $elif $l=~/^\$\((.*)\)/
+    $if $l=~/^\$\((.*)\)/
         my $preproc=$1
         my $tail=$';
         $call parse_preproc

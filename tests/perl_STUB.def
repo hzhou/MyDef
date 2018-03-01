@@ -6,18 +6,38 @@ page: test
     $(block:init)
         $a = "Changed in \x24(block:init)"
 
-    $print A STUB: {STUB}
-    $(insert_block)
-        $(mode:bypass::)
-        Hello 
-        World!
-        $(mode:sub)
+    &call test, insert_block
+        $print A STUB: {STUB}
+        $(insert_block)
+            $(mode:bypass::)
+            Hello 
+            World!
+            $(mode:sub)
+
+    &call test, stub:...
+        $print Another stub: $(stub:make_string)
+    &call test, stub:...
+        $if $(stub:make_cond)
+            $print STUB in \$if works!
 
 
-    $print Another stub: {STUB}
-    $(insert_call: make_string)
+    # seems redudant now.
+    &call test, insert_call:...
+        $print Another stub: {STUB}
+        $(insert_call: make_string)
+    &call test, insert_call:...
+        $if {STUB}
+            $(insert_call: make_cond)
+            # the INDENT gets digested in dumpout
+            $print STUB in \$if works!
+        $else
+            $print STUB in \$if does not work
 
     $print All is well
+
+    subcode: test(stubtype)
+        $print \x24($(stubtype))\n    -
+        BLOCK
 
 subcode: test_1
     $global $a = 1
@@ -29,3 +49,6 @@ subcode: make_string
     World,
     again.
     
+subcode: make_cond
+    $(mode:bypass:)
+    1
