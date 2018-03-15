@@ -81,6 +81,20 @@ subcode: with_named_block(name)
     BLOCK
     set_output($temp)
 
+subcode: with_stub_block
+    my $i=1
+    my $name = "_stub_$i"
+    $while $named_blocks{$name}
+        $i++
+        $name = "_stub_$i"
+    my $output = []
+    $named_blocks{$name}=$output
+    my $temp=$out;
+    set_output($output)
+    BLOCK
+    set_output($temp)
+
+#----------------------------------------------- 
 subcode: dump_deflist
     $for my $i=0;$i<=$#$deflist;$i++
         print "DUMP DEFLIST $i:\n"
@@ -88,44 +102,71 @@ subcode: dump_deflist
         $foreach $k in keys(%$h)
             print "    $k: $h->{$k}\n"
 
-###########################################################
-subcode:: support_subs
+#----------------------------------------------- 
+subcode: _autoload
     $global @mode_stack=("sub"), $cur_mode
 
-    # MODES
-    $sub modepush($mode)
-        $cur_mode=$mode
-        push @mode_stack, $mode;
-        $f_modeswitch->($mode, 1);
+# MODES
+fncode: modepush($mode)
+    $cur_mode=$mode
+    push @mode_stack, $mode;
+    $f_modeswitch->($mode, 1);
 
-    $sub modepop
-        pop @mode_stack
-        $cur_mode=$mode_stack[-1]
-        $f_modeswitch->($cur_mode, 0);
+fncode: modepop
+    pop @mode_stack
+    $cur_mode=$mode_stack[-1]
+    $f_modeswitch->($cur_mode, 0);
 
-    $sub grabblock($block, $index_ref)
-        my @sub;
-        my $indent;
-        my $lindex=$$index_ref;
-        $if $block->[$lindex] ne "SOURCE_INDENT"
-            return \@sub;
+#----------------------------------------------- 
+# {STUB} are replaced in dumpout, preservs semantic integrity
+subcode:: preproc_elifs
+    $elif $preproc=~/^block:\s*(\w+)/
+        my $name=$1;
+        $call grab
+        &call with_named_block, $name
+            $call parseblock, block:$name
+
+subcode:: special_macro_expansions
+    $elif $s=~/^stub:(.*)/
+        &call with_stub_block
+            call_sub($1)
+        push @stub, "INSERT_STUB $name"
+        return "{STUB}"
+#----------------------------------------------- 
+# ref: parse.def:parseblock and here:grabblock
+subcode: loop_block_lines
+    $global @stub
+    $while 1
+        my $l
+        $if @stub
+            $l=shift @stub
         $else
-            $indent=1;
-            $lindex++;
-        push @sub, "SOURCE: $cur_file - $cur_line"
-        $while $lindex<@$block
-            $if $block->[$lindex] eq "SOURCE_DEDENT"
-                $indent-- if $indent>0;
-                $if $indent==0
-                    $lindex++;
-                    last;
-            $if $block->[$lindex] eq "SOURCE_INDENT" 
-                $indent++; 
-            push @sub, $block->[$lindex];
-            $lindex++;
-        $$index_ref=$lindex;
-        #foreach my $l(@sub){print "grabblock: [$l]\n";}
-        return \@sub;
+            $if $lindex>=@$block
+                last
+            $l=$block->[$lindex]
+            $lindex++
+            $cur_line++
+        BLOCK
+
+fncode: grabblock($block, $index_ref)
+    my $lindex=$$index_ref;
+    $if $block->[$lindex] ne "SOURCE_INDENT"
+        return []
+    $lindex++;
+    my $indent=1;
+    my @sub;
+    push @sub, "SOURCE: $cur_file - $cur_line"
+    &call loop_block_lines
+        $if $l eq "SOURCE_DEDENT"
+            $indent--
+            $if $indent==0
+                last
+        $if $l eq "SOURCE_INDENT" 
+            $indent++ 
+        push @sub, $l
+    $$index_ref=$lindex
+    #foreach my $l(@sub){print "grabblock: [$l]\n";}
+    return \@sub;
 
 
 

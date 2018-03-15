@@ -1,0 +1,63 @@
+#--- MAKE_STRING/POP_STRING: facilitate open gl programs
+
+subcode: compile_make_string
+    $elif $l=~/^\$-:\s*(.*)/
+        push @$out, "MAKE_STRING:$1"
+        my $subblock=grabblock($block, \$lindex)
+        $global $MAKE_STRING
+        $MAKE_STRING++
+        parseblock({source=>$subblock, name=>"MAKE_STRING"})
+        $MAKE_STRING--
+        push @$out, "POP_STRING"
+    $elif $MAKE_STRING>0
+        push @$out, $l
+
+#----
+subcode: dumpout_make_string
+    $elif $l=~/^MAKE_STRING:(.*)/
+        $call start_make_string, $1
+    $elif $l =~/^POP_STRING/
+        $call pop_make_string
+    $elif @make_string_stack
+        $call print_line_string
+
+    $(block:dumpout_init)
+        my @make_string_stack
+        my $string_list=undef
+
+    subcode: start_make_string(line)
+        $string_list=[]
+        push @make_string_stack, {quote=>'"', join=>'\n', line=>$(line), list=>$string_list, indent=>$indentation}
+
+    subcode: pop_make_string
+        my $h=pop @make_string_stack
+        $if !$h
+            die "Error POP_STRING\n"
+        $if @make_string_stack
+            $string_list=$make_string_stack[-1]->{list}
+        $else
+            $string_list=undef
+
+        my $l=$h->{line}
+        my $join=''
+        $if $l=~/\bSTRING\[([^\]]*)\]/
+            $join=$1
+            $l=~s/\bSTRING\[[^\]]*\]/STRING/g
+            #-- ?: STRING[, ]word?
+        my $t=join($join, @{$h->{list}})
+
+        $if $l=~/"STRING"/
+            $t=~s/"/\\"/g # avoid \"?
+
+        $l=~s/\bSTRING\b/$t/
+        $call print_line
+
+    subcode: print_line_string
+        $(set:indent=($indentation-$make_string_stack[-1]->{indent}-1))
+        $if $l=~/^\s*$/
+            # push @$f, "\n"
+        $elif $l=~/^\s*NEWLINE\b/
+            push @$string_list, ""
+        $else
+            push @$string_list, "    "x$(indent) . $l
+

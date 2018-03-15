@@ -42,7 +42,7 @@ fncode: expand_macro($lref, $macros)
                 my $t=$macros->{$1};
                 $if $t eq $s
                     die "Looping macro $1 in \"$$lref\"!\n";
-                $if $t
+                $if defined $t
                     $segs[$j]=$t;
                     $flag++;
             $j++;

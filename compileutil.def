@@ -106,6 +106,7 @@ fncode: pop_interface
 #----------------------------------------------- 
 subcode: compile
     $deflist=[$MyDef::def, $MyDef::def->{macros}, $page];
+    # for debug purpose
     $deflist->[0]->{_name_}="def_root"
     $deflist->[1]->{_name_}="macros"
     $deflist->[2]->{_name_}="page $page->{_pagename}"

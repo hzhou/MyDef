@@ -67,21 +67,30 @@ fncode: global_add_var($name, $type, $value)
     $call add_var, $global_hash, $global_list
 
 fncode: func_add_var($name, $type, $value)
-    my ($var_list, $var_hash)
-    $var_list=$cur_function->{var_list}
-    $var_hash=$cur_function->{var_hash}
+    my $var_list=$cur_function->{var_list}
+    my $var_hash=$cur_function->{var_hash}
     $call add_var, $var_hash, $var_list
+
+fncode: func_add_symbol($name, $type, $value)
+    my $var_hash=$cur_function->{var_hash}
+    $call add_var, $var_hash, undef
 
 fncode: scope_add_var($name, $type, $value)
     my $var_list=$cur_scope->{var_list}
     my $var_hash=$cur_scope->{var_hash}
     $call add_var, $var_hash, $var_list
 
+fncode: scope_add_symbol($name, $type, $value)
+    my $var_hash=$cur_scope->{var_hash}
+    $call add_var, $var_hash, undef
+
+# ----
 fncode:@ my_add_var($name, $type, $value)
     my $var_hash=$cur_scope->{var_hash}
     my $var=parse_var($name, $type, $value)
     $name = $var->{name}
     $var_hash->{$name} = $var
+    # declare right here ...
     my $decl = var_declare($var, 1)
     push @$out, $decl
     return $name

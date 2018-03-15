@@ -102,8 +102,8 @@ page: mydef_run
             $cmd=$page->{run}
         $call @construct_cmd_from_type
         # --------------------------------
-        $if $config{expect} and $name=~/\b$config{expect_type}$/
-            $call cmp_expect, $name
+        $if $config{expect} and $config{expect_type} ne "output"
+            $call cmp_expect, $file
         $elif $cmd
             $call append_arg
             $if $config{expect_type} eq "output"
@@ -252,7 +252,7 @@ subcode: cmp_expect(type)
         $print $cmd
         $(set:output="$cmd |")
     $(else)
-        $(set:output=$name)
+        $(set:output=$(type))
 
     &call open_r, $(output)
         print $_

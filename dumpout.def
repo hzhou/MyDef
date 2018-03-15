@@ -1,4 +1,5 @@
 include: macros_util/debug.def
+# include: macros_util/makestring.def
 
 page: dumpout
     type: pm
@@ -26,10 +27,6 @@ subcode: dumpout
     my @indentation_stack
 
     DUMP_STUB dumpout_init
-    subcode: debug_dumpout
-        $if $#$f <10
-            $print dumpout $out: [$l]
-
     $while 1
         $if !@$out
             $out=pop @source_stack;
@@ -39,20 +36,23 @@ subcode: dumpout
                 next;
 
         my $l=shift @$out;
-        # $call @debug_dumpout
+        # $call @debug_dumpout, 20
         $if $custom and $custom->($f, \$l)
             # custom dump -- used in output_www.def
         $elif $l =~/^INCLUDE_BLOCK (\S+)/
             push @source_stack, $out
             $out=$dump->{$1}
-        $elif $l =~ /^(\s*)DUMP_STUB\s+([\w\-]+)/
+        $elif $l =~ /^(DUMP|INSERT)_STUB\s+([\w\-]+)/
             my $source=$MyDef::compileutil::named_blocks{$2};
-            # $print "DUMP_STUB [$l] : $source"
             # multiple DUMP_STUB with the same name is OK, only the first one will be in effect
             #    that is because we did "$l= shift @$out"
             $if $source
-                push @source_stack, $out;
-                $out=$source;
+                $if $1 eq "INSERT"
+                    my $t = join (' ', @$source)
+                    $f->[-1]=~s/\{STUB\}/$t/g
+                $else
+                    push @source_stack, $out;
+                    $out=$source;
         $elif $l =~ /^DUMP_PERL\s+(\w+)/
             my $t = MyDef::compileutil::eval_sub($1)
             my $source = eval($t)
@@ -61,7 +61,7 @@ subcode: dumpout
             $if $source
                 push @source_stack, $out;
                 $out=$source;
-        $elif $l=~/^\s*(INDENT|DEDENT|PUSHDENT|POPDENT)\b(.*)/
+        $elif $l=~/^(INDENT|DEDENT|PUSHDENT|POPDENT)\b(.*)/
             $if $1 eq "INDENT"
                 $indentation++;
             $elif $1 eq "DEDENT"
@@ -78,11 +78,11 @@ subcode: dumpout
             $else
                 unshift @$out, $l;
                 next;
-        $elif $l=~/^\s*SOURCE_INDENT/
+        $elif $l=~/^SOURCE_INDENT/
             $indentation++;
-        $elif $l=~/^\s*SOURCE_DEDENT/
+        $elif $l=~/^SOURCE_DEDENT/
             $indentation-- if $indentation;
-        $elif $l=~/^\s*BLOCK_(\d+)/
+        $elif $l=~/^BLOCK_(\d+)/
             push @source_stack, $out;
             $out=MyDef::compileutil::fetch_output($1);
         #$elif $l=~/^SCOPE:/
@@ -90,67 +90,20 @@ subcode: dumpout
             # messages from compileutil.pm
         $elif $l=~/^NOOP/
             # messages from compileutil.pm
-        $call @support_make_string
+        $call @dumpout_make_string
         $else NoWarn
             $call print_line
 
-subcode: print_line
-    $if $l=~/^\s*$/
-        push @$f, "\n"
-    $elif $l=~/^\s*NEWLINE\b/
-        push @$f, "\n"
-    $else
-        chomp $l
-        push @$f, "    "x$indentation."$l\n"
-
-#---------------------------------------- 
-subcode: support_make_string
-    # --- MAKE_STRING/POP_STRING: facilitate open gl programs
-    #     additional messy support in compile/parse.def
-    $elif $l=~/^MAKE_STRING:(.*)/
-        $call start_make_string, $1
-    $elif $l =~/^POP_STRING/
-        $call pop_make_string
-    $elif @make_string_stack
-        $call print_line_string
-
-    $(block:dumpout_init)
-        my @make_string_stack
-        my $string_list=undef
-
-    subcode: start_make_string(line)
-        $string_list=[]
-        push @make_string_stack, {quote=>'"', join=>'\n', line=>$(line), list=>$string_list, indent=>$indentation}
-
-    subcode: pop_make_string
-        my $h=pop @make_string_stack
-        $if !$h
-            die "Error POP_STRING\n"
-        $if @make_string_stack
-            $string_list=$make_string_stack[-1]->{list}
-        $else
-            $string_list=undef
-
-        my $l=$h->{line}
-        my $join=''
-        $if $l=~/\bSTRING\[([^\]]*)\]/
-            $join=$1
-            $l=~s/\bSTRING\[[^\]]*\]/STRING/g
-            #-- ?: STRING[, ]word?
-        my $t=join($join, @{$h->{list}})
-
-        $if $l=~/"STRING"/
-            $t=~s/"/\\"/g # avoid \"?
-
-        $l=~s/\bSTRING\b/$t/
-        $call print_line
-
-    subcode: print_line_string
-        $(set:indent=($indentation-$make_string_stack[-1]->{indent}-1))
+    subcode: print_line
         $if $l=~/^\s*$/
-            # push @$f, "\n"
+            push @$f, "\n"
         $elif $l=~/^\s*NEWLINE\b/
-            push @$string_list, ""
+            push @$f, "\n"
         $else
-            push @$string_list, "    "x$(indent) . $l
+            chomp $l
+            push @$f, "    "x$indentation."$l\n"
+
+    subcode: debug_dumpout(N)
+        $if $#$f <$(N)
+            $print dumpout $out: [$l]
 

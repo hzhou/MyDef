@@ -40,6 +40,9 @@ subcode: for_c_style
     $call push_single_block, "for($param){", "}"
 
 #---------------------------------------- 
+#- counting up: [i0, i1)
+#- counting down: [i2, i1] !!!
+#- except (i2: 0]
 subcode: parsecode_for_convention
     $if @tlist==1
         $i0="0"
