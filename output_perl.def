@@ -85,9 +85,17 @@ subcode: parsecode_function
             return single_block("sub $param {", "}", "sub")
 
     $elif $func =~ /^(while)$/
-        $if $param=~/\/.*\/\w*\s*$/
-            #-- regex
-            return single_block("while($param){", "}")
+        $call check_regex_capture, $param
+        $if $regex_capture
+            &call return_newblock, while
+                push @src, "while($param){"
+                push @src, "INDENT"
+                push @src, $regex_capture
+                push @src, "BLOCK"
+                push @src, "DEDENT"
+                push @src, "}"
+        $elif $param=~/\/.*\/\w*\s*$/
+            return single_block("while($param){", "}", "while")
         $else
             $call parsecode_while_support, c_style
     $elif $func =~ /^for(each)?$/
@@ -123,7 +131,6 @@ macros:
 fncode: parse_condition($t)
     $if $t=~/^\/|[!=]~\s*\//
         # regex 
-        $call check_regex_capture
     $elif $t=~/[^!=><]=[^="]/
         $if $t!~/["'].*=.*['"]/
             $call warn, assignment in condition [$t]? 
@@ -137,16 +144,16 @@ fncode: parse_condition($t)
                 $t=$1."!$2 || $2 ne $4"
     return $t
 
-subcode: check_regex_capture
-    $if $t=~/(.*\S\/\w*)\s*->\s*([^\/]+?)\s*$/
-        $t = $1
+subcode: check_regex_capture(t)
+    my $regex_capture
+    $if $(t)=~/(.*\S\/\w*)\s*->\s*([^\/]+?)\s*$/
+        $(t) = $1
         my @tlist=MyDef::utils::proper_split($2)
         my (@t1, @t2)
         $foreach $v, $i in @tlist
             $if $v ne "-"
                 push @t1, $v
                 push @t2, '$'.($i+1)
-        $global $regex_capture
         $regex_capture = "my (".join(', ', @t1).") = (".join(', ', @t2).");"
 
 #---------------------------------------- 
@@ -167,11 +174,11 @@ subcode: for_i0_i1_step
     $param = "my $param"
 
 subcode: case_perl_style
+    $call check_regex_capture, $cond
     push @src, "$case($cond){";
     push @src, "INDENT";
     $if $regex_capture
         push @src, $regex_capture
-        undef $regex_capture
     push @src, "BLOCK";
     push @src, "DEDENT";
     push @src, "}";
