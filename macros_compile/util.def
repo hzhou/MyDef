@@ -118,22 +118,13 @@ fncode: modepop
     $f_modeswitch->($cur_mode, 0);
 
 #----------------------------------------------- 
+# {STUB} are replaced in dumpout, preservs semantic integrity
 subcode:: preproc_elifs
     $elif $preproc=~/^block:\s*(\w+)/
         my $name=$1;
         $call grab
         &call with_named_block, $name
             $call parseblock, block:$name
-    $elif $preproc=~/^insert_block$/
-        # insert into {STUB} in the last line
-        $call grab
-        &call with_stub_block
-            $call parseblock, stub
-        push @$out, "INSERT_STUB $name"
-    $elif $preproc=~/^insert_call:\s*(.*)/
-        &call with_stub_block
-            call_sub($1)
-        push @$out, "INSERT_STUB $name"
 
 subcode:: special_macro_expansions
     $elif $s=~/^stub:(.*)/

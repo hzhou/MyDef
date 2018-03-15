@@ -9,8 +9,6 @@ subcode: compile_make_string
         parseblock({source=>$subblock, name=>"MAKE_STRING"})
         $MAKE_STRING--
         push @$out, "POP_STRING"
-    $elif defined $parse_capture
-        push @$parse_capture, $l
     $elif $MAKE_STRING>0
         push @$out, $l
 

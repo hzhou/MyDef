@@ -1,43 +1,42 @@
-subcode: parse_preproc
+subcode: check_preproc_has_macro
     my $has_macro
     $if $preproc =~ /\$\(/ and $preproc !~ /^set:/
         $has_macro = expand_macro(\$preproc)
-    # $print "parse_preproc: $preproc [$tail] [$l]"
-    my $flag_done
-    $call parse_preproc_switch
 
-    $if !$flag_done
-        undef $switch_context
-        $if $preproc=~/^for:\s*(.*)/ -> $t
-            $call grab
-            $if $t=~/^(\w+)\s+in\s+(.*)/
-                # $(for:x in x,y,z)
-                my ($vname, $vparam)=($1,$2)
-                $call for_in
-            $else
-                # $(for:x,y,z and 0,1,2)
-                $call for_list
-        $elif $preproc=~/^foreach:p/
-            $call grab
-            $call foreach_p
-        $call @preproc_elifs
-        $elif $preproc=~/^allow_recurse:(\d+)/
-            my $code=$block_stack[-1]->{code}
-            $if $code->{allow_recurse}
-                $deflist->[-1]->{recurse}=$code->{recurse}
-            $else
-                $code->{allow_recurse}=$1
-                $deflist->[-1]->{recurse}=0
-        $elif $preproc=~/^_init_block$/
-            my $idx=$block_stack[-1]->{eindex}
-            push @$out, "DUMP_STUB _init_$idx"
-            my $page=$deflist->[2]
-            $page->{_init_block}="_init_$idx"
-        $elif $preproc=~/^mode:(.*)/
-            # $(mode:bypass::)
-            $cur_mode = $1
+subcode: parse_preproc
+    my $flag_done = 1
+    $if $preproc=~/^for:\s*(.*)/ -> $t
+        $call grab
+        $if $t=~/^(\w+)\s+in\s+(.*)/
+            # $(for:x in x,y,z)
+            my ($vname, $vparam)=($1,$2)
+            $call for_in
         $else
-            goto NormalParse
+            # $(for:x,y,z and 0,1,2)
+            $call for_list
+    $elif $preproc=~/^foreach:p/
+        $call grab
+        $call foreach_p
+    $call @preproc_elifs
+    $elif $preproc=~/^allow_recurse:(\d+)/
+        my $code=$block_stack[-1]->{code}
+        $if $code->{allow_recurse}
+            $deflist->[-1]->{recurse}=$code->{recurse}
+        $else
+            $code->{allow_recurse}=$1
+            $deflist->[-1]->{recurse}=0
+    $elif $preproc=~/^_init_block$/
+        my $idx=$block_stack[-1]->{eindex}
+        push @$out, "DUMP_STUB _init_$idx"
+        my $page=$deflist->[2]
+        $page->{_init_block}="_init_$idx"
+    $elif $preproc=~/^mode:(.*)/
+        # $(mode:bypass::)
+        $cur_mode = $1
+    $else
+        $flag_done = undef
+    $if $flag_done
+        goto Done_Parse
     # ---------------------------------------- 
     subcode: grab
         my $subblock=grabblock($block, \$lindex);
@@ -125,21 +124,37 @@ subcode:: parseblock_init
     my $switch_context
 
 subcode: parse_preproc_switch
-    $flag_done=1
-    $if $preproc=~/^if:\s*(.*)/
+    $if $preproc=~/^(if(each)?:|els?e?if:|else\b)\s*(.*)/
         my $subblock=grabblock($block, \$lindex);
-        $call parse_preproc_if
-    $elif $preproc=~/^els?e?if:\s*(.*)/
-        my $subblock=grabblock($block, \$lindex);
-        $if $switch_context eq "on"
-            $call parse_preproc_if
-    $elif $preproc=~/^else/
-        my $subblock=grabblock($block, \$lindex);
+        $if $preproc=~/^if:\s*(.*)/
+            $call parse_if
+        $elif $preproc=~/^els?e?if:\s*(.*)/
+            $if $switch_context eq "on"
+                $call parse_if
+        $elif $preproc=~/^else/
+            $call parse_else
+        $elif $preproc=~/^ifeach:\s*(.*)/
+            $call parse_ifeach
+        $else
+            die "Error: parse_preproc_switch\n"
+        goto Done_Parse;
+    $else
+        undef $switch_context
+
+    # -------------------
+    subcode: parse_if
+        $if testcondition($1, $has_macro)
+            parseblock({source=>$subblock, name=>"\${if:}"})
+            $switch_context="off";
+        $else
+            $switch_context="on";
+
+    subcode: parse_else
         $if $switch_context eq "on"
             parseblock({source=>$subblock, name=>"\${else}"})
             undef $switch_context;
-    $elif $preproc=~/^ifeach:\s*(.*)/
-        my $subblock=grabblock($block, \$lindex);
+
+    subcode: parse_ifeach
         my $cond=$1
         my $plist=$deflist->[-1]->{plist}
         undef $switch_context
@@ -157,18 +172,6 @@ subcode: parse_preproc_switch
                 pop @$deflist;
         $if !$switch_context
             $switch_context="on";
-    $else
-        $flag_done=0
-        undef $switch_context
-
-subcode: parse_preproc_if
-    $if testcondition($1, $has_macro)
-        parseblock({source=>$subblock, name=>"\${if:}"})
-        $switch_context="off";
-    $else
-        $switch_context="on";
-    $if $debug eq "preproc"
-        $print parse_preproc_if: ($1) -> $switch_context
 
 #---------------------------------------- 
 fncode: test_op($a, $test)

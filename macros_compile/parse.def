@@ -52,56 +52,57 @@ subcode: compile_line
     $if $l=~/^\$\((.*)\)/
         my $preproc=$1
         my $tail=$';
-        $call parse_preproc
-    $elif $cur_mode=~/^(bypass)([:\.]+)/ or $l=~/^\$([:\.]+) (.*)/ # note: one space is mandatory
-        my ($opt, $t)
-        $if $1 eq "bypass"
-            ($opt, $t)=($2,$l)
-        $else
-            ($opt, $t)=($1,$2)
-        $call by_pass
-    $elif $l=~/^BLOCK(\d*)\s*$/
+        # $print "parse_preproc: $preproc [$tail] [$l]"
+        $call check_preproc_has_macro
+        $call @parse_preproc_switch
+        $call @parse_preproc
+    # -------------
+    expand_macro(\$l);
+    $if $l=~/^BLOCK(\d*)\s*$/
         $call call_back
-    $else
-        NormalParse:
-        expand_macro(\$l);
-        $while 1
-            #-- parse_line could return a new $l
-            #-- otherwise, last in the end breaks the loop
-            $if $l=~/^(&call\d?|\$call|\$map\d?|\$nest)\s+(.*)$/i
-                my ($func, $param)=(lc($1), $2)
-                $call parse_call_sub
-            $elif $l=~/^(\S+)\s*=\s*\$call\s+(.*)/
-                my ($var, $param)=($1, $2)
-                call_sub($param)
-                $if $out->[-1]=~/^YIELD\s+(.+)/
-                    $out->[-1]="$var = $1"
-                $else
-                    $call warn, $yellow{MISSING YIELD!}
-            $call @compile_make_string
-            $else NoWarn
-                $call parse_line
-            last
+        goto Done_Parse
+    # -----------------
+    $call @check_bypass
+    # -----------------
+    $while 1
+        #-- parse_line could return a new $l
+        #-- otherwise, last in the end breaks the loop
+        $if $l=~/^(&call\d?|\$call|\$map\d?|\$nest)\s+(.*)$/i
+            my ($func, $param)=(lc($1), $2)
+            $call parse_call_sub
+        $elif $l=~/^(\S+)\s*=\s*\$call\s+(.*)/
+            my ($var, $param)=($1, $2)
+            call_sub($param)
+            $if $out->[-1]=~/^YIELD\s+(.+)/
+                $out->[-1]="$var = $1"
+            $else
+                $call warn, $yellow{MISSING YIELD!}
+        $call @compile_make_string
+        $elif defined $parse_capture
+            push @$parse_capture, $l
+        $else NoWarn
+            $call parse_line
+        last
+    Done_Parse: 1;
     # ---------------
+    subcode: check_bypass
+        my $bypass
+        $if $cur_mode=~/^(bypass)/ 
+            $bypass = "::"
+        $elif $l=~/^\$([:\.]+) (.*)/ # note: one space is mandatory
+            $bypass=$1
+            $l=$2
+        $if $bypass
+            $call by_pass
+            goto Done_Parse
+
     subcode: by_pass
-        $if $opt eq "::" or $opt eq ":."
-            expand_macro(\$t)
-            $opt = substr($opt, 1, 1)
-
-        $if $opt eq ":"
-            # Literal by_pass
-            $call @sub_by_pass
-            push @$out, $t
-        $elif $opt eq "."
-            # Literal sub-line
-            $out->[-1] .= " $t"
-
-        subcode: sub_by_pass
-            my $sub = get_macro_word("by_pass", 1)
-            $if $sub
-                # typically, $sub is a perlcode
-                $l = "\$call $sub $t"
-                goto NormalParse;
+        $if $bypass eq "::" or $bypass eq ":."
+            expand_macro(\$l)
+        $if $bypass eq ":."
+            $out->[-1] .= " $l"
+        $else
+            push @$out, $l
 
     # ----------------
     subcode: call_back

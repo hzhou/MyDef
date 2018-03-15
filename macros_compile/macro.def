@@ -19,7 +19,7 @@ subcode:: preproc_elifs
     $elif $preproc=~/^set:\s*(.*)/
         # immediate macros
         set_macro($deflist->[-1], $1)
-    $elif $preproc=~/^set(-?\d+|\w+):\s*(.*)/ -> $i, $t
+    $elif $preproc=~/^set(-?\d+|def|macro|page):\s*(.*)/ -> $i, $t
         # $(set-1:name=value) : one level up
         # $(set1:name=value)  : macro
         $if $debug eq "macro"
