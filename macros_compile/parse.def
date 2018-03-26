@@ -57,13 +57,13 @@ subcode: compile_line
         $call @parse_preproc_switch
         $call @parse_preproc
     # -------------
-    expand_macro(\$l);
     $if $l=~/^BLOCK(\d*)\s*$/
         $call call_back
         goto Done_Parse
     # -----------------
     $call @check_bypass
     # -----------------
+    expand_macro(\$l);
     $while 1
         #-- parse_line could return a new $l
         #-- otherwise, last in the end breaks the loop
