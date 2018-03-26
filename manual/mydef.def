@@ -58,6 +58,8 @@ subcode:: sections
             $ git clone https://github.com/hzhou/MyDef.git
             $ cd MyDef
             $ sh bootstrap.sh
+    
+    $call subsection, install_what, What is installed
 #---------------------------------------- 
 subcode: TOC
     $(anchor:TOC)
