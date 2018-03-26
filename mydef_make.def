@@ -305,7 +305,7 @@ subcode: read_eachfile
                 $call outputdir_inpage
             $elif /^\s*\$include\s+(\S*)/ and $module ne "c" and -f $1
                 $page->{include}->{$1}=1;
-            $elif /^\s*(type|module):\s*(\w+)/
+            $elif /^\s*(type|module):\s*(\w+)/ and $inpage==1
                 $if !$page->{$1}
                     $page->{$1}=$2
             $elif /^\s*type:\s*$/
@@ -317,6 +317,8 @@ subcode: read_eachfile
                 $page->{$1}=$2
             $elif /^\S/ 
                 $inpage=0;
+            $elif !/^\s+\w+:/ and !/^\s*#/
+                $inpage=2
             # ----
             subcode: outputdir_inpage
                 my $dir=expand_macros($1);

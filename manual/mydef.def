@@ -1,0 +1,124 @@
+# A manual in a style of https://www.gnu.org/software/m4/manual/m4.html
+include: html/code.def
+
+page: mydef, basic_frame
+    module: www
+    title: MyDef Manual
+
+    $call css_manual
+    $call css_code
+    $h1
+        $(title)
+    $call TOC
+    $call @sections
+    $call end_section
+
+#---------------------------------------- 
+subcode:: sections
+    $call section, intro, Introduction
+    $call subsection, intro_mydef, Introduction to $(code:MyDef)
+    $p
+        $(code:MyDef) is a general purpose preprocessor, in the sense that it processes input and generates output, rearranging blocks of text based on a small but powerful set of preprocessing directives as well as expanding macros that are marked with special syntaxes. $(code:MyDef) adds a meta-layer on top of any programming lanugages, which allows factoring code and customize syntax at a higher abstract level.
+    $p
+        A typical programming language consists of semantics layer and syntax layer. The former defines entities such as data types, variables and functions and their mechanism;  the latter defines the text form that can describe these entites. $(code:MyDef) works purely on the syntax layer and provides extra control on how the code could be write and read.
+    $p
+        At its base level, $(code:MyDef) is used for code factoring and code reagrangement. The former cases include examples such as boiler-plate code and repetitive code. The latter include examples such as organizing code in a top-down form or group semantic related definitions, types, variables and code together. With $(code:MyDef), it is possible to put all feature related code in a single file, e.g. $(code:feature_A.def), and selectively including or excluding features become including or commenting out the inclusion of $(code:feature_A.def) in the main file. This is in contrast with the common practice of scattering feature related code across source code with $(code:#ifdef).
+
+    $call subsection, intro_bugs, Problems and Bugs 
+    $p
+        If you encouter problems with $(code:MyDef), please feel encouraged to raise an issue at $(url:https://github.com/hzhou/MyDef/issues). You are also welcome to send e-mail to mydef at hzsolutions.net. However, there is no garantee that your issues or questions will be addressed in any time frame.
+    $p
+        Because $(code:MyDef) works only on syntax layer, almost all its error will result in syntax error and typical language compilers are very good at catching or reporting syntax errors. Syntax errors are generally easy to fix. The base features of $(code:MyDef) is fairly robust. However, the development of $(code:MyDef) is constantly adding and experiementing extra features. In addition, due to the flexibility of $(code:MyDef), users can develop custom plug-ins that intruduces features that are fragile in nature. If you encouter errors from using certain features, in addition to learn more about the feature, there is always the option of bypassing the feature altogether. $(code:MyDef)'s syntaxes are designed to be distinct from most language syntaxes. You can always write your code in vanilla form and $(code:MyDef) will pass to the output directly.
+
+    $call subsection, intro_usage, Using this manual
+    $p
+        This manual contains a number of examples of $(code:MyDef) input and output, and a simple notation is used to distinguish input, output and error messages from $(code:MyDef). Examples are set out from the normal text, and shown in a fixed width font, like this
+        &call codeprint, mydef, test.def
+            page: test
+                module: perl
+                $print Hello World!
+    $p
+        To illustrate command line examples, a shell prompt &lsquot;$ &rsquot; will be shown along with the command line input, while the program output will be shown without the prompt, like this:
+        &call codeprint, sh
+            $ mydef_run test.def
+            PAGE: t
+                --> [./t.pl]
+            perl ./t.pl
+            Hello World!
+
+#---------------------------------------- 
+subcode:: sections
+    $call section, install, Installations
+    $p
+        MyDef repositories are separated into base repository and individual output-module repositories. Output modules depend on the $(code:MyDef) base code and implements language or application specific features. The base repository implements features that are common to all output modules.
+    $call subsection, install_base, MyDef base repository
+    $p
+        To install $(code:MyDef) requires $(code:perl), $(code:make), $(code:git). For typical system, you can install $(code:MyDef) to your home directory like following:
+        &call codeprint, sh
+            $ git clone https://github.com/hzhou/MyDef.git
+            $ cd MyDef
+            $ sh bootstrap.sh
+#---------------------------------------- 
+subcode: TOC
+    $(anchor:TOC)
+    $h2 contents-heading
+        Table of Contents
+    $div contents
+        $ul no-bullet id1 
+            DUMP_STUB _toc
+
+subcode: section(name, title)
+    $call end_section
+    $(setmacro:id1+=1)
+    $(block:_toc)
+        <li><a href="#$(name)">$(id1) $(title)</a>
+    $(setmacro:id2=0)
+    # --------------------
+    $(anchor:$(name))
+    $h2 chapter
+        $(id1) $(title)
+
+subcode: subsection(name, title)
+    $(block:_toc)
+        $(if:id2=0)
+            <ul class="no-bullet id2">
+        $(setmacro:id2+=1)
+        <li><a href="#$(name)">$(id1).$(id2) $(title)</a></li>
+    # --------------------
+    $(anchor:$(name))
+    $h3 section
+        $(id1).$(id2) $(title)
+
+subcode: end_section
+    $(block:_toc)
+        $(if:id1>0)
+            $(if:id2>0)
+                </ul>
+            </li>
+
+subcode: css_manual
+    CSS: body {padding: 50px}
+    CSS: ul.no-bullet {list-style: none; padding: 0}
+    CSS: ul.id1 {font-weight:bold}
+    CSS: ul.id2 {font-weight:normal}
+    CSS: li {margin: 0.5em 1em; line-height:1.3em;}
+    CSS: a[href] {color: #005090}
+    CSS: a {text-decoration: none; outline-style:none;}
+    CSS: pre {border-radius: 0.3em; background-color: #f2efe4}
+
+subcode: css_code
+    CSS: pre {margin: 4px 10px; padding-left: 20px;}
+    CSS: pre strong {color: #444; font-weight:700}
+    CSS: .mydef-comment {color: #888; font-style: italic} # gray
+    CSS: .mydef-label  {color: #22f;} # blue
+    CSS: .mydef-label2 {color: #228;} # blueish
+    CSS: .mydef-keyword {color: #494; font-weight: 700} # green
+    CSS: .mydef-preproc {color: #844;} # redish
+    CSS: .mydef-include {color: #444; text-decoration: underline;}
+    CSS: .mydef-quote {color: #a2a;}
+    CSS: .mydef-macro {color: #474;}
+    CSS: .mydef-special {color: #888; font-weight: 700}
+
+subcode:: other_code_filters
+    $case $type eq "sh"
+        $call sh_filter

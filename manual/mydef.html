@@ -1,0 +1,120 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>MyDef Manual</title>
+        <style>
+            body {padding: 50px}
+            ul.no-bullet {list-style: none; padding: 0}
+            ul.id1 {font-weight: bold}
+            ul.id2 {font-weight: normal}
+            li {margin: 0.5em 1em; line-height: 1.3em}
+            a[href] {color: #005090}
+            a {text-decoration: none; outline-style: none}
+            pre {border-radius: 0.3em; background-color: #f2efe4; margin: 4px 10px; padding-left: 20px}
+            pre strong {color: #444; font-weight: 700}
+            .mydef-comment {color: #888; font-style: italic}
+            .mydef-label {color: #22f}
+            .mydef-label2 {color: #228}
+            .mydef-keyword {color: #494; font-weight: 700}
+            .mydef-preproc {color: #844}
+            .mydef-include {color: #444; text-decoration: underline}
+            .mydef-quote {color: #a2a}
+            .mydef-macro {color: #474}
+            .mydef-special {color: #888; font-weight: 700}
+        </style>
+    </head>
+    <body>
+        <h1>
+            MyDef Manual
+        </h1>
+        <a name="TOC"></a>
+        <h2 class="contents-heading">
+            Table of Contents
+        </h2>
+        <div class="contents">
+            <ul class="no-bullet id1">
+                <li><a href="#intro">1 Introduction</a>
+                <ul class="no-bullet id2">
+                <li><a href="#intro_mydef">1.1 Introduction to <code>MyDef</code></a></li>
+                <li><a href="#intro_bugs">1.2 Problems and Bugs</a></li>
+                <li><a href="#intro_usage">1.3 Using this manual</a></li>
+                </ul>
+                </li>
+                <li><a href="#install">2 Installations</a>
+                <ul class="no-bullet id2">
+                <li><a href="#install_base">2.1 MyDef base repository</a></li>
+                </ul>
+                </li>
+            </ul>
+        </div>
+        <a name="intro"></a>
+        <h2 class="chapter">
+            1 Introduction
+        </h2>
+        <a name="intro_mydef"></a>
+        <h3 class="section">
+            1.1 Introduction to <code>MyDef</code>
+        </h3>
+        <p>
+            <code>MyDef</code> is a general purpose preprocessor, in the sense that it processes input and generates output, rearranging blocks of text based on a small but powerful set of preprocessing directives as well as expanding macros that are marked with special syntaxes. <code>MyDef</code> adds a meta-layer on top of any programming lanugages, which allows factoring code and customize syntax at a higher abstract level.
+        </p>
+        <p>
+            A typical programming language consists of semantics layer and syntax layer. The former defines entities such as data types, variables and functions and their mechanism;  the latter defines the text form that can describe these entites. <code>MyDef</code> works purely on the syntax layer and provides extra control on how the code could be write and read.
+        </p>
+        <p>
+            At its base level, <code>MyDef</code> is used for code factoring and code reagrangement. The former cases include examples such as boiler-plate code and repetitive code. The latter include examples such as organizing code in a top-down form or group semantic related definitions, types, variables and code together. With <code>MyDef</code>, it is possible to put all feature related code in a single file, e.g. <code>feature_A.def</code>, and selectively including or excluding features become including or commenting out the inclusion of <code>feature_A.def</code> in the main file. This is in contrast with the common practice of scattering feature related code across source code with <code>#ifdef</code>.
+        </p>
+        <a name="intro_bugs"></a>
+        <h3 class="section">
+            1.2 Problems and Bugs
+        </h3>
+        <p>
+            If you encouter problems with <code>MyDef</code>, please feel encouraged to raise an issue at <a href="https://github.com/hzhou/MyDef/issues">https://github.com/hzhou/MyDef/issues</a>. You are also welcome to send e-mail to mydef at hzsolutions.net. However, there is no garantee that your issues or questions will be addressed in any time frame.
+        </p>
+        <p>
+            Because <code>MyDef</code> works only on syntax layer, almost all its error will result in syntax error and typical language compilers are very good at catching or reporting syntax errors. Syntax errors are generally easy to fix. The base features of <code>MyDef</code> is fairly robust. However, the development of <code>MyDef</code> is constantly adding and experiementing extra features. In addition, due to the flexibility of <code>MyDef</code>, users can develop custom plug-ins that intruduces features that are fragile in nature. If you encouter errors from using certain features, in addition to learn more about the feature, there is always the option of bypassing the feature altogether. <code>MyDef</code>'s syntaxes are designed to be distinct from most language syntaxes. You can always write your code in vanilla form and <code>MyDef</code> will pass to the output directly.
+        </p>
+        <a name="intro_usage"></a>
+        <h3 class="section">
+            1.3 Using this manual
+        </h3>
+        <p>
+            This manual contains a number of examples of <code>MyDef</code> input and output, and a simple notation is used to distinguish input, output and error messages from <code>MyDef</code>. Examples are set out from the normal text, and shown in a fixed width font, like this
+            <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">test</span>
+    <span class="mydef-label2">module</span>: perl
+    $print Hello World!
+            </code></pre>
+        </p>
+        <p>
+            To illustrate command line examples, a shell prompt &lsquot;$ &rsquot; will be shown along with the command line input, while the program output will be shown without the prompt, like this:
+            <pre><code>
+<span class="mydef-special">$ </span>mydef_run test.def
+PAGE: t
+    --> [./t.pl]
+perl ./t.pl
+Hello World!
+            </code></pre>
+        </p>
+        <a name="install"></a>
+        <h2 class="chapter">
+            2 Installations
+        </h2>
+        <p>
+            MyDef repositories are separated into base repository and individual output-module repositories. Output modules depend on the <code>MyDef</code> base code and implements language or application specific features. The base repository implements features that are common to all output modules.
+        </p>
+        <a name="install_base"></a>
+        <h3 class="section">
+            2.1 MyDef base repository
+        </h3>
+        <p>
+            To install <code>MyDef</code> requires <code>perl</code>, <code>make</code>, <code>git</code>. For typical system, you can install <code>MyDef</code> to your home directory like following:
+            <pre><code>
+<span class="mydef-special">$ </span>git clone https://github.com/hzhou/MyDef.git
+<span class="mydef-special">$ </span>cd MyDef
+<span class="mydef-special">$ </span>sh bootstrap.sh
+            </code></pre>
+        </p>
+    </body>
+</html>
