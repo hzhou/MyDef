@@ -25,6 +25,13 @@ subcode: parse_args
     my ($dst, $ext) 
     my $src_list
     $if $ARGV[0] eq "-"
+        $call install_arglist_to_PATH
+    $else
+        my $src
+        ($src, $dst, $ext)=($ARGV[0], $ARGV[1], $ARGV[2])
+        $call install_src_dst_type
+
+    subcode: install_arglist_to_PATH
         ($dst, $ext) = (".", "-")
         shift @ARGV
         $src_list=[]
@@ -34,9 +41,8 @@ subcode: parse_args
             $elif -d $a
                 my $tlist = load_srcs_dir($a,"-")
                 push @$src_list, @$tlist
-    $else
-        my $src = $ARGV[0]
-        ($dst, $ext)=($ARGV[1], $ARGV[2])
+
+    subcode: install_src_dst_type
         $if !$ext
             $ext = "def"
         $if -d $src
@@ -75,6 +81,7 @@ fncode: load_srcs_dir($dir, $ext)
             $if @files
                 $foreach $f in @files
                     push @srcs, $f;
+
 #----------------------------------------------
 fncode: install_all($src_list, $install_dir, $ext)
     $call check_exist, $install_dir

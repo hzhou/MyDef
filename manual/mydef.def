@@ -53,7 +53,7 @@ subcode:: sections
         MyDef repositories are separated into base repository and individual output-module repositories. Output modules depend on the $(code:MyDef) base code and implements language or application specific features. The base repository implements features that are common to all output modules.
     $call subsection, install_base, MyDef base repository
     $p
-        To install $(code:MyDef) requires $(code:perl), $(code:make), $(code:git). For typical system, you can install $(code:MyDef) to your home directory like following:
+        Check your system have $(code:perl), $(code:make), $(code:git) installed. To install MyDef for the first time, use the bootstrap script as following:
         &call codeprint, sh
             $ git clone https://github.com/hzhou/MyDef.git
             $ cd MyDef
