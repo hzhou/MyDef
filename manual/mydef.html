@@ -1,0 +1,1302 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>MyDef Manual</title>
+        <style>
+            body {padding: 50px}
+            ul.no-bullet {list-style: none; padding: 0}
+            ul.id1 {font-weight: bold}
+            ul.id2 {font-weight: normal}
+            li {margin: 0.5em 1em; line-height: 1.3em}
+            a[href] {color: #005090}
+            a {text-decoration: none; outline-style: none}
+            pre {border-radius: 0.3em; background-color: #f2efe4; margin: 4px 10px; padding-left: 20px}
+            pre strong {color: #444; font-weight: 700}
+            .mydef-comment {color: #888; font-style: italic}
+            .mydef-label {color: #22f}
+            .mydef-label2 {color: #228}
+            .mydef-keyword {color: #494; font-weight: 700}
+            .mydef-preproc {color: #844}
+            .mydef-include {color: #444; text-decoration: underline}
+            .mydef-quote {color: #a2a}
+            .mydef-macro {color: #474}
+            .mydef-special {color: #888; font-weight: 700}
+        </style>
+    </head>
+    <body>
+        <h1>
+            MyDef Manual
+        </h1>
+        <a name="TOC"></a>
+        <h2 class="contents-heading">
+            Table of Contents
+        </h2>
+        <div class="contents">
+            <ul class="no-bullet id1">
+                <li><a href="#intro">1 Introduction</a>
+                <ul class="no-bullet id2">
+                <li><a href="#intro_mydef">1.1 Introduction to <code>MyDef</code></a></li>
+                <li><a href="#intro_bugs">1.2 Problems and Bugs</a></li>
+                <li><a href="#intro_usage">1.3 Using this manual</a></li>
+                </ul>
+                </li>
+                <li><a href="#install">2 Installations</a>
+                <ul class="no-bullet id2">
+                <li><a href="#install_base">2.1 install base <code>MyDef</code></a></li>
+                <li><a href="#install_what">2.2 What is installed</a></li>
+                <li><a href="#install_module">2.3 Install additional output_modules</a></li>
+                </ul>
+                </li>
+                <li><a href="#syntax">3 Basic <code>MyDef</code> syntax</a>
+                <ul class="no-bullet id2">
+                <li><a href="#syntax_defile">3.1 Basic structure of <code>.def</code> file</a></li>
+                <li><a href="#syntax_scope">3.2 Scope</a></li>
+                <li><a href="#dynamic_macro">3.3 Dynamic inline macros</a></li>
+                <li><a href="#subcode_param">3.4 Subcode with parameters</a></li>
+                <li><a href="#block_call">3.5 Block call</a></li>
+                <li><a href="#map_call">3.6 Map call</a></li>
+                <li><a href="#nest_call">3.7 Nest call</a></li>
+                <li><a href="#multi_subcode">3.8 Multiply defined subcode</a></li>
+                <li><a href="#syntax_autoload">3.9 <code>subcode: _autoload</code></a></li>
+                <li><a href="#syntax_dump_stub">3.10 <code>DUMP_STUB</code></a></li>
+                <li><a href="#macro_param">3.11 Inline macros with parameters</a></li>
+                <li><a href="#preproc_set">3.12 Preprocessing: <code>&dollar;(if:...)</code></a></li>
+                <li><a href="#preproc_set">3.13 Preprocessing: <code>&dollar;(for:...)</code></a></li>
+                <li><a href="#preproc_set">3.14 Preprocessing: <code>&dollar;(set:...)</code></a></li>
+                <li><a href="#preproc_scope">3.15 Preprocessing: scope rules</a></li>
+                <li><a href="#macro_special">3.16 Special macro syntax</a></li>
+                </ul>
+                </li>
+                <li><a href="#invoke">4 Invoking <code>MyDef</code></a>
+                <ul class="no-bullet id2">
+                <li><a href="#invoke_config">4.1 <code>config</code> file</a></li>
+                <li><a href="#mydef_page">4.2 <code>mydef_page</code></a></li>
+                <li><a href="#mydef_make">4.3 <code>mydef_make</code></a></li>
+                <li><a href="#mydef_run">4.4 <code>mydef_run</code></a></li>
+                </ul>
+                </li>
+                <li><a href="#general">5 <code>output_general</code></a>
+                <ul class="no-bullet id2">
+                <li><a href="#general_code">5.1 <code>output_general.def</code></a></li>
+                </ul>
+                </li>
+                <li><a href="#perl">6 <code>output_perl</code></a>
+                <ul class="no-bullet id2">
+                <li><a href="#perl_plain">6.1 It is OK to write vanilla Perl</a></li>
+                <li><a href="#perl_print">6.2 <code>$print</code></a></li>
+                <li><a href="#perl_semi">6.3 Optional semicolons</a></li>
+                <li><a href="#perl_if">6.4 <code>$if</code>, <code>$elif</code>, and <code>$else</code></a></li>
+                <li><a href="#perl_for">6.5 <code>$for</code></a></li>
+                <li><a href="#perl_while">6.6 <code>$while</code></a></li>
+                <li><a href="#perl_global">6.7 <code>$global</code></a></li>
+                <li><a href="#perl_fn">6.8 <code>fncode</code> and function arrangement</a></li>
+                <li><a href="#perl_std">6.9 <code>std_perl.def</code></a></li>
+                </ul>
+                </li>
+            </ul>
+        </div>
+        <a name="intro"></a>
+        <h2 class="chapter">
+            1 Introduction
+        </h2>
+        <a name="intro_mydef"></a>
+        <h3 class="section">
+            1.1 Introduction to <code>MyDef</code>
+        </h3>
+        <p>
+            <code>MyDef</code> is a general purpose preprocessor, in the sense that it processes input and generates output, rearranging blocks of text based on a small but powerful set of preprocessing directives as well as expanding macros that are marked with special syntaxes. <code>MyDef</code> adds a meta-layer on top of any programming lanugages, which allows factoring code and customize syntax at a higher abstract level.
+        </p>
+        <p>
+            A typical programming language consists of semantics layer and syntax layer. The former defines entities such as data types, variables and functions and their mechanism;  the latter defines the text form that can describe these entites. <code>MyDef</code> works purely on the syntax layer and provides extra control on how the code could be write and read.
+        </p>
+        <p>
+            At its base level, <code>MyDef</code> is used for code factoring and code reagrangement. The former cases include examples such as boiler-plate code and repetitive code. The latter include examples such as organizing code in a top-down form or group semantic related definitions, types, variables and code together. With <code>MyDef</code>, it is possible to put all feature related code in a single file, e.g. <code>feature_A.def</code>, and selectively including or excluding features become including or commenting out the inclusion of <code>feature_A.def</code> in the main file. This is in contrast with the common practice of scattering feature related code across source code with <code>#ifdef</code>.
+        </p>
+        <a name="intro_bugs"></a>
+        <h3 class="section">
+            1.2 Problems and Bugs
+        </h3>
+        <p>
+            If you encouter problems with <code>MyDef</code>, please feel encouraged to raise an issue at <a href="https://github.com/hzhou/MyDef/issues">https://github.com/hzhou/MyDef/issues</a>. You are also welcome to send e-mail to mydef at hzsolutions.net. However, there is no garantee that your issues or questions will be addressed in any time frame.
+        </p>
+        <p>
+            Because <code>MyDef</code> works only on syntax layer, almost all its error will result in syntax error and typical language compilers are very good at catching or reporting syntax errors. Syntax errors are generally easy to fix. The base features of <code>MyDef</code> is fairly robust. However, the development of <code>MyDef</code> is constantly adding and experiementing extra features. In addition, due to the flexibility of <code>MyDef</code>, users can develop custom plug-ins that intruduces features that are fragile in nature. If you encouter errors from using certain features, in addition to learn more about the feature, there is always the option of bypassing the feature altogether. <code>MyDef</code>'s syntaxes are designed to be distinct from most language syntaxes. You can always write your code in vanilla form and <code>MyDef</code> will pass to the output directly.
+        </p>
+        <a name="intro_usage"></a>
+        <h3 class="section">
+            1.3 Using this manual
+        </h3>
+        <p>
+            This manual contains a number of examples of <code>MyDef</code> input and output, and a simple notation is used to distinguish input, output and error messages from <code>MyDef</code>. Examples are set out from the normal text, and shown in a fixed width font, like this
+            <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">test</span>
+    <span class="mydef-label2">module</span>: perl
+    $print Hello World!
+            </code></pre>
+        </p>
+        <p>
+            To illustrate command line examples, a shell prompt &lsquot;$ &rsquot; will be shown along with the command line input, while the program output will be shown without the prompt, like this:
+            <pre><code>
+<span class="mydef-special">$ </span>mydef_run test.def
+PAGE: t
+    --> [./t.pl]
+perl ./t.pl
+Hello World!
+            </code></pre>
+        </p>
+        <a name="install"></a>
+        <h2 class="chapter">
+            2 Installations
+        </h2>
+        <p>
+            MyDef repositories are separated into base repository and individual output-module repositories. Output modules depend on the <code>MyDef</code> base code and implements language or application specific features. The base repository implements features that are common to all output modules.
+        </p>
+        <a name="install_base"></a>
+        <h3 class="section">
+            2.1 install base <code>MyDef</code>
+        </h3>
+        <p>
+            Check your system have <code>perl</code>, <code>make</code>, <code>git</code> installed. To install MyDef for the first time, use the bootstrap script as following:
+            <pre><code>
+<span class="mydef-special">$ </span>git clone https://github.com/hzhou/MyDef.git
+<span class="mydef-special">$ </span>cd MyDef
+<span class="mydef-special">$ </span>sh bootstrap.sh
+            </code></pre>
+        </p>
+        <p>
+            By default, bootstrap.sh installs into <code>$HOME/bin</code>, <code>$HOME/lib/perl5</code>, and <code>$HOME/lib/MyDef</code>. In order to make MyDef work, you also need set following environment variables, preferrablly inside your <code>~/.bashrc</code>:
+            <pre><code>
+export PATH=$HOME/bin:[rest of your path]
+export PERL5LIB=$HOME/lib/perl5
+export MYDEFLIB=$HOME/lib/MyDef
+            </code></pre>
+            If these environment variables are set first, <code>bootstrap.sh</code> will install into the specified destination instead.
+        </p>
+        <p>
+            It is also recommended to keep MyDef repository after installation. You will need the base repository to install additional output-modules. For that matter, you will also need to set environment variable <code>MYDEFSRC</code>:
+            <pre><code>
+export MYDEFSRC=[path to your MyDef repository]
+            </code></pre>
+        </p>
+        <p>
+            MyDef repository can be updated by running <code>git pull</code>. During the bootstrap process, a <code>Makefile</code> is created so upon updateis or files been locally edited, you may simply run <code>make</code> to install the updates:
+            <pre><code>
+$ make
+$ make install
+            </code></pre>
+            You may need to run <code>mydef_make</code> to update the <code>Makefile</code> sometime when new files have been added or removed from the repository.
+        </p>
+        <a name="install_what"></a>
+        <h3 class="section">
+            2.2 What is installed
+        </h3>
+        <p>
+            The following are installed in <code>$HOME/bin</code> (they are all perl scripts):
+        </p>
+        <ul>
+            <li>
+                <b>mydef_page:</b> compiles from <code>.def</code> to output(s).
+            </li>
+            <li>
+                <b>mydef_make:</b> checks <code>.def</code> files in the current folder and <code>config</code> file if exist, output <code>Makefile</code>.
+            </li>
+            <li>
+                <b>mydef_run:</b> convenient script to compile and run a single program.
+            </li>
+            <li>
+                <b>mydef_install:</b> installs files into <code>$MYDEFLIB</code>, <code>$PERL5LIB</code>, or the first localtion of <code>$PATH</code>.
+            </li>
+        </ul>
+        <p>
+            The following are installed in <code>$PERL5LIB</code>:
+        </p>
+        <ul>
+            <li>
+                <b>mydef.pm:</b> defines global variables, loads output_modules, etc.
+            </li>
+            <li>
+                <b>MyDef/parseutil.pm:</b> defines routines for loading <code>.def</code> files.
+            </li>
+            <li>
+                <b>MyDef/compileutil.pm:</b> defines routines for translating into output, defines macros and preprocessing functions.
+            </li>
+            <li>
+                <b>MyDef/dumpout.pm:</b> defines routines for final output.
+            </li>
+            <li>
+                <b>MyDef/utils.pm:</b> defines some helper routines.
+            </li>
+            <li>
+                <b>MyDef/output_general.pm:</b> the default output module.
+            </li>
+            <li>
+                <b>MyDef/output_perl.pm:</b> output module for perl code.
+            </li>
+        </ul>
+        <p>
+            The following are installed in <code>$MYDEFLIB</code>:
+        </p>
+        <ul>
+            <li>
+                <b>std_general.def:</b> macros automatically loaded by output_general.pm; by default it is empty.
+            </li>
+            <li>
+                <b>std_perl.def:</b> macros automatically loaded by output_perl.pm
+            </li>
+        </ul>
+        <p>
+            These are the essential files that are needed for basic <code>MyDef</code> functions. There may be additional files being installed, which may add debugging functions or extra def libraries.
+        </p>
+        <a name="install_module"></a>
+        <h3 class="section">
+            2.3 Install additional output_modules
+        </h3>
+        <p>
+            The base <code>MyDef</code> installs <code>output_general.pm</code> and will be used by default when no module option is given -- in <code>config</code> file, <code>.def</code> source, or on the command line of <code>mydef_page</code> or <code>mydef_run</code>. <code>output_general</code> only translates base <code>MyDef</code> macros and preprocessing directives, and it can be used to generate any text files, including <code>.txt</code>, <code>.pl</code>, <code>.c</code>, or source code for any programming languages. The extension of the output files can be individually specified inside the <code>.def</code> source. By default, <code>.txt</code> is assumed.
+        </p>
+        <p>
+            Although <code>output_general</code> module can be used for any programming language, language or application specific output modules can be developed to add language specific features. For example, the <code>output_perl</code> and <code>output_c</code> modules can automatically add semicolons or curly braces as needed so the programmer can optionally omit them. <code>output_c</code> also can manage automatic variable and function declaration with some type inference logic. For another example, <code>output_win32</code> can add features that automatically manage <code>WNDPROC</code> message handlers to make win32 programming more flexible.
+        </p>
+        <p>
+            Other than <code>output_general</code> and <code>output_perl</code>, all output modules have their own repositories and need to be individually installed. To install these additional output_modules, you need make sure that you have the updated base <code>MyDef</code> repository, and have environment variable <code>$MYDEFSRC</code> points to its location. The installation process are very similar for all modules. For example, <code>output_c</code> module can be installed like this:
+        </p>
+        <pre><code>
+<span class="mydef-special">$ </span>git clone https://github.com/hzhou/output_c.git
+<span class="mydef-special">$ </span>cd output_c
+<span class="mydef-special">$ </span>mydef_make
+<span class="mydef-special">$ </span>make
+<span class="mydef-special">$ </span>make install
+        </code></pre>
+        <p>
+            It will compile and install <code>output_c.pm</code> into <code>$PERL5LIB/MyDef/</code>, <code>std_c.def</code> and some other standard def libraries into <code>$MYDEFLIB</code>.
+        </p>
+        <p>
+            The following output_modules are currently available from <a href="https://github.com/hzhou/">https://github.com/hzhou/</a>: <br>
+            <code>output_c, output_python, output_java, output_www, output_win32, output_xs, output_fortran, output_pascal, output_tcl, output_go, output_rust, output_glsl</code> <br/>
+            Not all modules are equally developed or tested.
+        </p>
+        <a name="syntax"></a>
+        <h2 class="chapter">
+            3 Basic <code>MyDef</code> syntax
+        </h2>
+        <a name="syntax_defile"></a>
+        <h3 class="section">
+            3.1 Basic structure of <code>.def</code> file
+        </h3>
+        <p>
+            The basic structure of <code>.def</code> file is indentation based. An example <code>.def</code> file may look like this:
+            <pre><code>
+<span class="mydef-preproc">include</span>: <span class="mydef-preproc">common.def</span>
+<span class="mydef-preproc">include</span>: <span class="mydef-preproc">macros/utils.def</span>
+
+<span class="mydef-comment"># This is a comment</span>
+<span class="mydef-label">page</span>: <span class="mydef-label">test</span>
+    Line 1
+    Line 2
+    <span class="mydef-keyword">$call</span> <strong>A</strong>
+    lines after
+
+<span class="mydef-label">subcode</span>: <span class="mydef-label">A</span>
+    line a - <span class="mydef-macro">$(msg_a)</span>
+    line b - <span class="mydef-macro">$(msg_b)</span>
+
+<span class="mydef-label">macros</span>:
+    <span class="mydef-label2">msg_a</span>: this is message a
+    <span class="mydef-label2">msg_b</span>: this is message b
+            </code></pre>
+        </p>
+        <p>
+            At top indentation level, only headings <code>include:</code>, <code>page:</code>, <code>subcode:</code>, and <code>macros:</code> are recognized by <code>parseutil.pm</code>. However, any additional lines not under these headings does not cause <code>MyDef</code> error. They will be silently ignore. So a Knuth's style literate programming can be achieved with <code>MyDef</code> by freely mixing documentation (at top indentation level or under any non-recognized headings) and code (under these recognized headings).
+        </p>
+        <p>
+            Explicit comments can be intrudoced with <code>&num;</code> at any indentaion level or between code or at the end of any lines.
+        </p>
+        <p>
+            <code>include:</code> adds additional files to a list and will be loaded in the order of addition. Note this is different from C preprocessor. A file can be included multiple times but only will be loaded once. The included file will be searched in current working directory,  <code>include_path</code> settings in <code>config</code> file, and environment variable <code>$MYDEFLIB</code>.
+        </p>
+        <p>
+            <code>page:</code> defines the output file name and its main code. Each line in the main code will be copied, macro-expanded, or translated, and finally dumped to the output file. For output_modules other than <code>output_general</code>, there may be additional lines inserted or appended to the main code. For example, <code>output_perl</code> will automaically insert <code>#!</code> lines and <code>use strict;</code> for perl scripts.
+        </p>
+        <p>
+            <code>subcode:</code> defines blocks of code that can be inserted into main code or another subcode by the syntax like <code>$call codename</code>. The syntax resembles function definition and function calls in a programming language. However, it is more approprate to think subcode as merely multi-line macros that are being expanded at block or line levels. It's useage are very similar to inline macros and will be expanded regardless of underlying langauge syntaxes. <code>subcodes</code> allows reorganization of code according to higher logics than semantics of a programming languages.
+        </p>
+        <p>
+            <code>macros:</code> defines a sets of name-value definitions. They are used as inline macros. To use these macros and have them expanded in the output, one can use syntax like <code>&dollar;(msg_a)</code>. This syntax was chosen to avoid collision to common language syntaxes. Having macros stand out makes the subtle differences between macros and certain programming language entities such as variables and functions explicit. This is in fact helpful for both writing and reading programs.
+        </p>
+        <p>
+            The code block under <code>page:</code> is actually a <code>subcode</code> with name <code>main</code>. In fact, it is the same to declare main code like this:
+            <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">test</span>
+    <span class="mydef-label2">subcode</span>: main
+        line 1
+        line 2
+        ...
+            </code></pre>
+        </p>
+        <p>
+            Upon compilation, each <code>page</code> output looks for a <code>main</code> subcode. If not found, the output will be blank regardless how much <code>subcodes</code> or <code>macros</code> are defined in the <code>def</code> files.
+        </p>
+        <p>
+            Not all <code>def</code> files may contain <code>page:</code>_ directives. In practice, most of the <code>def</code> files contains only <code>macro</code> and <code>subcode</code> definitions and they are used by <code>include:</code> into the main <code>def</code> file.
+        </p>
+        <p>
+            The over all stuctructure of <code>def</code> files are declarative. Orders of <code>include:</code>, <code>page:</code>, <code>subcode:</code>, and <code>macros:</code> do not matter -- for most cases. A few cases do matter will be discussed in the following chapters where the particular details are being discussed.
+        </p>
+        <p>
+            The indentationa need be strictly observed directly under <code>page:</code>, <code>subcode:</code>, and <code>macros:</code>. More specificly, all lines that are supposed to be under the derective need to have indentations at the same or below the first line indentations. Otherwise, part of the codeblock or definitions may be ignored during parsing. The code under <code>subcode</code>, which include the main code under <code>page</code>, may contain additional indentations within. All these internal indentation will be preserved and passed to output. However, during the parsing time, all the leading spaces of a line are stripped and encoded with merely indentation level. Upon output, the indentation is added back by inserting 4 spaces for each indentation level.  So the output of code may look slightly different from what is defined in <code>subcode</code>. For most languages, leading spaces are insignificant and only the indentation level matters, so <code>MyDef</code>'s indentation treatment should not pose any problem. In fact, it helps to make the output code more readable.
+        </p>
+        <a name="syntax_scope"></a>
+        <h3 class="section">
+            3.2 Scope
+        </h3>
+        <p>
+            Both <code>subcode</code> and <code>macros</code> can be nested and they follow the visibilities of the scope. It is possible to structure code like this:
+            <pre><code>
+<span class="mydef-label">macros</span>:
+    <span class="mydef-label2">A</span>: global macro
+
+<span class="mydef-label">subcode</span>: <span class="mydef-label">A</span>
+    global subcode.
+    Inline macros and subcodes have different namespace.
+
+<span class="mydef-label">page</span>: <span class="mydef-label">test</span>
+    <span class="mydef-label2">m</span>: page-level macros can be directly difined here, but only directly under page: directive
+    <span class="mydef-comment"># page defines a page scope</span>
+
+    <span class="mydef-label">macros</span>:
+        <span class="mydef-label2">p</span>: this is also a page scope macros
+
+    <span class="mydef-label2">subcode</span>: main
+        These subcodes (include main) are defined at the page scope
+        $call A<span class="mydef-comment"> # works, global scope is visible</span>
+        $call a<span class="mydef-comment"> # works, page scope is visible</span>
+        $call c<span class="mydef-comment"> # won't work, issues error message</span>
+
+    <span class="mydef-label2">subcode</span>: a
+        This is at page scope
+
+        <span class="mydef-label2">subcode</span>: c
+            nested subcode
+
+        <span class="mydef-label">macros</span>:
+            <span class="mydef-label2">q</span>: only visible inside subcode: a
+            </code></pre>
+        </p>
+        <p>
+            The scopes are observed during expansion time. In the above example, normally <code>subcode: a</code> inside <code>page</code> is not visible to <code>subcode:A</code>. However, when A is called inside the <code>page</code>, the scope of <code>subcode:A</code> become nested under <code>page</code> scope, and <code>subcode: a</code> become accessible. Why this expansion time scoping rule are flexible and can be used to enhance code readability for certain scenarios, it is also very easy to be abused to create spagetti code. Apply common sense.
+        </p>
+        <a name="dynamic_macro"></a>
+        <h3 class="section">
+            3.3 Dynamic inline macros
+        </h3>
+        <p>
+            Using <code>macros:</code> directive is not the only way to define inline macros. Because <code>macros:</code> directive have to be used away from where the macros are being used, it is only useful for macros that need be visible across larger scopes.  For local macro usage, there is another syntax to define them. Like this:
+            <pre><code>
+<span class="mydef-label">subcode</span>: <span class="mydef-label">A</span>
+    <span class="mydef-macro">$(set:a=A_very_long_array_varialbe[i])</span>
+    <span class="mydef-macro">$(a)</span> = <span class="mydef-macro">$(a)</span> * <span class="mydef-macro">$(a)</span>
+            </code></pre>
+        </p>
+        <p>
+            At global context, long and descriptive names are desirable; but at small local context, short names are desirable. Macros provide simple and straight solutions. It is nice to be able to define it right where it is being used so programmers don't have to scroll far to infer the meaning. The local macro automatically expires at the end of block context, which saves the worry of name polution.
+        </p>
+        <a name="subcode_param"></a>
+        <h3 class="section">
+            3.4 Subcode with parameters
+        </h3>
+        <p>
+            There are two ways to pass parameters into a <code>subcode</code>. We always can <code>set</code> macros right before <code>&dollar;call</code> the <code>subcode</code> as mentioned in previous section. The drawbacks of this method is the signature of the parameters are not defined where the <code>subcode</code> is defined. It can be remedied by adding comments, but nevertheless less ideal. Also the calling interface is somewhat clumsy.
+        </p>
+        <p>
+            We can directly define <code>subcode</code> with following syntax:
+            <pre><code>
+<span class="mydef-label">subcode</span>: <span class="mydef-label">A</span>(greet, name)
+    printf(<span class="mydef-quote">"<span class="mydef-macro">$(greet)</span>, <span class="mydef-macro">$(name)</span>!\n"</span>);
+
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-keyword">$call</span> <strong>A,</strong> Hello, World
+    <span class="mydef-keyword">$call</span> <strong>A,</strong> Howdy, Guest
+            </code></pre>
+        </p>
+        <p>
+            Multiple parameter names can be defined in the <code>subcode:</code> line inside parenthese separated by comma. Correspondingly <code>&dollar;call</code> need appeand actual values for the parameters after the <code>subcode</code> name separated with comma. In implementation, parameters are essentially same as inline macros and used equivallently as macros.
+        </p>
+        <p>
+            The number of values passed in at <code>&dollar;call</code> time must match the number parameters defined at <code>subcode</code>. Mismatch will raise errors. The values at <code>&dollar;call</code> is split simply by comma (and any spaces that follow). This can pose problem when the value itselve may contain comma. In practice, there are a few heuristic implementation rules that make these situations tolerable. For one, if the comma is enclosed in parenthese or quotation marks, it will not be treated as separation marks:
+            <pre><code>
+<span class="mydef-label">subcode</span>: <span class="mydef-label">A</span>(greeting)
+    printf(<span class="mydef-macro">$(greeting)</span>);
+
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-keyword">$call</span> <strong>A,</strong> <span class="mydef-quote">"Hello, World!\n"</span>
+            </code></pre>
+        </p>
+        <p>
+            Of course this will not automatically solve all use cases. In fact, in some case you may want the comma to act as speartion despite there is quotation marks or parenthsis around it. For tricky situations, <code>MyDef</code> may choose simply not to support. Supporting tricky situations often complicates both code and usages, and sometime explicity non-support may be the better option. You always can avoid tricky feature usages by not to use the feature at all and write your code directly and let <code>MyDef</code> pass through to output.
+        </p>
+        <p>
+            That said, in the case that you want the usage to absorb all remaining text as a single parameter, there is a syntax for that:
+            <pre><code>
+<span class="mydef-label">subcode</span>: <span class="mydef-label">A</span>(greet, @names)
+    $print <span class="mydef-macro">$(greet)</span>, <span class="mydef-macro">$(names)</span>!
+
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-keyword">$call</span> <strong>A,</strong> Hello, Alice, Bob, and Carol
+            </code></pre>
+        </p>
+        <p>
+            Prepending <code>@</code> to the last parameter name at <code>subcode:</code> definition will signal <code>MyDef</code> compiler to absorp all remaining text at <code>&dollar;call</code> time. Obviously, <code>@param</code> will only work for the last (or only one) parameter. In addition, <code>@param</code> also signals <code>MyDef</code> compiler that it is ok to have empty values for that parameter so <code>MyDef</code> will not raise error even when the values is missing at <code>&dollar;call</code> time. So used it with caution.
+        </p>
+        <a name="block_call"></a>
+        <h3 class="section">
+            3.5 Block call
+        </h3>
+        <p>
+            One of the main purpose of <code>subcode</code> is to capture text patterns. A common pattern may consist of an opening part and closing part. In many language and other implementations, this kind of pattern requires two or more separated subcode definitions, and being called separately as well. It is ugly. For this type of patterns, <code>MyDef</code> supports <code>&call</code> syntax, like this:
+            <pre><code>
+<span class="mydef-label">subcode</span>: <span class="mydef-label">tag</span>(name)
+    &lt;<span class="mydef-macro">$(name)</span>>
+    <span class="mydef-keyword">BLOCK</span>
+    &lt;/<span class="mydef-macro">$(name)</span>>
+
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-keyword">&call</span> <strong>tag,</strong> html
+        <span class="mydef-keyword">&call</span> <strong>tag,</strong> body
+            <span class="mydef-keyword">&call</span> <strong>tag,</strong> h1
+                Hello, World!
+            </code></pre>
+        </p>
+        <p>
+            <code>&call</code> requires an indented block follows the call where codes are expected to be inserted inside the subcode expansion replacing the keyword <code>BLOCK</code>.
+            <code>BLOCK</code> is a few <code>MyDef</code> keywords that are special in addition to the <code>&dollar;(macro...)</code> syntax.
+        </p>
+        <p>
+            The code that replaces <code>BLOCK</code> will have its own scope and is nested inside the <code>subcode</code> being called, and therefore can access all macros and subcodes that are defined within. For example, you may use block call purely for context:
+            <pre><code>
+<span class="mydef-label">subcode</span>: <span class="mydef-label">Parsing</span>(line)
+    <span class="mydef-keyword">BLOCK</span>
+
+    <span class="mydef-label2">subcode</span>: parse_string
+        <span class="mydef-keyword">$if</span> <span class="mydef-macro">$(line)</span>=~/<span class="mydef-quote">"([^"</span>]*)"/
+            <span class="mydef-keyword">BLOCK</span>
+    <span class="mydef-label2">subcode</span>: parse_number
+        ...
+
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-keyword">&call</span> <strong>Parsing,</strong> text
+        <span class="mydef-keyword">&call</span> <strong>parse_string</strong>
+            $print got string $1
+            </code></pre>
+        </p>
+        <a name="map_call"></a>
+        <h3 class="section">
+            3.6 Map call
+        </h3>
+        <p>
+            For subcodes with single paremeter, sometime it is desirable to call it multiple times with various parameters concisely. For this, we can use <code>&dollar;map</code> call:
+            <pre><code>
+<span class="mydef-label">subcode</span>: <span class="mydef-label">greet</span>(name)
+    push @guests, <span class="mydef-quote">"<span class="mydef-macro">$(name)</span>"</span>
+    $print Hello <span class="mydef-macro">$(name)</span>!
+
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-keyword">$map</span> <strong>greet,</strong> Alice, Bob, Carol
+            </code></pre>
+        </p>
+        <p>
+            Less often used, <code>&dollar;map</code> syntax can also be used with subcodes that need multiple parameters by sharing common parameters:
+            <pre><code>
+<span class="mydef-label">subcode</span>: <span class="mydef-label">A</span>(greet, name)
+    $print <span class="mydef-macro">$(greet)</span>, <span class="mydef-macro">$(name)</span>!
+
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-keyword">$map</span> <strong>A(Hello),</strong> Alice, Bob, Carol
+            </code></pre>
+        </p>
+        <p>
+            One of the benefits of <code>&dollar;map</code> call is to allow certain use of macros:
+            <pre><code>
+<span class="mydef-label">macros</span>:
+    <span class="mydef-label2">Guests</span>: Alice, Bob, Carol
+
+<span class="mydef-label">subcode</span>: <span class="mydef-label">A</span>(greet, name)
+    $print <span class="mydef-macro">$(greet)</span>, <span class="mydef-macro">$(name)</span>!
+
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-keyword">$map</span> <strong>A(Hello),</strong> <span class="mydef-macro">$(Guests)</span>
+            </code></pre>
+        </p>
+        <p>
+            It should be noted that there are preprocessing directives that will introduced in latter chapter to achieve similar result.
+        </p>
+        <a name="nest_call"></a>
+        <h3 class="section">
+            3.7 Nest call
+        </h3>
+        <p>
+            A similar but even more exotic syntax is the <code>&dollar;nest</code> call:
+            <pre><code>
+<span class="mydef-label">subcode</span>: <span class="mydef-label">each</span>(A)
+    for(int i_<span class="mydef-macro">$(A)</span>=0;i_<span class="mydef-macro">$(A)</span>&lt;n_<span class="mydef-macro">$(A)</span>;i_<span class="mydef-macro">$(A)</span>++){
+        <span class="mydef-macro">$(set:i=$(A)</span>_list[i_<span class="mydef-macro">$(A)</span>])
+        $call append_string, s, <span class="mydef-macro">$(i)</span><span class="mydef-comment"> # assume append_string is defined elsewhere</span>
+        <span class="mydef-keyword">BLOCK</span>
+
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    $map init_list, A, B, C, D<span class="mydef-comment"> # assume init_list is defined elsewhere</span>
+    $nest each, A, B, C, D
+        $print s
+            </code></pre>
+        </p>
+        <p>
+            <code>&dollar;nest</code> is the syntax sugur for:
+            <pre><code>
+<span class="mydef-keyword">&call</span> <strong>each,</strong> A
+    <span class="mydef-keyword">&call</span> <strong>each,</strong> B
+        <span class="mydef-keyword">&call</span> <strong>each,</strong> C
+            <span class="mydef-keyword">&call</span> <strong>each,</strong> D
+                $print s
+            </code></pre>
+        </p>
+        <a name="multi_subcode"></a>
+        <h3 class="section">
+            3.8 Multiply defined subcode
+        </h3>
+        <p>
+            A common usage pattern is to use <code>subcode</code> as place holders, for example
+            <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-keyword">$call</span> <strong>@main_init</strong>
+    <span class="mydef-keyword">$call</span> <strong>main_loop</strong>
+    <span class="mydef-keyword">$call</span> <strong>finish</strong>
+            </code></pre>
+        </p>
+        <p>
+            <code>main_init</code> is a place holder that will have initialization code that are related to many different features. The <code>@</code> prepended to the name supresses warning even when the subcode is not defined, perfect for place holders.
+        </p>
+        <p>
+            Now it is not desirable to mix codes that are related to different semantic groups together even though they all need to happen at the same run-time context. For that, <code>MyDef</code> allows a subcode to be multiply defined.
+            <pre><code>
+<span class="mydef-comment"># ---- feature_A.def ----</span>
+
+<span class="mydef-label">subcode</span>:: <span class="mydef-label">main_init</span>
+    feature A related initializations
+
+<span class="mydef-label">subcode</span>: <span class="mydef-label">other_subcode_related_to_feature_A</span>
+    ...
+            </code></pre>
+            <pre><code>
+<span class="mydef-comment"># ---- feature_B.def ----</span>
+
+<span class="mydef-label">subcode</span>:: <span class="mydef-label">main_init</span>
+    feature B related initializations
+
+<span class="mydef-label">subcode</span>: <span class="mydef-label">other_subcode_related_to_feature_B</span>
+    ...
+            </code></pre>
+        </p>
+        <p>
+            Pay attention to the double colons after <code>subcode</code>. If double colons are omited, only the first <code>subcode:</code> definition will get loaded. This is where include files loading order matters. Unintentional subcode name collision should be avoided.
+        </p>
+        <p>
+            Finally in the main <code>.def</code> file, we can simply include the files:
+            <pre><code>
+<span class="mydef-preproc">include</span>: <span class="mydef-preproc">feature_A.def</span>
+<span class="mydef-comment"># include: feature_B.def  # selectively disable feature B</span>
+
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-keyword">$call</span> <strong>@main_init</strong>
+    ...
+            </code></pre>
+        </p>
+        <p>
+            It should be mentioned that in addition to <code>subcode::</code>, signifying concatenation, there are also <code>subcode:@</code> and <code>subcode:-</code>. Both advises <code>MyDef</code> on what to do when <code>subcode</code> names collide. <code>subcode:@</code> signifies lower priority. This is used to supply default subcode definition in a library and any coliding subcode definition will overwrite it. <code>subcode:-</code> is similar to <code>subcode::</code> and signals that the code should be concatenated. Unlike double colon, <code>subcode:-</code> always prepends the code to whichever definitions that are loaded earlier. It goes without saying that the effect of these special syntax will depend on the loading order of <code>MyDef</code> parser and can be difficult to follow. In general, their use should be discouraged.
+        </p>
+        <a name="syntax_autoload"></a>
+        <h3 class="section">
+            3.9 <code>subcode: _autoload</code>
+        </h3>
+        <p>
+            There is a special subcode called <code>_autoload</code>, if defined, it will automatically called before loading the <code>page</code>'s main code.
+        </p>
+        <p>
+            The functions for <code>_autoload</code> is similar to above multiply defined subcode except it is called automatically. For its role, <code>subcode: _autoload</code> can be defined in multiple place and the code will be concatenated together even when the <code>subcode:</code> line didnt use double colons.
+        </p>
+        <a name="syntax_dump_stub"></a>
+        <h3 class="section">
+            3.10 <code>DUMP_STUB</code>
+        </h3>
+        <p>
+            A very similar effect as multiply defined subcode is <code>DUMP_STUB</code>. It is used like this:
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    DUMP_STUB main_init
+    <span class="mydef-keyword">$call</span> <strong>feature_A</strong>
+    <span class="mydef-keyword">$call</span> <strong>feature_B</strong>
+
+<span class="mydef-label">subcode</span>: <span class="mydef-label">feature_A</span>
+    <span class="mydef-macro">$(block:main_init)</span>
+        code initialization related to feature A
+    feature A implementation
+
+<span class="mydef-label">subcode</span>: <span class="mydef-label">feature_B</span>
+    <span class="mydef-macro">$(block:main_init)</span>
+        code initialization related to feature B
+    feature B implementation
+        </code></pre>
+        <p>
+            <code>DUMP_STUB</code> is a keyword for place holders that will be replaced in the end with a named block of code. The syntax <code>&dollar;(block:...)</code> places the code into that named block.
+        </p>
+        <p>
+            <code>&dollar;(block:...)</code> integrates with other relavant code more tightly and shares the same subcode scope. Sometime this more readable than the alternative of having separate subcode.
+        </p>
+        <a name="macro_param"></a>
+        <h3 class="section">
+            3.11 Inline macros with parameters
+        </h3>
+        <p>
+            It is also possible to define and use inline macros with parameters. For example:
+            <pre><code>
+<span class="mydef-macro">$(set:m=$1[$2*$(N)</span>+$3])
+<span class="mydef-keyword">$for</span> i=0:<span class="mydef-macro">$(N)</span>
+    <span class="mydef-keyword">$for</span> j=0:<span class="mydef-macro">$(N)</span>
+        <span class="mydef-keyword">$for</span> k=0:<span class="mydef-macro">$(N)</span>
+            <span class="mydef-macro">$(m:C,i,j)</span> += <span class="mydef-macro">$(m:A,i,k)</span>*<span class="mydef-macro">$(m:B,k,j)</span>
+            </code></pre>
+        </p>
+        <p>
+            Inline macro parameter are not explicitly declared, they are simply marked by <code>$1-9</code> and replaced at expansion time with a comma separated list of values.
+        </p>
+        <p>
+            Only single digit following $ is significant. For example:
+            <pre><code>
+<span class="mydef-label">macros</span>:
+    <span class="mydef-label2">A</span>: $11
+
+<span class="mydef-label">subcode</span>: <span class="mydef-label">test</span>
+    This is <span class="mydef-macro">$(A:x)</span><span class="mydef-comment"> # x1</span>
+            </code></pre>
+        </p>
+        <a name="preproc_set"></a>
+        <h3 class="section">
+            3.12 Preprocessing: <code>&dollar;(if:...)</code>
+        </h3>
+        <p>
+            Basic switching logic is supported with preprocessing directive <code>if:...</code>, <code>elif:...</code>, and <code>else</code>:
+            <pre><code>
+$(if:!A)
+    Code list when macro $(A) is not defined
+$(elif:A=0)
+    Code list when $(A) equals to "0" (as text)
+$(elif:A=othercase)
+    Code list when $(A) equals to "othercase"
+$(elif:A>10)
+    Code list when $(A) is numerically > 10
+$(else)
+    Code list for the remaining cases
+            </code></pre>
+        </p>
+        <p>
+            The logic is similar to the switch statement to most programming languages.
+        </p>
+        <p>
+            We should explain how the condition is being evaluated. Here we believe it easier to provide a pointer on where these logic is being implemented. You should have retained a copy of <code>MyDef</code> repository. If not, it is easy to clone it again from github. The code logic for <code>&dollar;(if:...)</code> conditionals is contained in source file <code>macros_compile/preproc.def</code>, search for <code>fncode: testcondition</code>.
+        </p>
+        <pre><code>
+<span class="mydef-label">fncode</span>: <span class="mydef-label">testcondition</span>($cond, $has_macro)
+    ...
+    <span class="mydef-keyword">$elif</span> $cond=~/^\s*!(.*)/
+        <span class="mydef-label">return</span> !testcondition($1)
+    <span class="mydef-keyword">$elif</span> $cond=~/ or /
+        my @nlist=split / or /, $cond
+        $foreach $n in @nlist
+            <span class="mydef-keyword">$if</span> testcondition($n)
+                <span class="mydef-label">return</span> 1;
+        <span class="mydef-label">return</span> 0;
+    <span class="mydef-keyword">$elif</span> $cond=~/ and /
+        my @nlist=split / and /, $cond
+        $foreach $n in @nlist
+            <span class="mydef-keyword">$if</span> !testcondition($n)
+                <span class="mydef-label">return</span> 0
+        <span class="mydef-label">return</span> 1;
+    <span class="mydef-keyword">$elsif</span> $cond=~/^([01])$/
+        <span class="mydef-label">return</span> $1
+    ...
+        </code></pre>
+        <p>
+            So <code>&dollar;(if:!...)</code>, <code>&dollar;(if:... or ...)</code>, and <code>&dollar;(if:... and ...)</code> syntax are supported. However, it is not implemented as an expression, so nested use of combining <code>!</code>, <code>or</code>, and <code>and</code> probably will break.
+        </p>
+        <p>
+            The preprocessing switch is mainly used for testing macros, so it will not work as intended if an expression other than simple macro name is passed in on the left side of comparison operators (e.g. <code>=</code>, <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code>). The right side of the operator is treated as normal expression. Therefore, for example: <code>&dollar;(if:A><a href="$2">$1</a>)</code>,  <code>&dollar;(a)</code> has to be quoted as a macro while <code>A</code> is assumed to be a macro without quote.
+        </p>
+        <p>
+            As discussed, <code>&dollar;(if:0)</code> or <code>&dollar;(if:1)</code> should not work as neigher 0 or 1 is a macro name. However, it is often useful to use preprocessing to disable or enable a block of code. Therefore, both <code>&dollar;(if:0)</code> and <code>&dollar;(if:1)</code> are specially allowed. Any other direct numbers will not work.
+        </p>
+        <p>
+            To be complete, here is additional syntax as supported in <code>macros_compile/preproc.def</code>:
+            <pre><code>
+...
+<span class="mydef-keyword">$elsif</span> $cond=~/^hascode:\s*(\w+)/
+    my $codelib = get_def_attr(<span class="mydef-quote">"codes"</span>, $1)
+    <span class="mydef-keyword">$if</span> $codelib
+        <span class="mydef-label">return</span> 1
+<span class="mydef-keyword">$elsif</span> $cond=~/^(string|number|word):(.*)/
+    my $test=$1
+    my $t=get_def($2)
+    <span class="mydef-keyword">$if</span> $test eq <span class="mydef-quote">"string"</span> and $t=~/^['"]/
+        <span class="mydef-label">return</span> 1
+    <span class="mydef-keyword">$elif</span> $test eq <span class="mydef-quote">"number"</span> and $t=~/^\d+/
+        <span class="mydef-label">return</span> 1
+    <span class="mydef-keyword">$elif</span> $test eq <span class="mydef-quote">"word"</span> and $t=~/^[a-zA-Z_]\w*$/
+        <span class="mydef-label">return</span> 1
+            </code></pre>
+        </p>
+        <p>
+            We can use these syntax like this:
+            <pre><code>
+<span class="mydef-macro">$(if:hascode:parse_cond)</span>
+    $call parse_cond<span class="mydef-comment"> # call subcode when only it is defined.</span>
+
+<span class="mydef-macro">$(if:string:P)</span>
+    n = int(<span class="mydef-macro">$(P)</span>);<span class="mydef-comment"> # when <span class="mydef-macro">$(P)</span> looks like a string literal</span>
+
+<span class="mydef-macro">$(if:number:P)</span>
+    s = <span class="mydef-macro">$(P)</span>+'';<span class="mydef-comment"> # when <span class="mydef-macro">$(P)</span> looks like a number</span>
+
+<span class="mydef-macro">$(if:word:P)</span>
+    code list<span class="mydef-comment"> # when <span class="mydef-macro">$(P)</span> looks like a simple word</span>
+            </code></pre>
+        </p>
+        <p>
+            These special syntax are only useful for special cases. They are listed here also to show how to hack or extend <code>MyDef</code> if necessary.
+        </p>
+        <p>
+            There is also a simple regex condition, defined in <code>fncode: testcondition</code>. Just for convenience, here is the snippet:
+            <pre><code>
+<span class="mydef-label">fncode</span>: <span class="mydef-label">test_op</span>($a, $test)
+    <span class="mydef-keyword">$if</span> $test=~/^:(\d+)/
+        <span class="mydef-comment"># e.g. <span class="mydef-macro">$(if:A:4=test)</span>,  matches when <span class="mydef-macro">$(A)</span> is test_something</span>
+        $test=$'
+        $a=substr($a, 0, $1);
+
+    <span class="mydef-keyword">$if</span> $test=~/^\s*(!?)~(.*)/
+        <span class="mydef-comment"># regex, e.g. <span class="mydef-macro">$(if:A~pat)</span></span>
+        my ($not, $b) = ($1, $2)
+        <span class="mydef-keyword">$if</span> $b=~/(.*)\$$/
+            <span class="mydef-comment"># tail match</span>
+            if($a=~/$1$/){ return !$not;}
+        <span class="mydef-keyword">$else</span>
+            <span class="mydef-comment"># head match (default)</span>
+            if($a=~/^$b/){ return !$not;}
+        <span class="mydef-label">return</span> $not
+    <span class="mydef-keyword">$elif</span> $test=~/^\s*in\s+(.*)/
+        <span class="mydef-label">return</span> test_in($a, $1)
+    <span class="mydef-keyword">$elif</span> $test=~/^\s*([!=&lt;>]+)(.*)/
+        <span class="mydef-comment"># e.g. <span class="mydef-macro">$(if:A>=10)</span></span>
+        ...
+            </code></pre>
+        </p>
+        <p>
+            For up-to-date implementations, please directly reference source.
+        </p>
+        <a name="preproc_set"></a>
+        <h3 class="section">
+            3.13 Preprocessing: <code>&dollar;(for:...)</code>
+        </h3>
+        <p>
+            The <code>&dollar;for...</code> syntax provides quick way to multiplex code:
+            <pre><code>
+<span class="mydef-macro">$(for:a in Alice, Bob, Carol)</span>
+    Hi, <span class="mydef-macro">$(a)</span>
+
+<span class="mydef-macro">$(set:namelist=Alice,Bob,Carol)</span>
+<span class="mydef-macro">$(for:a in $(namelist)</span>)
+    <span class="mydef-macro">$(if:a=Alice)</span>
+        Hi <span class="mydef-macro">$(a)</span>, I love you!
+    <span class="mydef-macro">$(else)</span>
+        Hi <span class="mydef-macro">$(a)</span>!
+            </code></pre>
+        </p>
+        <p>
+            There is a short-cut syntax for specifying simple range based list:
+            <pre><code>
+<span class="mydef-comment"># reference: mydef_utils.def: fncode: get_range($a, $b)</span>
+<span class="mydef-macro">$(for:a in 1-11)</span><span class="mydef-comment"> # 1,2,3,...,11</span>
+    $print <span class="mydef-macro">$(a)</span>
+
+<span class="mydef-macro">$(for:a in a-z)</span><span class="mydef-comment"> # a,b,c,...,z</span>
+    $print <span class="mydef-macro">$(a)</span>
+            </code></pre>
+        </p>
+        <p>
+            Sometime we may need multiplex over multiple lists:
+            <pre><code>
+<span class="mydef-macro">$(for:a, i in x,y,z and 0,1,2)</span>
+    <span class="mydef-comment"># x = 0, y = 1, and z = 2</span>
+    <span class="mydef-macro">$(a)</span> = <span class="mydef-macro">$(i)</span>
+            </code></pre>
+        </p>
+        <p>
+            There is also a syntax to use <code>&dollar(for:...)</code> anonymously:
+            <pre><code>
+<span class="mydef-macro">$(for:Alice, Bob, Carol)</span>
+    Hi $1
+            </code></pre>
+        </p>
+        <p>
+            <code>$1</code> is used to refer to the implict macro for each case.
+        </p>
+        <p>
+            Anonymous multiplexing over multiple lists also works:
+            <pre><code>
+<span class="mydef-macro">$(for:x,y,z and i,j,k)</span>
+    A_$1 = $2;
+            </code></pre>
+        </p>
+        <p>
+            Up to nine lists are allowed, but you probably want to limit to a much smaller lists.
+        </p>
+        <a name="preproc_set"></a>
+        <h3 class="section">
+            3.14 Preprocessing: <code>&dollar;(set:...)</code>
+        </h3>
+        <p>
+            We already learned that <code>&dollar;(set:...)</code> can be used to set local macros within the scope. What if we want to set macros to the parent scope? We can use code>$1</code>:
+            <pre><code>
+<span class="mydef-keyword">$call</span> <strong>set_macros</strong>
+$print A = <span class="mydef-macro">$(A)</span>
+
+<span class="mydef-label">subcode</span>: <span class="mydef-label">set_macros</span>
+    <span class="mydef-macro">$(set-1:A=3.14)</span>
+            </code></pre>
+        </p>
+        <p>
+            Direct <code>&dollar;(set:...)</code> won't work here as it will expire upon exit the subcode.
+        </p>
+        <p>
+            We also can set macros at global level using <code>&dollar;(setmacro:...)</code>:
+            <pre><code>
+<span class="mydef-label">subcode</span>: <span class="mydef-label">section</span>(title)
+    <span class="mydef-macro">$(setmacro:id+=1)</span>
+    Section <span class="mydef-macro">$(id)</span>. <span class="mydef-macro">$(title)</span>
+
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-keyword">$call</span> <strong>section,</strong> Hello
+    <span class="mydef-keyword">$call</span> <strong>section,</strong> Bye
+            </code></pre>
+        </p>
+        <p>
+            We haven't introduced the <code>+=</code> operator yet. Intuitively, <code>+=</code> increments the macro definition numerically.
+        </p>
+        <p>
+            <code>+=</code> works for <code>&dollar;(set:...)</code> and code>$1</code> as well. However, it is difficult to track consistent macros across scopes, therefore, it makes most sense to only use these operators in <code>&dollar;(setmacro:...)</code>.
+        </p>
+        <p>
+            In addition to <code>+=</code>, there are also <code>-=</code>, <code>*=</code>, and <code>/=</code>, which does their corresponding arithmetic updates. They are not as useful as <code>+=</code> though.
+        </p>
+        <p>
+            There is also a string concatenation operator <code>.=</code>, whcih appends the new definition to the old one.
+        </p>
+        <p>
+            Very often when we need concatenate strings, we would like some separators into between the items. For that, we have another syntax:
+            <pre><code>
+<span class="mydef-label">subcode</span>: <span class="mydef-label">add_name</span>(name)
+    <span class="mydef-macro">$(setmacro:namelist[,]=$(name)</span>)
+    Hi <span class="mydef-macro">$(name)</span>!
+
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-keyword">$call</span> <strong>add_name,</strong> Alice
+    <span class="mydef-keyword">$call</span> <strong>add_name,</strong> Bob
+    We have gathered: <span class="mydef-macro">$(namelist)</span>.
+            </code></pre>
+        </p>
+        <p>
+            Because the scoping rules, very rarely we need unset macros. When we need it, it is often only needed to shield certain macros from child scopes. For that, we have the $(code:&dollar;(unset:...).
+            <pre><code>
+<span class="mydef-macro">$(unset:A,B,C)</span>
+<span class="mydef-keyword">$call</span> <strong>subcode_that_checks_macros</strong>
+            </code></pre>
+        </p>
+        <p>
+            Note that <code>&dollar;(unset:...)</code> only unsets macros in the current scope, but will effectively shield macros defined in parent scopes. It only accepts a list of simple words.
+        </p>
+        <p>
+            <code>&dollar;(set...)</code> sets one macro at a time, so it does not need any deliminators, and you can easily define macros with comma in it.
+        </p>
+        <p>
+            Sometime it is desirable to set multiple macros in a single line. For that, we can use <code>&dollar;(mset:...)</code>:
+            <pre><code>
+<span class="mydef-macro">$(mset:A=x,B=y,C=z)</span>
+            </code></pre>
+        </p>
+        <p>
+            You only can set macros in the current scope with <code>&dollar;(mset:...)</code> and you cannot have commas in the definitions.
+        </p>
+        <a name="preproc_scope"></a>
+        <h3 class="section">
+            3.15 Preprocessing: scope rules
+        </h3>
+        <p>
+            Both <code>&dollar;(for:...)</code> and <code>&dollar;(if:...)</code> contains nested blocks. It should be noted that <code>&dollar;(for:...)</code> will create additional child scopes, but <code>&dollar;(if:...)</code> (and <code>elif/else</code>) will not.
+        </p>
+        <p>
+            The latter is useful as in the following case:
+            <pre><code>
+<span class="mydef-label">subcode</span>: <span class="mydef-label">greet</span>(type, name)
+    <span class="mydef-macro">$(if:type=hot)</span>
+        <span class="mydef-macro">$(set:greeting=It is such an honor to meet)</span>
+        <span class="mydef-macro">$(set:ending=!!!)</span>
+    <span class="mydef-macro">$(else)</span>
+        <span class="mydef-macro">$(set:greeting=Hello,)</span>
+        <span class="mydef-macro">$(set:ending=.)</span>
+    <span class="mydef-macro">$(greeting)</span> <span class="mydef-macro">$(name)</span>
+            </code></pre>
+        </p>
+        <a name="macro_special"></a>
+        <h3 class="section">
+            3.16 Special macro syntax
+        </h3>
+        <p>
+            <code>MyDef</code> implements a small set of special macro syntax for convenience:
+            <pre><code>
+Type name 10 times: <span class="mydef-macro">$(x10:NAME )</span><span class="mydef-comment"> # NAME NAME ... NAME</span>
+Type name 10 times: <span class="mydef-macro">$(x10, :NAME)</span><span class="mydef-comment"> # NAME, NAME,  ... NAME</span>
+List of digits: <span class="mydef-macro">$(join:pat $1:, :1-3)</span><span class="mydef-comment"> # pat 1, pat 2, pat 3</span>
+Duplex list: <span class="mydef-macro">$(join:$1_$2:, :x-z and 1-3)</span><span class="mydef-comment"> # x_1, y_2, z_3</span>
+Multiplex list: <span class="mydef-macro">$(join:$1_$2:, :x-z mul 1-3)</span><span class="mydef-comment"> # x_1, x_2, ..., z_3</span>
+
+<span class="mydef-macro">$(set:A=word)</span>
+Perl one-liners: <span class="mydef-macro">$(eval:ucfirst(<span class="mydef-quote">"$(A)</span>"</span>))<span class="mydef-comment"> # Word</span>
+            </code></pre>
+        </p>
+        <p>
+            <code>MyDef</code> is written in Perl, so it is trivial to add <code>eval</code> and expose the entire Perl engine. There is also a similar interface for <code>eval</code> subcode, which essentially allows direct perl code to manipulate text transformations. However, it is necessary to understand <code>MyDef</code>'s internal details to effectively work with the rest of <code>MyDef</code> processing. We'll discuss details in later chapters.
+        </p>
+        <p>
+            For more update-to-date details, please reference source.
+        </p>
+        <a name="invoke"></a>
+        <h2 class="chapter">
+            4 Invoking <code>MyDef</code>
+        </h2>
+        <a name="invoke_config"></a>
+        <h3 class="section">
+            4.1 <code>config</code> file
+        </h3>
+        <p>
+            The suite of <code>MyDef</code> tools will always check for a <code>config</code> file (a text file named <code>config</code>) in the same directory where the main <code>.def</code> file is located.
+        </p>
+        <p>
+            Strictly speaking, a <code>config</code> file is not always necessary. <code>MyDef</code> options can be set in three places: in side <code>.def</code> source, in the command line option, and in the <code>config</code> file. <code>config</code> file is a convenient mean to share default settings across entire project.
+        </p>
+        <p>
+            When <code>config</code> file is missing and if we invoke <code>mydef_make</code> to create <code>Makefile</code>, it will always create a <code>config</code> file, so further invocation of <code>mydef_make</code> will not prompt you questions again and again.
+        </p>
+        <p>
+            Basic <code>config</code> file only contains two settings. Following is the one for the <code>MyDef</code> repository:
+        </p>
+        <pre><code>
+output_dir: MyDef
+module: perl
+        </code></pre>
+        <p>
+            <code>output_dir</code> specifies the directory where the output files should be put. If this option is missing, the default is to put output files in the same directory of the <code>.def</code> sources. For big projects, some separation is desirable.
+        </p>
+        <p>
+            <code>module</code> specifies the output module to use. When this option is missing, the default is to use <code>output_general</code>. <code>MyDef</code> is written in Perl, so perl it is (mean to use <code>output_perl</code>).
+        </p>
+        <p>
+            Another often used options is <code>include_path</code>, whish is a '<code>:</code>' separated list of directories for searching for <code>include:</code> files. The option if provided gets prepended to environment variable <code>MYDEFLIB</code>. The current folder will always get searched first.
+        </p>
+        <p>
+            <code>output_general</code> module do not need many options, but many language and application specific output modules do need additional options to control behaviors. <code>config</code> file can arbitary options, and it is the output module's responsibility to check tese options.
+        </p>
+        <p>
+            Internally, <code>MyDef</code> do not really differentiate macros and options. Both are simply name-value pairs. Everything specified in <code>MyDef</code> is internally available in a global reference hash variable <code>$MyDef::var</code>.
+        </p>
+        <a name="mydef_page"></a>
+        <h3 class="section">
+            4.2 <code>mydef_page</code>
+        </h3>
+        <p>
+            <code>mydef_page</code> is the <code>MyDef</code> compiler. It reads in a <code>.def</code> (and all the included <code>.def</code> files included within), translates it, and writes to output files, one per <code>page:</code> directive.
+        </p>
+        <pre><code>
+<span class="mydef-special">$ </span>mydef_page -m[module] -o[outputdir] src.def
+        </code></pre>
+        <p>
+            <code>-m</code> specifies output module to use. <code>-o</code> specifies output directory that output files will go. There should not be spaces between the option and value.
+        </p>
+        <p>
+            Both options can be omited. If the module is missing, it takes from <code>config</code> file. If <code>config</code> does not exist or the module option is not set within, it will check for module option inside the source <code>.def</code> file. If still not found, <code>mydef_page</code> will complain and exit.
+        </p>
+        <p>
+            However, when the module option is given via command line or <code>config</code> file, that module will be used. And when the module option under <code>page:</code> directive mismatches this module, the corresponding page will be ignored. For example:
+            <pre><code>
+<span class="mydef-special">$ </span>mydef_page -mgeneral t.def
+skiped 1 pages (due to module mismatch), use -m to overide default module.
+            </code></pre>
+        </p>
+        <p>
+            It is possible to have multiple pages defined in a single <code>.def</code> file all the pages match the module option will gets compiled in a single invocation. If multiple pages require different output modules, multiple invocation of <code>mydef_page</code> with different module option is necessary to compile every page.
+        </p>
+        <p>
+            <code>-o</code> specifies output locations. If not specified, it will search similarly in <code>config</code> file. If not found, it will set to current working directory.
+        </p>
+        <p>
+            If the source <code>.def</code> file also specifies <code>output_dir</code> under the <code>page:</code> directive, it will depend on whether absolute or relative path is given.
+        </p>
+        <p>
+            If an absolute path is given, it will be used as the output location.
+        </p>
+        <p>
+            If a relative path is given instead, it will be appended to the path given on the command line or <code>config</code> file, or the default <code>.</code> (current directory).
+        </p>
+        <p>
+            When every thing goes well, it goes like following:
+            <pre><code>
+<span class="mydef-special">$ </span>mydef_page t.def
+PAGE: t
+    --> [./t.pl]
+            </code></pre>
+        </p>
+        <p>
+            If multiple pages are being compiled, each of them will be listed.
+        </p>
+        <p>
+            If <code>MyDef</code> encouter errors, there will be error messages:
+            <pre><code>
+$ mydef_page t.def
+PAGE: t
+[t.def:4] Code A not found!
+[t.def:5] Macro B not defined
+--> [./t.pl]
+            </code></pre>
+        </p>
+        <p>
+            The output file will still be produced despite the errors. It is important to pay attention to error messages.
+        </p>
+        <p>
+            The file locations are usually reported along with errors. However, it should be noted that the current implementation of file location tracking is buggy and often can be off by a few lines. Nevertheless, you should be able to locate the error with the information given in the error message. This bug certainly will get fixed at some point. However, since it will not affect the actual compilation, only the error reporting, it is currently not at a high priority.
+        </p>
+        <p>
+            Although it is possible, it is not recommended to directly output scripts (such as perl/python scripts) directly into installation destination. It is prudent to always test locally and run the extra install steps when satisfied. The exception being generating web pages. Web pages need to be viewed through browser anyway, thus it is convenient to have <code>output_dir</code> directly point to your web root.
+        </p>
+        <a name="mydef_make"></a>
+        <h3 class="section">
+            4.3 <code>mydef_make</code>
+        </h3>
+        <p>
+            When projects grow to contain more than one output file, a <code>Makefile</code> is helpful to make edit-compile-debug cycle easier. We believe in keeping things simple, and believe a simplified, hand-edited Makefile is better than using typical build tools. Build tools generate <code>Makefiles</code> without going over the decisions. In the effort to accomodate the most complicated projects, they make the most complicated solution for even the simplest projects. That is the opposite of "keeping it simple".
+        </p>
+        <p>
+            Nevertheless, hand generating <code>Makefiles</code> can be tedious. <code>mydef_make</code> can be used to generate the initial <code>Makefile</code> by scanning all <code>.def</code> files within the directory as well as all subdirectories. It will generate all the rules from <code>def</code> files to output files using <code>mydef_page</code> commands. For simple projects, the <code>Makefile</code> from <code>mydef_make</code> will be good enough. Both <code>MyDef</code> projects and its output module projects are examples where <code>mydef_make</code> is good enough.
+        </p>
+        <p>
+            When it is not good enough, you are encouraged to hand edit your <code>Makefile</code>. If you insist on using build tools, you always can opt to have <code>def</code> source files outside of the build tree and having <code>mydef_page</code> to output into the build tree. That way, your build tool can work as if you are directly editing the code rather are generating them using <code>def</code> files. There may even appear to be no difference to your colleagues. One could edit the <code>Makefile</code> and having make automatically invoke the build tool upon updates.
+        </p>
+        <p>
+            If you run <code>mydef_make</code> the first time (when <code>config</code> file does not exist):
+            <pre><code>
+<span class="mydef-special">$ </span>mydef_make
+Please enter the path to compile into [out]:
+
+Please enter module type [perl]:
+
+    output_dir: out
+Create output folder out ...
+            </code></pre>
+        </p>
+        <p>
+            <code>mydef_make</code> prompts you for output_dir and module type. It creates <code>config</code> file and a <code>Makefile</code>. If the <code>output_dir</code> does not exist, it will create it for you.
+        </p>
+        <p>
+            If you run it again, it will only update <code>Makefile</code>:
+            <pre><code>
+<span class="mydef-special">$ </span>mydef_make
+    output_dir: out
+            </code></pre>
+        </p>
+        <a name="mydef_run"></a>
+        <h3 class="section">
+            4.4 <code>mydef_run</code>
+        </h3>
+        <p>
+            At the opposite end of building big projects, you may be coding a single progrom that consists of a single file (not necessarily single <code>def</code> file). In this case, invoking build tools or even generating <code>Makefile</code> appears to be an overkill. All we would like to is single keypress from source to result.
+        </p>
+        <p>
+            <code>mydef_run</code> is specificly for this purpose. It can be invoked like this:
+            <pre><code>
+<span class="mydef-special">$ </span>mydef_run t.def
+PAGE: t
+    --> [out/t.pl]
+perl out/t.pl
+Hello  World!
+            </code></pre>
+        </p>
+        <p>
+            Basically it compiles from <code>def</code> to output, then it bases on a set of heuristics on the output file type and runs compiler or interpreter to run the program.
+        </p>
+        <p>
+            Here is an example with C:
+            <pre><code>
+<span class="mydef-special">$ </span>mydef_run t.def
+PAGE: t
+    --> [out/t.c]
+gcc -std=c99 -O2 -oout/t out/t.c  &amp;&amp; out/t
+Hello World!
+            </code></pre>
+        </p>
+        <p>
+            Here is an example with Java:
+            <pre><code>
+$ mydef_run t.def
+PAGE: t
+    --> [out/t.java]
+javac out/t.java &amp;&amp; cd out &amp;&amp; java t
+Hello World!
+            </code></pre>
+        </p>
+        <p>
+            Of course not all types of file have a way to run it:
+            <pre><code>
+<span class="mydef-special">$ </span>mydef_run t.def
+PAGE: t
+    --> [./t.txt]
+do not know how to run it
+            </code></pre>
+        </p>
+        <p>
+            Well, at least it is honest and it compiles for you.
+        </p>
+        <p>
+            If you configure the command to a hotkey in your editor, then the edit-debug cycle is shortened into a single keypress. If you use <code>vim</code>, put this in <code>.vimrc</code>:
+            <pre><code>
+:nmap &lt;F5> :!mydef_run %&lt;CR>
+            </code></pre>
+        </p>
+        <p>
+            For details of the heuristics or customization, refer to <code>mydef_run.def</code> in the source repository.
+        </p>
+        <p>
+            It is possible to directly set command line for <code>mydef_run</code> to run. For example:
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">run</span>: cat t.txt
+
+    $print Hello World!
+        </code></pre>
+        <pre><code>
+<span class="mydef-special">$ </span>mydef_run t.def
+PAGE: t
+    --> [./t.txt]
+cat t.txt
+$print Hello World!
+        </code></pre>
+        <p>
+            Or you may simply specify an argument:
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: perl
+    <span class="mydef-label2">arg</span>: P1 P2 P3
+
+    $foreach $a in @ARGV
+        $print argument $a
+        </code></pre>
+        <pre><code>
+<span class="mydef-special">$ </span>mydef_run t.def
+PAGE: t
+    --> [./t.pl]
+perl ./t.pl P1 P2 P3
+arg: P1
+arg: P2
+arg: P3
+        </code></pre>
+        <p>
+            As a bonus, do you know that you can directly use <code>mydef_run</code> on <code>.pl</code>, <code>.c</code>, or any source code with a known extension? Try it.
+        </p>
+        <a name="general"></a>
+        <h2 class="chapter">
+            5 <code>output_general</code>
+        </h2>
+        <p>
+            In this chapter, we will explain the internals of <code>MyDef</code>.
+        </p>
+        <p>
+            <code>output_general</code> is the default output module. It essentially only uses the syntax we have covered so far; nothing more.
+        </p>
+        <p>
+            However, much of the power of <code>MyDef</code> eventually will come from language or application specific output modules. So at some point, you would need to understand some of <code>MyDef</code>'s internal working. <code>output_general</code> module is the starting point for every output module.
+        </p>
+        <a name="general_code"></a>
+        <h3 class="section">
+            5.1 <code>output_general.def</code>
+        </h3>
+        <pre><code>
+<span class="mydef-preproc">include</span>: <span class="mydef-preproc">output.def</span>
+
+<span class="mydef-label">page</span>: <span class="mydef-label">output_general</span>, output_main
+    <span class="mydef-label2">type</span>: pm
+    <span class="mydef-label2">output_dir</span>: lib/MyDef
+    <span class="mydef-label2">ext</span>: txt
+    <span class="mydef-label2">package</span>: MyDef::output_general
+        </code></pre>
+        <p>
+            [To be continued.]
+        </p>
+        <a name="perl"></a>
+        <h2 class="chapter">
+            6 <code>output_perl</code>
+        </h2>
+        <p>
+            <code>output_perl</code> source is kept within the base <code>MyDef</code> repository because, well, <code>MyDef</code> is coded in perl and would require <code>output_perl</code> to compile.
+        </p>
+        <p>
+            <code>output_perl</code> is also one of the most mature module, due to the madatory round trip testing. In addition, because Perl is a very high-level language and embraces user practical expressiveness, <code>output_perl</code> is relatively simple.
+        </p>
+        <p>
+            Perl is a genral purpose programming language, therefore provides the usual <code>variable</code>, <code>functions</code>, <code>scopes</code>, <code>if-else</code> switch, <code>loops</code>, etc. The custom syntax created with <code>output_perl</code> can be a good example for output modules for other languages.
+        </p>
+        [ To be continued.]
+        <a name="perl_plain"></a>
+        <h3 class="section">
+            6.1 It is OK to write vanilla Perl
+        </h3>
+        <a name="perl_print"></a>
+        <h3 class="section">
+            6.2 <code>$print</code>
+        </h3>
+        <a name="perl_semi"></a>
+        <h3 class="section">
+            6.3 Optional semicolons
+        </h3>
+        <a name="perl_if"></a>
+        <h3 class="section">
+            6.4 <code>$if</code>, <code>$elif</code>, and <code>$else</code>
+        </h3>
+        <a name="perl_for"></a>
+        <h3 class="section">
+            6.5 <code>$for</code>
+        </h3>
+        <a name="perl_while"></a>
+        <h3 class="section">
+            6.6 <code>$while</code>
+        </h3>
+        <a name="perl_global"></a>
+        <h3 class="section">
+            6.7 <code>$global</code>
+        </h3>
+        <a name="perl_fn"></a>
+        <h3 class="section">
+            6.8 <code>fncode</code> and function arrangement
+        </h3>
+        <a name="perl_std"></a>
+        <h3 class="section">
+            6.9 <code>std_perl.def</code>
+        </h3>
+    </body>
+</html>

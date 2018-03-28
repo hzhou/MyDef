@@ -1,0 +1,769 @@
+subcode:: sections
+    $call section, syntax, Basic $(code:MyDef) syntax
+    $call subsection, syntax_defile, Basic structure of $(code:.def) file
+    $p
+        The basic structure of $(code:.def) file is indentation based. An example $(code:.def) file may look like this:
+        &call codeprint, mydef
+            include: common.def
+            include: macros/utils.def
+
+            &num; This is a comment
+            page: test
+                Line 1
+                Line 2
+                $call A
+                lines after
+
+            subcode: A
+                line a - $(msg_a)
+                line b - $(msg_b)
+
+            macros:
+                msg_a: this is message a
+                msg_b: this is message b
+    $p
+        At top indentation level, only headings $(code:include:), $(code:page:), $(code:subcode:), and $(code:macros:) are recognized by $(code:parseutil.pm). However, any additional lines not under these headings does not cause $(code:MyDef) error. They will be silently ignore. So a Knuth's style literate programming can be achieved with $(code:MyDef) by freely mixing documentation (at top indentation level or under any non-recognized headings) and code (under these recognized headings).  
+    $p
+        Explicit comments can be intrudoced with $(code:&num;) at any indentaion level or between code or at the end of any lines.
+    $p
+        $(code:include:) adds additional files to a list and will be loaded in the order of addition. Note this is different from C preprocessor. A file can be included multiple times but only will be loaded once. The included file will be searched in current working directory,  $(code:include_path) settings in $(code:config) file, and environment variable $(code:$MYDEFLIB).
+
+    $p
+        $(code:page:) defines the output file name and its main code. Each line in the main code will be copied, macro-expanded, or translated, and finally dumped to the output file. For output_modules other than $(code:output_general), there may be additional lines inserted or appended to the main code. For example, $(code:output_perl) will automaically insert $(code:#!) lines and $(code:use strict;) for perl scripts.
+    $p
+        $(code:subcode:) defines blocks of code that can be inserted into main code or another subcode by the syntax like $(code:$call codename). The syntax resembles function definition and function calls in a programming language. However, it is more approprate to think subcode as merely multi-line macros that are being expanded at block or line levels. It's useage are very similar to inline macros and will be expanded regardless of underlying langauge syntaxes. $(code:subcodes) allows reorganization of code according to higher logics than semantics of a programming languages. 
+    $p
+        $(code:macros:) defines a sets of name-value definitions. They are used as inline macros. To use these macros and have them expanded in the output, one can use syntax like $(code:&dollar;(msg_a)). This syntax was chosen to avoid collision to common language syntaxes. Having macros stand out makes the subtle differences between macros and certain programming language entities such as variables and functions explicit. This is in fact helpful for both writing and reading programs.
+
+    $p
+        The code block under $(code:page:) is actually a $(code:subcode) with name $(code:main). In fact, it is the same to declare main code like this:
+        &call codeprint, mydef
+            page: test
+                subcode: main
+                    line 1
+                    line 2
+                    ...
+    $p
+        Upon compilation, each $(code:page) output looks for a $(code:main) subcode. If not found, the output will be blank regardless how much $(code:subcodes) or $(code:macros) are defined in the $(code:def) files. 
+    $p
+        Not all $(code:def) files may contain $(code:page:)_ directives. In practice, most of the $(code:def) files contains only $(code:macro) and $(code:subcode) definitions and they are used by $(code:include:) into the main $(code:def) file. 
+    $p
+        The over all stuctructure of $(code:def) files are declarative. Orders of $(code:include:), $(code:page:), $(code:subcode:), and $(code:macros:) do not matter -- for most cases. A few cases do matter will be discussed in the following chapters where the particular details are being discussed.
+    $p
+        The indentationa need be strictly observed directly under $(code:page:), $(code:subcode:), and $(code:macros:). More specificly, all lines that are supposed to be under the derective need to have indentations at the same or below the first line indentations. Otherwise, part of the codeblock or definitions may be ignored during parsing. The code under $(code:subcode), which include the main code under $(code:page), may contain additional indentations within. All these internal indentation will be preserved and passed to output. However, during the parsing time, all the leading spaces of a line are stripped and encoded with merely indentation level. Upon output, the indentation is added back by inserting 4 spaces for each indentation level.  So the output of code may look slightly different from what is defined in $(code:subcode). For most languages, leading spaces are insignificant and only the indentation level matters, so $(code:MyDef)'s indentation treatment should not pose any problem. In fact, it helps to make the output code more readable.
+
+subcode::sections
+    $call subsection, syntax_scope, Scope
+    $p
+        Both $(code:subcode) and $(code:macros) can be nested and they follow the visibilities of the scope. It is possible to structure code like this:
+        &call codeprint, mydef
+            macros:
+                A: global macro
+
+            subcode: A
+                global subcode. 
+                Inline macros and subcodes have different namespace.
+
+            page: test
+                m: page-level macros can be directly difined here, but only directly under page: directive
+                &num; page defines a page scope
+
+                macros:
+                    p: this is also a page scope macros
+
+                subcode: main
+                    These subcodes (include main) are defined at the page scope
+                    $call A &num; works, global scope is visible
+                    $call a &num; works, page scope is visible
+                    $call c &num; won't work, issues error message
+
+                subcode: a
+                    This is at page scope
+
+                    subcode: c
+                        nested subcode
+
+                    macros:
+                        q: only visible inside subcode: a
+
+    $p
+        The scopes are observed during expansion time. In the above example, normally $(code:subcode: a) inside $(code:page) is not visible to $(code:subcode:A). However, when A is called inside the $(code:page), the scope of $(code:subcode:A) become nested under $(code:page) scope, and $(code:subcode: a) become accessible. Why this expansion time scoping rule are flexible and can be used to enhance code readability for certain scenarios, it is also very easy to be abused to create spagetti code. Apply common sense.
+
+subcode:: sections
+    $call subsection, dynamic_macro, Dynamic inline macros
+    $p
+        Using $(code:macros:) directive is not the only way to define inline macros. Because $(code:macros:) directive have to be used away from where the macros are being used, it is only useful for macros that need be visible across larger scopes.  For local macro usage, there is another syntax to define them. Like this:
+        &call codeprint, mydef
+            subcode: A
+                $(set:a=A_very_long_array_varialbe[i])
+                $(a) = $(a) * $(a)
+
+    $p
+        At global context, long and descriptive names are desirable; but at small local context, short names are desirable. Macros provide simple and straight solutions. It is nice to be able to define it right where it is being used so programmers don't have to scroll far to infer the meaning. The local macro automatically expires at the end of block context, which saves the worry of name polution.
+
+subcode:: sections
+    $call subsection, subcode_param, Subcode with parameters
+    $p
+        There are two ways to pass parameters into a $(code:subcode). We always can $(code:set) macros right before $(code:&dollar;call) the $(code:subcode) as mentioned in previous section. The drawbacks of this method is the signature of the parameters are not defined where the $(code:subcode) is defined. It can be remedied by adding comments, but nevertheless less ideal. Also the calling interface is somewhat clumsy. 
+    $p
+        We can directly define $(code:subcode) with following syntax:
+        &call codeprint, mydef
+            subcode: A(greet, name)
+                printf("$(greet), $(name)!\n");
+
+            page: t
+                $call A, Hello, World
+                $call A, Howdy, Guest
+
+    $p
+        Multiple parameter names can be defined in the $(code:subcode:) line inside parenthese separated by comma. Correspondingly $(code:&dollar;call) need appeand actual values for the parameters after the $(code:subcode) name separated with comma. In implementation, parameters are essentially same as inline macros and used equivallently as macros. 
+    $p
+        The number of values passed in at $(code:&dollar;call) time must match the number parameters defined at $(code:subcode). Mismatch will raise errors. The values at $(code:&dollar;call) is split simply by comma (and any spaces that follow). This can pose problem when the value itselve may contain comma. In practice, there are a few heuristic implementation rules that make these situations tolerable. For one, if the comma is enclosed in parenthese or quotation marks, it will not be treated as separation marks:
+        &call codeprint mydef
+            subcode: A(greeting)
+                printf($(greeting));
+
+            page: t
+                $call A, "Hello, World!\n"
+
+    $p
+        Of course this will not automatically solve all use cases. In fact, in some case you may want the comma to act as speartion despite there is quotation marks or parenthsis around it. For tricky situations, $(code:MyDef) may choose simply not to support. Supporting tricky situations often complicates both code and usages, and sometime explicity non-support may be the better option. You always can avoid tricky feature usages by not to use the feature at all and write your code directly and let $(code:MyDef) pass through to output.
+    $p
+        That said, in the case that you want the usage to absorb all remaining text as a single parameter, there is a syntax for that:
+        &call codeprint, mydef
+            subcode: A(greet, @names)
+                $print $(greet), $(names)!
+
+            page: t
+                $call A, Hello, Alice, Bob, and Carol
+    $p
+        Prepending $(code:@) to the last parameter name at $(code:subcode:) definition will signal $(code:MyDef) compiler to absorp all remaining text at $(code:&dollar;call) time. Obviously, $(code:@param) will only work for the last (or only one) parameter. In addition, $(code:@param) also signals $(code:MyDef) compiler that it is ok to have empty values for that parameter so $(code:MyDef) will not raise error even when the values is missing at $(code:&dollar;call) time. So used it with caution.
+
+subcode:: sections
+    $call subsection, block_call, Block call
+    $p
+        One of the main purpose of $(code:subcode) is to capture text patterns. A common pattern may consist of an opening part and closing part. In many language and other implementations, this kind of pattern requires two or more separated subcode definitions, and being called separately as well. It is ugly. For this type of patterns, $(code:MyDef) supports $(code:&call) syntax, like this:
+        &call codeprint, mydef
+            subcode: tag(name)
+                <$(name)>
+                BLOCK
+                </$(name)>
+
+            page: t
+                &call tag, html
+                    &call tag, body
+                        &call tag, h1
+                            Hello, World!
+
+    $p
+        $(code:&call) requires an indented block follows the call where codes are expected to be inserted inside the subcode expansion replacing the keyword $(code:BLOCK). 
+        $(code:BLOCK) is a few $(code:MyDef) keywords that are special in addition to the $(code:&dollar;(macro...)) syntax. 
+    $p
+        The code that replaces $(code:BLOCK) will have its own scope and is nested inside the $(code:subcode) being called, and therefore can access all macros and subcodes that are defined within. For example, you may use block call purely for context:
+        &call codeprint, mydef
+            subcode: Parsing(line)
+                BLOCK
+
+                subcode: parse_string
+                    $if $(line)=~/"([^"]*)"/
+                        BLOCK
+                subcode: parse_number
+                    ...
+
+            page: t
+                &call Parsing, text
+                    &call parse_string
+                        $print got string $1
+
+subcode:: sections
+    $call subsection, map_call, Map call
+    $p
+        For subcodes with single paremeter, sometime it is desirable to call it multiple times with various parameters concisely. For this, we can use $(code:&dollar;map) call:
+        &call codeprint, mydef
+            subcode: greet(name)
+                push @guests, "$(name)"
+                $print Hello $(name)!
+
+            page: t
+                $map greet, Alice, Bob, Carol
+
+    $p
+        Less often used, $(code:&dollar;map) syntax can also be used with subcodes that need multiple parameters by sharing common parameters:
+        &call codeprint, mydef
+            subcode: A(greet, name)
+                $print $(greet), $(name)!
+
+            page: t
+                $map A(Hello), Alice, Bob, Carol
+
+    $p
+        One of the benefits of $(code:&dollar;map) call is to allow certain use of macros:
+        &call codeprint, mydef
+            macros: 
+                Guests: Alice, Bob, Carol
+
+            subcode: A(greet, name)
+                $print $(greet), $(name)!
+
+            page: t
+                $map A(Hello), $(Guests)
+    $p
+        It should be noted that there are preprocessing directives that will introduced in latter chapter to achieve similar result.
+
+subcode:: sections
+    $call subsection, nest_call, Nest call
+    $p
+        A similar but even more exotic syntax is the $(code:&dollar;nest) call:
+        &call codeprint, mydef
+            subcode: each(A)
+                for(int i_$(A)=0;i_$(A)<n_$(A);i_$(A)++){
+                    $(set:i=$(A)_list[i_$(A)])
+                    $call append_string, s, $(i) &num; assume append_string is defined elsewhere
+                    BLOCK
+
+            page: t
+                $map init_list, A, B, C, D &num; assume init_list is defined elsewhere
+                $nest each, A, B, C, D
+                    $print s
+    $p
+        $(code:&dollar;nest) is the syntax sugur for:
+        &call codeprint, mydef
+            &call each, A
+                &call each, B
+                    &call each, C
+                        &call each, D
+                            $print s
+
+
+subcode:: sections
+    $call subsection, multi_subcode, Multiply defined subcode
+    $p
+        A common usage pattern is to use $(code:subcode) as place holders, for example
+        &call codeprint, mydef
+            page: t
+                $call @main_init
+                $call main_loop
+                $call finish
+    $p
+        $(code:main_init) is a place holder that will have initialization code that are related to many different features. The $(code:@) prepended to the name supresses warning even when the subcode is not defined, perfect for place holders. 
+    $p
+        Now it is not desirable to mix codes that are related to different semantic groups together even though they all need to happen at the same run-time context. For that, $(code:MyDef) allows a subcode to be multiply defined. 
+        &call codeprint, mydef
+            &num; ---- feature_A.def ----
+
+            subcode:: main_init
+                feature A related initializations
+
+            subcode: other_subcode_related_to_feature_A
+                ...
+
+        &call codeprint, mydef
+            &num; ---- feature_B.def ----
+
+            subcode:: main_init
+                feature B related initializations
+
+            subcode: other_subcode_related_to_feature_B
+                ...
+
+    $p
+        Pay attention to the double colons after $(code:subcode). If double colons are omited, only the first $(code:subcode:) definition will get loaded. This is where include files loading order matters. Unintentional subcode name collision should be avoided.
+    $p
+        Finally in the main $(code:.def) file, we can simply include the files:
+        &call codeprint, mydef
+            include: feature_A.def
+            &num; include: feature_B.def  &num; selectively disable feature B
+
+            page: t
+                $call @main_init
+                ...
+
+    $p
+        It should be mentioned that in addition to $(code:subcode::), signifying concatenation, there are also $(code:subcode:@) and $(code:subcode:-). Both advises $(code:MyDef) on what to do when $(code:subcode) names collide. $(code:subcode:@) signifies lower priority. This is used to supply default subcode definition in a library and any coliding subcode definition will overwrite it. $(code:subcode:-) is similar to $(code:subcode::) and signals that the code should be concatenated. Unlike double colon, $(code:subcode:-) always prepends the code to whichever definitions that are loaded earlier. It goes without saying that the effect of these special syntax will depend on the loading order of $(code:MyDef) parser and can be difficult to follow. In general, their use should be discouraged.
+
+#---------------------------------------- 
+subcode:: sections
+    $call subsection, syntax_autoload, $(code:subcode: _autoload)
+    $p
+        There is a special subcode called $(code:_autoload), if defined, it will automatically called before loading the $(code:page)'s main code.
+    $p
+        The functions for $(code:_autoload) is similar to above multiply defined subcode except it is called automatically. For its role, $(code:subcode: _autoload) can be defined in multiple place and the code will be concatenated together even when the $(code:subcode:) line didnt use double colons.
+
+#---------------------------------------- 
+subcode:: sections
+    $call subsection, syntax_dump_stub, $(code:DUMP_STUB)
+    $p
+        A very similar effect as multiply defined subcode is $(code:DUMP_STUB). It is used like this:
+    &call codeprint, mydef
+        page: t
+            DUMP_STUB main_init
+            $call feature_A
+            $call feature_B
+
+        subcode: feature_A
+            $(block:main_init)
+                code initialization related to feature A
+            feature A implementation
+
+        subcode: feature_B
+            $(block:main_init)
+                code initialization related to feature B
+            feature B implementation
+
+    $p
+        $(code:DUMP_STUB) is a keyword for place holders that will be replaced in the end with a named block of code. The syntax $(code:&dollar;(block:...)) places the code into that named block. 
+    $p
+        $(code:&dollar;(block:...)) integrates with other relavant code more tightly and shares the same subcode scope. Sometime this more readable than the alternative of having separate subcode.
+
+#---------------------------------------- 
+subcode:: sections
+    $call subsection, macro_param, Inline macros with parameters
+    $p
+        It is also possible to define and use inline macros with parameters. For example:
+        &call codeprint, mydef
+            $(set:m=$1[$2*$(N)+$3])
+            $for i=0:$(N)
+                $for j=0:$(N)
+                    $for k=0:$(N)
+                        $(m:C,i,j) += $(m:A,i,k)*$(m:B,k,j)
+    $p
+        Inline macro parameter are not explicitly declared, they are simply marked by $(code:$1-9) and replaced at expansion time with a comma separated list of values. 
+    $p
+        Only single digit following $ is significant. For example:
+        &call codeprint, mydef
+            macros:
+                A: $11
+
+            subcode: test
+                This is $(A:x) &num; x1
+
+#---------------------------------------- 
+subcode:: sections
+    $call subsection, preproc_set, Preprocessing: $(code:&dollar;(if:...))
+    $p
+        Basic switching logic is supported with preprocessing directive $(code:if:...), $(code:elif:...), and $(code:else):
+        &call codeprint
+            $(if:!A)
+                Code list when macro $(A) is not defined
+            $(elif:A=0)
+                Code list when $(A) equals to "0" (as text)
+            $(elif:A=othercase)
+                Code list when $(A) equals to "othercase"
+            $(elif:A>10)
+                Code list when $(A) is numerically > 10
+            $(else)
+                Code list for the remaining cases
+    $p
+        The logic is similar to the switch statement to most programming languages. 
+    $p
+        We should explain how the condition is being evaluated. Here we believe it easier to provide a pointer on where these logic is being implemented. You should have retained a copy of $(code:MyDef) repository. If not, it is easy to clone it again from github. The code logic for $(code:&dollar;(if:...)) conditionals is contained in source file $(code:macros_compile/preproc.def), search for $(code:fncode: testcondition).
+    &call codeprint, mydef
+        fncode: testcondition($cond, $has_macro)
+            ...
+            $elif $cond=~/^\s*!(.*)/
+                return !testcondition($1)
+            $elif $cond=~/ or /
+                my @nlist=split / or /, $cond
+                $foreach $n in @nlist
+                    $if testcondition($n)
+                        return 1;
+                return 0;
+            $elif $cond=~/ and /
+                my @nlist=split / and /, $cond
+                $foreach $n in @nlist
+                    $if !testcondition($n)
+                        return 0
+                return 1;
+            $elsif $cond=~/^([01])$/
+                return $1
+            ...
+    $p
+        So $(code:&dollar;(if:!...)), $(code:&dollar;(if:... or ...)), and $(code:&dollar;(if:... and ...)) syntax are supported. However, it is not implemented as an expression, so nested use of combining $(code:!), $(code:or), and $(code:and) probably will break.
+    $p
+        The preprocessing switch is mainly used for testing macros, so it will not work as intended if an expression other than simple macro name is passed in on the left side of comparison operators (e.g. $(code:=), $(code:&lt;), $(code:&gt;), $(code:&lt;=), $(code:&gt;=)). The right side of the operator is treated as normal expression. Therefore, for example: $(code:&dollar;(if:A>$(a))),  $(code:&dollar;(a)) has to be quoted as a macro while $(code:A) is assumed to be a macro without quote.
+    $p
+        As discussed, $(code:&dollar;(if:0)) or $(code:&dollar;(if:1)) should not work as neigher 0 or 1 is a macro name. However, it is often useful to use preprocessing to disable or enable a block of code. Therefore, both $(code:&dollar;(if:0)) and $(code:&dollar;(if:1)) are specially allowed. Any other direct numbers will not work.
+    $p
+        To be complete, here is additional syntax as supported in $(code:macros_compile/preproc.def):
+        &call codeprint, mydef
+            ...
+            $elsif $cond=~/^hascode:\s*(\w+)/
+                my $codelib = get_def_attr("codes", $1)
+                $if $codelib
+                    return 1
+            $elsif $cond=~/^(string|number|word):(.*)/
+                my $test=$1
+                my $t=get_def($2)
+                $if $test eq "string" and $t=~/^['"]/
+                    return 1
+                $elif $test eq "number" and $t=~/^\d+/
+                    return 1
+                $elif $test eq "word" and $t=~/^[a-zA-Z_]\w*$/
+                    return 1
+    $p
+        We can use these syntax like this:
+        &call codeprint, mydef
+            $(if:hascode:parse_cond)
+                $call parse_cond &num; call subcode when only it is defined.
+
+            $(if:string:P)
+                n = int($(P)); &num; when $(P) looks like a string literal
+
+            $(if:number:P)
+                s = $(P)+''; &num; when $(P) looks like a number
+
+            $(if:word:P)
+                code list &num; when $(P) looks like a simple word
+
+    $p
+        These special syntax are only useful for special cases. They are listed here also to show how to hack or extend $(code:MyDef) if necessary.
+    $p
+        There is also a simple regex condition, defined in $(code:fncode: testcondition). Just for convenience, here is the snippet:
+        &call codeprint, mydef
+            fncode: test_op($a, $test)
+                $if $test=~/^:(\d+)/
+                    &num; e.g. $(if:A:4=test),  matches when $(A) is test_something
+                    $test=$'
+                    $a=substr($a, 0, $1);
+
+                $if $test=~/^\s*(!?)~(.*)/
+                    &num; regex, e.g. $(if:A~pat)
+                    my ($not, $b) = ($1, $2)
+                    $if $b=~/(.*)\$$/
+                        &num; tail match
+                        if($a=~/$1$/){ return !$not;}
+                    $else
+                        &num; head match (default)
+                        if($a=~/^$b/){ return !$not;}
+                    return $not
+                $elif $test=~/^\s*in\s+(.*)/
+                    return test_in($a, $1)
+                $elif $test=~/^\s*([!=<>]+)(.*)/
+                    &num; e.g. $(if:A>=10)
+                    ...
+    $p
+        For up-to-date implementations, please directly reference source.
+
+subcode:: sections
+    $call subsection, preproc_set, Preprocessing: $(code:&dollar;(for:...))
+    $p
+        The $(code:&dollar;for...) syntax provides quick way to multiplex code:
+        &call codeprint, mydef
+            $(for:a in Alice, Bob, Carol)
+                Hi, $(a)
+
+            $(set:namelist=Alice,Bob,Carol)
+            $(for:a in $(namelist))
+                $(if:a=Alice)
+                    Hi $(a), I love you!
+                $(else)
+                    Hi $(a)!
+
+    $p
+        There is a short-cut syntax for specifying simple range based list:
+        &call codeprint, mydef
+            &num; reference: mydef_utils.def: fncode: get_range($a, $b)
+            $(for:a in 1-11) &num; 1,2,3,...,11
+                $print $(a)
+
+            $(for:a in a-z) &num; a,b,c,...,z
+                $print $(a)
+
+    $p
+        Sometime we may need multiplex over multiple lists:
+        &call codeprint, mydef
+            $(for:a, i in x,y,z and 0,1,2)
+                &num; x = 0, y = 1, and z = 2
+                $(a) = $(i)
+
+    $p
+        There is also a syntax to use $(code:&dollar(for:...)) anonymously:
+        &call codeprint, mydef
+            $(for:Alice, Bob, Carol)
+                Hi $1
+    $p
+        $(code:$1) is used to refer to the implict macro for each case.
+    $p
+        Anonymous multiplexing over multiple lists also works:
+        &call codeprint, mydef
+            $(for:x,y,z and i,j,k)
+                A_$1 = $2;
+    $p
+        Up to nine lists are allowed, but you probably want to limit to a much smaller lists.
+
+subcode:: sections
+    $call subsection, preproc_set, Preprocessing: $(code:&dollar;(set:...))
+    $p
+        We already learned that $(code:&dollar;(set:...)) can be used to set local macros within the scope. What if we want to set macros to the parent scope? We can use $(code:&dollar;(set-1:...)):
+        &call codeprint, mydef
+            $call set_macros
+            $print A = $(A)
+
+            subcode: set_macros
+                $(set-1:A=3.14)
+    $p
+        Direct $(code:&dollar;(set:...)) won't work here as it will expire upon exit the subcode.
+    $p
+        We also can set macros at global level using $(code:&dollar;(setmacro:...)):
+        &call codeprint, mydef
+            subcode: section(title)
+                $(setmacro:id+=1)
+                Section $(id). $(title)
+
+            page: t
+                $call section, Hello
+                $call section, Bye
+    $p
+        We haven't introduced the $(code:+=) operator yet. Intuitively, $(code:+=) increments the macro definition numerically.
+    $p
+        $(code:+=) works for $(code:&dollar;(set:...)) and $(code:&dollar;(set-1:...)) as well. However, it is difficult to track consistent macros across scopes, therefore, it makes most sense to only use these operators in $(code:&dollar;(setmacro:...)).
+    $p
+        In addition to $(code:+=), there are also $(code:-=), $(code:*=), and $(code:/=), which does their corresponding arithmetic updates. They are not as useful as $(code:+=) though.
+    $p
+        There is also a string concatenation operator $(code:.=), whcih appends the new definition to the old one.
+    $p
+        Very often when we need concatenate strings, we would like some separators into between the items. For that, we have another syntax:
+        &call codeprint, mydef
+            subcode: add_name(name)
+                $(setmacro:namelist[,]=$(name))
+                Hi $(name)!
+
+            page: t
+                $call add_name, Alice
+                $call add_name, Bob
+                We have gathered: $(namelist).
+    $p
+        Because the scoping rules, very rarely we need unset macros. When we need it, it is often only needed to shield certain macros from child scopes. For that, we have the $(code:&dollar;(unset:...).
+        &call codeprint, mydef
+            $(unset:A,B,C)
+            $call subcode_that_checks_macros
+
+    $p
+        Note that $(code:&dollar;(unset:...)) only unsets macros in the current scope, but will effectively shield macros defined in parent scopes. It only accepts a list of simple words.
+    $p
+        $(code:&dollar;(set...)) sets one macro at a time, so it does not need any deliminators, and you can easily define macros with comma in it. 
+    $p
+        Sometime it is desirable to set multiple macros in a single line. For that, we can use $(code:&dollar;(mset:...)):
+        &call codeprint, mydef
+            $(mset:A=x,B=y,C=z)
+    $p
+        You only can set macros in the current scope with $(code:&dollar;(mset:...)) and you cannot have commas in the definitions.
+
+subcode:: sections
+    $call subsection, preproc_scope, Preprocessing: scope rules
+    $p
+        Both $(code:&dollar;(for:...)) and $(code:&dollar;(if:...)) contains nested blocks. It should be noted that $(code:&dollar;(for:...)) will create additional child scopes, but $(code:&dollar;(if:...)) (and $(code:elif/else)) will not.
+    $p
+        The latter is useful as in the following case:
+        &call codeprint, mydef
+            subcode: greet(type, name)
+                $(if:type=hot)
+                    $(set:greeting=It is such an honor to meet)
+                    $(set:ending=!!!)
+                $(else)
+                    $(set:greeting=Hello,)
+                    $(set:ending=.)
+                $(greeting) $(name)
+
+subcode: sections
+    $call subsection, macro_special, Special macro syntax
+    $p
+        $(code:MyDef) implements a small set of special macro syntax for convenience:
+        &call codeprint, mydef
+            Type name 10 times: $(x10:NAME ) &num; NAME NAME ... NAME 
+            Type name 10 times: $(x10, :NAME) &num; NAME, NAME,  ... NAME
+            List of digits: $(join:pat $1:, :1-3) &num; pat 1, pat 2, pat 3
+            Duplex list: $(join:$1_$2:, :x-z and 1-3) &num; x_1, y_2, z_3
+            Multiplex list: $(join:$1_$2:, :x-z mul 1-3) &num; x_1, x_2, ..., z_3
+
+            $(set:A=word)
+            Perl one-liners: $(eval:ucfirst("$(A)")) &num; Word
+    $p
+        $(code:MyDef) is written in Perl, so it is trivial to add $(code:eval) and expose the entire Perl engine. There is also a similar interface for $(code:eval) subcode, which essentially allows direct perl code to manipulate text transformations. However, it is necessary to understand $(code:MyDef)'s internal details to effectively work with the rest of $(code:MyDef) processing. We'll discuss details in later chapters.
+    $p
+        For more update-to-date details, please reference source.
+
+#---------------------------------------- 
+subcode:: sections
+    $call section, invoke, Invoking $(code:MyDef)
+
+    $call subsection, invoke_config, $(code:config) file
+    $p
+        The suite of $(code:MyDef) tools will always check for a $(code:config) file (a text file named $(code:config)) in the same directory where the main $(code:.def) file is located. 
+    $p
+        Strictly speaking, a $(code:config) file is not always necessary. $(code:MyDef) options can be set in three places: in side $(code:.def) source, in the command line option, and in the $(code:config) file. $(code:config) file is a convenient mean to share default settings across entire project. 
+    $p
+        When $(code:config) file is missing and if we invoke $(code:mydef_make) to create $(code:Makefile), it will always create a $(code:config) file, so further invocation of $(code:mydef_make) will not prompt you questions again and again.
+    $p
+        Basic $(code:config) file only contains two settings. Following is the one for the $(code:MyDef) repository:
+    &call codeprint, mydef
+        output_dir: MyDef
+        module: perl
+    $p
+        $(code:output_dir) specifies the directory where the output files should be put. If this option is missing, the default is to put output files in the same directory of the $(code:.def) sources. For big projects, some separation is desirable.
+    $p
+        $(code:module) specifies the output module to use. When this option is missing, the default is to use $(code:output_general). $(code:MyDef) is written in Perl, so perl it is (mean to use $(code:output_perl)).
+    $p
+        Another often used options is $(code:include_path), whish is a '$(code::)' separated list of directories for searching for $(code:include:) files. The option if provided gets prepended to environment variable $(code:MYDEFLIB). The current folder will always get searched first.
+    $p
+        $(code:output_general) module do not need many options, but many language and application specific output modules do need additional options to control behaviors. $(code:config) file can arbitary options, and it is the output module's responsibility to check tese options.
+    $p
+        Internally, $(code:MyDef) do not really differentiate macros and options. Both are simply name-value pairs. Everything specified in $(code:MyDef) is internally available in a global reference hash variable $(code:$MyDef::var).
+
+subcode:: sections
+    $call subsection, mydef_page, $(code:mydef_page)
+    $p
+        $(code:mydef_page) is the $(code:MyDef) compiler. It reads in a $(code:.def) (and all the included $(code:.def) files included within), translates it, and writes to output files, one per $(code:page:) directive.
+    &call codeprint, sh
+        $ mydef_page -m[module] -o[outputdir] src.def
+    $p
+        $(code:-m) specifies output module to use. $(code:-o) specifies output directory that output files will go. There should not be spaces between the option and value.
+    $p
+        Both options can be omited. If the module is missing, it takes from $(code:config) file. If $(code:config) does not exist or the module option is not set within, it will check for module option inside the source $(code:.def) file. If still not found, $(code:mydef_page) will complain and exit.
+    $p
+        However, when the module option is given via command line or $(code:config) file, that module will be used. And when the module option under $(code:page:) directive mismatches this module, the corresponding page will be ignored. For example:
+        &call codeprint, sh
+            $ mydef_page -mgeneral t.def
+            skiped 1 pages (due to module mismatch), use -m to overide default module.
+    $p
+        It is possible to have multiple pages defined in a single $(code:.def) file all the pages match the module option will gets compiled in a single invocation. If multiple pages require different output modules, multiple invocation of $(code:mydef_page) with different module option is necessary to compile every page.
+
+    $p
+        $(code:-o) specifies output locations. If not specified, it will search similarly in $(code:config) file. If not found, it will set to current working directory. 
+    $p
+        If the source $(code:.def) file also specifies $(code:output_dir) under the $(code:page:) directive, it will depend on whether absolute or relative path is given. 
+    $p
+        If an absolute path is given, it will be used as the output location. 
+    $p
+        If a relative path is given instead, it will be appended to the path given on the command line or $(code:config) file, or the default $(code:.) (current directory).
+    $p
+        When every thing goes well, it goes like following:
+        &call codeprint, sh
+            $ mydef_page t.def
+            PAGE: t
+              --> [./t.pl]
+    $p
+        If multiple pages are being compiled, each of them will be listed.
+    $p
+        If $(code:MyDef) encouter errors, there will be error messages:
+        &call codeprint t.def
+            $ mydef_page t.def
+            PAGE: t
+            [t.def:4] Code A not found!
+            [t.def:5] Macro B not defined
+            --> [./t.pl]
+    $p
+        The output file will still be produced despite the errors. It is important to pay attention to error messages.
+    $p
+        The file locations are usually reported along with errors. However, it should be noted that the current implementation of file location tracking is buggy and often can be off by a few lines. Nevertheless, you should be able to locate the error with the information given in the error message. This bug certainly will get fixed at some point. However, since it will not affect the actual compilation, only the error reporting, it is currently not at a high priority.
+
+    $p
+        Although it is possible, it is not recommended to directly output scripts (such as perl/python scripts) directly into installation destination. It is prudent to always test locally and run the extra install steps when satisfied. The exception being generating web pages. Web pages need to be viewed through browser anyway, thus it is convenient to have $(code:output_dir) directly point to your web root. 
+
+subcode:: sections
+    $call subsection, mydef_make, $(code:mydef_make)
+    $p
+        When projects grow to contain more than one output file, a $(code:Makefile) is helpful to make edit-compile-debug cycle easier. We believe in keeping things simple, and believe a simplified, hand-edited Makefile is better than using typical build tools. Build tools generate $(code:Makefiles) without going over the decisions. In the effort to accomodate the most complicated projects, they make the most complicated solution for even the simplest projects. That is the opposite of "keeping it simple".
+    $p
+        Nevertheless, hand generating $(code:Makefiles) can be tedious. $(code:mydef_make) can be used to generate the initial $(code:Makefile) by scanning all $(code:.def) files within the directory as well as all subdirectories. It will generate all the rules from $(code:def) files to output files using $(code:mydef_page) commands. For simple projects, the $(code:Makefile) from $(code:mydef_make) will be good enough. Both $(code:MyDef) projects and its output module projects are examples where $(code:mydef_make) is good enough.
+    $p
+        When it is not good enough, you are encouraged to hand edit your $(code:Makefile). If you insist on using build tools, you always can opt to have $(code:def) source files outside of the build tree and having $(code:mydef_page) to output into the build tree. That way, your build tool can work as if you are directly editing the code rather are generating them using $(code:def) files. There may even appear to be no difference to your colleagues. One could edit the $(code:Makefile) and having make automatically invoke the build tool upon updates. 
+    $p
+        If you run $(code:mydef_make) the first time (when $(code:config) file does not exist):
+        &call codeprint, sh
+            $ mydef_make
+            Please enter the path to compile into [out]:
+
+            Please enter module type [perl]:
+
+              output_dir: out
+            Create output folder out ...
+    $p
+        $(code:mydef_make) prompts you for output_dir and module type. It creates $(code:config) file and a $(code:Makefile). If the $(code:output_dir) does not exist, it will create it for you.
+    $p
+        If you run it again, it will only update $(code:Makefile):
+        &call codeprint, sh
+            $ mydef_make
+                output_dir: out
+
+subcode:: sections
+    $call subsection, mydef_run, $(code:mydef_run)
+    $p
+        At the opposite end of building big projects, you may be coding a single progrom that consists of a single file (not necessarily single $(code:def) file). In this case, invoking build tools or even generating $(code:Makefile) appears to be an overkill. All we would like to is single keypress from source to result.
+    $p
+        $(code:mydef_run) is specificly for this purpose. It can be invoked like this:
+        &call codeprint, sh
+            $ mydef_run t.def
+            PAGE: t
+              --> [out/t.pl]
+            perl out/t.pl
+            Hello  World!
+    $p
+        Basically it compiles from $(code:def) to output, then it bases on a set of heuristics on the output file type and runs compiler or interpreter to run the program.
+    $p
+        Here is an example with C:
+        &call codeprint, sh
+            $ mydef_run t.def
+            PAGE: t
+              --> [out/t.c]
+            gcc -std=c99 -O2 -oout/t out/t.c  && out/t
+            Hello World!
+    $p
+        Here is an example with Java:
+        &call codeprint, t.def
+            $ mydef_run t.def
+            PAGE: t
+              --> [out/t.java]
+            javac out/t.java && cd out && java t
+            Hello World!
+    $p
+        Of course not all types of file have a way to run it:
+        &call codeprint, sh
+            $ mydef_run t.def
+            PAGE: t
+              --> [./t.txt]
+            do not know how to run it
+    $p
+        Well, at least it is honest and it compiles for you.
+    $p
+        If you configure the command to a hotkey in your editor, then the edit-debug cycle is shortened into a single keypress. If you use $(code:vim), put this in $(code:.vimrc):
+        &call codeprint, vim
+            :nmap <F5> :!mydef_run %<CR>
+    $p
+        For details of the heuristics or customization, refer to $(code:mydef_run.def) in the source repository.
+    $p
+        It is possible to directly set command line for $(code:mydef_run) to run. For example:
+    &call codeprint, mydef
+        page: t
+            run: cat t.txt
+
+            $print Hello World!
+
+    &call codeprint, sh
+        $ mydef_run t.def
+        PAGE: t
+            --> [./t.txt]
+        cat t.txt
+        $print Hello World!
+
+    $p
+        Or you may simply specify an argument:
+    &call codeprint, mydef
+        page: t
+            module: perl
+            arg: P1 P2 P3
+
+            $foreach $a in @ARGV
+                $print argument $a
+
+    &call codeprint, sh
+        $ mydef_run t.def
+        PAGE: t
+          --> [./t.pl]
+        perl ./t.pl P1 P2 P3
+        arg: P1
+        arg: P2
+        arg: P3
+    $p
+        As a bonus, do you know that you can directly use $(code:mydef_run) on $(code:.pl), $(code:.c), or any source code with a known extension? Try it.
+

@@ -12,12 +12,14 @@ fncode: fmt_string($str, $add_newline)
     $str=~s/\s*$//
     my @pre_list
     $if $str=~/^\s*\"(.*)\"\s*,\s*(.*)$/
+        # looks like a printf
         $str=$1
         @pre_list=MyDef::utils::proper_split($2)
         $(if:hascode:check_expression)
             $foreach $a in @pre_list
                 $a=check_expression($a)
     $elif $str=~/^\s*\"(.*)\"\s*$/
+        # stripping double quote
         $str=$1
 
     $if $add_newline and $str=~/(.*)-$/

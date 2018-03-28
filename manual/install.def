@@ -1,0 +1,89 @@
+subcode:: sections
+    $call section, install, Installations
+    $p
+        MyDef repositories are separated into base repository and individual output-module repositories. Output modules depend on the $(code:MyDef) base code and implements language or application specific features. The base repository implements features that are common to all output modules.
+    $call subsection, install_base, install base $(code:MyDef)
+    $p
+        Check your system have $(code:perl), $(code:make), $(code:git) installed. To install MyDef for the first time, use the bootstrap script as following:
+        &call codeprint, sh
+            $ git clone https://github.com/hzhou/MyDef.git
+            $ cd MyDef
+            $ sh bootstrap.sh
+    $p
+        By default, bootstrap.sh installs into $(code:$HOME/bin), $(code:$HOME/lib/perl5), and $(code:$HOME/lib/MyDef). In order to make MyDef work, you also need set following environment variables, preferrablly inside your $(code:~/.bashrc):
+        &call codeprint, vim
+            export PATH=$HOME/bin:[rest of your path]
+            export PERL5LIB=$HOME/lib/perl5
+            export MYDEFLIB=$HOME/lib/MyDef
+        If these environment variables are set first, $(code:bootstrap.sh) will install into the specified destination instead.
+    $p
+        It is also recommended to keep MyDef repository after installation. You will need the base repository to install additional output-modules. For that matter, you will also need to set environment variable $(code:MYDEFSRC):
+        &call codeprint, vim
+            export MYDEFSRC=[path to your MyDef repository]
+
+    $p
+        MyDef repository can be updated by running $(code:git pull). During the bootstrap process, a $(code:Makefile) is created so upon updateis or files been locally edited, you may simply run $(code:make) to install the updates:
+        &call codeprint
+            $ make
+            $ make install
+        You may need to run $(code:mydef_make) to update the $(code:Makefile) sometime when new files have been added or removed from the repository.
+    
+subcode:: sections
+    $call subsection, install_what, What is installed
+    $p
+        The following are installed in $(code:$HOME/bin) (they are all perl scripts):
+    &call whats
+        $call li, mydef_page, compiles from $(code:.def) to output(s).
+        $call li, mydef_make, checks $(code:.def) files in the current folder and $(code:config) file if exist, output $(code:Makefile).
+        $call li, mydef_run, convenient script to compile and run a single program.
+        $call li, mydef_install, installs files into $(code:$MYDEFLIB), $(code:$PERL5LIB), or the first localtion of $(code:$PATH).
+
+    $p
+        The following are installed in $(code:$PERL5LIB):
+    &call whats
+        $call li, mydef.pm, defines global variables, loads output_modules, etc.
+        $call li, MyDef/parseutil.pm, defines routines for loading $(code:.def) files.
+        $call li, MyDef/compileutil.pm, defines routines for translating into output, defines macros and preprocessing functions.
+        $call li, MyDef/dumpout.pm, defines routines for final output.
+        $call li, MyDef/utils.pm, defines some helper routines.
+        $call li, MyDef/output_general.pm, the default output module.
+        $call li, MyDef/output_perl.pm, output module for perl code.
+    $p
+        The following are installed in $(code:$MYDEFLIB):
+    &call whats
+        $call li, std_general.def, macros automatically loaded by output_general.pm; by default it is empty.
+        $call li, std_perl.def, macros automatically loaded by output_perl.pm
+
+    $p
+        These are the essential files that are needed for basic $(code:MyDef) functions. There may be additional files being installed, which may add debugging functions or extra def libraries.
+
+    subcode: whats
+        $ul
+            BLOCK
+
+        subcode: li(name, @what)
+            $li
+                <b>$(name):</b> $(what)
+
+subcode:: sections
+    $call subsection, install_module, Install additional output_modules
+    $p
+        The base $(code:MyDef) installs $(code:output_general.pm) and will be used by default when no module option is given -- in $(code:config) file, $(code:.def) source, or on the command line of $(code:mydef_page) or $(code:mydef_run). $(code:output_general) only translates base $(code:MyDef) macros and preprocessing directives, and it can be used to generate any text files, including $(code:.txt), $(code:.pl), $(code:.c), or source code for any programming languages. The extension of the output files can be individually specified inside the $(code:.def) source. By default, $(code:.txt) is assumed.
+    $p
+        Although $(code:output_general) module can be used for any programming language, language or application specific output modules can be developed to add language specific features. For example, the $(code:output_perl) and $(code:output_c) modules can automatically add semicolons or curly braces as needed so the programmer can optionally omit them. $(code:output_c) also can manage automatic variable and function declaration with some type inference logic. For another example, $(code:output_win32) can add features that automatically manage $(code:WNDPROC) message handlers to make win32 programming more flexible.
+    $p
+        Other than $(code:output_general) and $(code:output_perl), all output modules have their own repositories and need to be individually installed. To install these additional output_modules, you need make sure that you have the updated base $(code:MyDef) repository, and have environment variable $(code:$MYDEFSRC) points to its location. The installation process are very similar for all modules. For example, $(code:output_c) module can be installed like this:
+    &call codeprint, sh
+        $ git clone https://github.com/hzhou/output_c.git
+        $ cd output_c
+        $ mydef_make
+        $ make
+        $ make install
+
+    $p
+        It will compile and install $(code:output_c.pm) into $(code:$PERL5LIB/MyDef/), $(code:std_c.def) and some other standard def libraries into $(code:$MYDEFLIB).
+    $p
+        The following output_modules are currently available from $(url:https://github.com/hzhou/): <br>
+        <code>output_c, output_python, output_java, output_www, output_win32, output_xs, output_fortran, output_pascal, output_tcl, output_go, output_rust, output_glsl</code> <br/>
+        Not all modules are equally developed or tested.
+
