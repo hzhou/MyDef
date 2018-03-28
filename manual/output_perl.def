@@ -7,8 +7,6 @@ subcode:: sections
     $p
         Perl is a general purpose programming language, therefore provides the usual $(code:variable), $(code:functions), $(code:scopes), $(code:if-else) switch, $(code:loops), etc. The custom syntax created with $(code:output_perl) can be a good example for output modules for other languages.
 
-    [ To be continued.]
-
     $call subsection, perl_plain, It is OK to write vanilla Perl
     &call codeprint, mydef
         page: t
