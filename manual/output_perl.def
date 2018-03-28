@@ -212,7 +212,7 @@ subcode:: sections
         $for $i=10:0:-1
             $print $i
     $p
-        The current implementation in $(code:output_perl) prints $(code:10, 9, ..., 0). Yep, looped 11 times instead of 10 times. We find it easier to reason by taking the literal meaning of from $(code:10) down to $(code:0). Many may disagree. As said, tricky. But remember, to be clear, you always can and maybe should use the more verbose version:
+        The current implementation in $(code:output_perl) prints $(code:10), $(code:9), ..., $(code:0). Yep, looped 11 times instead of 10 times. We find it easier to reason by taking the literal meaning of from $(code:10) down to $(code:0). Many may disagree. As said, tricky. But remember, to be clear, you always can and maybe should use the more verbose version:
 
     &call codeprint, mydef
         $for $i=10; $i>0; $i--
@@ -255,7 +255,7 @@ subcode:: sections
         You may recall there is this critics about how Perl does not have function signatures. As far as syntax goes, this lets us define functions with signature.
 
     $p
-        The $(code:$sub) syntax works, but behaves as a normal statement -- just like $(code:if) or $(code:while). Semantically it is a bit unsatisfactory as $(code:$sub) merely defines the function rather than having run-time action as other control statement do. Ideally, we would like to have a declarative syntax for functions and move them out side of normal code blocks. In $(code:MyDef), we can use $(code:fncode:)
+        The $(code:$sub) syntax works, but behaves as a normal statement -- just like $(code:if) or $(code:while). Semantically it is a bit unsatisfactory as $(code:$sub) merely defines the function rather than having run-time action as other control statement do. Ideally, we would like to have a declarative syntax for functions and move them outside of normal code blocks. In $(code:MyDef), we can use $(code:fncode:)
     &call codeprint, mydef
         page: t
             $print "3: %d", F(3)

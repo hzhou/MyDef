@@ -1316,7 +1316,7 @@ else{
             <code>print</code> is the most fundamental and useful statement in a language, not because it is essential in the final program, but it is essential to provide feedback during code development. Programming is a process.
         </p>
         <p>
-            Perl is one of the most straight forward language. The "Hello world" program that listed in the first chapter of "Programming Perl" is:
+            Perl is one of the most straight forward languages. The "Hello world" program that listed in the first chapter of "Programming Perl" is:
         </p>
         <pre><code>
 print "Howdy, world!\n";
@@ -1431,7 +1431,7 @@ else{
         <p>
             These are syntactic sugar for <code>if-elsif-else</code> statements. They allow us to write these control statements in the style of Python rather than C's curly brace style. Here is an example:
             <pre><code>
-for(my $i=1; $i&amp;lt;100; $i++){
+for(my $i=1; $i&lt;100; $i++){
     <span class="mydef-keyword">$if</span> $i % 15 == 0
         $print fizbuzz
     <span class="mydef-keyword">$elif</span> $i % 3 == 0
@@ -1472,7 +1472,7 @@ fizbuzz
         <p>
             First, let's review the vanilla Perl syntax:
             <pre><code>
-for(my $i=0; $i&amp;lt;10; $i++){
+for(my $i=0; $i&lt;10; $i++){
     $print $i
 }
             </code></pre>
@@ -1484,7 +1484,7 @@ for(my $i=0; $i&amp;lt;10; $i++){
             That said, let's see what <code>output_perl</code> offers:
         </p>
         <pre><code>
-<span class="mydef-keyword">$for</span> my $i=0; $i&amp;lt;10; $i++
+<span class="mydef-keyword">$for</span> my $i=0; $i&lt;10; $i++
     $print $i
         </code></pre>
         <p>
@@ -1533,7 +1533,7 @@ for(my $i=0; $i&amp;lt;10; $i++){
     $print $i
         </code></pre>
         <p>
-            The current implementation in <code>output_perl</code> prints <code>10</code>. Yep, looped 11 times instead of 10 times. We find it easier to reason by taking the literal meaning of from <code>10</code> down to <code>0</code>. Many may disagree. As said, tricky. But remember, to be clear, you always can and maybe should use the more verbose version:
+            The current implementation in <code>output_perl</code> prints <code>10</code>, <code>9</code>, ..., <code>0</code>. Yep, looped 11 times instead of 10 times. We find it easier to reason by taking the literal meaning of from <code>10</code> down to <code>0</code>. Many may disagree. As said, tricky. But remember, to be clear, you always can and maybe should use the more verbose version:
         </p>
         <pre><code>
 <span class="mydef-keyword">$for</span> $i=10; $i>0; $i--
