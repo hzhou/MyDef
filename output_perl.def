@@ -46,12 +46,12 @@ subcode: parsecode
             return 0
         # $call check_hash_equal
         $call check_termination
-    $call check_fcall
+    check_fcall($l)
     push @$out, $l
 
     return 0;
 
-subcode: check_fcall
+fncode: check_fcall($l)
     $while $l=~/\b(\w+)\(/g
         $call add_function, $1
 
@@ -310,24 +310,17 @@ subcode: check_hash_equal
         $call warn, Miss typed = in hash? [$l]
 
 subcode: check_termination
-    #$l=~s/^\|//;
     $if $l=~/^\s*$/
         # NOOP
-    $elif $l=~/^\s*(break|continue);?\s*$/
-        $if $1 eq "break"
-            $l="last;"
-        $elif $l eq "continue"
-            $l="next;"
     $elif $l=~/^\s*(for|while|if|else if)\s*\(.*\)\s*$/
         # NOOP
     $elif $l=~/^\s*}/
         # Check the formal blockend
         # Inline blocks will get ; appended.
     $elif $l!~/[,:\(\[\{;]\s*$/
-        #print "[$l]appending ;\n";
         $l.=";";
     $else
-        #print "[$l]\n";
+        # NOOP
 
 #---------------------------------------- 
 subcode:: parsecode_func_other
@@ -343,6 +336,7 @@ subcode: parsecode_print
     $elif $str=~/^\s*\"([^"]+)\",\s*(.+)$/
         $str = $1
         $printf_args=$2
+        check_fcall($2)
     $else
         $need_escape=1
 

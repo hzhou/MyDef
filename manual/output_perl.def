@@ -9,11 +9,331 @@ subcode:: sections
 
     [ To be continued.]
 
-    $call subsection, perl_semi, Optional semicolons
-    $call subsection, perl_if, $(code:$if), $(code:$elif), and $(code:$else)
-    $call subsection, perl_for, $(code:$for)
-    $call subsection, perl_while, $(code:$while)
-    $call subsection, perl_global, $(code:$global)
-    $call subsection, perl_fn, $(code:fncode) and function arrangement
-    $call subsection, perl_std, $(code:std_perl.def)
+    $call subsection, perl_plain, It is OK to write vanilla Perl
+    &call codeprint, mydef
+        page: t
+            my $a = 0.1;
+            my $b = 0.2;
+            if ($a+$b == 0.3){
+                print "$a + $b = 0.3!\n";
+            }
+            else{
+                print "Total failure!\n";
+            }
+    &call codeprint, sh
+        $ mydef_run -mperl t.def
+        PAGE: t
+          --> [./t.pl]
+        perl ./t.pl
+        Total failure!
 
+    $p
+        And you can check the output $(code:t.pl) is (almost) exactly as you wrote:
+    &call codeprint, perl
+        &num;!/usr/bin/perl
+        use strict;
+        my $a = 0.1;
+        my $b = 0.2;
+        if ($a+$b == 0.3){
+            print "$a + $b = 0.3!\n";
+        }
+        else{
+            print "Total failure!\n";
+        }
+    $p
+        It only adds the $(code:#!) line and $(code:use strict;). It is recommended that $(code:strict) should always be used. However, if you disagree, you could set the $(code:relax) option:
+    &call codeprint, mydef
+        page: t
+            module: perl
+            relax: 1
+            ...
+
+    $call subsection, perl_print, $(code:$print)
+    $p
+        $(code:print) is the most fundamental and useful statement in a language, not because it is essential in the final program, but it is essential to provide feedbacks during code development. Programming is a process.
+    $p
+        Perl is one of the most straight forward language. The "Hello world" program that listed in the first chapter of "Programming Perl" is:
+    &call codeprint, perl
+        print "Howdy, world!\n";
+    $p
+        To most programmers, this is as basic as it can be. But nevertheless, in the coming years of experience, a few wishes do pop up: Is it necessary to type that quotation marks, and '$(code:\n)', and the semicolons? The annoyances pops up because we do forget or mistype them from time to time and then have the compiler bug us with the errors.
+    $p
+        Turns out, in most cases, no, it isn't necessary. So in $(code:output_perl), we introduced a hack:
+        &call codeprint, mydef
+            $print Howdy, world!
+    $p
+        In modern versions of Perl, there is a new function $(code:say), which essentially is $(code:print_ln) (print with newline). $(code:$print) achievs the same wihtout it.
+    $p
+        There is more to it. What is the output of this:
+        &call codeprint, mydef
+            $print Howdy, world!\n
+    $p
+        You can quickly check it yourself, but the answer is, no, it won't print two newlines. There is a little intelligence in $(code:output_perl) that only adds newline when newline is missing. By the way, both of the following works as well:
+        &call codeprint, mydef
+            $print "Howdy, world!"
+            $print "Howdy, world!\n"
+    $p
+        A little flexibility goes a long way.
+    $p
+        Now what if we want to print without newline?
+        &call codeprint, mydef
+            $print Howdy, -
+            $print world
+    $p
+        '$(code:-)' in the end signals that we do not want newline. We usually want to print with newline, but occasionally we don't. So the philosophy here is to make the default for common scenarios, and go extra for special cases.
+    $p
+        Mixing variables into the string still works. In addition, there is a little hack to make print in color easier:
+        &call codeprint, mydef
+            my $name = "world";
+            $print Howdy, $green{$name}!
+    $p
+        Supported color names include: $(code:red), $(code:green), $(code:yellow), $(code:blue), $(code:magenta), $(code:cyan). You will have trouble if you have variable named with these color names and want to print them. Hopefully that is rare, but if you do, remember the vanilla Perl's $(code:print) is still there.
+    $p
+        Perl's variable interpolation in strings is great. But still sometime we want to print with format. For that, we need remember another function: $(code:printf). $(code:$print) supports that as well:
+        &call codeprint, mydef
+            $print "Pi = %.2f", 3.1415926
+    $p
+        It is equivalent to:
+        &call codeprint, perl
+            printf "Pi = %.2f\n", 3.1415926;
+
+    $p
+        One more thing, sometime we want to print to a filehandle, such as $(code:STDERR). We still can use $(code:$print) for that. All we need is set a special macro:
+        &call codeprint, mydef
+            $(set:print_to=STDERR)
+            $print Error: did you just want an error?
+
+    $p
+        That's it for $(code:$print)! If you want further detail, directly consult the source in $(code:output_perl.def) and search for $(code:subcode: parsecode_print). The implementation for all these flexibility is not complicated, thanks to Perl's built-in convenience. 
+
+    $call subsection, perl_semi, Optional semicolons
+    $p
+        In previous section, we see $(code:print) not only lets you omit typing quotation marks and '$(code:\n)', you also get to omit semicolons. In fact, with $(code:output_perl), you can optionally omit semicolons for almost every normal perl statements. Try this:
+        &call codeprint, mydef
+            my $name = "Alice"
+            if ($name eq "Alice"){
+                $print Howdy, $name
+            }
+            else{
+                $print Nice to meet you, $name!
+            }
+    $p
+        Surely, $(code:MyDef) did not add '$(code:;)' to every line. It employs some simple heuristics. In fact, you can just check what it does at the source:
+        &call codeprint, mydef
+            subcode: check_termination
+                $if $l=~/^\s*$/
+                    &num; NOOP
+                $elif $l=~/^\s*(for|while|if|else if)\s*\(.*\)\s*$/
+                    &num; NOOP
+                $elif $l=~/^\s*}/
+                    &num; Check the formal blockend
+                    &num; Inline blocks will get ; appended.
+                $elif $l!~/[,:\(\[\{;]\s*$/
+                    $l.=";";
+                $else
+                    &num; NOOP
+
+    $call subsection, perl_if, $(code:$if), $(code:$elif), and $(code:$else)
+    $p
+        These are syntactic sugur for $(code:if-elsif-else) statements. They allow us to write these control statuements in the style of Python rather than C's curly brace style. Here is an example:
+        &call codeprint, mydef
+            for(my $i=1; $i<100; $i++){
+                $if $i % 15 == 0
+                    $print fizbuzz
+                $elif $i % 3 == 0
+                    $print fiz
+                $elif $i % 5 == 0
+                    $print buzz
+                $else
+                    $print $i
+            }
+    $p
+        Obviously there is similar indentation based syntax for $(code:for)-loop, but since that is in the next section, we show the example as above to demonstrate that there is nothing wrong to mix vanilla perl code with the special syntax introduced by $(code:output_perl).
+    $p
+        One of the top bugs is mis-type $(code:==) with $(code:=) in $(code:if) conditions. So $(code:output_perl) checks that given the chance and gives you warnings:
+        &call codeprint, mydef
+            my $i=1
+            $if $i = 15
+                $print fizbuzz
+
+        &call codeprint, sh
+            $ mydef_run t.def
+            PAGE: t
+            [t.def:6] assignment in condition [$i = 15]?
+              --> [./t.pl]
+            perl ./t.pl
+            fizbuzz
+    $p
+        It is only a warning, but if you paid attention, you caught the bug!
+
+    $call subsection, perl_for, $(code:$for)
+    $p
+        First, let's review the vanilla Perl syntax:
+        &call codeprint, perl
+            for(my $i=0; $i<10; $i++){
+                $print $i
+            }
+    $p
+        $(code:MyDef) works purely at text level; it does not truly understand the language semantics as a compiler do. It only understands the text via heuristics -- which is more similar to how human mind works. As such, $(code:MyDef) special syntax does not always work. We start with vanilla Perl syntax example to emphsize that you always can draw back on the syntax if it become more trouble than help.
+    $p
+        That said, let's see what $(code:output_perl) offers:
+    &call codeprint, mydef
+        $for my $i=0; $i<10; $i++
+            $print $i
+    $p
+        Just like the $(code:$if) syntax, we now can write it in Python style and save the braces. Further:
+    &call codeprint, mydef
+        $for my $i=0:10:1
+            $print $i
+    $p
+        That works. In fact, we can drop the keyword $(code:my) and the increment by 1 is actually the default:
+    &call codeprint, mydef
+        $for $i=0:10
+            $print $i
+    $p
+        In fact, the loop variable $(code:$i) is also the default, so we can dropt that too:
+    &call codeprint, mydef
+        $for 0:10
+            $print $i
+    $p
+        Or:
+    &call codeprint, mydef
+        $for 10
+            $print $i
+    $p
+        The output is exactly the same for all above examples. We did not change Perl, only the syntax.
+    $p
+        Just to make sure, the step part works:
+    &call codeprint, mydef
+        $for $i=0:10:2
+            $print $i
+
+    $p
+        The decreasing $(code:for)-loop works too, but it is a bit tricky. It is tricky because it appears there is not a established convention. For example, what do we think the following does?
+    &call codeprint, mydef
+        $for $i=10:0:-1
+            $print $i
+    $p
+        The current implementaion in $(code:output_perl) prints $(code:10, 9, ..., 0). Yep, looped 11 times instead of 10 times. We find it easier to reason by taking the literal meaning of from $(code:10) down to $(code:0). Many may disagree. As said, tricky. But remember, to be clear, you always can and maybe should use the more verbose version:
+
+    &call codeprint, mydef
+        $for $i=10; $i>0; $i--
+            $print $i
+
+    $call subsection, perl_while, $(code:$while)
+    $p
+        $(code:$while) exist so we could write $(code:while)-loop in Python style too.
+    &call codeprint, mydef
+        $while 1
+            $print MyDef FOREVER!
+            last &num; maybe not
+
+    $call subsection, perl_foreach, $(code:$foreach)
+    $p
+        $(code:foreach) reads better with a keyword $(code:in):
+    &call codeprint, mydef
+        $foreach $c in split //, "Hello, world!"
+            $print $c
+    $p
+        It supplies the $(code:my) keyword and drops parenthese and braces.
+
+    $call subsection, perl_fn, $(code:fncode) and function arrangement
+    $p
+        Curly braces are also used in defining Perl functions -- $(code:sub):
+    &call codeprint, mydef
+        $sub F($x)
+            return $x * $x
+
+        $print "3: %d", F(3)
+    $p
+        Let's check its Perl equivalent:
+    &call codeprint, mydef
+        sub F {                 
+            my ($x)=@_;         
+            return $x * $x;     
+        }                       
+        printf "3: %d\n", F(3); 
+    $p
+        You may recall there is this critics about how Perl does not have function signatures. As far as syntax goes, this lets us define functions with signature.
+
+    $p
+        The $(code:$sub) syntax works, but behaves as a normal statment -- just like $(code:if) or $(code:while). Sematically it is a bit unsatisfactory as $(code:$sub) merely defines the function rather than having run-time action as other control statement do. Ideally, we would like to have a declarative syntax for functions and move them out side of normal code blocks. In $(code:MyDef), we can use $(code:fncode:)
+    &call codeprint, mydef
+        page: t
+            $print "3: %d", F(3)
+
+        fncode: F($x)
+            return $x * $x
+    $p
+        If you are writing a $(code:.pm) module, All the $(code:fncode:) is included in the output. However, if you are writing $(code:.pl) script, which is the default, only those functions that are used will be included. $(code:output_perl) detects which function are being used with a very simple heuristics:
+
+    &call codeprint, mydef
+        fncode: check_fcall($l)
+            $while $l=~/\b(\w+)\(/g
+                $call add_function, $1
+
+    $p
+        In the case the heuristics doesn't work well and misses certain function that you do use, you always can add the function explicitly with $(code:$list):
+    &call codeprint, mydef
+        page: t
+            $list F
+            $print "3: %d", F(3)
+
+        fncode: F($x)
+            return $x * $x
+
+    $call subsection, perl_global, $(code:$global) and $(code:$use)
+    $p
+        There is this religion that we should avoid global variables. The practitioners of $(code:MyDef) do not believe in extrem stances. Globals are certainly convenient. If we do use globals, we definitely would like to define them close to where it is relavant rather than pile all of them at the top. The language semantics on the other hand, do make sense to have all gloables piled at the top. To help, $(code:output_perl) provides $(code:$global) to make decalaration (and initialization) of global variables declarative.
+    &call codeprint, mydef
+        page: t
+            $print "3: %d", F(3)
+
+        fncode: F($x)
+            $global $Offset = 10
+            return $x * $x + $Offset
+    $p
+        We certainly do not want redeclare and reset $(code:$Offset) every time the function is called. The Perl output equivalent is:
+    &call codeprint, perl
+        #!/usr/bin/perl
+        use strict;    
+        our $Offset = 10;   
+
+        sub F {                 
+            my ($x)=@_;         
+            return $x * $x + $Offset
+        }                       
+
+        printf "3: %d\n", F(3); 
+
+    $p
+        Similarly, $(code:$use) made importing packages declarative so you could embed certain package dependence into relavant code and be confident that they all will be gathered to their rightful place.
+
+    $call subsection, perl_std, $(code:std_perl.def)
+    $p
+        Finally, not all customization need to happen at the internal level. We can have customization coded in $(code:MyDef) macro syntax and have them included in the $(code:def) file. Foreach output module, there is one standard library that is always included automatically. For $(code:perl), that is $(code:std_perl.def). It is located at $(code:deflib/) in the repository and at $(code:$MYDEFLIB) in your installed destination.
+    $p
+        It is easy enough for you to open that file and see for yourself what are in it. They are a collection convenience macros that some are frequently used while some are rarely used. Those rarely used probably will get pruned away at some point.
+    $p
+        The most used two subcodes are $(code:subcode: open_r) and $(code:subcode: open_w). $(code:subcode: open_r) allows short code for opening file and read it line by line:
+    &call codeprint, mydef
+        &call open_r, t.txt
+            $if /(\w+), (\w+)/
+                $print Hello $2 $1!
+
+    $p
+        $(code: subcode: open_w) is similar but obviously it can't write line by line for you:
+    &call codeprint, mydef
+        &call open_w, t.txt
+            $(set:print_to=Out)
+            $print Hello, world!
+            $print Hello, world, again.
+    $p
+        $(code:In) is the default input file handle, and $(code:Out) is the default output file handle.
+    $p
+        If you just want to read in the whole file in a scalar, you can use $(code:subcode: get_file_in_t):
+    &call codeprint, mydef
+        $call get_file_in_t, t.txt
+        $print [$t]
+    $p
+        There is also $(code:get_file_lines) that slurps entire text file into $(code:@lines) array.
