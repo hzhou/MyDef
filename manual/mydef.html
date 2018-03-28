@@ -79,6 +79,7 @@
                 <li><a href="#general">5 <code>output_general</code></a>
                 <ul class="no-bullet id2">
                 <li><a href="#general_code">5.1 <code>output_general.def</code></a></li>
+                <li><a href="#general_output">5.2 <code>output.def</code></a></li>
                 </ul>
                 </li>
                 <li><a href="#perl">6 <code>output_perl</code></a>
@@ -1247,8 +1248,66 @@ arg: P3
     <span class="mydef-label2">package</span>: MyDef::output_general
         </code></pre>
         <p>
-            [To be continued.]
+            The actual code is in a subcode <code>output_main</code> defined in <code>output.def</code>.
         </p>
+        <a name="general_output"></a>
+        <h3 class="section">
+            5.2 <code>output.def</code>
+        </h3>
+        <p>
+            File <code>output.def</code> provides boiler-plate code that most output modules will share:
+        </p>
+        <pre><code>
+<span class="mydef-label">subcode</span>: <span class="mydef-label">output_main</span>
+    <span class="mydef-keyword">$global</span> $debug=0
+    <span class="mydef-keyword">$global</span> $out
+    <span class="mydef-keyword">$global</span> $mode
+    <span class="mydef-keyword">$global</span> $page
+    <span class="mydef-keyword">$call</span> <strong>@package_globals</strong>
+
+    $sub get_interface
+        <span class="mydef-label">return</span> (\&amp;init_page, \&amp;parsecode, \&amp;set_output, \&amp;modeswitch, \&amp;dumpout);
+
+    $sub init_page($t_page)
+        $page=$t_page
+        <span class="mydef-comment"># [... omitted code for per page initialization ...]</span>
+
+    $sub set_output($newout)
+        $out = $newout
+
+    $sub modeswitch($mode, $in)
+        <span class="mydef-keyword">$call</span> <strong>@modeswitch</strong>
+
+    <span class="mydef-comment"># ---- All specialized parsing goes here.</span>
+    $sub parsecode($l)
+        <span class="mydef-keyword">$if</span> $l=~/^\$warn (.*)/
+            <span class="mydef-keyword">$call</span> <strong>warn,</strong> $1
+            <span class="mydef-label">return</span>
+        <span class="mydef-keyword">$elif</span> $l=~/^\$template\s+(.*)/
+            <span class="mydef-comment"># [... omitted code to read-in template ...]</span>
+            <span class="mydef-label">return</span>
+        <span class="mydef-keyword">$call</span> <strong>parsecode_debug</strong>
+        <span class="mydef-keyword">$call</span> <strong>parsecode_eval</strong>
+        <span class="mydef-keyword">$call</span> <strong>parsecode</strong>
+
+    <span class="mydef-comment"># ---- Final output, allows for 2nd pass translation</span>
+    $sub dumpout($f, $out)
+        my $dump={out=>$out,f=>$f}
+        <span class="mydef-keyword">$call</span> <strong>@dumpout</strong>
+        <span class="mydef-label2">MyDef</span>::dumpout::dumpout($dump);
+
+    <span class="mydef-keyword">$call</span> <strong>single_blocks</strong>
+    <span class="mydef-keyword">$call</span> <strong>@support_subs</strong>
+
+    1;
+        </code></pre>
+        <p>
+            <code>subcode: parsecode</code> is where we apply preprocessing logic for each line. <code>output.def</code> provides a default stub which simply pushes the line straight to <code>@$out</code>. It is supposed to be overwritten in the actual output module. For <code>output_general</code>, it is good enough:
+        </p>
+        <pre><code>
+<span class="mydef-label">subcode</span>:@ <span class="mydef-label">parsecode</span>
+    push @$out, $l
+        </code></pre>
         <a name="perl"></a>
         <h2 class="chapter">
             6 <code>output_perl</code>

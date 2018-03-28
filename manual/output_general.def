@@ -20,6 +20,58 @@ subcode:: sections
             package: MyDef::output_general
 
     $p
-        [To be continued.]
+        The actual code is in a subcode $(code:output_main) defined in $(code:output.def). 
 
+    $call subsection, general_output, $(code:output.def)
+    $p
+        File $(code:output.def) provides boiler-plate code that most output modules will share:
+
+    &call codeprint, mydef
+        subcode: output_main
+            $global $debug=0
+            $global $out
+            $global $mode
+            $global $page
+            $call @package_globals
+
+            $sub get_interface
+                return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
+
+            $sub init_page($t_page)
+                $page=$t_page
+                &num; [... omitted code for per page initialization ...]
+
+            $sub set_output($newout)
+                $out = $newout
+
+            $sub modeswitch($mode, $in)
+                $call @modeswitch
+
+            &num; ---- All specialized parsing goes here.
+            $sub parsecode($l)
+                $if $l=~/^\$warn (.*)/
+                    $call warn, $1
+                    return
+                $elif $l=~/^\$template\s+(.*)/
+                    &num; [... omitted code to read-in template ...]
+                    return
+                $call parsecode_debug
+                $call parsecode_eval
+                $call parsecode
+
+            &num; ---- Final output, allows for 2nd pass translation
+            $sub dumpout($f, $out)
+                my $dump={out=>$out,f=>$f}
+                $call @dumpout
+                MyDef::dumpout::dumpout($dump);
+
+            $call single_blocks
+            $call @support_subs
+
+            1;
+    $p
+        $(code:subcode: parsecode) is where we apply preprocessing logic for each line. $(code:output.def) provides a default stub which simply pushes the line straight to $(code:@$out). It is supposed to be overwritten in the actual output module. For $(code:output_general), it is good enough:
+    &call codeprint, mydef
+        subcode:@ parsecode
+            push @$out, $l
 
