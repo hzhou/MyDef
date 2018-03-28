@@ -3,9 +3,9 @@ subcode:: sections
     $p
         $(code:output_perl) source is kept within the base $(code:MyDef) repository because, well, $(code:MyDef) is coded in perl and would require $(code:output_perl) to compile. 
     $p
-        $(code:output_perl) is also one of the most mature module, due to the madatory round trip testing. In addition, because Perl is a very high-level language and embraces user practical expressiveness, $(code:output_perl) is relatively simple. 
+        $(code:output_perl) is also one of the most mature module, due to the mandatory round trip testing. In addition, because Perl is a very high-level language and embraces user practical expressiveness, $(code:output_perl) is relatively simple. 
     $p
-        Perl is a genral purpose programming language, therefore provides the usual $(code:variable), $(code:functions), $(code:scopes), $(code:if-else) switch, $(code:loops), etc. The custom syntax created with $(code:output_perl) can be a good example for output modules for other languages.
+        Perl is a general purpose programming language, therefore provides the usual $(code:variable), $(code:functions), $(code:scopes), $(code:if-else) switch, $(code:loops), etc. The custom syntax created with $(code:output_perl) can be a good example for output modules for other languages.
 
     [ To be continued.]
 
@@ -50,7 +50,7 @@ subcode:: sections
 
     $call subsection, perl_print, $(code:$print)
     $p
-        $(code:print) is the most fundamental and useful statement in a language, not because it is essential in the final program, but it is essential to provide feedbacks during code development. Programming is a process.
+        $(code:print) is the most fundamental and useful statement in a language, not because it is essential in the final program, but it is essential to provide feedback during code development. Programming is a process.
     $p
         Perl is one of the most straight forward language. The "Hello world" program that listed in the first chapter of "Programming Perl" is:
     &call codeprint, perl
@@ -62,7 +62,7 @@ subcode:: sections
         &call codeprint, mydef
             $print Howdy, world!
     $p
-        In modern versions of Perl, there is a new function $(code:say), which essentially is $(code:print_ln) (print with newline). $(code:$print) achievs the same wihtout it.
+        In modern versions of Perl, there is a new function $(code:say), which essentially is $(code:print_ln) (print with newline). $(code:$print) achieves the same without it.
     $p
         There is more to it. What is the output of this:
         &call codeprint, mydef
@@ -126,7 +126,7 @@ subcode:: sections
                 $elif $l=~/^\s*(for|while|if|else if)\s*\(.*\)\s*$/
                     &num; NOOP
                 $elif $l=~/^\s*}/
-                    &num; Check the formal blockend
+                    &num; Check the formal block end
                     &num; Inline blocks will get ; appended.
                 $elif $l!~/[,:\(\[\{;]\s*$/
                     $l.=";";
@@ -135,7 +135,7 @@ subcode:: sections
 
     $call subsection, perl_if, $(code:$if), $(code:$elif), and $(code:$else)
     $p
-        These are syntactic sugur for $(code:if-elsif-else) statements. They allow us to write these control statuements in the style of Python rather than C's curly brace style. Here is an example:
+        These are syntactic sugar for $(code:if-elsif-else) statements. They allow us to write these control statements in the style of Python rather than C's curly brace style. Here is an example:
         &call codeprint, mydef
             for(my $i=1; $i&lt;100; $i++){
                 $if $i % 15 == 0
@@ -174,7 +174,7 @@ subcode:: sections
                 $print $i
             }
     $p
-        $(code:MyDef) works purely at text level; it does not truly understand the language semantics as a compiler do. It only understands the text via heuristics -- which is more similar to how human mind works. As such, $(code:MyDef) special syntax does not always work. We start with vanilla Perl syntax example to emphsize that you always can draw back on the syntax if it become more trouble than help.
+        $(code:MyDef) works purely at text level; it does not truly understand the language semantics as a compiler do. It only understands the text via heuristics -- which is more similar to how human mind works. As such, $(code:MyDef) special syntax does not always work. We start with vanilla Perl syntax example to emphasize that you always can draw back on the syntax if it become more trouble than help.
     $p
         That said, let's see what $(code:output_perl) offers:
     &call codeprint, mydef
@@ -191,7 +191,7 @@ subcode:: sections
         $for $i=0:10
             $print $i
     $p
-        In fact, the loop variable $(code:$i) is also the default, so we can dropt that too:
+        In fact, the loop variable $(code:$i) is also the default, so we can drop that too:
     &call codeprint, mydef
         $for 0:10
             $print $i
@@ -214,7 +214,7 @@ subcode:: sections
         $for $i=10:0:-1
             $print $i
     $p
-        The current implementaion in $(code:output_perl) prints $(code:10, 9, ..., 0). Yep, looped 11 times instead of 10 times. We find it easier to reason by taking the literal meaning of from $(code:10) down to $(code:0). Many may disagree. As said, tricky. But remember, to be clear, you always can and maybe should use the more verbose version:
+        The current implementation in $(code:output_perl) prints $(code:10, 9, ..., 0). Yep, looped 11 times instead of 10 times. We find it easier to reason by taking the literal meaning of from $(code:10) down to $(code:0). Many may disagree. As said, tricky. But remember, to be clear, you always can and maybe should use the more verbose version:
 
     &call codeprint, mydef
         $for $i=10; $i>0; $i--
@@ -235,7 +235,7 @@ subcode:: sections
         $foreach $c in split //, "Hello, world!"
             $print $c
     $p
-        It supplies the $(code:my) keyword and drops parenthese and braces.
+        It supplies the $(code:my) keyword and drops parentheses and braces.
 
     $call subsection, perl_fn, $(code:fncode) and function arrangement
     $p
@@ -257,7 +257,7 @@ subcode:: sections
         You may recall there is this critics about how Perl does not have function signatures. As far as syntax goes, this lets us define functions with signature.
 
     $p
-        The $(code:$sub) syntax works, but behaves as a normal statment -- just like $(code:if) or $(code:while). Sematically it is a bit unsatisfactory as $(code:$sub) merely defines the function rather than having run-time action as other control statement do. Ideally, we would like to have a declarative syntax for functions and move them out side of normal code blocks. In $(code:MyDef), we can use $(code:fncode:)
+        The $(code:$sub) syntax works, but behaves as a normal statement -- just like $(code:if) or $(code:while). Semantically it is a bit unsatisfactory as $(code:$sub) merely defines the function rather than having run-time action as other control statement do. Ideally, we would like to have a declarative syntax for functions and move them out side of normal code blocks. In $(code:MyDef), we can use $(code:fncode:)
     &call codeprint, mydef
         page: t
             $print "3: %d", F(3)
@@ -284,7 +284,7 @@ subcode:: sections
 
     $call subsection, perl_global, $(code:$global) and $(code:$use)
     $p
-        There is this religion that we should avoid global variables. The practitioners of $(code:MyDef) do not believe in extrem stances. Globals are certainly convenient. If we do use globals, we definitely would like to define them close to where it is relavant rather than pile all of them at the top. The language semantics on the other hand, do make sense to have all gloables piled at the top. To help, $(code:output_perl) provides $(code:$global) to make decalaration (and initialization) of global variables declarative.
+        There is this religion that we should avoid global variables. The practitioners of $(code:MyDef) do not believe in extreme stances. Globals are certainly convenient. If we do use globals, we definitely would like to define them close to where it is relevant rather than pile all of them at the top. The language semantics on the other hand, do make sense to have all globals piled at the top. To help, $(code:output_perl) provides $(code:$global) to make declaration (and initialization) of global variables declarative.
     &call codeprint, mydef
         page: t
             $print "3: %d", F(3)
@@ -293,7 +293,7 @@ subcode:: sections
             $global $Offset = 10
             return $x * $x + $Offset
     $p
-        We certainly do not want redeclare and reset $(code:$Offset) every time the function is called. The Perl output equivalent is:
+        We certainly do not want re-declare and reset $(code:$Offset) every time the function is called. The Perl output equivalent is:
     &call codeprint, perl
         #!/usr/bin/perl
         use strict;    
@@ -307,7 +307,7 @@ subcode:: sections
         printf "3: %d\n", F(3); 
 
     $p
-        Similarly, $(code:$use) made importing packages declarative so you could embed certain package dependence into relavant code and be confident that they all will be gathered to their rightful place.
+        Similarly, $(code:$use) made importing packages declarative so you could embed certain package dependence into relevant code and be confident that they all will be gathered to their rightful place.
 
     $call subsection, perl_std, $(code:std_perl.def)
     $p

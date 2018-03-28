@@ -10,7 +10,7 @@ subcode:: sections
             $ cd MyDef
             $ sh bootstrap.sh
     $p
-        By default, bootstrap.sh installs into $(code:$HOME/bin), $(code:$HOME/lib/perl5), and $(code:$HOME/lib/MyDef). In order to make MyDef work, you also need set following environment variables, preferrablly inside your $(code:~/.bashrc):
+        By default, bootstrap.sh installs into $(code:$HOME/bin), $(code:$HOME/lib/perl5), and $(code:$HOME/lib/MyDef). In order to make MyDef work, you also need set following environment variables, preferably inside your $(code:~/.bashrc):
         &call codeprint, vim
             export PATH=$HOME/bin:[rest of your path]
             export PERL5LIB=$HOME/lib/perl5
@@ -22,7 +22,7 @@ subcode:: sections
             export MYDEFSRC=[path to your MyDef repository]
 
     $p
-        MyDef repository can be updated by running $(code:git pull). During the bootstrap process, a $(code:Makefile) is created so upon updateis or files been locally edited, you may simply run $(code:make) to install the updates:
+        MyDef repository can be updated by running $(code:git pull). During the bootstrap process, a $(code:Makefile) is created so upon updates or files been locally edited, you may simply run $(code:make) to install the updates:
         &call codeprint
             $ make
             $ make install
@@ -36,7 +36,7 @@ subcode:: sections
         $call li, mydef_page, compiles from $(code:.def) to output(s).
         $call li, mydef_make, checks $(code:.def) files in the current folder and $(code:config) file if exist, output $(code:Makefile).
         $call li, mydef_run, convenient script to compile and run a single program.
-        $call li, mydef_install, installs files into $(code:$MYDEFLIB), $(code:$PERL5LIB), or the first localtion of $(code:$PATH).
+        $call li, mydef_install, installs files into $(code:$MYDEFLIB), $(code:$PERL5LIB), or the first location of $(code:$PATH).
 
     $p
         The following are installed in $(code:$PERL5LIB):
