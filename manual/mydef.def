@@ -17,6 +17,19 @@ page: mydef, basic_frame
         $(title)
     $call TOC
     $call @sections
+    $call section, c, $(code:output_c)
+    $p
+        [To be continued.]
+    $call section, www, $(code:output_www)
+    $p
+        [To be continued.]
+    $call section, python, $(code:output_python)
+    $p
+        [To be continued.]
+    $call section, java, $(code:output_java)
+    $p
+        [To be continued.]
+
     $call end_section
 
 #---------------------------------------- 
