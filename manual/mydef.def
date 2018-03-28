@@ -74,7 +74,7 @@ subcode: css_code
     CSS: .mydef-label  {color: #22f;} # blue
     CSS: .mydef-label2 {color: #228;} # blueish
     CSS: .mydef-keyword {color: #494; font-weight: 700} # green
-    CSS: .mydef-preproc {color: #844;} # redish
+    CSS: .mydef-preproc {color: #844;} # reddish
     CSS: .mydef-include {color: #444; text-decoration: underline;}
     CSS: .mydef-quote {color: #a2a;}
     CSS: .mydef-macro {color: #474;}

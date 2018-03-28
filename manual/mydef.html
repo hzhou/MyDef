@@ -89,9 +89,10 @@
                 <li><a href="#perl_if">6.4 <code>$if</code>, <code>$elif</code>, and <code>$else</code></a></li>
                 <li><a href="#perl_for">6.5 <code>$for</code></a></li>
                 <li><a href="#perl_while">6.6 <code>$while</code></a></li>
-                <li><a href="#perl_global">6.7 <code>$global</code></a></li>
+                <li><a href="#perl_foreach">6.7 <code>$foreach</code></a></li>
                 <li><a href="#perl_fn">6.8 <code>fncode</code> and function arrangement</a></li>
-                <li><a href="#perl_std">6.9 <code>std_perl.def</code></a></li>
+                <li><a href="#perl_global">6.9 <code>$global</code> and <code>$use</code></a></li>
+                <li><a href="#perl_std">6.10 <code>std_perl.def</code></a></li>
                 </ul>
                 </li>
             </ul>
@@ -1266,37 +1267,431 @@ arg: P3
         <h3 class="section">
             6.1 It is OK to write vanilla Perl
         </h3>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    my $a = 0.1;
+    my $b = 0.2;
+    if ($a+$b == 0.3){
+        print <span class="mydef-quote">"$a + $b = 0.3!\n"</span>;
+    }
+    else{
+        print <span class="mydef-quote">"Total failure!\n"</span>;
+    }
+        </code></pre>
+        <pre><code>
+<span class="mydef-special">$ </span>mydef_run -mperl t.def
+PAGE: t
+    --> [./t.pl]
+perl ./t.pl
+Total failure!
+        </code></pre>
+        <p>
+            And you can check the output <code>t.pl</code> is (almost) exactly as you wrote:
+        </p>
+        <pre><code>
+#!/usr/bin/perl
+use strict;
+my $a = 0.1;
+my $b = 0.2;
+if ($a+$b == 0.3){
+    print "$a + $b = 0.3!\n";
+}
+else{
+    print "Total failure!\n";
+}
+        </code></pre>
+        <p>
+            It only adds the <code>#!</code> line and <code>use strict;</code>. It is recommended that <code>strict</code> should always be used. However, if you disagree, you could set the <code>relax</code> option:
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: perl
+    <span class="mydef-label2">relax</span>: 1
+    ...
+        </code></pre>
         <a name="perl_print"></a>
         <h3 class="section">
             6.2 <code>$print</code>
         </h3>
+        <p>
+            <code>print</code> is the most fundamental and useful statement in a language, not because it is essential in the final program, but it is essential to provide feedbacks during code development. Programming is a process.
+        </p>
+        <p>
+            Perl is one of the most straight forward language. The "Hello world" program that listed in the first chapter of "Programming Perl" is:
+        </p>
+        <pre><code>
+print "Howdy, world!\n";
+        </code></pre>
+        <p>
+            To most programmers, this is as basic as it can be. But nevertheless, in the coming years of experience, a few wishes do pop up: Is it necessary to type that quotation marks, and '<code>\n</code>', and the semicolons? The annoyances pops up because we do forget or mistype them from time to time and then have the compiler bug us with the errors.
+        </p>
+        <p>
+            Turns out, in most cases, no, it isn't necessary. So in <code>output_perl</code>, we introduced a hack:
+            <pre><code>
+$print Howdy, world!
+            </code></pre>
+        </p>
+        <p>
+            In modern versions of Perl, there is a new function <code>say</code>, which essentially is <code>print_ln</code> (print with newline). <code>$print</code> achievs the same wihtout it.
+        </p>
+        <p>
+            There is more to it. What is the output of this:
+            <pre><code>
+$print Howdy, world!\n
+            </code></pre>
+        </p>
+        <p>
+            You can quickly check it yourself, but the answer is, no, it won't print two newlines. There is a little intelligence in <code>output_perl</code> that only adds newline when newline is missing. By the way, both of the following works as well:
+            <pre><code>
+$print <span class="mydef-quote">"Howdy, world!"</span>
+$print <span class="mydef-quote">"Howdy, world!\n"</span>
+            </code></pre>
+        </p>
+        <p>
+            A little flexibility goes a long way.
+        </p>
+        <p>
+            Now what if we want to print without newline?
+            <pre><code>
+$print Howdy, -
+$print world
+            </code></pre>
+        </p>
+        <p>
+            '<code>-</code>' in the end signals that we do not want newline. We usually want to print with newline, but occasionally we don't. So the philosophy here is to make the default for common scenarios, and go extra for special cases.
+        </p>
+        <p>
+            Mixing variables into the string still works. In addition, there is a little hack to make print in color easier:
+            <pre><code>
+my $name = <span class="mydef-quote">"world"</span>;
+$print Howdy, $green{$name}!
+            </code></pre>
+        </p>
+        <p>
+            Supported color names include: <code>red</code>, <code>green</code>, <code>yellow</code>, <code>blue</code>, <code>magenta</code>, <code>cyan</code>. You will have trouble if you have variable named with these color names and want to print them. Hopefully that is rare, but if you do, remember the vanilla Perl's <code>print</code> is still there.
+        </p>
+        <p>
+            Perl's variable interpolation in strings is great. But still sometime we want to print with format. For that, we need remember another function: <code>printf</code>. <code>$print</code> supports that as well:
+            <pre><code>
+$print <span class="mydef-quote">"Pi = %.2f"</span>, 3.1415926
+            </code></pre>
+        </p>
+        <p>
+            It is equivalent to:
+            <pre><code>
+printf "Pi = %.2f\n", 3.1415926;
+            </code></pre>
+        </p>
+        <p>
+            One more thing, sometime we want to print to a filehandle, such as <code>STDERR</code>. We still can use <code>$print</code> for that. All we need is set a special macro:
+            <pre><code>
+<span class="mydef-macro">$(set:print_to=STDERR)</span>
+$print Error: did you just want an error?
+            </code></pre>
+        </p>
+        <p>
+            That's it for <code>$print</code>! If you want further detail, directly consult the source in <code>output_perl.def</code> and search for <code>subcode: parsecode_print</code>. The implementation for all these flexibility is not complicated, thanks to Perl's built-in convenience.
+        </p>
         <a name="perl_semi"></a>
         <h3 class="section">
             6.3 Optional semicolons
         </h3>
+        <p>
+            In previous section, we see <code>print</code> not only lets you omit typing quotation marks and '<code>\n</code>', you also get to omit semicolons. In fact, with <code>output_perl</code>, you can optionally omit semicolons for almost every normal perl statements. Try this:
+            <pre><code>
+my $name = <span class="mydef-quote">"Alice"</span>
+if ($name eq <span class="mydef-quote">"Alice"</span>){
+    $print Howdy, $name
+}
+else{
+    $print Nice to meet you, $name!
+}
+            </code></pre>
+        </p>
+        <p>
+            Surely, <code>MyDef</code> did not add '<code>;</code>' to every line. It employs some simple heuristics. In fact, you can just check what it does at the source:
+            <pre><code>
+<span class="mydef-label">subcode</span>: <span class="mydef-label">check_termination</span>
+    <span class="mydef-keyword">$if</span> $l=~/^\s*$/
+        <span class="mydef-comment"># NOOP</span>
+    <span class="mydef-keyword">$elif</span> $l=~/^\s*(for|while|if|else if)\s*\(.*\)\s*$/
+        <span class="mydef-comment"># NOOP</span>
+    <span class="mydef-keyword">$elif</span> $l=~/^\s*}/
+        <span class="mydef-comment"># Check the formal blockend</span>
+        <span class="mydef-comment"># Inline blocks will get ; appended.</span>
+    <span class="mydef-keyword">$elif</span> $l!~/[,:\(\[\{;]\s*$/
+        $l.=<span class="mydef-quote">";"</span>;
+    <span class="mydef-keyword">$else</span>
+        <span class="mydef-comment"># NOOP</span>
+            </code></pre>
+        </p>
         <a name="perl_if"></a>
         <h3 class="section">
             6.4 <code>$if</code>, <code>$elif</code>, and <code>$else</code>
         </h3>
+        <p>
+            These are syntactic sugur for <code>if-elsif-else</code> statements. They allow us to write these control statuements in the style of Python rather than C's curly brace style. Here is an example:
+            <pre><code>
+for(my $i=1; $i&lt;100; $i++){
+    <span class="mydef-keyword">$if</span> $i % 15 == 0
+        $print fizbuzz
+    <span class="mydef-keyword">$elif</span> $i % 3 == 0
+        $print fiz
+    <span class="mydef-keyword">$elif</span> $i % 5 == 0
+        $print buzz
+    <span class="mydef-keyword">$else</span>
+        $print $i
+}
+            </code></pre>
+        </p>
+        <p>
+            Obviously there is similar indentation based syntax for <code>for</code>-loop, but since that is in the next section, we show the example as above to demonstrate that there is nothing wrong to mix vanilla perl code with the special syntax introduced by <code>output_perl</code>.
+        </p>
+        <p>
+            One of the top bugs is mis-type <code>==</code> with <code>=</code> in <code>if</code> conditions. So <code>output_perl</code> checks that given the chance and gives you warnings:
+            <pre><code>
+my $i=1
+<span class="mydef-keyword">$if</span> $i = 15
+    $print fizbuzz
+            </code></pre>
+            <pre><code>
+<span class="mydef-special">$ </span>mydef_run t.def
+PAGE: t
+[t.def:6] assignment in condition [$i = 15]?
+    --> [./t.pl]
+perl ./t.pl
+fizbuzz
+            </code></pre>
+        </p>
+        <p>
+            It is only a warning, but if you paid attention, you caught the bug!
+        </p>
         <a name="perl_for"></a>
         <h3 class="section">
             6.5 <code>$for</code>
         </h3>
+        <p>
+            First, let's review the vanilla Perl syntax:
+            <pre><code>
+for(my $i=0; $i&lt;10; $i++){
+    $print $i
+}
+            </code></pre>
+        </p>
+        <p>
+            <code>MyDef</code> works purely at text level; it does not truly understand the language semantics as a compiler do. It only understands the text via heuristics -- which is more similar to how human mind works. As such, <code>MyDef</code> special syntax does not always work. We start with vanilla Perl syntax example to emphsize that you always can draw back on the syntax if it become more trouble than help.
+        </p>
+        <p>
+            That said, let's see what <code>output_perl</code> offers:
+        </p>
+        <pre><code>
+<span class="mydef-keyword">$for</span> my $i=0; $i&lt;10; $i++
+    $print $i
+        </code></pre>
+        <p>
+            Just like the <code>$if</code> syntax, we now can write it in Python style and save the braces. Further:
+        </p>
+        <pre><code>
+<span class="mydef-keyword">$for</span> my $i=0:10:1
+    $print $i
+        </code></pre>
+        <p>
+            That works. In fact, we can drop the keyword <code>my</code> and the increment by 1 is actually the default:
+        </p>
+        <pre><code>
+<span class="mydef-keyword">$for</span> $i=0:10
+    $print $i
+        </code></pre>
+        <p>
+            In fact, the loop variable <code>$i</code> is also the default, so we can dropt that too:
+        </p>
+        <pre><code>
+<span class="mydef-keyword">$for</span> 0:10
+    $print $i
+        </code></pre>
+        <p>
+            Or:
+        </p>
+        <pre><code>
+<span class="mydef-keyword">$for</span> 10
+    $print $i
+        </code></pre>
+        <p>
+            The output is exactly the same for all above examples. We did not change Perl, only the syntax.
+        </p>
+        <p>
+            Just to make sure, the step part works:
+        </p>
+        <pre><code>
+<span class="mydef-keyword">$for</span> $i=0:10:2
+    $print $i
+        </code></pre>
+        <p>
+            The decreasing <code>for</code>-loop works too, but it is a bit tricky. It is tricky because it appears there is not a established convention. For example, what do we think the following does?
+        </p>
+        <pre><code>
+<span class="mydef-keyword">$for</span> $i=10:0:-1
+    $print $i
+        </code></pre>
+        <p>
+            The current implementaion in <code>output_perl</code> prints <code>10</code>. Yep, looped 11 times instead of 10 times. We find it easier to reason by taking the literal meaning of from <code>10</code> down to <code>0</code>. Many may disagree. As said, tricky. But remember, to be clear, you always can and maybe should use the more verbose version:
+        </p>
+        <pre><code>
+<span class="mydef-keyword">$for</span> $i=10; $i>0; $i--
+    $print $i
+        </code></pre>
         <a name="perl_while"></a>
         <h3 class="section">
             6.6 <code>$while</code>
         </h3>
-        <a name="perl_global"></a>
+        <p>
+            <code>$while</code> exist so we could write <code>while</code>-loop in Python style too.
+        </p>
+        <pre><code>
+<span class="mydef-keyword">$while</span> 1
+    $print MyDef FOREVER!
+    last<span class="mydef-comment"> # maybe not</span>
+        </code></pre>
+        <a name="perl_foreach"></a>
         <h3 class="section">
-            6.7 <code>$global</code>
+            6.7 <code>$foreach</code>
         </h3>
+        <p>
+            <code>foreach</code> reads better with a keyword <code>in</code>:
+        </p>
+        <pre><code>
+$foreach $c in split //, <span class="mydef-quote">"Hello, world!"</span>
+    $print $c
+        </code></pre>
+        <p>
+            It supplies the <code>my</code> keyword and drops parenthese and braces.
+        </p>
         <a name="perl_fn"></a>
         <h3 class="section">
             6.8 <code>fncode</code> and function arrangement
         </h3>
+        <p>
+            Curly braces are also used in defining Perl functions -- <code>sub</code>:
+        </p>
+        <pre><code>
+$sub F($x)
+    <span class="mydef-label">return</span> $x * $x
+
+$print <span class="mydef-quote">"3: %d"</span>, F(3)
+        </code></pre>
+        <p>
+            Let's check its Perl equivalent:
+        </p>
+        <pre><code>
+sub F {
+    my ($x)=@_;
+    <span class="mydef-label">return</span> $x * $x;
+}
+printf <span class="mydef-quote">"3: %d\n"</span>, F(3);
+        </code></pre>
+        <p>
+            You may recall there is this critics about how Perl does not have function signatures. As far as syntax goes, this lets us define functions with signature.
+        </p>
+        <p>
+            The <code>$sub</code> syntax works, but behaves as a normal statment -- just like <code>if</code> or <code>while</code>. Sematically it is a bit unsatisfactory as <code>$sub</code> merely defines the function rather than having run-time action as other control statement do. Ideally, we would like to have a declarative syntax for functions and move them out side of normal code blocks. In <code>MyDef</code>, we can use <code>fncode:</code>
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    $print <span class="mydef-quote">"3: %d"</span>, F(3)
+
+<span class="mydef-label">fncode</span>: <span class="mydef-label">F</span>($x)
+    <span class="mydef-label">return</span> $x * $x
+        </code></pre>
+        <p>
+            If you are writing a <code>.pm</code> module, All the <code>fncode:</code> is included in the output. However, if you are writing <code>.pl</code> script, which is the default, only those functions that are used will be included. <code>output_perl</code> detects which function are being used with a very simple heuristics:
+        </p>
+        <pre><code>
+<span class="mydef-label">fncode</span>: <span class="mydef-label">check_fcall</span>($l)
+    <span class="mydef-keyword">$while</span> $l=~/\b(\w+)\(/g
+        <span class="mydef-keyword">$call</span> <strong>add_function,</strong> $1
+        </code></pre>
+        <p>
+            In the case the heuristics doesn't work well and misses certain function that you do use, you always can add the function explicitly with <code>$list</code>:
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    $list F
+    $print <span class="mydef-quote">"3: %d"</span>, F(3)
+
+<span class="mydef-label">fncode</span>: <span class="mydef-label">F</span>($x)
+    <span class="mydef-label">return</span> $x * $x
+        </code></pre>
+        <a name="perl_global"></a>
+        <h3 class="section">
+            6.9 <code>$global</code> and <code>$use</code>
+        </h3>
+        <p>
+            There is this religion that we should avoid global variables. The practitioners of <code>MyDef</code> do not believe in extrem stances. Globals are certainly convenient. If we do use globals, we definitely would like to define them close to where it is relavant rather than pile all of them at the top. The language semantics on the other hand, do make sense to have all gloables piled at the top. To help, <code>output_perl</code> provides <code>$global</code> to make decalaration (and initialization) of global variables declarative.
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    $print <span class="mydef-quote">"3: %d"</span>, F(3)
+
+<span class="mydef-label">fncode</span>: <span class="mydef-label">F</span>($x)
+    <span class="mydef-keyword">$global</span> $Offset = 10
+    <span class="mydef-label">return</span> $x * $x + $Offset
+        </code></pre>
+        <p>
+            We certainly do not want redeclare and reset <code>$Offset</code> every time the function is called. The Perl output equivalent is:
+        </p>
+        <pre><code>
+use strict;
+our $Offset = 10;
+
+sub F {
+    my ($x)=@_;
+    return $x * $x + $Offset
+}
+
+printf "3: %d\n", F(3);
+        </code></pre>
+        <p>
+            Similarly, <code>$use</code> made importing packages declarative so you could embed certain package dependence into relavant code and be confident that they all will be gathered to their rightful place.
+        </p>
         <a name="perl_std"></a>
         <h3 class="section">
-            6.9 <code>std_perl.def</code>
+            6.10 <code>std_perl.def</code>
         </h3>
+        <p>
+            Finally, not all customization need to happen at the internal level. We can have customization coded in <code>MyDef</code> macro syntax and have them included in the <code>def</code> file. Foreach output module, there is one standard library that is always included automatically. For <code>perl</code>, that is <code>std_perl.def</code>. It is located at <code>deflib/</code> in the repository and at <code>$MYDEFLIB</code> in your installed destination.
+        </p>
+        <p>
+            It is easy enough for you to open that file and see for yourself what are in it. They are a collection convenience macros that some are frequently used while some are rarely used. Those rarely used probably will get pruned away at some point.
+        </p>
+        <p>
+            The most used two subcodes are <code>subcode: open_r</code> and <code>subcode: open_w</code>. <code>subcode: open_r</code> allows short code for opening file and read it line by line:
+        </p>
+        <pre><code>
+<span class="mydef-keyword">&call</span> <strong>open_r,</strong> t.txt
+    <span class="mydef-keyword">$if</span> /(\w+), (\w+)/
+        $print Hello $2 $1!
+        </code></pre>
+        <p>
+            <code>subcode: open_w</code> is similar but obviously it can't write line by line for you:
+        </p>
+        <pre><code>
+<span class="mydef-keyword">&call</span> <strong>open_w,</strong> t.txt
+    <span class="mydef-macro">$(set:print_to=Out)</span>
+    $print Hello, world!
+    $print Hello, world, again.
+        </code></pre>
+        <p>
+            <code>In</code> is the default input file handle, and <code>Out</code> is the default output file handle.
+        </p>
+        <p>
+            If you just want to read in the whole file in a scalar, you can use <code>subcode: get_file_in_t</code>:
+        </p>
+        <pre><code>
+<span class="mydef-keyword">$call</span> <strong>get_file_in_t,</strong> t.txt
+$print [$t]
+        </code></pre>
+        <p>
+            There is also <code>get_file_lines</code> that slurps entire text file into <code>@lines</code> array.
+        </p>
     </body>
 </html>
