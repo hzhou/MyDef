@@ -301,27 +301,28 @@ subcode: read_eachfile
 
         # ---------------------
         subcode: parse_inpage
-            $if /^\s*output_dir: (\S+)/
-                $call outputdir_inpage
-            $elif /^\s*\$include\s+(\S*)/ and $module ne "c" and -f $1
-                $page->{include}->{$1}=1;
-            $elif /^\s*(type|module):\s*(\w+)/ and $inpage==1
-                $if !$page->{$1}
-                    $page->{$1}=$2
-            $elif /^\s*type:\s*$/
-                $page->{type}="none"
-            $elif /^\s*package:/
-                $if $module eq "perl"
-                    $page->{type}="pm"
-            $elif /^\s*(make_dep|make_cmd|other|CC|CFLAGS|LIB):\s+(.*)/
-                $page->{$1}=$2
+	    $if $inpage==1 and /^(\s*)(\w+):\s*(\S+)/
+		$if /^\s*output_dir: (\S+)/
+		    $call outputdir_inpage, $1
+		$elif /^\s*\$include\s+(\S*)/ and $module ne "c" and -f $1
+		    $page->{include}->{$1}=1;
+		$elif /^\s*(type|module):\s*(\w+)/
+		    $if !$page->{$1}
+			$page->{$1}=$2
+		$elif /^\s*type:\s*$/
+		    $page->{type}="none"
+		$elif /^\s*package:/
+		    $if $module eq "perl"
+			$page->{type}="pm"
+		$elif /^\s*(make_dep|make_cmd|other|CC|CFLAGS|LIB):\s+(.*)/
+		    $page->{$1}=$2
+	    $elif /^\s+/
+		$inpage=2
             $elif /^\S/ 
                 $inpage=0;
-            $elif !/^\s+\w+:/ and !/^\s*#/
-                $inpage=2
             # ----
-            subcode: outputdir_inpage
-                my $dir=expand_macros($1);
+            subcode: outputdir_inpage(t)
+                my $dir=expand_macros($(t));
 
                 $if $dir !~/^[\/\.]/ and $output_dir
                     $dir=$output_dir."/".$dir
