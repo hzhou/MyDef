@@ -1592,7 +1592,7 @@ printf <span class="mydef-quote">"3: %d\n"</span>, F(3);
             You may recall there is this critics about how Perl does not have function signatures. As far as syntax goes, this lets us define functions with signature.
         </p>
         <p>
-            The <code>$sub</code> syntax works, but behaves as a normal statement -- just like <code>if</code> or <code>while</code>. Semantically it is a bit unsatisfactory as <code>$sub</code> merely defines the function rather than having run-time action as other control statement do. Ideally, we would like to have a declarative syntax for functions and move them out side of normal code blocks. In <code>MyDef</code>, we can use <code>fncode:</code>
+            The <code>$sub</code> syntax works, but behaves as a normal statement -- just like <code>if</code> or <code>while</code>. Semantically it is a bit unsatisfactory as <code>$sub</code> merely defines the function rather than having run-time action as other control statement do. Ideally, we would like to have a declarative syntax for functions and move them outside of normal code blocks. In <code>MyDef</code>, we can use <code>fncode:</code>
         </p>
         <pre><code>
 <span class="mydef-label">page</span>: <span class="mydef-label">t</span>
@@ -1657,7 +1657,7 @@ printf "3: %d\n", F(3);
             6.10 <code>std_perl.def</code>
         </h3>
         <p>
-            Finally, not all customization need to happen at the internal level. We can have customization coded in <code>MyDef</code> macro syntax and have them included in the <code>def</code> file. Foreach output module, there is one standard library that is always included automatically. For <code>perl</code>, that is <code>std_perl.def</code>. It is located at <code>deflib/</code> in the repository and at <code>$MYDEFLIB</code> in your installed destination.
+            Finally, not all customization need to happen at the internal level. We can have customization coded in <code>MyDef</code> macro syntax and have them included in the <code>def</code> file. For each output module, there is one standard library that is always included automatically. For <code>perl</code>, that is <code>std_perl.def</code>. It is located at <code>deflib/</code> in the repository and at <code>$MYDEFLIB</code> in your installed destination.
         </p>
         <p>
             It is easy enough for you to open that file and see for yourself what are in it. They are a collection convenience macros that some are frequently used while some are rarely used. Those rarely used probably will get pruned away at some point.

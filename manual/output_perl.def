@@ -309,7 +309,7 @@ subcode:: sections
 
     $call subsection, perl_std, $(code:std_perl.def)
     $p
-        Finally, not all customization need to happen at the internal level. We can have customization coded in $(code:MyDef) macro syntax and have them included in the $(code:def) file. Foreach output module, there is one standard library that is always included automatically. For $(code:perl), that is $(code:std_perl.def). It is located at $(code:deflib/) in the repository and at $(code:$MYDEFLIB) in your installed destination.
+        Finally, not all customization need to happen at the internal level. We can have customization coded in $(code:MyDef) macro syntax and have them included in the $(code:def) file. For each output module, there is one standard library that is always included automatically. For $(code:perl), that is $(code:std_perl.def). It is located at $(code:deflib/) in the repository and at $(code:$MYDEFLIB) in your installed destination.
     $p
         It is easy enough for you to open that file and see for yourself what are in it. They are a collection convenience macros that some are frequently used while some are rarely used. Those rarely used probably will get pruned away at some point.
     $p
