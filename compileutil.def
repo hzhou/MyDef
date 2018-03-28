@@ -12,45 +12,127 @@ page: compileutil
     output_dir: lib/MyDef
     package: MyDef::compileutil
 
-    $call compile_main
-
-subcode: compile_main
-    $global $cur_file, $cur_line
-    $call package_global
-    $call support_subs
-    # ---------------------------------------------------
-    $sub compile
-        my $page=$MyDef::page
-        my $pagename=$page->{_pagename}
-        $call output_outdir
-        $call compile
-
-    $sub output($plines)
-        my $page=$MyDef::page
-        my $pagename=$page->{_pagename}
-        my $pageext=$page->{_pageext}
-        my $outdir=$page->{outdir}
-
-        my $outname=$outdir."/".$pagename;
-        $if $pageext
-            $outname.=".$pageext";
-        print "  --> [$outname]\n";
-        my $n=@$plines
-        $if $n==0
-            $print "Strange, no output!"
-        $else
-            &call open_w, $outname
-                $foreach $l in @$plines
-                    print Out $l;
-            $page->{outname}=$outname
-
-    $sub parse_code($code)
-        modepush($code->{type});
-        parseblock($code);
-        modepop();
-
-    # --------------------------------------------------------
     1;
+
+fncode: output($plines)
+    my $page=$MyDef::page
+    my $pagename=$page->{_pagename}
+    my $pageext=$page->{_pageext}
+    my $outdir=$page->{outdir}
+
+    my $outname=$outdir."/".$pagename;
+    $if $pageext
+        $outname.=".$pageext";
+    print "  --> [$outname]\n";
+    my $n=@$plines
+    $if $n==0
+        $print "Strange, no output!"
+    $else
+        &call open_w, $outname
+            $foreach $l in @$plines
+                print Out $l;
+        $page->{outname}=$outname
+
+fncode: parse_code($code)
+    modepush($code->{type});
+    parseblock($code);
+    modepop();
+
+fncode: compile
+    my $page=$MyDef::page
+    my $pagename=$page->{_pagename}
+    $call output_outdir
+    $call do_compile
+    # -----------------
+    subcode: output_outdir
+        my $outdir=".";
+        $if $MyDef::var->{output_dir}
+            $outdir=$MyDef::var->{output_dir};
+        $if $page->{output_dir}
+            $if $page->{output_dir}=~/^[\/\.]/
+                $outdir=$page->{output_dir};
+            $else
+                $outdir=$outdir."/".$page->{output_dir};
+        $outdir=~s/^\s+//;
+        # create output dir
+        $if ! -d $outdir
+            my @tdir_list=split /\//, $outdir;
+            my $tdir;
+            my $slash=0;
+            $foreach my $t in @tdir_list
+                $if !$slash
+                    $tdir=$t;
+                    $slash=1;
+                $else
+                    $tdir=$tdir.'/'.$t;
+                if(!$tdir){next;}
+                $if ! -d $tdir
+                    mkdir $tdir or die "Can't create output directory: $tdir\n";
+        #---------------------
+        $page->{outdir}=$outdir
+
+    # -----------------
+    subcode: do_compile
+        $deflist=[$MyDef::def, $MyDef::def->{macros}, $page];
+        # for debug purpose
+        $deflist->[0]->{_name_}="def_root"
+        $deflist->[1]->{_name_}="macros"
+        $deflist->[2]->{_name_}="page $page->{_pagename}"
+
+        $call @merge_page_macros
+
+        my $mode=$f_init->($page);
+        $if $mode
+            modepush($mode)
+        init_output();
+        print STDERR "PAGE: $pagename\n";
+
+        #---- save var
+        my %varsave;
+        $while my ($k, $v)=each %$page
+            $varsave{$k}=$MyDef::var->{$k};
+            $MyDef::var->{$k}=$v;
+
+        #---- autoload
+        $global $in_autoload
+        $in_autoload=1
+
+        my $codelist=$MyDef::def->{codes};
+        $foreach my $codename  in keys %$codelist
+            $if $codename=~/_autoload$/
+                # parse_code($codelist->{$codename});
+                call_sub($codename)
+        $in_autoload=0
+
+        #---- main
+        my $maincode=$page->{codes}->{main};
+        $if !$maincode
+            $maincode=$MyDef::def->{codes}->{main};
+
+        $if $page->{_frame}
+            $page->{codes}->{main2}=$maincode
+            call_sub($page->{_frame})
+        $elif $maincode
+            parse_code($maincode);
+        $else
+            # die "Missing maincode\n"
+        $f_parse->("NOOP POST_MAIN")
+
+        #---- restore var
+        $while my ($k, $v)=each %varsave
+            $MyDef::var->{$k}=$v;
+        
+        #---- Dump
+        $if !$page->{subpage}
+            my @buffer;
+            $f_dumpout->(\@buffer, fetch_output(0))
+            return \@buffer
+
+        subcode: merge_page_macros
+            $if $page->{macros}
+                $foreach %{$page->{macros}}
+                    $if !defined $page->{$k}
+                        $page->{$k} = $v
 
 #################################################
 subcode: _autoload
@@ -102,92 +184,4 @@ fncode: pop_interface
         set_interface_partial(@$interface)
     $else
         $call warn, "   pop_interface: stack empty\n"
-
-#----------------------------------------------- 
-subcode: compile
-    $deflist=[$MyDef::def, $MyDef::def->{macros}, $page];
-    # for debug purpose
-    $deflist->[0]->{_name_}="def_root"
-    $deflist->[1]->{_name_}="macros"
-    $deflist->[2]->{_name_}="page $page->{_pagename}"
-
-    my $mode=$f_init->($page);
-    $if $mode
-        modepush($mode)
-    init_output();
-    print STDERR "PAGE: $pagename\n";
-
-    #---- save var
-    my %varsave;
-    $while my ($k, $v)=each %$page
-        $varsave{$k}=$MyDef::var->{$k};
-        $MyDef::var->{$k}=$v;
-
-    #---- autoload
-    $global $in_autoload
-    $in_autoload=1
-
-    my $codelist=$MyDef::def->{codes};
-    $foreach my $codename  in keys %$codelist
-        $if $codename=~/_autoload$/
-            # parse_code($codelist->{$codename});
-            call_sub($codename)
-    $in_autoload=0
-
-    #---- main
-    my $maincode=$page->{codes}->{main};
-    $if !$maincode
-        $maincode=$MyDef::def->{codes}->{main};
-
-    $if $page->{_frame}
-        $page->{codes}->{main2}=$maincode
-        call_sub($page->{_frame})
-    $elif $maincode
-        parse_code($maincode);
-    $else
-        # die "Missing maincode\n"
-    $f_parse->("NOOP POST_MAIN")
-
-    #---- restore var
-    $while my ($k, $v)=each %varsave
-        $MyDef::var->{$k}=$v;
-    
-    #---- Dump
-    $if !$page->{subpage}
-        my @buffer;
-        $f_dumpout->(\@buffer, fetch_output(0))
-        return \@buffer
-
-subcode: output_outdir
-    my $outdir=".";
-    $if $MyDef::var->{output_dir}
-        $outdir=$MyDef::var->{output_dir};
-    $if $page->{output_dir}
-        $if $page->{output_dir}=~/^[\/\.]/
-            $outdir=$page->{output_dir};
-        $else
-            $outdir=$outdir."/".$page->{output_dir};
-    $outdir=~s/^\s+//;
-    # create output dir
-    $if ! -d $outdir
-        my @tdir_list=split /\//, $outdir;
-        my $tdir;
-        my $slash=0;
-        $foreach my $t in @tdir_list
-            $if !$slash
-                $tdir=$t;
-                $slash=1;
-            $else
-                $tdir=$tdir.'/'.$t;
-            if(!$tdir){next;}
-            $if ! -d $tdir
-                mkdir $tdir or die "Can't create output directory: $tdir\n";
-    #---------------------
-    $page->{outdir}=$outdir
-
-#---- utils ------------------------------------ 
-subcode: warn(@msg)
-    $(if:msg~")
-        $(set:msg=$(msg:strip))
-    $print "[$cur_file:$cur_line]$green $(msg)" 
 

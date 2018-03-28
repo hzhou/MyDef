@@ -1,18 +1,19 @@
+subcode: _autoload
+    $global $cur_file, $cur_line
 
-subcode:: support_subs
-    $sub get_cur_code
-        return ($block_stack[-1]->{code}, $cur_file, $cur_line)
+fncode: get_cur_code
+    return ($block_stack[-1]->{code}, $cur_file, $cur_line)
 
-    $sub get_def($name)
-        return get_macro_word($name, 1)
+fncode: get_def($name)
+    return get_macro_word($name, 1)
 
-    $sub get_def_attr
-        my ($name, $attr)=@_;
-        $for $i=$#$deflist:0:-1
-            my $t=$deflist->[$i]->{$name}
-            $if $t and $t->{$attr}
-                return $t->{$attr}
-        return undef;
+fncode: get_def_attr
+    my ($name, $attr)=@_;
+    $for $i=$#$deflist:0:-1
+        my $t=$deflist->[$i]->{$name}
+        $if $t and $t->{$attr}
+            return $t->{$attr}
+    return undef;
 
 fncode: debug_def_stack
     $for $i=$#$deflist:0:-1
@@ -21,26 +22,31 @@ fncode: debug_def_stack
             $name="Unknown"
         $print "    [$i] $name"
 
+subcode: warn(@msg)
+    $(if:msg~")
+        $(set:msg=$(msg:strip))
+    $print "[$cur_file:$cur_line]$green $(msg)" 
+
 # --------------------------------
-subcode:: package_global        
+subcode: _autoload        
     $global $out
     $global @output_list
     $global %named_blocks
 
-    $sub init_output
-        @output_list=([]);
-        set_output($output_list[0])
-        %named_blocks=()
+fncode: init_output
+    @output_list=([]);
+    set_output($output_list[0])
+    %named_blocks=()
 
-    $sub new_output
-        my $new_out=[];
-        push @output_list, $new_out;
-        my $nidx=$#output_list;
-        return $nidx;
+fncode: new_output
+    my $new_out=[];
+    push @output_list, $new_out;
+    my $nidx=$#output_list;
+    return $nidx;
 
-    $sub fetch_output
-        my $n=shift;
-        return $output_list[$n];
+fncode: fetch_output
+    my $n=shift;
+    return $output_list[$n];
 
 
 # --------------------------------

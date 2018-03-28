@@ -8,14 +8,13 @@ subcode:: testcondition_elifs
         $call ogdl_condition
 
 # ---------------------------
-subcode:: support_subs
-    $sub get_ogdl($name)
-        $cur_ogdl=$MyDef::def->{resource}->{$name}
-        $if !$cur_ogdl
-            die "Resource $name does not exist!\n"
-        $else
-            $call ogdl_inherit
-            return $cur_ogdl
+fncode: get_ogdl($name)
+    $cur_ogdl=$MyDef::def->{resource}->{$name}
+    $if !$cur_ogdl
+        die "Resource $name does not exist!\n"
+    $else
+        $call ogdl_inherit
+        return $cur_ogdl
 
 subcode: ogdl_inherit
     $if $cur_ogdl->{_parents}
