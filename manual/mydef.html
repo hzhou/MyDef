@@ -58,12 +58,14 @@
                 <li><a href="#map_call">3.6 Map call</a></li>
                 <li><a href="#nest_call">3.7 Nest call</a></li>
                 <li><a href="#multi_subcode">3.8 Multiply defined subcode</a></li>
-                <li><a href="#macro_param">3.9 Inline macros with parameters</a></li>
-                <li><a href="#preproc_set">3.10 Preprocessing: <code>&dollar;(if:...)</code></a></li>
-                <li><a href="#preproc_set">3.11 Preprocessing: <code>&dollar;(for:...)</code></a></li>
-                <li><a href="#preproc_set">3.12 Preprocessing: <code>&dollar;(set:...)</code></a></li>
-                <li><a href="#preproc_scope">3.13 Preprocessing: scope rules</a></li>
-                <li><a href="#macro_special">3.14 Special macro syntax</a></li>
+                <li><a href="#syntax_autoload">3.9 <code>subcode: _autoload</code></a></li>
+                <li><a href="#syntax_dump_stub">3.10 <code>DUMP_STUB</code></a></li>
+                <li><a href="#macro_param">3.11 Inline macros with parameters</a></li>
+                <li><a href="#preproc_set">3.12 Preprocessing: <code>&dollar;(if:...)</code></a></li>
+                <li><a href="#preproc_set">3.13 Preprocessing: <code>&dollar;(for:...)</code></a></li>
+                <li><a href="#preproc_set">3.14 Preprocessing: <code>&dollar;(set:...)</code></a></li>
+                <li><a href="#preproc_scope">3.15 Preprocessing: scope rules</a></li>
+                <li><a href="#macro_special">3.16 Special macro syntax</a></li>
                 </ul>
                 </li>
                 <li><a href="#invoke">4 Invoking <code>MyDef</code></a>
@@ -80,6 +82,14 @@
                 </ul>
                 </li>
                 <li><a href="#perl">6 <code>output_perl</code></a>
+                <ul class="no-bullet id2">
+                <li><a href="#perl_semi">6.1 Optional semicolons</a></li>
+                <li><a href="#perl_if">6.2 <code>$if</code>, <code>$elif</code>, and <code>$else</code></a></li>
+                <li><a href="#perl_for">6.3 <code>$for</code></a></li>
+                <li><a href="#perl_while">6.4 <code>$while</code></a></li>
+                <li><a href="#perl_global">6.5 <code>$global</code></a></li>
+                <li><a href="#perl_fn">6.6 <code>fncode</code> and function arrangement</a></li>
+                </ul>
                 </li>
             </ul>
         </div>
@@ -600,9 +610,48 @@ $ make install
         <p>
             It should be mentioned that in addition to <code>subcode::</code>, signifying concatenation, there are also <code>subcode:@</code> and <code>subcode:-</code>. Both advises <code>MyDef</code> on what to do when <code>subcode</code> names collide. <code>subcode:@</code> signifies lower priority. This is used to supply default subcode definition in a library and any coliding subcode definition will overwrite it. <code>subcode:-</code> is similar to <code>subcode::</code> and signals that the code should be concatenated. Unlike double colon, <code>subcode:-</code> always prepends the code to whichever definitions that are loaded earlier. It goes without saying that the effect of these special syntax will depend on the loading order of <code>MyDef</code> parser and can be difficult to follow. In general, their use should be discouraged.
         </p>
+        <a name="syntax_autoload"></a>
+        <h3 class="section">
+            3.9 <code>subcode: _autoload</code>
+        </h3>
+        <p>
+            There is a special subcode called <code>_autoload</code>, if defined, it will automatically called before loading the <code>page</code>'s main code.
+        </p>
+        <p>
+            The functions for <code>_autoload</code> is similar to above multiply defined subcode except it is called automatically. For its role, <code>subcode: _autoload</code> can be defined in multiple place and the code will be concatenated together even when the <code>subcode:</code> line didnt use double colons.
+        </p>
+        <a name="syntax_dump_stub"></a>
+        <h3 class="section">
+            3.10 <code>DUMP_STUB</code>
+        </h3>
+        <p>
+            A very similar effect as multiply defined subcode is <code>DUMP_STUB</code>. It is used like this:
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    DUMP_STUB main_init
+    <span class="mydef-keyword">$call</span> <strong>feature_A</strong>
+    <span class="mydef-keyword">$call</span> <strong>feature_B</strong>
+
+<span class="mydef-label">subcode</span>: <span class="mydef-label">feature_A</span>
+    <span class="mydef-macro">$(block:main_init)</span>
+        code initialization related to feature A
+    feature A implementation
+
+<span class="mydef-label">subcode</span>: <span class="mydef-label">feature_B</span>
+    <span class="mydef-macro">$(block:main_init)</span>
+        code initialization related to feature B
+    feature B implementation
+        </code></pre>
+        <p>
+            <code>DUMP_STUB</code> is a keyword for place holders that will be replaced in the end with a named block of code. The syntax <code>&dollar;(block:...)</code> places the code into that named block.
+        </p>
+        <p>
+            <code>&dollar;(block:...)</code> integrates with other relavant code more tightly and shares the same subcode scope. Sometime this more readable than the alternative of having separate subcode.
+        </p>
         <a name="macro_param"></a>
         <h3 class="section">
-            3.9 Inline macros with parameters
+            3.11 Inline macros with parameters
         </h3>
         <p>
             It is also possible to define and use inline macros with parameters. For example:
@@ -629,7 +678,7 @@ $ make install
         </p>
         <a name="preproc_set"></a>
         <h3 class="section">
-            3.10 Preprocessing: <code>&dollar;(if:...)</code>
+            3.12 Preprocessing: <code>&dollar;(if:...)</code>
         </h3>
         <p>
             Basic switching logic is supported with preprocessing directive <code>if:...</code>, <code>elif:...</code>, and <code>else</code>:
@@ -751,7 +800,7 @@ $(else)
         </p>
         <a name="preproc_set"></a>
         <h3 class="section">
-            3.11 Preprocessing: <code>&dollar;(for:...)</code>
+            3.13 Preprocessing: <code>&dollar;(for:...)</code>
         </h3>
         <p>
             The <code>&dollar;for...</code> syntax provides quick way to multiplex code:
@@ -808,7 +857,7 @@ $(else)
         </p>
         <a name="preproc_set"></a>
         <h3 class="section">
-            3.12 Preprocessing: <code>&dollar;(set:...)</code>
+            3.14 Preprocessing: <code>&dollar;(set:...)</code>
         </h3>
         <p>
             We already learned that <code>&dollar;(set:...)</code> can be used to set local macros within the scope. What if we want to set macros to the parent scope? We can use code>$1</code>:
@@ -884,7 +933,7 @@ $print A = <span class="mydef-macro">$(A)</span>
         </p>
         <a name="preproc_scope"></a>
         <h3 class="section">
-            3.13 Preprocessing: scope rules
+            3.15 Preprocessing: scope rules
         </h3>
         <p>
             Both <code>&dollar;(for:...)</code> and <code>&dollar;(if:...)</code> contains nested blocks. It should be noted that <code>&dollar;(for:...)</code> will create additional child scopes, but <code>&dollar;(if:...)</code> (and <code>elif/else</code>) will not.
@@ -904,7 +953,7 @@ $print A = <span class="mydef-macro">$(A)</span>
         </p>
         <a name="macro_special"></a>
         <h3 class="section">
-            3.14 Special macro syntax
+            3.16 Special macro syntax
         </h3>
         <p>
             <code>MyDef</code> implements a small set of special macro syntax for convenience:
@@ -1210,5 +1259,29 @@ arg: P3
             Perl is a genral purpose programming language, therefore provides the usual <code>variable</code>, <code>functions</code>, <code>scopes</code>, <code>if-else</code> switch, <code>loops</code>, etc. The custom syntax created with <code>output_perl</code> can be a good example for output modules for other languages.
         </p>
         [ To be continued.]
+        <a name="perl_semi"></a>
+        <h3 class="section">
+            6.1 Optional semicolons
+        </h3>
+        <a name="perl_if"></a>
+        <h3 class="section">
+            6.2 <code>$if</code>, <code>$elif</code>, and <code>$else</code>
+        </h3>
+        <a name="perl_for"></a>
+        <h3 class="section">
+            6.3 <code>$for</code>
+        </h3>
+        <a name="perl_while"></a>
+        <h3 class="section">
+            6.4 <code>$while</code>
+        </h3>
+        <a name="perl_global"></a>
+        <h3 class="section">
+            6.5 <code>$global</code>
+        </h3>
+        <a name="perl_fn"></a>
+        <h3 class="section">
+            6.6 <code>fncode</code> and function arrangement
+        </h3>
     </body>
 </html>

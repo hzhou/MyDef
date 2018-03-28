@@ -8,3 +8,12 @@ subcode:: sections
         Perl is a genral purpose programming language, therefore provides the usual $(code:variable), $(code:functions), $(code:scopes), $(code:if-else) switch, $(code:loops), etc. The custom syntax created with $(code:output_perl) can be a good example for output modules for other languages.
 
     [ To be continued.]
+
+    $call subsection, perl_semi, Optional semicolons
+    $call subsection, perl_if, $(code:$if), $(code:$elif), and $(code:$else)
+    $call subsection, perl_for, $(code:$for)
+    $call subsection, perl_while, $(code:$while)
+    $call subsection, perl_global, $(code:$global)
+    $call subsection, perl_fn, $(code:fncode) and function arrangement
+    $call subsection, perl_std, $(code:std_perl.def)
+

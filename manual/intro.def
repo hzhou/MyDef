@@ -1,0 +1,32 @@
+subcode:: sections
+    $call section, intro, Introduction
+    $call subsection, intro_mydef, Introduction to $(code:MyDef)
+    $p
+        $(code:MyDef) is a general purpose preprocessor, in the sense that it processes input and generates output, rearranging blocks of text based on a small but powerful set of preprocessing directives as well as expanding macros that are marked with special syntaxes. $(code:MyDef) adds a meta-layer on top of any programming lanugages, which allows factoring code and customize syntax at a higher abstract level.
+    $p
+        A typical programming language consists of semantics layer and syntax layer. The former defines entities such as data types, variables and functions and their mechanism;  the latter defines the text form that can describe these entites. $(code:MyDef) works purely on the syntax layer and provides extra control on how the code could be write and read.
+    $p
+        At its base level, $(code:MyDef) is used for code factoring and code reagrangement. The former cases include examples such as boiler-plate code and repetitive code. The latter include examples such as organizing code in a top-down form or group semantic related definitions, types, variables and code together. With $(code:MyDef), it is possible to put all feature related code in a single file, e.g. $(code:feature_A.def), and selectively including or excluding features become including or commenting out the inclusion of $(code:feature_A.def) in the main file. This is in contrast with the common practice of scattering feature related code across source code with $(code:#ifdef).
+
+    $call subsection, intro_bugs, Problems and Bugs 
+    $p
+        If you encouter problems with $(code:MyDef), please feel encouraged to raise an issue at $(url:https://github.com/hzhou/MyDef/issues). You are also welcome to send e-mail to mydef at hzsolutions.net. However, there is no garantee that your issues or questions will be addressed in any time frame.
+    $p
+        Because $(code:MyDef) works only on syntax layer, almost all its error will result in syntax error and typical language compilers are very good at catching or reporting syntax errors. Syntax errors are generally easy to fix. The base features of $(code:MyDef) is fairly robust. However, the development of $(code:MyDef) is constantly adding and experiementing extra features. In addition, due to the flexibility of $(code:MyDef), users can develop custom plug-ins that intruduces features that are fragile in nature. If you encouter errors from using certain features, in addition to learn more about the feature, there is always the option of bypassing the feature altogether. $(code:MyDef)'s syntaxes are designed to be distinct from most language syntaxes. You can always write your code in vanilla form and $(code:MyDef) will pass to the output directly.
+
+    $call subsection, intro_usage, Using this manual
+    $p
+        This manual contains a number of examples of $(code:MyDef) input and output, and a simple notation is used to distinguish input, output and error messages from $(code:MyDef). Examples are set out from the normal text, and shown in a fixed width font, like this
+        &call codeprint, mydef, test.def
+            page: test
+                module: perl
+                $print Hello World!
+    $p
+        To illustrate command line examples, a shell prompt &lsquot;$ &rsquot; will be shown along with the command line input, while the program output will be shown without the prompt, like this:
+        &call codeprint, sh
+            $ mydef_run test.def
+            PAGE: t
+                --> [./t.pl]
+            perl ./t.pl
+            Hello World!
+
