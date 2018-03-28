@@ -1,0 +1,25 @@
+subcode:: sections
+    $call section, general, $(code:output_general)
+
+    $p
+        In this chapter, we will explain the internals of $(code:MyDef).
+    $p
+        $(code:output_general) is the default output module. It essentially only uses the syntax we have covered so far; nothing more.
+    $p
+        However, much of the power of $(code:MyDef) eventually will come from language or application specific output modules. So at some point, you would need to understand some of $(code:MyDef)'s internal working. $(code:output_general) module is the starting point for every output module.
+
+    $call subsection, general_code, $(code:output_general.def)
+    
+    &call codeprint, mydef
+        include: output.def
+
+        page: output_general, output_main
+            type: pm
+            output_dir: lib/MyDef
+            ext: txt
+            package: MyDef::output_general
+
+    $p
+        [To be continued.]
+
+

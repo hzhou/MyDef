@@ -1,0 +1,10 @@
+subcode:: sections
+    $call section, perl, $(code:output_perl)
+    $p
+        $(code:output_perl) source is kept within the base $(code:MyDef) repository because, well, $(code:MyDef) is coded in perl and would require $(code:output_perl) to compile. 
+    $p
+        $(code:output_perl) is also one of the most mature module, due to the madatory round trip testing. In addition, because Perl is a very high-level language and embraces user practical expressiveness, $(code:output_perl) is relatively simple. 
+    $p
+        Perl is a genral purpose programming language, therefore provides the usual $(code:variable), $(code:functions), $(code:scopes), $(code:if-else) switch, $(code:loops), etc. The custom syntax created with $(code:output_perl) can be a good example for output modules for other languages.
+
+    [ To be continued.]

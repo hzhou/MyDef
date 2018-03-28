@@ -1,6 +1,9 @@
 # A manual in a style of https://www.gnu.org/software/m4/manual/m4.html
 include: html/code.def
 
+include: output_general.def
+include: output_perl.def
+
 page: mydef, basic_frame
     module: www
     title: MyDef Manual

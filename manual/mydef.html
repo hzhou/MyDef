@@ -74,6 +74,13 @@
                 <li><a href="#mydef_run">4.4 <code>mydef_run</code></a></li>
                 </ul>
                 </li>
+                <li><a href="#general">5 <code>output_general</code></a>
+                <ul class="no-bullet id2">
+                <li><a href="#general_code">5.1 <code>output_general.def</code></a></li>
+                </ul>
+                </li>
+                <li><a href="#perl">6 <code>output_perl</code></a>
+                </li>
             </ul>
         </div>
         <a name="intro"></a>
@@ -1160,5 +1167,48 @@ arg: P3
         <p>
             As a bonus, do you know that you can directly use <code>mydef_run</code> on <code>.pl</code>, <code>.c</code>, or any source code with a known extension? Try it.
         </p>
+        <a name="general"></a>
+        <h2 class="chapter">
+            5 <code>output_general</code>
+        </h2>
+        <p>
+            In this chapter, we will explain the internals of <code>MyDef</code>.
+        </p>
+        <p>
+            <code>output_general</code> is the default output module. It essentially only uses the syntax we have covered so far; nothing more.
+        </p>
+        <p>
+            However, much of the power of <code>MyDef</code> eventually will come from language or application specific output modules. So at some point, you would need to understand some of <code>MyDef</code>'s internal working. <code>output_general</code> module is the starting point for every output module.
+        </p>
+        <a name="general_code"></a>
+        <h3 class="section">
+            5.1 <code>output_general.def</code>
+        </h3>
+        <pre><code>
+<span class="mydef-preproc">include</span>: <span class="mydef-preproc">output.def</span>
+
+<span class="mydef-label">page</span>: <span class="mydef-label">output_general</span>, output_main
+    <span class="mydef-label2">type</span>: pm
+    <span class="mydef-label2">output_dir</span>: lib/MyDef
+    <span class="mydef-label2">ext</span>: txt
+    <span class="mydef-label2">package</span>: MyDef::output_general
+        </code></pre>
+        <p>
+            [To be continued.]
+        </p>
+        <a name="perl"></a>
+        <h2 class="chapter">
+            6 <code>output_perl</code>
+        </h2>
+        <p>
+            <code>output_perl</code> source is kept within the base <code>MyDef</code> repository because, well, <code>MyDef</code> is coded in perl and would require <code>output_perl</code> to compile.
+        </p>
+        <p>
+            <code>output_perl</code> is also one of the most mature module, due to the madatory round trip testing. In addition, because Perl is a very high-level language and embraces user practical expressiveness, <code>output_perl</code> is relatively simple.
+        </p>
+        <p>
+            Perl is a genral purpose programming language, therefore provides the usual <code>variable</code>, <code>functions</code>, <code>scopes</code>, <code>if-else</code> switch, <code>loops</code>, etc. The custom syntax created with <code>output_perl</code> can be a good example for output modules for other languages.
+        </p>
+        [ To be continued.]
     </body>
 </html>
