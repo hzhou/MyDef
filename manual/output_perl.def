@@ -335,3 +335,6 @@ subcode:: sections
         $print [$t]
     $p
         There is also $(code:get_file_lines) that slurps entire text file into $(code:@lines) array.
+    &call codeprint, mydef
+        $call get_file_lines, t.txt
+        $print "Got %d lines", $#lines+1
