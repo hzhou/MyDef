@@ -135,7 +135,7 @@ subcode:: sections
     $p
         These are syntactic sugar for $(code:if-elsif-else) statements. They allow us to write these control statements in the style of Python rather than C's curly brace style. Here is an example:
         &call codeprint, mydef
-            for(my $i=1; $i&lt;100; $i++){
+            for(my $i=1; $i<100; $i++){
                 $if $i % 15 == 0
                     $print fizbuzz
                 $elif $i % 3 == 0
@@ -168,7 +168,7 @@ subcode:: sections
     $p
         First, let's review the vanilla Perl syntax:
         &call codeprint, perl
-            for(my $i=0; $i&lt;10; $i++){
+            for(my $i=0; $i<10; $i++){
                 $print $i
             }
     $p
@@ -176,7 +176,7 @@ subcode:: sections
     $p
         That said, let's see what $(code:output_perl) offers:
     &call codeprint, mydef
-        $for my $i=0; $i&lt;10; $i++
+        $for my $i=0; $i<10; $i++
             $print $i
     $p
         Just like the $(code:$if) syntax, we now can write it in Python style and save the braces. Further:
