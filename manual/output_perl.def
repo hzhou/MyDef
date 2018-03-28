@@ -50,7 +50,7 @@ subcode:: sections
     $p
         $(code:print) is the most fundamental and useful statement in a language, not because it is essential in the final program, but it is essential to provide feedback during code development. Programming is a process.
     $p
-        Perl is one of the most straight forward language. The "Hello world" program that listed in the first chapter of "Programming Perl" is:
+        Perl is one of the most straight forward languages. The "Hello world" program that listed in the first chapter of "Programming Perl" is:
     &call codeprint, perl
         print "Howdy, world!\n";
     $p
