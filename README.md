@@ -1,6 +1,6 @@
-Documentation are now available at http://huizhou.gitbooks.io/programming-with-mydef/
+An old tutorial is available at http://huizhou.gitbooks.io/programming-with-mydef/
 
-A more thorough manual that will be kept within the repository is currently in progress.
+A more thorough manual that will be kept within the repository is currently in progress. You can view it [here](http://htmlpreview.github.io/?https://github.com/hzhou/MyDef/blob/master/manual/mydef.html).
 
 MyDef is not a new programming language. It is an additional layer on top of your programming language -- a layer that can do almost anything without affecting the demands of the underlying language. The layer can be very thin, in which case you still write your code exactly the same way you used to. And you should if you never had complain in programming career. But if you do, MyDef allows you to do something about it. 
 
