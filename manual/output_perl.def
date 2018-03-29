@@ -148,6 +148,39 @@ subcode:: sections
     $p
         Obviously there is similar indentation based syntax for $(code:for)-loop, but since that is in the next section, we show the example as above to demonstrate that there is nothing wrong to mix vanilla perl code with the special syntax introduced by $(code:output_perl).
     $p
+        It is common to use $(code:if-elif-else) as poor man's $(code:switch). And for big switch block, it is often desirable to break it apart:
+        &call codeprint, mydef
+            foreach my $l (@lines){
+                $if $l=~/^\s*$/
+                    &num; NOOP
+                $call @l_is_special
+                $else
+                    $print "nothing special"
+            }
+
+            subcode:: l_is_special
+                $elif $l=~/^special: .*/
+                    $print SPECIAL!
+    $p
+        That works. But then there is this nagging thing that you always need differentiate the first case, where you should use $(code:$if), and the other cases, where you should use $(code:$elif). This makes swapping the orders of cases buggy. For remedy, $(code:output_perl) has another keyword: $(code:$case):
+        &call codeprint, mydef
+            foreach my $l (@lines){
+                $call @check_cases
+                $else
+                    $print "nothing special"
+            }
+
+            subcode:: check_cases
+                $case $l=~/^\s*$/
+                    &num; NOOP
+
+            subcode:: check_cases
+                $case $l=~/^special: .*/
+                    $print SPECIAL!
+    $p
+        $(code:$case) become $(code:$if) if it is the first case, and become $(code:$elif) if it is the following cases. Due to the heuristics nature, $(code:$case) is a little fragile than $(code:$if) and $(code:$elif).
+
+    $p
         One of the top bugs is mis-type $(code:==) with $(code:=) in $(code:if) conditions. So $(code:output_perl) checks that given the chance and gives you warnings:
         &call codeprint, mydef
             my $i=1

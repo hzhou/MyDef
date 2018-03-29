@@ -1514,6 +1514,43 @@ for(my $i=1; $i&lt;100; $i++){
             Obviously there is similar indentation based syntax for <code>for</code>-loop, but since that is in the next section, we show the example as above to demonstrate that there is nothing wrong to mix vanilla perl code with the special syntax introduced by <code>output_perl</code>.
         </p>
         <p>
+            It is common to use <code>if-elif-else</code> as poor man's <code>switch</code>. And for big switch block, it is often desirable to break it apart:
+            <pre><code>
+foreach my $l (@lines){
+    <span class="mydef-keyword">$if</span> $l=~/^\s*$/
+        <span class="mydef-comment"># NOOP</span>
+    <span class="mydef-keyword">$call</span> <strong>@l_is_special</strong>
+    <span class="mydef-keyword">$else</span>
+        $print <span class="mydef-quote">"nothing special"</span>
+}
+
+<span class="mydef-label">subcode</span>:: <span class="mydef-label">l_is_special</span>
+    <span class="mydef-keyword">$elif</span> $l=~/^special: .*/
+        $print SPECIAL!
+            </code></pre>
+        </p>
+        <p>
+            That works. But then there is this nagging thing that you always need differentiate the first case, where you should use <code>$if</code>, and the other cases, where you should use <code>$elif</code>. This makes swapping the orders of cases buggy. For remedy, <code>output_perl</code> has another keyword: <code>$case</code>:
+            <pre><code>
+foreach my $l (@lines){
+    <span class="mydef-keyword">$call</span> <strong>@check_cases</strong>
+    <span class="mydef-keyword">$else</span>
+        $print <span class="mydef-quote">"nothing special"</span>
+}
+
+<span class="mydef-label">subcode</span>:: <span class="mydef-label">check_cases</span>
+    $case $l=~/^\s*$/
+        <span class="mydef-comment"># NOOP</span>
+
+<span class="mydef-label">subcode</span>:: <span class="mydef-label">check_cases</span>
+    $case $l=~/^special: .*/
+        $print SPECIAL!
+            </code></pre>
+        </p>
+        <p>
+            <code>$case</code> become <code>$if</code> if it is the first case, and become <code>$elif</code> if it is the following cases. Due to the heuristics nature, <code>$case</code> is a little fragile than <code>$if</code> and <code>$elif</code>.
+        </p>
+        <p>
             One of the top bugs is mis-type <code>==</code> with <code>=</code> in <code>if</code> conditions. So <code>output_perl</code> checks that given the chance and gives you warnings:
             <pre><code>
 my $i=1
