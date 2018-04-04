@@ -167,7 +167,7 @@ subcode:: parsecode_func_other
 subcode: list_function(f)
     $call parse_name
     &call load_codelib
-        my ($func, $block)=function_block($funcname, $paramline)
+        my ($func, $block)=function_block($funcname, $paramline, $return_type)
         $foreach $l in @$block
             $if $l eq "BLOCK"
                 $call @function_push, $func
@@ -202,6 +202,8 @@ subcode: list_function(f)
             $else
                 $paramline=""
 
+            my $return_type = $codelib->{tail}
+
             BLOCK
 
 #---------------------------------------- 
@@ -233,8 +235,8 @@ subcode:: parsecode_special
 #---------------------------------------- 
 #-- all list function calls this
 #--     as well as: $function, $wndproc, ...
-fncode: function_block($funcname, $paramline)
-    my $func=open_function($funcname, $paramline);
+fncode: function_block($funcname, $paramline, $return_type)
+    my $func=open_function($funcname, $paramline, $return_type);
 
     my @block
     #------------------------------------------
@@ -261,7 +263,7 @@ fncode: function_block($funcname, $paramline)
     $call set_macro, "recurse", $funcname
     return ($func, \@block)
 
-fncode: open_function($fname, $param)
+fncode: open_function($fname, $param, $ret_type)
     $(set:setblk=MyDef::compileutil::set_named_block)
     $(set:getblk=MyDef::compileutil::get_named_block)
     my $func
@@ -292,6 +294,8 @@ fncode: open_function($fname, $param)
             $call function_param_api
     $if $param
         $call add_function_params, $func
+    $if $ret_type
+        $func->{ret_type}=$ret_type
     # --
     $if $func->{name}
         my $name=$func->{name};
@@ -395,12 +399,14 @@ subcode: in_function
 
 # -------------------------------
 subcode: direct_function_line_parse
-    my ($fname, $paramline)
+    my ($fname, $paramline, $return_type)
     $if $param=~/(\w+)(.*)/
         ($fname, $paramline)=($1, $2)
-        $if $paramline=~/^\s*\((.*)\)/
+        $if $paramline=~/^\s*\((.*)\)(.*)/
             # $function fn (param1, param2, ...)
             $paramline=$1
+            $if $2=~/^\s*:\s*(.+)/
+                $return_type = $1
         $elif $paramline=~/^\s*,\s*(.*)/
             # $function fn, param1, param2, ...
             $paramline=$1

@@ -3,6 +3,7 @@ subcode: subcode_start
     $call get_parent, codes
     my $t_code
 
+    expand_macro(\$line, $macros)
     $if $line=~/^(\w+)code:([:-@]?)\s*(\w+)/
         my ($type, $dblcolon, $name)=($1, $2, $3)
         my $t = $';
@@ -68,12 +69,17 @@ subcode: start_subcode
     $else
         #---- new code or overwrite ----
         my @params;
-        $if $t=~/\((.*)\)/
-            $t=$1;
-            @params=split /,\s*/, $t;
+        $if $t=~/^\s*\((.*)\)(.*)/
+            $t=$2
+            @params=split /,\s*/, $1;
+
         $global $code_index=0
         $code_index++
         $t_code={'type'=>$type, 'index'=>$code_index, 'source'=>$source, 'params'=>\@params, 'name'=>$name};
+
+        $if $t=~/^\s*:\s*(.+)/
+            $t_code->{tail} = $1
+
         $if $dblcolon eq "@"
             $t_code->{attr}="default"
         $elif $dblcolon eq ":" or $dblcolon eq "-"

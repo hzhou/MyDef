@@ -161,11 +161,11 @@ fncode: proper_split($param)
             $else
                 push @tlist, $t
                 undef $t
-        $elif $param=~/\G([^"'\(\[\{\)\]\},]+)/gc
+        $elif $param=~/\G($(normal))/gc
             $t.=$1
-        $elif $param=~/\G("([^"\\]|\\.)*")/gc
+        $elif $param=~/\G($(dquote))/gc
             $t.=$1
-        $elif $param=~/\G('([^'\\]|\\.)*')/gc
+        $elif $param=~/\G($(squote))/gc
             $t.=$1
         $elif $param=~/\G([\(\[\{])/gc
             $t.=$1
@@ -184,6 +184,11 @@ fncode: proper_split($param)
     $if $t or @tlist
         push @tlist, $t
     return @tlist
+
+    macros:
+        normal: [^"'\(\[\{\)\]\},]+
+        dquote: "([^"\\]|\\.)*"
+        squote: '([^'\\]|\\.|'')*'
 
 subcode: proper_split_close_bracket
     my $match

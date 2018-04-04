@@ -31,7 +31,9 @@ subcode: process_page_macros
     $page->{$k}=$v;
 
 #----------------------------------------------------- 
-#- parse time macro expansion, limited to global macros
+#- parse time macro expansion, 
+#-     limited to global simple macros
+#-     only with macros defined earlier
 fncode: expand_macro($lref, $macros)
     $while  $$lref=~/\$\(\w+\)/
         my @segs=split /(\$\(\w+\))/, $$lref;
