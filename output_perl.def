@@ -312,9 +312,9 @@ subcode: check_hash_equal
 subcode: check_termination
     $if $l=~/^\s*$/
         # NOOP
-    $elif $l=~/^(break\s*$/
+    $elif $l=~/^break\s*$/
         $l="last;"
-    $elif $l=~/^(break\s*$/
+    $elif $l=~/^continue\s*$/
         $l="next;"
     $elif $l=~/^\s*(for|while|if|else if)\s*\(.*\)\s*$/
         # NOOP
