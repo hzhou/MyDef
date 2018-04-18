@@ -4,6 +4,7 @@ subcode: check_preproc_has_macro
         $has_macro = expand_macro(\$preproc)
 
 subcode: parse_preproc
+    $call @parse_preproc_switch
     my $flag_done = 1
     $if $preproc=~/^for:\s*(.*)/ -> $t
         $call grab
@@ -17,6 +18,7 @@ subcode: parse_preproc
     $elif $preproc=~/^foreach:p/
         $call grab
         $call foreach_p
+    $call @preproc_assert
     $call @preproc_elifs
     $elif $preproc=~/^allow_recurse:(\d+)/
         my $code=$block_stack[-1]->{code}
@@ -119,6 +121,11 @@ subcode: parse_preproc
         $else
             warn "[$cur_file:$cur_line]\x24(foreach:p) missing \x24(plist)\n"
 
+#---------------------------------------- 
+subcode: preproc_assert
+    $elif $preproc=~/^assert:(.*)/
+        $if !testcondition($1)
+            $call warn, Assert Err: [$1]
 #---------------------------------------- 
 subcode:: parseblock_init
     my $switch_context

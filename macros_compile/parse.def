@@ -54,7 +54,6 @@ subcode: compile_line
         my $tail=$';
         # $print "parse_preproc: $preproc [$tail] [$l]"
         $call check_preproc_has_macro
-        $call @parse_preproc_switch
         $call @parse_preproc
     # -------------
     $if $l=~/^BLOCK(\d*)\s*$/
