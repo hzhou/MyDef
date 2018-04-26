@@ -25,8 +25,13 @@ fncode: get_tlist($t)
             push @tlist, get_range($1, $2)
         $elif $v=~/^(\w+)-(\w+)$/
             push @tlist, get_range($1, $2)
+        $elif $v=~/^(\w+)-$/
+            push @tlist, get_range_n($1, $last_tlist_count)
         $else
             push @tlist, $v
+
+    $global $last_tlist_count
+    $last_tlist_count=@tlist
     return @tlist
 
 fncode: get_range($a, $b)
@@ -58,6 +63,16 @@ fncode: get_range($a, $b)
         $else
             $for my $i=$a;$i>=$b;$i--
                 BLOCK
+
+fncode: get_range_n($a, $count)
+    $if $a=~/^\d+$/
+        return get_range($a, $a+$count-1)
+    $elif $a=~/^[a-zA-Z]$/
+        return get_range($a, chr(ord($a)+$count-1))
+    $elif $a=~/^0x(\d+)$/
+        return get_range($a, "0x".($1+$count-1))
+    $else
+        return ["$a-"]
 
 #--------
 # similar to $(for:1,2,3)
@@ -295,7 +310,7 @@ fncode: string_symbol_name($s)
         $elif $c eq "!"
             $name.="Emark"
         $elif $c eq "~"
-            $name.="Tlide"
+            $name.="Tilde"
         $elif $c eq "^"
             $name.="Ctrl"
         $elif $c eq "%"
@@ -324,6 +339,8 @@ fncode: string_symbol_name($s)
             $name.="Dq"
         $elif $c eq "'"
             $name.="Sq"
+        $elif $c eq "`"
+            $name.="Backtick"
         $elif $c eq ","
             $name.="Comma"
         $elif $c eq "."
@@ -334,6 +351,8 @@ fncode: string_symbol_name($s)
             $name.="Qmark"
         $elif $c eq ";"
             $name.="Semi"
+        $elif $c eq "\\"
+            $name.="Backslash"
         $else
             die "string_symbol_name: [$c] not defined\n"
 

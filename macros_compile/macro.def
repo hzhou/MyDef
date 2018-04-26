@@ -245,7 +245,7 @@ fncode: get_macro($s, $nowarn)
             # $(sym:C++) -> CPlusPlus
             return MyDef::utils::string_symbol_name($1)
         $else
-            warn " [$cur_file:$cur_line] syntax error: [$s]\n"
+            $call warn, syntax error: [$s]
             return undef
     $call @special_macro_expansions
     $elif $s=~/^(\w+):(.*)/
@@ -329,7 +329,7 @@ fncode: get_macro_word($name, $nowarn)
         $if exists($macros->{$name})
             return $macros->{$name}
     $if !$nowarn
-        warn "[$cur_file:$cur_line] Macro $name not defined\n"
+        $call warn, Macro $name not defined
     return undef
 
 #----------------------------------------------- 

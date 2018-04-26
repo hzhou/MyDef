@@ -59,6 +59,11 @@ subcode:: import_file_init
 subcode:: import_file_init
     my $lastindent;
 
+subcode: update_source_pos
+    $if $line_skipped
+        push @$source, "SOURCE: $cur_file - ".($cur_line-1)
+        $line_skipped=0
+
 subcode: get_source_indent(curindent)
     $while $(curindent)>$lastindent
         $lastindent++;

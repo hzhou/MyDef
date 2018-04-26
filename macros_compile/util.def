@@ -26,6 +26,10 @@ subcode: warn(@msg)
     $(if:msg~")
         $(set:msg=$(msg:strip))
     $print "[$cur_file:$cur_line]$green $(msg)" 
+    $global $warn_count
+    $warn_count++
+    $if $warn_count>20
+        die
 
 # --------------------------------
 subcode: _autoload        
@@ -151,7 +155,8 @@ subcode: loop_block_lines
                 last
             $l=$block->[$lindex]
             $lindex++
-            $cur_line++
+            $if $l!~/^SOURCE/
+                $cur_line++
         BLOCK
 
 fncode: grabblock($block, $index_ref)

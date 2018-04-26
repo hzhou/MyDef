@@ -58,15 +58,12 @@ fncode: import_data($file)
 fncode: import_file($f, $def, $file_type)
     $call @debug_import
     #---- import a single def file, update @include-----
-    # ---------------------
-    $call @import_file_init
     my $plines=get_lines($f);
     $if !$plines
         return
     # Insert an END to flush all the indentations
     push @$plines, "END"
-    my $cur_file=$f
-    my $cur_line=0
+    $call @import_file_init
     $if $file_type eq "main"
         $call start_default_page
         $call parse_default_page_macros
@@ -82,6 +79,7 @@ fncode: import_file($f, $def, $file_type)
 
         $if $(in_code)
             $call get_source_indent, $curindent
+            $call update_source_pos
             $call get_source_dedent, $curindent
         # -------------------------------
         $if $line=~/^\w+code:/ && $(top_scope)
@@ -113,7 +111,6 @@ fncode: import_file($f, $def, $file_type)
                 $page->{_got_code}=1
                 next
             $else
-                # $print jump_to_main_code [$line]
                 $page->{_got_code}=1
                 $call jump_to_main_code
 
@@ -208,6 +205,11 @@ subcode: add_page
                 $pagename=$t.$j;
 
 #---------------------------------------- 
+subcode:: import_file_init
+    my $cur_file=$f
+    my $cur_line=0
+    my $line_skipped=0
+
 subcode: get_multiline_comment
     # multiline_comments, Note: we are more strict than the C comments. 
     $if $line=~/^\s*\/\*/
@@ -215,6 +217,7 @@ subcode: get_multiline_comment
             &call parse_loop
                 $if $line=~/\*\/\s*$/
                     last
+        $line_skipped=1
         next
 
 subcode: get_indentation
@@ -232,6 +235,7 @@ subcode: get_indentation
             $elif $indent != $curindent
                 $line="NOOP"
             $else
+                $line_skipped=1
                 next
         $else
             # Trim the tail
