@@ -239,6 +239,10 @@ fncode: get_macro($s, $nowarn)
             return join($sep, @$plist)
         $elif $t =~ /^subst:(.+):(.+):(.*)/
             my ($w, $pat, $rpl)=($1,$2,$3)
+            $if $w=~/^\w+$/
+                my $t = get_macro_word($w)
+                $if $t
+                    $w = $t
             $w =~s/$pat/$rpl/g
             return $w
         $elif $t =~ /^sym:(.+)/

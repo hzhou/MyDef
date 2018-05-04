@@ -285,17 +285,18 @@ subcode: read_eachfile
                 $page={};
                 push @page_list, $page;
             $elif /^page: ([\w\.-]+)/
-                $inpage=1;
-                $got_page=1
-                $page={};
-                push @page_list, $page;
-                $page->{page}=$1;
-                $page->{def}=$f;
-                $page->{include}={};
-                my $key="$f-$1";
-                $while $h_page{$key}
-                    $key.='1';
-                $h_page{$key}=$page;
+                $if $1 ne "test"
+                    $inpage=1;
+                    $got_page=1
+                    $page={};
+                    push @page_list, $page;
+                    $page->{page}=$1;
+                    $page->{def}=$f;
+                    $page->{include}={};
+                    my $key="$f-$1";
+                    $while $h_page{$key}
+                        $key.='1';
+                    $h_page{$key}=$page;
             $elif /^output_(dir|path): (\S+)/
                 $output_dir=$1
 

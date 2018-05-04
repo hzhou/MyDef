@@ -1,7 +1,9 @@
 include: perl/gnuplot.def
 page: test
     module: perl
-    $(if:0)
+    $(if:1)
+        $call test_1
+    $(elif:0)
         $call test_klein_bottle
     $(elif:0)
         $call test_gaussian
