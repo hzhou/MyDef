@@ -151,10 +151,12 @@ subcode: check_regex_capture(t)
         $(t) = $1
         my @tlist=MyDef::utils::proper_split($2)
         my (@t1, @t2)
-        $foreach $v, $i in @tlist
+        my $i=1
+        $foreach $v in @tlist
             $if $v ne "-"
                 push @t1, $v
-                push @t2, '$'.($i+1)
+                push @t2, '$'.$i
+            $i++
         $regex_capture = "my (".join(', ', @t1).") = (".join(', ', @t2).");"
 
 #---------------------------------------- 
@@ -187,61 +189,76 @@ subcode: case_perl_style
 subcode: else_perl_style
     $call push_single_block, "else{", "}"
 
+# -------------------------
 subcode: parsecode_foreach
-    $if $param=~/^(.*?)\s+in\s+(.*)/ -> $t1, $t2
-        $if $t1!~/,/
+    $if $param=~/^(.*?)\s+in\s+(.*)/ -> $v, $t
+        $if $v!~/,/
             $call each_single
         $else
-            my @t1 = split /,\s*/, $t1
-            $if @t1==2 and $t2=~/^%/
+            my @v = split /,\s*/, $v
+            $if @v==2 and $t=~/^%/
                 $call each_hash
-            $elif @t1==2 and $t2!~/,/
-                $call each_idx
             $else
-                my @t2=split /,\s*/, $t2
-                $if $#t1==$#t2
-                    $call each_zip
-                $else
-                    die "foreach with mismatched keys and lists\n"
+                $call each_fancy
+        die "foreach with mismatched keys and lists\n"
     $else
+        # $for @list { ... }
         $call each_implicit
     # -----------------------
+    subcode: each_single
+        $v=~s/^my\s+//
+        return single_block("foreach my $v ($t){", "}", "foreach")
+    subcode: each_implicit
+        $if $param=~/^(%.*)/
+            return single_block("while (my (\$k, \$v) = each $1){", "}", "foreach")
+        $else
+            return single_block("foreach ($param){", "}", "foreach")
     subcode: each_hash
-        my ($k, $v)=@t1
-        return single_block("while (my ($k, $v)=each $t2){", "}", "foreach")
+        my ($k, $v)=@v
+        return single_block("while (my ($k, $v)=each $t){", "}", "foreach")
+
+    subcode: each_fancy
+        my @t=MyDef::utils::proper_split($t)
+        $if $#v==$#t
+            unshift @v, '$_i'
+        $if $#v==$#t+1 and $v[0]=~/^\$_?[ijk]/
+            $if $#v==1
+                $call each_idx
+            $else
+                $call each_zip
+    # ---------------
     subcode: each_idx
-        my ($v, $idx)=@t1
+        my ($idx, $v)=@v
         &call return_newblock, foreach
             push @src, "my $idx = 0;"
-            push @src, "foreach my $v ($t2){"
+            push @src, "foreach my $v ($t){"
             push @src, "INDENT"
             push @src, "BLOCK"
             push @src, "$idx++;"
             push @src, "DEDENT"
             push @src, "}"
     subcode: each_zip
+        my $idx=shift @v
+        $call @check_tlist
         &call return_newblock, foreach
-            push @src, "for(my \$i=0;\$i<$t2[0];\$i++){"
+            push @src, "for(my $idx=0;$idx<$t[0];$idx++){"
             push @src, "INDENT"
-            $for $i=0:@t1
-                my $a=$t1[$i]
-                $if $t2[$i]=~/^@(\w+)/
-                    push @src, "my $a = \$$1"."[\$i];"
-                $elif $t2[$i]=~/^@(.+)/
-                    push @src, "my $a = $1"."->[\$i];"
-                $else
-                    die "foreach zip error\n"
+            $for $i=0:@v
+                my $a=$v[$i]
+                $if $t[$i]=~/^@(\w+)$/
+                    push @src, "my $a = \$$1"."[$idx];"
+                $elif $t[$i]=~/^@(.+)/
+                    push @src, "my $a = $1"."->[$idx];"
             push @src, "BLOCK"
             push @src, "DEDENT"
             push @src, "}"
-    subcode: each_single
-        $t1=~s/^my\s+//
-        return single_block("foreach my $t1 ($t2){", "}", "foreach")
-    subcode: each_implicit
-        $if $param=~/^(%.*)/
-            return single_block("while (my (\$k, \$v) = each $1){", "}", "foreach")
-        $else
-            return single_block("foreach ($param){", "}", "foreach")
+        subcode: check_tlist
+            $for $v in @v
+                $if $v eq $idx
+                    $call warn, "foreach zip: dummy variable $idx is in conflict\n"
+            $for $t in @t
+                $if $t!~/^@/
+                    die "foreach zip error: $t is not an array.\n"
 
 subcode: loop_var
     $if !$var
