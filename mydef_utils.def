@@ -21,12 +21,19 @@ fncode: get_tlist($t)
     my @vlist = split /,\s*/, $t
     my @tlist
     $foreach $v in @vlist
-        $if $v=~/^(\w+)\.\.(\w+)$/
-            push @tlist, get_range($1, $2)
-        $elif $v=~/^(\w+)-(\w+)$/
-            push @tlist, get_range($1, $2)
-        $elif $v=~/^(\w+)-$/
-            push @tlist, get_range_n($1, $last_tlist_count)
+        $if $v=~/^(\w+)(?:\.\.|-)(.*)$/ -> $a,$t
+            $if !$t
+                push @tlist, get_range_n($1, $last_tlist_count)
+            $elif $t=~/^(\w+)$/ ->$b
+                push @tlist, get_range($a, $b)
+            $elif $t=~/^(\w+)\s*\/\s*(.+)$/ ->$b, $exclude
+                # exclusion, eg. Lagrange Polynomial
+                my @temp_list = get_range($a, $b)
+                $foreach $t in @temp_list
+                    $if $t ne $exclude
+                        push @tlist, $t
+            $else
+                warn "get_tlist error: [$t]\n"
         $else
             push @tlist, $v
 
