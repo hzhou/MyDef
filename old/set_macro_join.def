@@ -1,0 +1,50 @@
+#- $(stub::bypasscode) works much better
+# ref: tests/perl_STUB.def
+subcode:: preproc_elifs
+    $elif $preproc=~/^set:\s*(\w+)(\)|$)/
+        # $(set:word) join ... # consider deprecate
+        my $name=$1
+        $if $2 eq ')'
+            $if $l=~/\$\(.*?\)\s*(.*)/
+                $tail = $1
+        $call set_macro_join
+
+#---------------------------------------- 
+#- $(set:name) join, sep, pattern, listitem1, ...
+#-    replaces the * in pattern with list
+subcode: set_macro_join
+    $if !$tail
+        $deflist->[-1]->{$name}=""
+    $else
+        $tail=~s/^\s+//
+        expand_macro(\$tail)
+        my @tlist=MyDef::utils::proper_split($tail)
+        my $verb=shift @tlist
+        $if $verb eq "join"
+            my $sep=shift @tlist
+            my $pat=shift @tlist
+            $map strip_quote, $sep, $pat
+            my $subblock=grabblock($block, \$lindex)
+            my @out_list
+            $if $pat
+                $call @join_pattern
+            $else
+                $call @join_direct
+            $deflist->[-1]->{$name}= join($sep, @out_list)
+    # ----------
+    subcode: join_pattern
+        $foreach $t in @$subblock
+            $if $t!~/^SOURCE:/
+                expand_macro(\$t)
+                push @tlist, MyDef::utils::proper_split($t)
+        $foreach $t2 in @tlist
+            my $t3=$pat
+            $t3=~s/\*/$t2/g
+            push @out_list, $t3
+    # ----------
+    subcode: join_direct
+        $foreach $t in @$subblock
+            $if $t!~/^SOURCE:/
+                expand_macro(\$t)
+                push @out_list, $t
+
