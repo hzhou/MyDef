@@ -192,9 +192,14 @@ fncode: get_macro($s, $nowarn)
             $if !$pat
                 my @tlist = MyDef::utils::get_tlist($t)
                 return join($sep, @tlist)
-            $elif $pat=~/^rot(\d+)/
+            $elif $pat=~/^rot(-?\d+)/
                 my @tlist = MyDef::utils::get_tlist($t)
-                return join($sep, @tlist[$1..$#tlist], @tlist[0..($1-1)])
+                $if $1==0
+                    return join($sep, @tlist)
+                $elif $1>0
+                    return join($sep, @tlist[$1..$#tlist, 0..($1-1)])
+                $else
+                    return join($sep, @tlist[$1..-1, 0..($#tlist $1])
             $else
                 my $plist = MyDef::utils::for_list_expand($pat, $t)
                 return join($sep, @$plist)
