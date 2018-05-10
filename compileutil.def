@@ -43,6 +43,7 @@ fncode: compile
     my $pagename=$page->{_pagename}
     $call output_outdir
     $call do_compile
+    $call @end_compile_report
     # -----------------
     subcode: output_outdir
         my $outdir=".";

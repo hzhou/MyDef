@@ -25,12 +25,16 @@ fncode: debug_def_stack
 subcode: warn(@msg)
     $(if:msg~")
         $(set:msg=$(msg:strip))
-    $print "[$cur_file:$cur_line]$green $(msg)" 
     $global $warn_count
     $warn_count++
-    $if $warn_count>20
-        die
+    $if $warn_count<20
+        $print "[$cur_file:$cur_line]$green $(msg)" 
+    $else
+        # die "Too many errors\n"
 
+subcode: end_compile_report
+    $if $warn_count>20
+        print STDERR "[$warn_count] warnings!\n"
 # --------------------------------
 subcode: _autoload        
     $global $out
