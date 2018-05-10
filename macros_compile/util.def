@@ -141,10 +141,13 @@ subcode:: preproc_elifs
             $call parseblock, block:$name
 
 subcode:: special_macro_expansions
-    $elif $s=~/^stub:(.*)/
+    $elif $s=~/^stub:(.*)/ -> $t
+        my $sep=' '
+        $if $t=~/^(.*):(.*)/
+            ($sep, $t) = ($1, $2)
         &call with_stub_block
-            call_sub($1)
-        push @stub, "INSERT_STUB $name"
+            call_sub($t)
+        push @stub, "INSERT_STUB[$sep] $name"
         return "{STUB}"
 #----------------------------------------------- 
 # ref: parse.def:parseblock and here:grabblock
