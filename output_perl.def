@@ -230,11 +230,11 @@ subcode: parsecode_foreach
     subcode: each_idx
         my ($idx, $v)=@v
         &call return_newblock, foreach
-            push @src, "my $idx = 0;"
+            push @src, "my $idx = -1;"
             push @src, "foreach my $v ($t){"
             push @src, "INDENT"
-            push @src, "BLOCK"
             push @src, "$idx++;"
+            push @src, "BLOCK"
             push @src, "DEDENT"
             push @src, "}"
     subcode: each_zip

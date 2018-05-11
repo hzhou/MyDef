@@ -206,7 +206,7 @@ fncode: get_macro($s, $nowarn)
         $elif $t =~ /^subst:(.+):(.+):(.*)/
             my ($w, $pat, $rpl)=($1,$2,$3)
             $if $w=~/^\w+$/
-                my $t = get_macro_word($w)
+                my $t = get_macro_word($w,1)
                 $if $t
                     $w = $t
             $w =~s/$pat/$rpl/g

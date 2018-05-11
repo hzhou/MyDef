@@ -1,24 +1,42 @@
+subcode:: import_file_init
+    my $source
 
+subcode: push_line_to_source
+    push @$source, $line
+
+subcode: set_source_pos
+    push @$source, "SOURCE: $cur_file - $cur_line"
+
+subcode: set_source_pos_1
+    push @$source, "SOURCE: $cur_file - ".($cur_line-1)
+
+subcode: source_indent
+    push @$source, "SOURCE_INDENT";
+subcode: source_dedent
+    push @$source, "SOURCE_DEDENT";
+
+#----------------------------
 subcode: subcode_start
-    $call get_parent, codes
-    my $t_code
-
     expand_macro(\$line, $macros)
-    $if $line=~/^(\w+)code:([:-@]?)\s*(\w+)/
-        my ($type, $dblcolon, $name)=($1, $2, $3)
-        my $t = $';
-        $if $t=~/^(\.\w+)/
-            # fncode: class.method
-            $name .= $1
-            $t = $';
-        #---- $dblcolon -----------
-        #-        :: concat
-        #-        :@ optional default
-        #-        :- prepend
-        $if $name eq "_autoload" or $name eq "main"
-            $dblcolon=":"
+    my $t_code
+    $if $line=~/^(\w+)code:([:@\d]?)\s*(\w+)(.*)/ -> $type, $attr, $name, $t
+        $call @line_extra
+        $call get_parent, code_list
+        $t_code = new_code($type,$name,$attr, $t)
+        push @{$code_list}, $t_code
         # $call @debug
-        $call start_subcode
+    $else
+        $t_code={} # sinkhole
+    $source=[]
+    $t_code->{source}=$source
+    $call set_source_pos
+
+    # ------------
+    subcode: line_extra
+        # fncode: class.method
+        $if $t=~/^(\.\w+)(.*)/
+            $name .= $1
+            $t = $2
 
     subcode: debug
         $print $type code $name, parent: -
@@ -30,74 +48,95 @@ subcode: subcode_start
             $print code: $parent->{name}
 
 #---------------------------------------- 
-subcode:: import_file_init
-    my $source
-    my $code_prepend
+fncode: new_code($type,$name,$attr,$t)
+    $global $code_index=0
+    $code_index++
+    my $t_code={type=>$type, index=>$code_index, name=>$name}
+    $if !$attr
+        $if $name=~/^(.*_autoload|main)$/
+            $attr=":"
+    $call parse_subcode_order, $attr
+    $call parse_tail
+    return $t_code
 
-subcode: start_subcode
-    ### htmlcode, jscode, subcode, phpcode, fncode
-    my $src_location="SOURCE: $cur_file - $cur_line";
-    $source=[$src_location];
-
-    # -------------------
-    undef $code_prepend
-
-    $(set:code=$codes->{$name})
-    $(set:attr=$(code)->{attr})
-    $if $(code) and (!$(attr) or $(attr) ne "default")
-        $t_code=$codes->{$name}
-        # Subcode Already Exist --
-        $if $dblcolon eq "@"
-            # -- skip the default subcode
-        $elif $dblcolon eq ":"
-            # -- append
-            $source=$t_code->{source}
-            push @$source, $src_location
-        $elif $dblcolon eq "-"
-            # -- prepend
-            $code_prepend=$t_code->{source}
-            $t_code->{source} = $source
-        $elif $(attr) and $(attr) eq "optional"
-            # -- append and finalize
-            $t_code->{attr}=undef
-            $source=$t_code->{source}
-            push @$source, $src_location
-        $elif $debug>1
-            # -- skip
-            my $last_src = $(code)->{source}->[0]
-            print STDERR "[$src_location] skip duplicate code: $name [$last_src]\n"
-    $else
-        #---- new code or overwrite ----
-        my @params;
-        $if $t=~/^\s*\((.*)\)(.*)/
+    subcode: parse_tail
+        # (params)
+        $if $t=~/^\s*\(\s*(.*)\)(.*)/
             $t=$2
-            @params=split /,\s*/, $1;
-
-        $global $code_index=0
-        $code_index++
-        $t_code={'type'=>$type, 'index'=>$code_index, 'source'=>$source, 'params'=>\@params, 'name'=>$name};
-
+            my @params=split /,\s*/, $1;
+            $t_code->{params}=\@params
+        # : tail
         $if $t=~/^\s*:\s*(.+)/
             $t_code->{tail} = $1
 
-        $if $dblcolon eq "@"
-            $t_code->{attr}="default"
-        $elif $dblcolon eq ":" or $dblcolon eq "-"
-            $t_code->{attr}="optional"
+subcode: parse_subcode_order(attr)
+    # 1-8 merge -- consider only use 1,5,8
+    # 0,9 keep one
+    $if !$(attr)
+        # keep one, overwrite
+        $t_code->{order}=9
+    $elif $(attr) eq '@'
+        # default, gets overwritten
+        $t_code->{order}=0
+    $elif $(attr) eq ':'
+        # 1-8, merge, append
+        $t_code->{order}=5
+    $else
+        # \d, direct priority
+        $t_code->{order}=$(attr)
 
-        $codes->{$name}=$t_code
+fncode: merge_codes($codeitem)
+    my $L=$codeitem->{code_list}
+    $if !$L
+        return
+    my %H
+    my @sorted = sort {$a->{order} <=> $b->{order} } @$L
+    $foreach $code in @sorted
+        my $name = $code->{name}
+        $if !$H{$name}
+            $H{$name} = $code
+        $else
+            $call merge_to, $H{$name}
+    $codeitem->{codes}=\%H
+    undef $codeitem->{code_list}
 
-subcode: check_subcode_end
-    $call get_source_dedent, $codeindent
-    $if $code_prepend
-        push @$source, @$code_prepend
+    subcode: merge_to(C)
+        my $a = $(C)->{order}
+        my $b = $code->{order}
+        $if $a==0
+            $(C)=$code
+        $elif $b==9
+            $if $a>0
+                $call @warn_overwrite
+            $(C)=$code
+        $else
+            my $src_a = $(C)->{source}
+            my $src_b = $code->{source}
+            push @$src_a, @$src_b
+
+    subcode: warn_overwrite
+        my $loc_a = $(C)->{source}->[0]
+        my $loc_b = $code->{source}->[0]
+        $loc_a=~s/SOURCE: //
+        $loc_b=~s/SOURCE: //
+        $print Overwriting subcode $name: [$loc_a] -> [$loc_b]
+
+#--------------------------
+subcode:: code_pre_end
+    merge_codes($codeitem)
+
+subcode:: post_parsing
+    merge_codes($def)
+
+subcode:: code_post_end
+    $source = $codeitem->{source}
+    $call set_source_pos
 
 #---------------------------------------- 
 subcode: jump_to_main_code
     $call add_main_code
     $call start_code_indent, code, $curindent, $t_code
-
-    push @$source, "SOURCE: $cur_file - ".($cur_line-1)
+    $call set_source_pos_1
     push @$source, $line
 
 subcode: add_main_code
