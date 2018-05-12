@@ -62,31 +62,10 @@ fncode: set_named_block($name, $block)
     $named_blocks{$name}=$block
 
 fncode: get_named_block($name)
-    $if $name=~/^_(post|pre)(\d*)$/
-        my $idx
-        $if !$2
-            $idx=$block_stack[-1]->{eindex}
-        $else
-            $idx=$block_stack[-$2]->{eindex}
-        $name="block$idx\_$1"
-    $elif $name=~/^_init_block$/
-        my $page=$deflist->[2]
-        $name=$page->{_init_block}
-
     $if !$named_blocks{$name}
         $named_blocks{$name}=[]
 
     return $named_blocks{$name}
-
-fncode: trigger_block_post
-    #-- reference parse_stack_pop in compile/parse.def --------
-    my $cur_idx=$block_stack[-1]->{eindex}
-    my $name="block$cur_idx\_post"
-    $if $named_blocks{$name}
-        my $new_name=$name.'_'
-        push @$out, "DUMP_STUB $new_name"
-        $named_blocks{$new_name}=$named_blocks{$name}
-        undef $named_blocks{$name}
 
 subcode: with_named_block(name)
     my $output=get_named_block($(name))
