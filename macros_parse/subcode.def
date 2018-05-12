@@ -107,8 +107,11 @@ fncode: merge_codes($codeitem)
             $H{$name} = $code
         $else
             $call merge_to, $H{$name}
+        clean_up_source($H{$name}->{source})
     $codeitem->{codes}=\%H
     undef $codeitem->{code_list}
+    $foreach %H
+        merge_codes($v)
 
     subcode: merge_to(C)
         my $a = $(C)->{order}
@@ -120,9 +123,26 @@ fncode: merge_codes($codeitem)
                 $call @warn_overwrite
             $(C)=$code
         $else
+            $call merge_source
+            $call merge_macros
+            $call merge_code_list
+
+        subcode: merge_source
             my $src_a = $(C)->{source}
             my $src_b = $code->{source}
             push @$src_a, @$src_b
+        subcode: merge_macros
+            my $m_a = $(C)->{macros}
+            my $m_b = $code->{macros}
+            $foreach %$m_b
+                $m_a->{$k}=$v
+        subcode: merge_code_list
+            my $l_a = $(C)->{code_list}
+            my $l_b = $code->{code_list}
+            $if $l_a and $l_b
+                push @$l_a, @$l_b
+            $elif $l_b
+                $(C)->{code_list}=$l_b
 
     subcode: check_error
         $if $codeitem->{codes}
@@ -135,12 +155,22 @@ fncode: merge_codes($codeitem)
         $loc_b=~s/SOURCE: //
         $print Overwriting subcode $name: [$loc_a] -> [$loc_b]
 
-#--------------------------
-subcode:: codeitem_pre_end
-    merge_codes($codeitem)
+fncode: clean_up_source($src)
+    $if $src and @$src
+        my $i=$#$src
+        $while $i>=0 and $src->[$i]=~/^(SOURCE: .*|\s*)$/
+            pop @$src
+            $i--
 
+
+#--------------------------
 subcode:: post_parsing
     merge_codes($def)
+    my $pages=$def->{pages}
+    $foreach %$pages
+        merge_codes($v)
+
+    # need merge page codes
 
 subcode:: codeitem_post_end
     $if $codetype eq "code"
@@ -157,8 +187,7 @@ subcode: jump_to_main_code
 
 subcode: add_default_page_main_code
     $source=[]
-    # default page only contains main code and never gets merged
+    # default page contains only main code
     $(set:parent=$page)
     $call add_subcode, $source, "sub","main"
-    merge_codes($page)
     $call start_code_indent, code, 0, $_t

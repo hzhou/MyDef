@@ -145,11 +145,11 @@ subcode: start_page
                     $sp=$1
                 $elif $sp ne $1
                     last
-                $else
-                    my ($k, $v)=($2,$3)
-                    $if $k=~/^(macros|\w+code|template)$/
-                        last
-                    $call add_macro
+
+                my ($k, $v)=($2,$3)
+                $if $k=~/^(macros|\w+code|template)$/
+                    last
+                $call add_macro
             $else
                 last
         $cur_line--
