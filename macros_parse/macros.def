@@ -29,12 +29,6 @@ subcode: process_macros
         $foreach $k, $v in @klist, @vlist
             $macros->{$k}=$v
 
-subcode: process_page_macros
-    my $k=$1;
-    my $v=$2;
-    expand_macro(\$v, $macros);
-    $page->{$k}=$v;
-
 #----------------------------------------------------- 
 #- parse time macro expansion, 
 #-     limited to global simple macros

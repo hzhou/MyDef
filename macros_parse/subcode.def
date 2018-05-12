@@ -16,20 +16,27 @@ subcode: source_dedent
     push @$source, "SOURCE_DEDENT";
 
 #----------------------------
+# ref: grab_template, subcode_start
+subcode: add_subcode(src, @plist)
+    $call get_parent, code_list
+    my $_t = new_code($(plist))
+    push @{$code_list}, $_t
+    $_t->{source}=$(src)
+
+#----------------------------
 subcode: subcode_start
-    expand_macro(\$line, $macros)
+    $source=[]
+    $call set_source_pos
+
     my $t_code
+    expand_macro(\$line, $macros)
     $if $line=~/^(\w+)code:([:@\d]?)\s*(\w+)(.*)/ -> $type, $attr, $name, $t
         $call @line_extra
-        $call get_parent, code_list
-        $t_code = new_code($type,$name,$attr, $t)
-        push @{$code_list}, $t_code
+        $call add_subcode, $source, $type,$name,$attr,$t
+        $t_code = $_t
         # $call @debug
     $else
-        $t_code={} # sinkhole
-    $source=[]
-    $t_code->{source}=$source
-    $call set_source_pos
+        $t_code= {} # sink hole
 
     # ------------
     subcode: line_extra
@@ -49,6 +56,7 @@ subcode: subcode_start
 
 #---------------------------------------- 
 fncode: new_code($type,$name,$attr,$t)
+    # $print new_code $type - $name
     $global $code_index=0
     $code_index++
     my $t_code={type=>$type, index=>$code_index, name=>$name}
@@ -56,7 +64,8 @@ fncode: new_code($type,$name,$attr,$t)
         $if $name=~/^(.*_autoload|main)$/
             $attr=":"
     $call parse_subcode_order, $attr
-    $call parse_tail
+    $if $t
+        $call parse_tail
     return $t_code
 
     subcode: parse_tail
@@ -89,6 +98,7 @@ fncode: merge_codes($codeitem)
     my $L=$codeitem->{code_list}
     $if !$L
         return
+    $call @check_error
     my %H
     my @sorted = sort {$a->{order} <=> $b->{order} } @$L
     $foreach $code in @sorted
@@ -114,6 +124,10 @@ fncode: merge_codes($codeitem)
             my $src_b = $code->{source}
             push @$src_a, @$src_b
 
+    subcode: check_error
+        $if $codeitem->{codes}
+            warn "parseutils: codeitem with existing {codes}?\n"
+
     subcode: warn_overwrite
         my $loc_a = $(C)->{source}->[0]
         my $loc_b = $code->{source}->[0]
@@ -122,30 +136,29 @@ fncode: merge_codes($codeitem)
         $print Overwriting subcode $name: [$loc_a] -> [$loc_b]
 
 #--------------------------
-subcode:: code_pre_end
+subcode:: codeitem_pre_end
     merge_codes($codeitem)
 
 subcode:: post_parsing
     merge_codes($def)
 
-subcode:: code_post_end
-    $source = $codeitem->{source}
-    $call set_source_pos
+subcode:: codeitem_post_end
+    $if $codetype eq "code"
+        $source = $codeitem->{source}
+        $call set_source_pos
 
 #---------------------------------------- 
 subcode: jump_to_main_code
-    $call add_main_code
-    $call start_code_indent, code, $curindent, $t_code
-    $call set_source_pos_1
-    push @$source, $line
+    # assert $curindent==1
+    $source=[]
+    $(set:parent=$page)
+    $call add_subcode, $source, "sub","main"
+    $call set_source_pos
 
-subcode: add_main_code
-    my $t_code
-    $if $page->{codes}->{main}
-        $t_code = $page->{codes}->{main}
-        $source = $t_code->{source}
-    $else
-        $source=[]
-        $t_code={'type'=>"sub", 'source'=>$source, 'name'=>"main"};
-        $page->{codes}->{main}=$t_code
-
+subcode: add_default_page_main_code
+    $source=[]
+    # default page only contains main code and never gets merged
+    $(set:parent=$page)
+    $call add_subcode, $source, "sub","main"
+    merge_codes($page)
+    $call start_code_indent, code, 0, $_t

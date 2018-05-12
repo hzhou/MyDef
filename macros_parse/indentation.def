@@ -1,23 +1,20 @@
+macros:
+    top: "top",0,$def
+
 subcode:: import_file_init
     my $curindent=0
-
-    my $codetype = "top"
-    my $codeindent = 0
-    my $codeitem = $def
-
+    my ($codetype, $codeindent, $codeitem) = ($(top))
     my @indent_stack
 
 macros:
     top_scope: $curindent == $codeindent and $codetype ne "macro"
     in_code: $codetype eq "code" and ($codeindent>0 or $in_default_page)
-    in_macro: $codeindent>0 and $codetype eq "macro"
-    in_page: $codetype eq "page" and (($in_default_page and $codeindent==0)  or (!$in_default_page and $codeindent==1))
+    in_macro: $codetype eq "macro" and $codeindent>0 
 
 subcode: start_code_indent(type, indent, item)
-    # $call @debug
+    # $print start_code_indent $(type) - $(indent) - $(item)
     $(if:type=page)
-        $if !@indent_stack
-            push @indent_stack, [$codetype, $codeindent, $codeitem]
+        @indent_stack=([$(top)])
     $(else)
         push @indent_stack, [$codetype, $codeindent, $codeitem]
     $codetype   = "$(type)"
@@ -27,23 +24,13 @@ subcode: start_code_indent(type, indent, item)
     $curindent=$(indent)
     $lastindent = $curindent
 
-    subcode: debug
-        my $n = @indent_stack
-        $print [$n]start_code_indent $(type) - $(indent) - $(item)
-
 subcode: check_end_codeindent
     $while $curindent <$codeindent or ($(stub:default_page_end))
-        $if $codetype eq "code"
-            $call @code_pre_end
+        $call @codeitem_pre_end
         my $t = pop @indent_stack
         ($codetype, $codeindent, $codeitem) = @$t
         $lastindent = $codeindent
-        $if $codetype eq "code"
-            $call @code_post_end
-    $if !@indent_stack
-        # so we can differentiate the default main page code 
-        #     from top subcode
-        undef $page
+        $call @codeitem_post_end
 
     bypasscode: default_page_end
         $in_default_page
@@ -76,18 +63,24 @@ subcode: get_source_dedent(curindent)
         $lastindent--;
         $call source_dedent
 # --------------------
-subcode:: code_pre_end
-    $call get_source_dedent, $codeindent
+subcode:: codeitem_pre_end
+    $if $codetype eq "code"
+        $call get_source_dedent, $codeindent
 
 #---------------------------------------- 
 subcode: get_parent(what)
-    my $parent
-    $if $curindent==0
-        $parent = $def
-    $elif !$in_default_page and $curindent==1 and $page
-        $parent = $page
-    $else
-        $parent = $codeitem
+    $(if:parent)
+        my $parent=$(parent)
+    $(else)
+        my $parent
+        $if $curindent==0
+            $parent = $def
+        $elif $curindent==1 and $#indent_stack==1 and !$in_default_page
+            # [page, main code]: take page
+            # [main code, top code]: take top
+            $parent = $indent_stack[1]->[2]
+        $else
+            $parent = $codeitem
     # --------------------
     my $$(what)
     $if !$parent->{$(what)}

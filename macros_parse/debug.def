@@ -1,3 +1,6 @@
+# DEBUG import --> print import_files
+# DEBUG def  --> dumps macros,pagelist,...
+# DEBUG code: name --> dumps named subcode 
 subcode:: post_parsing
     $if $debug
         $foreach $k in keys %$debug
@@ -8,6 +11,7 @@ subcode:: post_parsing
                 debug_code($def->{codes}->{$1})
                 exit
 
+# ----------------------
 fncode: parse_DEBUG($t)
     $global $debug
     $if !$debug
