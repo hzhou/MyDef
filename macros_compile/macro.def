@@ -69,7 +69,7 @@ subcode:: preproc_elifs
             set_macro($deflist->[-2], $p)
     $elif $preproc=~/^eval:\s*(\S+)=(.*)/
         my ($t1,$t2)=($1,$2)
-        expand_macro(\$t2)
+        expand_eval(\$t2)
         $t2 = eval($t2)
         set_macro($deflist->[-1], "$t1=$t2")
     $elif $preproc=~/^split:\s*(\w+)$/
@@ -189,6 +189,25 @@ fncode: export_macro($i, $name, $val)
 
 fncode: get_current_macro($name)
     return $deflist->[-1]->{$name}
+
+# ------------------------------------------------------
+# treat non-keyword identifiers as macro words and expands it
+fncode: expand_eval($lref)
+    $if $$lref=~/\$(\(\w|\.)|[\x80-\xff]/
+        $$lref = MyDef::utils::expand_macro($$lref, \&get_macro)
+        return 1
+    # --------------------------
+    my @t=split /(\w+)/, $$lref
+    my $flag
+    $foreach $t in @t
+        $if $t=~/^[_a-zA-Z]\w*$/
+            $if $t!~/abs|atan2|cos|exp|hex|int|log|oct|rand|sin|sqrt|srand|chr|ord|lc|lcfirst|uc|uc_first|substr|sprintf/
+                my $s = get_macro_word($t, 1)
+                $if defined $s
+                    $t=$s
+                    $flag=1
+    $if $flag
+        $$lref = join('', @t)
 
 # ------------------------------------------------------
 # only call MyDef::utils::expand_macro once now
