@@ -1,0 +1,28 @@
+page: test
+    module: perl
+
+    &call grab_ogdl
+        item 1
+        item 2
+        item 3
+            k1: v1
+            k2: v2
+            k3: v3
+                a: 1
+                b: 2
+
+    $call print_ogdl
+
+
+perlcode: grab_ogdl
+    require MyDef::ext
+    my $ogdl = MyDef::ext::grab_ogdl(1)
+    $MyDef::def->{_ogdl}=$ogdl
+
+perlcode: print_ogdl
+    my $ogdl = $MyDef::def->{_ogdl}
+    $foreach $t in @$ogdl
+        $print [$t]
+        $if ref($t) eq "HASH"
+            $foreach %$t
+                $print "    $k: $v"

@@ -1,0 +1,29 @@
+page: test
+    &call test_multiblock
+        $print $(msg)
+
+    $print 
+    $(if:1)
+        &call2 test_multiblock_2
+            $print this is block 1
+        2:
+            $print this is block 2
+
+subcode: test_multiblock
+    $if 1
+        $(set:msg=test 1)
+        BLOCK
+    $elif 1
+        $(set:msg=test 2)
+        BLOCK
+    $else
+        $(set:msg=test 3)
+        BLOCK
+
+    $(set:msg=print anyway)
+    BLOCK
+
+subcode: test_multiblock_2
+    BLOCK1
+    $print ============
+    BLOCK2

@@ -1,0 +1,7 @@
+page: t
+    module: perl
+
+
+    eval('my $x = 1; print "x = $x\n";')
+    eval('print x = "$x\n";')
+    

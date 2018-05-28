@@ -1,0 +1,19 @@
+page: test
+    module: perl
+
+    $call A
+    $if 1
+        $print 1
+        $print 2
+    my $a=1
+    # a comment
+    $a=2
+    $a=3
+    $a=4
+    $if 1
+        $print 3
+        $print 4
+
+subcode: A
+    $print A1
+    $print A2
