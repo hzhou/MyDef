@@ -311,11 +311,48 @@ fncode: open_function($fname, $param, $ret_type)
 subcode:@ add_function_params(func)
     my $param_list=$(func)->{param_list}
     my $var_hash=$(func)->{var_hash}
-    my @plist=split /,\s*/, $param
-    my $i=0
-    $foreach $p in @plist
-        $i++
+    my @plist=split_var_line($param)
+    $foreach $i,$p in @plist
         $call function_param_$(function_style)
+
+fncode: split_var_line($l)
+    my @plist
+    $if $l=~/;/
+        $call @check_parts_distribute
+    $else
+        @plist=split /,\s*/, $l
+    return @plist
+
+    subcode: check_parts_distribute
+        my @parts=split /;\s*/, $l
+        $foreach $p in @parts
+            my @tlist = split /,\s*/, $p
+            $call count_words
+            $if $tlist[0]=~/(.*\S)\s+(\w+)$/ and $cnt==1
+                my $type = $1
+                $tlist[0]= $2
+                $call distr_c_style
+            $elif $tlist[-1]=~/^(\w+)\s*:\s*(.+)$/ and $cnt==1
+                my $type = $2
+                $tlist[-1]= $1
+                $call distr_pascal
+            $else
+                push @plist, @tlist
+
+        subcode: count_words
+            my ($cnt, $idx)
+            $for $i=0:@tlist
+                $if $tlist[$i]!~/^\w+\s*$/
+                    $cnt++
+                    $idx=$i
+
+        subcode: distr_c_style
+            $foreach $w in @tlist
+                push @plist, "$type $w"
+
+        subcode: distr_pascal
+            $foreach $w in @tlist
+                push @plist, "$w:$type"
 
 #---------------------------------------- 
 fncode: process_function_std($func)
@@ -402,7 +439,7 @@ subcode: direct_function_line_parse
     my ($fname, $paramline, $return_type)
     $if $param=~/(\w+)(.*)/
         ($fname, $paramline)=($1, $2)
-        $if $paramline=~/^\s*\((.*)\)(.*)/
+        $if $paramline=~/^\s*\(\s*(.*)\)(.*)/
             # $function fn (param1, param2, ...)
             $paramline=$1
             $if $2=~/^\s*:\s*(.+)/

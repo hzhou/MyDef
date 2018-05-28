@@ -3,17 +3,17 @@ fncode: parse_template($def, $template_file)
 
     $global $template_idx=0
     $template_idx++
-    my $cur_source=[]
-    my $codes = $def->{codes}
-    $codes->{"_T$template_idx"} = {type=>'template', source=>$cur_source, 'params'=>[]}
-    $call read_source
-    return "_T$template_idx"
+    my $name="_T$template_idx"
 
-    #---------------------------------------- 
+    my $cur_source=[]
+    $(set:parent=$def)
+    $call add_subcode, $cur_source, "template", $name
+    $call read_source
+    return $name
+
+    #-------------------------------------- 
     subcode: read_source
         &call open_r, $template_file
-            $if /^\s*DUMP_STUB\s+(\w+)/
-                $page->{"has_stub_$1"}=1
             push @$cur_source, $_
 
     subcode: check_path

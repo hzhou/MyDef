@@ -43,6 +43,7 @@ fncode: compile
     my $pagename=$page->{_pagename}
     $call output_outdir
     $call do_compile
+    $call @end_compile_report
     # -----------------
     subcode: output_outdir
         my $outdir=".";
@@ -97,10 +98,10 @@ fncode: compile
         $global $in_autoload
         $in_autoload=1
 
+        # note: potentially a_autoload, b_autoload ...
         my $codelist=$MyDef::def->{codes};
-        $foreach my $codename  in keys %$codelist
+        $foreach $codename in sort keys %$codelist
             $if $codename=~/_autoload$/
-                # parse_code($codelist->{$codename});
                 call_sub($codename)
         $in_autoload=0
 

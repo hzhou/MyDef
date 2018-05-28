@@ -25,8 +25,16 @@ fncode: debug_def_stack
 subcode: warn(@msg)
     $(if:msg~")
         $(set:msg=$(msg:strip))
-    $print "[$cur_file:$cur_line]$green $(msg)" 
+    $global $warn_count
+    $warn_count++
+    $if $warn_count<20
+        $print "[$cur_file:$cur_line]$green $(msg)" 
+    $else
+        # die "Too many errors\n"
 
+subcode: end_compile_report
+    $if $warn_count>20
+        print STDERR "[$warn_count] warnings!\n"
 # --------------------------------
 subcode: _autoload        
     $global $out
@@ -54,31 +62,10 @@ fncode: set_named_block($name, $block)
     $named_blocks{$name}=$block
 
 fncode: get_named_block($name)
-    $if $name=~/^_(post|pre)(\d*)$/
-        my $idx
-        $if !$2
-            $idx=$block_stack[-1]->{eindex}
-        $else
-            $idx=$block_stack[-$2]->{eindex}
-        $name="block$idx\_$1"
-    $elif $name=~/^_init_block$/
-        my $page=$deflist->[2]
-        $name=$page->{_init_block}
-
     $if !$named_blocks{$name}
         $named_blocks{$name}=[]
 
     return $named_blocks{$name}
-
-fncode: trigger_block_post
-    #-- reference parse_stack_pop in compile/parse.def --------
-    my $cur_idx=$block_stack[-1]->{eindex}
-    my $name="block$cur_idx\_post"
-    $if $named_blocks{$name}
-        my $new_name=$name.'_'
-        push @$out, "DUMP_STUB $new_name"
-        $named_blocks{$new_name}=$named_blocks{$name}
-        undef $named_blocks{$name}
 
 subcode: with_named_block(name)
     my $output=get_named_block($(name))
@@ -133,10 +120,13 @@ subcode:: preproc_elifs
             $call parseblock, block:$name
 
 subcode:: special_macro_expansions
-    $elif $s=~/^stub:(.*)/
+    $elif $s=~/^stub:(.*)/ -> $t
+        my $sep=' '
+        $if $t=~/^(.*):(.*)/
+            ($sep, $t) = ($1, $2)
         &call with_stub_block
-            call_sub($1)
-        push @stub, "INSERT_STUB $name"
+            call_sub($t)
+        push @stub, "INSERT_STUB[$sep] $name"
         return "{STUB}"
 #----------------------------------------------- 
 # ref: parse.def:parseblock and here:grabblock
@@ -151,7 +141,8 @@ subcode: loop_block_lines
                 last
             $l=$block->[$lindex]
             $lindex++
-            $cur_line++
+            $if $l!~/^SOURCE/
+                $cur_line++
         BLOCK
 
 fncode: grabblock($block, $index_ref)

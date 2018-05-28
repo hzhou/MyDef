@@ -285,23 +285,26 @@ subcode: read_eachfile
                 $page={};
                 push @page_list, $page;
             $elif /^page: ([\w\.-]+)/
-                $inpage=1;
-                $got_page=1
-                $page={};
-                push @page_list, $page;
-                $page->{page}=$1;
-                $page->{def}=$f;
-                $page->{include}={};
-                my $key="$f-$1";
-                $while $h_page{$key}
-                    $key.='1';
-                $h_page{$key}=$page;
+                $if $1 ne "test"
+                    $inpage=1;
+                    $got_page=1
+                    $page={};
+                    push @page_list, $page;
+                    $page->{page}=$1;
+                    $page->{def}=$f;
+                    $page->{include}={};
+                    my $key="$f-$1";
+                    $while $h_page{$key}
+                        $key.='1';
+                    $h_page{$key}=$page;
             $elif /^output_(dir|path): (\S+)/
                 $output_dir=$1
 
         # ---------------------
         subcode: parse_inpage
-	    $if $inpage==1 and /^(\s*)(\w+):\s*(\S+)/
+            $if /^\S/ 
+                $inpage=0;
+	    $elif $inpage==1 and /^(\s*)(\w+):/
 		$if /^\s*output_dir: (\S+)/
 		    $call outputdir_inpage, $1
 		$elif /^\s*\$include\s+(\S*)/ and $module ne "c" and -f $1
@@ -316,10 +319,8 @@ subcode: read_eachfile
 			$page->{type}="pm"
 		$elif /^\s*(make_dep|make_cmd|other|CC|CFLAGS|LIB):\s+(.*)/
 		    $page->{$1}=$2
-	    $elif /^\s+/
+	    $else
 		$inpage=2
-            $elif /^\S/ 
-                $inpage=0;
             # ----
             subcode: outputdir_inpage(t)
                 my $dir=expand_macros($(t));

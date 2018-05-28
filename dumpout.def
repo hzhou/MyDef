@@ -42,17 +42,16 @@ subcode: dumpout
         $elif $l =~/^INCLUDE_BLOCK (\S+)/
             push @source_stack, $out
             $out=$dump->{$1}
-        $elif $l =~ /^(DUMP|INSERT)_STUB\s+([\w\-]+)/
-            my $source=$MyDef::compileutil::named_blocks{$2};
-            # multiple DUMP_STUB with the same name is OK, only the first one will be in effect
-            #    that is because we did "$l= shift @$out"
+        $elif $l =~ /^DUMP_STUB\s+([\w\-]+)/
+            my $source=$MyDef::compileutil::named_blocks{$1}
             $if $source
-                $if $1 eq "INSERT"
-                    my $t = join (' ', @$source)
-                    $f->[-1]=~s/\{STUB\}/$t/g
-                $else
-                    push @source_stack, $out;
-                    $out=$source;
+                push @source_stack, $out
+                $out=$source
+        $elif $l =~ /^INSERT_STUB\[(.*)\]\s+([\w\-]+)/ -> $sep, $name
+            my $source=$MyDef::compileutil::named_blocks{$name}
+            $if $source
+                my $t = join ($sep, @$source)
+                $f->[-1]=~s/\{STUB\}/$t/g
         $elif $l =~ /^DUMP_PERL\s+(\w+)/
             my $t = MyDef::compileutil::eval_sub($1)
             my $source = eval($t)

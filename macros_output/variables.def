@@ -1,24 +1,21 @@
-#----------------------------------------------- 
+#------------------------------------------ 
+macros:
+    add_vars: global|local
+
 subcode:: parsecode_func_param_other
     $elif $func eq "get_type"
         my $type=get_var_type($param2);
         MyDef::compileutil::set_current_macro($param1, $type)
         return 
+    $elif $func=~/^($(add_vars))$/
+        my ($type,$param)=($param1,$param2)
+        $call parse_add_vars, 1
+        return
 
 subcode:: parsecode_func_other
-    $elif $func=~/^(global|symbol|local|my|temp)$/
+    $elif $func=~/^($(add_vars))$/
         $call @check_var_special, $func
-        &call each_param_v
-            $if $func eq "global"
-                global_add_var($v)
-            $elif $func eq "symbol"
-                global_add_symbol($v)
-            $elif $func eq "local"
-                func_add_var($v);
-            $elif $func eq "my"
-                my_add_var($v)
-            $elif $func eq "temp"
-                temp_add_var($v)
+        $call parse_add_vars, 0
         return
     $elif $func eq "set_var_attr"
         # $set_var_attr var, class=darray, ...
@@ -46,12 +43,23 @@ subcode:: parsecode_func_other
                     MyDef::compileutil::set_current_macro($a, $var->{$a})
         return
 
-    # --------------------
-    subcode: each_param_v
-        $param=~s/\s*;\s*$//
-        my @vlist=MyDef::utils::proper_split($param)
-        $foreach $v in @vlist
-            BLOCK
+# --------------------
+subcode: parse_add_vars(has_type)
+    # $param=~s/\s*;\s*$//
+    # my @vlist=MyDef::utils::proper_split($param)
+    my @vlist = split_var_line($param)
+    $(if:has_type=1)
+        $(set:v=$v,$type)
+    $(else)
+        $(set:v=$v)
+    $foreach $v in @vlist
+        $if $func eq "global"
+            global_add_var($(v))
+        $elif $func eq "local"
+            func_add_var($(v));
+        $call @parse_add_var_cases
+        $else
+            $call warn, \$$func not implemented.
 
 #---------------------------------------- 
 #- Scopes:   

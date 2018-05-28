@@ -23,12 +23,11 @@ subcode: process_macros
             $macros->{$k} = eval($v)
         $else
             $macros->{$k}=$v
-
-subcode: process_page_macros
-    my $k=$1;
-    my $v=$2;
-    expand_macro(\$v, $macros);
-    $page->{$k}=$v;
+    $elif $line=~/^(.*):\s*(.*)/ -> $t1, $t2
+        my @klist=split /,\s*/, $t1
+        my @vlist=MyDef::utils::get_tlist($t2)
+        $foreach $k, $v in @klist, @vlist
+            $macros->{$k}=$v
 
 #----------------------------------------------------- 
 #- parse time macro expansion, 

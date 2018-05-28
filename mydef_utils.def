@@ -21,12 +21,24 @@ fncode: get_tlist($t)
     my @vlist = split /,\s*/, $t
     my @tlist
     $foreach $v in @vlist
-        $if $v=~/^(\w+)\.\.(\w+)$/
-            push @tlist, get_range($1, $2)
-        $elif $v=~/^(\w+)-(\w+)$/
-            push @tlist, get_range($1, $2)
+        $if $v=~/^(\w+)(?:\.\.|-)(.*)$/ -> $a,$t
+            $if !$t
+                push @tlist, get_range_n($1, $last_tlist_count)
+            $elif $t=~/^(\w+)$/ ->$b
+                push @tlist, get_range($a, $b)
+            $elif $t=~/^(\w+)\s*\/\s*(.+)$/ ->$b, $exclude
+                # exclusion, eg. Lagrange Polynomial
+                my @temp_list = get_range($a, $b)
+                $foreach $t in @temp_list
+                    $if $t ne $exclude
+                        push @tlist, $t
+            $else
+                warn "get_tlist error: [$t]\n"
         $else
             push @tlist, $v
+
+    $global $last_tlist_count
+    $last_tlist_count=@tlist
     return @tlist
 
 fncode: get_range($a, $b)
@@ -58,6 +70,16 @@ fncode: get_range($a, $b)
         $else
             $for my $i=$a;$i>=$b;$i--
                 BLOCK
+
+fncode: get_range_n($a, $count)
+    $if $a=~/^\d+$/
+        return get_range($a, $a+$count-1)
+    $elif $a=~/^[a-zA-Z]$/
+        return get_range($a, chr(ord($a)+$count-1))
+    $elif $a=~/^0x(\d+)$/
+        return get_range($a, "0x".($1+$count-1))
+    $else
+        return ["$a-"]
 
 #--------
 # similar to $(for:1,2,3)
@@ -190,22 +212,22 @@ fncode: proper_split($param)
         dquote: "([^"\\]|\\.)*"
         squote: '([^'\\]|\\.|'')*'
 
-subcode: proper_split_close_bracket
-    my $match
-    $if $1 eq ')'
-        $match='('
-    $elif $1 eq ']'
-        $match='['
-    $elif $1 eq '}'
-        $match='{'
-    my $pos=-1
-    $for $i=0:@closure_stack
-        $if $match==$closure_stack[$i]
-            $pos=$i
-    $if $pos>=0
-        splice(@closure_stack, $pos)
-    $else
-        warn "proper_split: unbalanced [$param]\n"
+    subcode: proper_split_close_bracket
+        my $match
+        $if $1 eq ')'
+            $match='('
+        $elif $1 eq ']'
+            $match='['
+        $elif $1 eq '}'
+            $match='{'
+        my $pos=-1
+        $for $i=0:@closure_stack
+            $if $match==$closure_stack[$i]
+                $pos=$i
+        $if $pos>=0
+            splice(@closure_stack, $pos)
+        $else
+            warn "proper_split: unbalanced [$param]\n"
 
 #---------------------------------------- 
 fncode: expand_macro($line, $sub)
@@ -217,15 +239,7 @@ fncode: expand_macro($line, $sub)
             push @paren_stack, $segs
             $segs=[]
             push @paren_stack, "\$\("
-        &call if_lex, \$\.
-            push @$segs, $sub->("this")
-        &call if_lex, ([\x80-\xff]+)
-            my $t = MyDef::compileutil::get_macro_word($1, 1)
-            $if $t
-                $MyDef::compileutil::n_get_macro++
-                push @$segs, $t
-            $else
-                push @$segs, $1
+        $call @quick_macros
         $elif !@paren_stack
             # skip/copy non-macro part
             &call if_lex, ([^\$\x80-\xff]|$(dollar))+
@@ -262,6 +276,16 @@ fncode: expand_macro($line, $sub)
             push @$segs, $open
             push @$segs, $t
 
+    subcode: quick_macros
+        &call if_lex, \$\.
+            push @$segs, $sub->("this")
+        &call if_lex, ([\x80-\xff]+)
+            my $t = MyDef::compileutil::get_macro_word($1, 1)
+            $if $t
+                $MyDef::compileutil::n_get_macro++
+                push @$segs, $t
+            $else
+                push @$segs, $1
 #---------------------------------------------
 fncode: uniq_name($name, $hash)
     $if !$hash->{$name}
@@ -295,7 +319,7 @@ fncode: string_symbol_name($s)
         $elif $c eq "!"
             $name.="Emark"
         $elif $c eq "~"
-            $name.="Tlide"
+            $name.="Tilde"
         $elif $c eq "^"
             $name.="Ctrl"
         $elif $c eq "%"
@@ -324,6 +348,8 @@ fncode: string_symbol_name($s)
             $name.="Dq"
         $elif $c eq "'"
             $name.="Sq"
+        $elif $c eq "`"
+            $name.="Backtick"
         $elif $c eq ","
             $name.="Comma"
         $elif $c eq "."
@@ -334,6 +360,8 @@ fncode: string_symbol_name($s)
             $name.="Qmark"
         $elif $c eq ";"
             $name.="Semi"
+        $elif $c eq "\\"
+            $name.="Backslash"
         $else
             die "string_symbol_name: [$c] not defined\n"
 

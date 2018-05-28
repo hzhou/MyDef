@@ -155,7 +155,13 @@ subcode: parse_catch_meta
     $elif $l =~/^SOURCE: (.*) - (\d+)$/
         $cur_file=$1
         $cur_line=$2
+        # $call @debug_SOURCE
         next
+    # -----------------
+    subcode: debug_SOURCE
+        $if $cur_file=~/perl_cur_line/ 
+            my $n=@$block
+            $print parseblock [$cur_file:$cur_line] [$n] -> $code->{name}
 
 subcode: parse_line
     my $callback_output

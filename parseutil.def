@@ -3,6 +3,7 @@ include: macros_parse/macros.def
 include: macros_parse/subcode.def
 include: macros_parse/template.def
 
+include: macros_parse/default_page.def
 include: macros_parse/hacks.def
 include: macros_parse/debug.def
 
@@ -20,23 +21,17 @@ page: parseutil
 
 #---------------------------------------- 
 fncode: import_data($file)
-    my $def={"resource"=>{}, 
-            "pages"=>{}, 
-            "pagelist"=>[],
-            "codes"=>{}, 
+    my $def={
+            "resource"=>{}, # like codes, but data
+            "pages"=>{},    # pages hash
+            "pagelist"=>[], # pages list
+            # "codes"=>{},  # merged at end
             "macros"=>{},
             };
 
-    # -------- file stat -------------
-    $if $file=~/([^\/]+)\.def/
-        $def->{name}=$1
-        $def->{file}=find_file($file)
-    $else
-        $def->{name}="default"
-
+    $call find_file
     $call @parse_init
-
-    # -----------------------------------------------
+    # ----
     import_file($file, $def, "main")
     $call load_standard_includes
     $while 1
@@ -48,42 +43,41 @@ fncode: import_data($file)
             import_file($file, $def, "standard_include")
         $else
             last
-    $if $in_default_page
-        $call check_default_page_framecode
-
-    # ---- End of Parsing ---------------------------
+    # ----
     $call @post_parsing
     return $def;
+    # -----------------------------
+    subcode: find_file
+        $if $file=~/([^\/]+)\.def/
+            $def->{name}=$1
+            $def->{file}=find_file($file)
+        $else
+            $def->{name}="default"
 
+#------------------------------
 fncode: import_file($f, $def, $file_type)
     $call @debug_import
     #---- import a single def file, update @include-----
-    # ---------------------
-    $call @import_file_init
     my $plines=get_lines($f);
     $if !$plines
         return
-    # Insert an END to flush all the indentations
-    push @$plines, "END"
-    my $cur_file=$f
-    my $cur_line=0
-    $if $file_type eq "main"
-        $call start_default_page
-        $call parse_default_page_macros
+    push @$plines, "END" # needed to flush indentations
+    # ------------------------
+    $call @import_file_init
     &call parse_loop
-        $call parse
-    $if $file_type eq "main"
-        $call add_default_page
-
-    subcode: parse
         $call get_multiline_comment
         $call get_indentation  # and skip comments, trim leading and tailing spaces
+        $call @check_indent
+        $call parse_switch
+    $call @import_file_finish
+    # ------------------------
+    subcode: check_indent
         $call check_end_codeindent
-
         $if $(in_code)
             $call get_source_indent, $curindent
+            $call update_source_pos
             $call get_source_dedent, $curindent
-        # -------------------------------
+    subcode: parse_switch
         $if $line=~/^\w+code:/ && $(top_scope)
             $call subcode_start
             $call start_code_indent, code, $curindent+1, $t_code
@@ -94,28 +88,16 @@ fncode: import_file($f, $def, $file_type)
             $call grab_template
         $elif $curindent==0 and $line=~/^include:? (.*)/
             $call add_include, $1
-        $elif $curindent==0 and $line=~/^(sub)?page:\s*(.*)/
-            my ($subpage, $t)=($1, $2)
+        $elif $curindent==0 and $line=~/^page:\s*(.*)/ -> $t
             $call start_page
-            $call start_code_indent, page, 1, $page
-            $if $subpage
-                $page->{subpage}=1;
         $elif $curindent==0 and $line=~/^DEBUG\s*(.*)/
             parse_DEBUG($1)
         $elif $(in_code)
-            push @$source, $line
+            $call @push_line_to_source
         $elif $(in_macro)
             $call process_macros
-        $elif $(in_page)
-            $if !$page->{_got_code} and $line=~/^(\w+):\s*(.*)/
-                $call process_page_macros
-            $elif $line=~/^\s*$/
-                $page->{_got_code}=1
-                next
-            $else
-                # $print jump_to_main_code [$line]
-                $page->{_got_code}=1
-                $call jump_to_main_code
+        $else
+            # $print codetype:$codetype, codeindent:$codeindent [$line]
 
     subcode: parse_loop
         # sub-used in parsing multi-line comments and grabing templates/resources
@@ -125,71 +107,56 @@ fncode: import_file($f, $def, $file_type)
             $cur_line++
             BLOCK
 
-subcode: parse_default_page_macros
-    $while $plines->[$cur_line]=~/^(\w+):\s*(.*)/
-        $if $1 =~ /^(page|macros|\w+code|template)$/
-            last
-        $elif $1 eq "include"
-            $call add_include, $2
-        $else
-            $page->{$1}=$2
-        $cur_line++
-
 #---------------------------------------- 
 subcode: start_page
-    my ($pagename, $framecode)
-    # ---- name
-    $if $t=~/([\w\-\$\.]+),\s*(\w.*)/
-        $pagename=$1;
-        $framecode=$2;
-        $if $framecode=~/^from\s+(\S+)/
-            $framecode = parse_template($def, $1)
-    $elif $t=~/([\w\-\$\.]+)/
-        $pagename=$1;
-    # ---- code
-    my $codes={};
-
-    $global $page
     $call @abort_default_page
-    $page={_pagename=>$pagename, codes=>$codes};
-
-    $if $pagename=~/(.+)\.(.+)/
-        $page->{type}=''
-
-    $if $framecode
-        $page->{_frame}=$framecode
-
+    my ($pagename, $framecode)
+    $call parse_page_line
+    $call new_page
+    $call start_code_indent, page, 1, $page
     $if $file_type eq "main"
         $call add_page
+    $call @check_page_macros
+    $call jump_to_main_code
+    $call start_code_indent, code, 1, $_t
 
-#---------------------------------------- 
-subcode: start_default_page
-    $global $in_default_page
-    $global $page
-    $page={_pagename=>$def->{name}, codes=>{}};
-    $in_default_page = $page
-    $call add_main_code
-    $call start_code_indent, code, 0, $t_code
-    $codetype   = "code"
-    $codeindent = 0
-    $curindent = 0
-    $lastindent = 0
+    # ------------------------
+    subcode: parse_page_line
+        $if $t=~/([\w\-\$\.]+),\s*(\w.*)/
+            $pagename=$1;
+            $framecode=$2;
+            $if $framecode=~/^from\s+(\S+)/
+                $framecode = parse_template($def, $1)
+        $elif $t=~/([\w\-\$\.]+)/
+            $pagename=$1;
 
-subcode: abort_default_page
-    undef $in_default_page
-    @indent_stack = ()
-    # assert @indent_stack == 1
+    subcode: new_page
+        my $page={_pagename=>$pagename}
+        $if $pagename=~/(.+)\.(.+)/
+            $page->{type}=''
+        $if $framecode
+            $page->{_frame}=$framecode
 
-subcode: add_default_page
-    $if $in_default_page
-        my $pagename = $def->{name}
-        $def->{pages}->{$pagename} = $in_default_page
-        push @{$def->{pagelist}}, $pagename
-        $def->{in_default_page}=1
+    subcode: check_page_macros
+        my $sp
+        &call parse_loop
+            $if $line=~/^(\s+)(?:#|(\w+):\s*(.*))/
+                $if !$sp
+                    $sp=$1
+                $elif $sp ne $1
+                    last
 
-subcode: check_default_page_framecode
-    $if $def->{codes}->{basic_frame}
-        $in_default_page->{_frame}="basic_frame"
+                my ($k, $v)=($2,$3)
+                $if $k=~/^(macros|\w+code|template)$/
+                    last
+                $call add_macro
+            $else
+                last
+        $cur_line--
+
+    subcode: add_macro
+        expand_macro(\$v, $macros);
+        $page->{$k}=$v;
 
 #---------------------------------------- 
 #-- used here and macros_parse/hacks.def: dupe_page
@@ -208,6 +175,11 @@ subcode: add_page
                 $pagename=$t.$j;
 
 #---------------------------------------- 
+subcode:: import_file_init
+    my $cur_file=$f
+    my $cur_line=0
+    my $line_skipped=0
+
 subcode: get_multiline_comment
     # multiline_comments, Note: we are more strict than the C comments. 
     $if $line=~/^\s*\/\*/
@@ -215,6 +187,7 @@ subcode: get_multiline_comment
             &call parse_loop
                 $if $line=~/\*\/\s*$/
                     last
+        $line_skipped=1
         next
 
 subcode: get_indentation
@@ -223,6 +196,7 @@ subcode: get_indentation
         $line=""
     $elif $line=~/^(\s*)(.*)/
         # get current indentation and stripping starting spaces
+        # ref: deflib/perl/indentations.def
         my $indent=get_indent($1)
         $line=$2
         $if $line=~/^#(?!(define|undef|include|line|error|pragma|if|ifdef|ifndef|elif|else|endif)\b)/
@@ -232,6 +206,7 @@ subcode: get_indentation
             $elif $indent != $curindent
                 $line="NOOP"
             $else
+                $line_skipped=1
                 next
         $else
             # Trim the tail
@@ -241,12 +216,9 @@ subcode: get_indentation
         $curindent=$indent
 
 subcode: grab_template
-    $call get_parent, codes
-
     my @grab
-    my $t_code = {type=>"template",source=>\@grab}
     $if $line =~ /^template:\s*(\w+)/
-        $codes->{$1}=$t_code
+        $call add_subcode, \@grab, "template", $1
     $else
         warn "parseutil: template missing name\n"
 
@@ -261,7 +233,7 @@ subcode: grab_template
             last
     $cur_line--
 
-#---- includes ------------------------------------ 
+#---- includes ---------------------------- 
 subcode: _autoload
     $call dbl_list, includes
 

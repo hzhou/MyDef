@@ -1,7 +1,9 @@
 include: perl/gnuplot.def
 page: test
     module: perl
-    $(if:0)
+    $(if:1)
+        $call test_1
+    $(elif:0)
         $call test_klein_bottle
     $(elif:0)
         $call test_gaussian
@@ -14,7 +16,19 @@ page: test
     $(elif:1)
         $call test_bessel
 
+subcode: test_1
+    my @y
+    $for $i=0:100
+        push @y, sin($i*0.1)
+
+    &call get_plot, PLOT
+        $call set_x_n, 100
+        $call add_data, @y, Sin
+        $call add_function, cos(0.1*x), Cos
+
+# -----------------------
 subcode: test_gaussian
+    # plot functions
     &call gnuplot, t.pdf
         $call border_xy
         $call filledcurves
@@ -37,6 +51,7 @@ subcode: test_gaussian
         $call plot, d3(x) lc rgb 'red' title 'µ=-1.0 σ=2.0'
 
 subcode: test_klein_bottle
+    # splot w pm3d
     &call gnuplot, t.pdf, size 4,4
         $call set_3d_none
         $call set_3d
@@ -67,6 +82,7 @@ subcode: test_klein_bottle
             z(u,v)= v<pi   ? -2.5*sin(v) : v<2*pi ? 3*v-3*pi : v<3*pi ? (2+cos(u))*sin(v)+3*pi : -3*v+12*pi
 
 subcode: test_splot
+    # splot matrix
     &call open_w, t.dat
         $(set:print_to=Out)
         $print 6 5 4 3 1 0
@@ -162,12 +178,3 @@ subcode: test_bessel
             $(eval:k=$(i)-2)
             push @extra_settings, "besj$(i)(x) = 2*$(j)/x * besj$(j)(x) - besj$(k)(x)"
 
-subcode: test_1
-    my @y
-    $for $i=0:100
-        push @y, sin($i*0.1)
-
-    &call get_plot, PLOT
-        $call set_x_n, 100
-        $call add_data, @y, Sin
-        $call add_function, cos(0.1*x), Cos

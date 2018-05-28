@@ -65,16 +65,12 @@ fncode: fmt_string($str, $add_newline)
                 &call if_lex, (\{.*?\})
                     $v.=$1
                     $v=check_expression($v)
-                $(if:printf_var)
-                    push @fmt_list, "$(printf_var)"
-                    push @arg_list, $v
-                $(else)
-                    $call printf_var_find_var
+                $call printf_var_find_var
                 &call if_lex, -
                     # print $var-follow ----
             &call if_lex, \{(.*?)\}
-                push @arg_list, $1
-                push @fmt_list, get_var_fmt($1, 1)
+                my $v=$1
+                $call printf_var_find_var
             $else
                 push @fmt_list, '$'
         &call if_lex, \\\$
@@ -124,13 +120,17 @@ fncode: fmt_string($str, $add_newline)
 
     subcode: printf_var_find_var
         #- $print $var ---------
-        my $var=find_var($v)
-        $if $var->{direct}
-            push @fmt_list, $var->{direct}
-        $elif $var->{strlen}
-            push @fmt_list, "%.*s"
-            push @arg_list, $var->{strlen}
+        $(if:printf_var)
+            push @fmt_list, "$(printf_var)"
             push @arg_list, $v
-        $else
-            push @fmt_list, get_var_fmt($v, 1)
-            push @arg_list, $v
+        $(else)
+            my $var=find_var($v)
+            $if $var->{direct}
+                push @fmt_list, $var->{direct}
+            $elif $var->{strlen}
+                push @fmt_list, "%.*s"
+                push @arg_list, $var->{strlen}
+                push @arg_list, $v
+            $else
+                push @fmt_list, get_var_fmt($v, 1)
+                push @arg_list, $v
