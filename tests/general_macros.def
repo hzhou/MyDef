@@ -1,0 +1,10 @@
+page: test
+    module: perl
+
+    $print a: [$(a)]
+    $(for:c,d in 1,2, 3 and 2, 3, 4)
+        $print c d: [$(c) $(d)]
+
+macros:
+    a: 1 2 3
+    a:: 4 5

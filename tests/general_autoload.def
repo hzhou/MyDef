@@ -1,0 +1,23 @@
+page: test
+    module: general
+    type: txt
+
+    Main Text
+    $call post
+
+subcode: _autoload
+    autoload 1
+
+subcode: _autoload
+    autoload 2
+    $call autoload_sub
+
+    subcode: autoload_sub
+        test autoload_sub
+
+subcode: post
+    Post
+    $call post_sub
+
+    subcode: post_sub
+        Post sub

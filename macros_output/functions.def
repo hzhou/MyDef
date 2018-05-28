@@ -317,7 +317,7 @@ subcode:@ add_function_params(func)
 
 fncode: split_var_line($l)
     my @plist
-    $if $l=~/;/
+    $if $l=~/[:;]/
         $call @check_parts_distribute
     $else
         @plist=split /,\s*/, $l
@@ -327,17 +327,20 @@ fncode: split_var_line($l)
         my @parts=split /;\s*/, $l
         $foreach $p in @parts
             my @tlist = split /,\s*/, $p
-            $call count_words
-            $if $tlist[0]=~/(.*\S)\s+(\w+)$/ and $cnt==1
-                my $type = $1
-                $tlist[0]= $2
-                $call distr_c_style
-            $elif $tlist[-1]=~/^(\w+)\s*:\s*(.+)$/ and $cnt==1
-                my $type = $2
-                $tlist[-1]= $1
-                $call distr_pascal
+            $if @tlist==1
+                push @plist, $p
             $else
-                push @plist, @tlist
+                $call count_words
+                $if $tlist[0]=~/(.*\S)\s+(\w+)$/ and $cnt==1
+                    my $type = $1
+                    $tlist[0]= $2
+                    $call distr_c_style
+                $elif $tlist[-1]=~/^(\w+)\s*:\s*(.+)$/ and $cnt==1
+                    my $type = $2
+                    $tlist[-1]= $1
+                    $call distr_pascal
+                $else
+                    push @plist, @tlist
 
         subcode: count_words
             my ($cnt, $idx)

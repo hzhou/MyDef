@@ -85,14 +85,14 @@ fncode: find_var($name)
     return undef
 
     subcode: debug_scopes
-        $if $debug eq "type"
+        $if $debug eq "scope"
             $call debug_scope, $cur_scope, cur_scope
             $for $i=$#scope_stack:0:-1
                 $call debug_scope, $scope_stack[$i], scope $i
 
-    subcode: debug_scope(scope, name)
-        print "  $(name)\[$(scope)->{name}]: "
-        $foreach $v in @{$(scope)->{var_list}}
-            print "$v, "
-        print "\n"
+        subcode: debug_scope(scope, name)
+            print "  $(name)\[$(scope)->{name}]: "
+            $foreach $v in @{$(scope)->{var_list}}
+                print "$v, "
+            print "\n"
 

@@ -1,0 +1,18 @@
+page: test
+    $print test \$map P1 ...
+    $map P1, 1,2,3,4
+
+    $print test \$map P(pre) ...
+    $map P("^2 = "), 1,2,3,4
+
+    $print test \$map2 P2 ...
+    $map2 P2, 1,1, 2,4, 3,9, 4,16
+
+subcode: P1(a)
+    print "$(a) -> ", $(a)**2, "\n"
+
+subcode: P(sym, a)
+    print $(a), $(sym), $(a)**2, "\n"
+
+subcode: P2(a, b)
+    $print $(a) -> $(b)

@@ -89,7 +89,8 @@ fncode: set_macro($m, $p)
         print "set_macro $m: [$p]\n";
     $if $p=~/(\w+)([\+\-\*\/\.])=(.+)/
         my ($t1, $op, $num)=($1, $2, $3)
-        $m->{$t1} = calc_op($m->{$t1}, $op, $num)
+        my $t = get_macro_word($t1, 1)
+        $m->{$t1} = calc_op($t, $op, $num)
     $elif $p=~/(\w+)\[(.*?)\]=(.+)/
         my ($t1, $sep, $item)=($1, $2, $3)
         $if $m->{$t1}

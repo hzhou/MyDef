@@ -1,0 +1,14 @@
+page: test
+    module: perl
+
+    my @a=1..10
+    $foreach $t in @a
+        $print $t
+
+    my @b='a'..'j'
+    $foreach $t, $i in @b
+        $print $i: $t
+
+    $foreach $a, $b in @a, @b
+        $print $a - $b
+

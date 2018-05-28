@@ -1,0 +1,8 @@
+page: test
+    module: perl
+    my $count=10
+    $while $count>0; $count--
+        $print count: $count
+
+    $(for:a-z and 1-)
+        $print $1 - $2

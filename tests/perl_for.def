@@ -1,0 +1,6 @@
+page: test
+    module: perl
+
+    $for 10
+        $print $i
+

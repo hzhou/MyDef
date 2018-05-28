@@ -1,0 +1,5 @@
+page: t
+    $(if:0)
+        Commented out
+    $(else)
+        Show this instead

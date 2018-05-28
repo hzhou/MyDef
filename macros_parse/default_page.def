@@ -1,0 +1,53 @@
+# start with $in_default_page set
+#     reset on abort
+subcode: _autoload
+    $global $in_default_page
+
+subcode:8 import_file_init
+    $if $file_type eq "main"
+        $call start_default_page
+        $in_default_page = $page
+        $call parse_default_page_macros
+
+subcode:: import_file_finish
+    $if $file_type eq "main"
+        $if $in_default_page
+            $call add_default_page, $in_default_page
+
+subcode:: post_parsing
+    $if $in_default_page
+        # use basic_frame if available
+        $call check_default_page_framecode
+
+subcode: abort_default_page
+    undef $in_default_page
+
+#-------------------------------------
+subcode: start_default_page
+    my $page={_pagename=>$def->{name}}
+    $call add_default_page_main_code
+    $codetype   = "code"
+    $codeindent = 0
+    $curindent = 0
+    $lastindent = 0
+
+subcode: add_default_page(page)
+    my $pagename = $def->{name}
+    $def->{pages}->{$pagename} = $(page)
+    push @{$def->{pagelist}}, $pagename
+    $def->{in_default_page}=1
+
+subcode: check_default_page_framecode
+    $if $def->{codes}->{basic_frame}
+        $in_default_page->{_frame}="basic_frame"
+
+subcode: parse_default_page_macros
+    $while $plines->[$cur_line]=~/^(\w+):\s*(.*)/ -> $k, $v
+        $if $k =~ /^(page|macros|\w+code|template)$/
+            last
+        $elif $k eq "include"
+            $call add_include, $v
+        $else
+            $page->{$k}=$v
+        $cur_line++
+
