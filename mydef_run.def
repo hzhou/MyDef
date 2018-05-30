@@ -97,6 +97,7 @@ page: mydef_run
         my $exe = "$name"
         $call @set_config_exe_type
 
+        # $print mydef_run: [$name] [$type]
         my $cmd
         $if $page->{run}
             $cmd=$page->{run}
@@ -213,8 +214,8 @@ page: mydef_run
             $(else)
                 my $cc = "gcc -std=c99 -O2"
                 # my $cc = "x86_64-w64-mingw32-gcc -O2 -Wl,--subsystem,windows"
-            $if $name=~/\.cpp$/
-                $cc = "g++ -O2"
+            $if $file=~/\.cpp$/
+                $cc = "g++ -std=c++11 -O2"
 
             $call set_config, $cc, cc
             # ---------------------
