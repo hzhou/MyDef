@@ -353,7 +353,17 @@ subcode: check_hash_equal
 subcode: check_termination
     $if $l=~/^\s*$/
         # NOOP
-    $elif $l=~/^break\s*$/
+    $elif $l=~/^break\s*((not|flag)_\w+)?\s*$/
+        $if $1
+            my $blk = MyDef::compileutil::get_named_block("...")
+            my $t = "my \$$1;"
+            ...
+            $foreach $_l in @$blk
+                $if $_l eq $t
+                    break flag_exist
+            $if !$flag_exist
+                push @$blk, $t
+        push @$out, "\$$1 = 1;"
         $l="last;"
     $elif $l=~/^continue\s*$/
         $l="next;"

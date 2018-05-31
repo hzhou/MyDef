@@ -89,6 +89,22 @@ sub init {
         require MyDef::output_tcl;
         MyDef::compileutil::set_interface(MyDef::output_tcl::get_interface());
     }
+    elsif($module eq "lua"){
+        require MyDef::output_lua;
+        MyDef::compileutil::set_interface(MyDef::output_lua::get_interface());
+    }
+    elsif($module eq "latex"){
+        require MyDef::output_latex;
+        MyDef::compileutil::set_interface(MyDef::output_latex::get_interface());
+    }
+    elsif($module eq "tex"){
+        require MyDef::output_tex;
+        MyDef::compileutil::set_interface(MyDef::output_tex::get_interface());
+    }
+    elsif($module eq "as"){
+        require MyDef::output_as;
+        MyDef::compileutil::set_interface(MyDef::output_as::get_interface());
+    }
     elsif($module eq "www"){
         require MyDef::output_www;
         MyDef::compileutil::set_interface(MyDef::output_www::get_interface());
@@ -120,6 +136,10 @@ sub init {
     elsif($module eq "fortran"){
         require MyDef::output_fortran;
         MyDef::compileutil::set_interface(MyDef::output_fortran::get_interface());
+    }
+    elsif($module eq "pascal"){
+        require MyDef::output_pascal;
+        MyDef::compileutil::set_interface(MyDef::output_pascal::get_interface());
     }
     elsif($module eq "plot"){
         require MyDef::output_plot;
@@ -211,6 +231,22 @@ sub pipe_page {
         require MyDef::output_tcl;
         MyDef::compileutil::set_interface(MyDef::output_tcl::get_interface());
     }
+    elsif($module eq "lua"){
+        require MyDef::output_lua;
+        MyDef::compileutil::set_interface(MyDef::output_lua::get_interface());
+    }
+    elsif($module eq "latex"){
+        require MyDef::output_latex;
+        MyDef::compileutil::set_interface(MyDef::output_latex::get_interface());
+    }
+    elsif($module eq "tex"){
+        require MyDef::output_tex;
+        MyDef::compileutil::set_interface(MyDef::output_tex::get_interface());
+    }
+    elsif($module eq "as"){
+        require MyDef::output_as;
+        MyDef::compileutil::set_interface(MyDef::output_as::get_interface());
+    }
     elsif($module eq "www"){
         require MyDef::output_www;
         MyDef::compileutil::set_interface(MyDef::output_www::get_interface());
@@ -242,6 +278,10 @@ sub pipe_page {
     elsif($module eq "fortran"){
         require MyDef::output_fortran;
         MyDef::compileutil::set_interface(MyDef::output_fortran::get_interface());
+    }
+    elsif($module eq "pascal"){
+        require MyDef::output_pascal;
+        MyDef::compileutil::set_interface(MyDef::output_pascal::get_interface());
     }
     elsif($module eq "plot"){
         require MyDef::output_plot;

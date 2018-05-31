@@ -1,20 +1,39 @@
 use strict;
 package MyDef::utils;
+our $last_tlist_count;
+
 sub get_tlist {
     my ($t) = @_;
     my @vlist = split /,\s*/, $t;
     my @tlist;
     foreach my $v (@vlist){
-        if($v=~/^(\w+)\.\.(\w+)$/){
-            push @tlist, get_range($1, $2);
-        }
-        elsif($v=~/^(\w+)-(\w+)$/){
-            push @tlist, get_range($1, $2);
+        if($v=~/^(\w+)(?:\.\.|-)(.*)$/){
+            my ($a, $t) = ($1, $2);
+            if(!$t){
+                push @tlist, get_range_n($1, $last_tlist_count);
+            }
+            elsif($t=~/^(\w+)$/){
+                my ($b) = ($1);
+                push @tlist, get_range($a, $b);
+            }
+            elsif($t=~/^(\w+)\s*\/\s*(.+)$/){
+                my ($b, $exclude) = ($1, $2);
+                my @temp_list = get_range($a, $b);
+                foreach my $t (@temp_list){
+                    if($t ne $exclude){
+                        push @tlist, $t;
+                    }
+                }
+            }
+            else{
+                warn "get_tlist error: [$t]\n";
+            }
         }
         else{
             push @tlist, $v;
         }
     }
+    $last_tlist_count=@tlist;
     return @tlist;
 }
 
@@ -67,6 +86,22 @@ sub get_range {
         push @tlist, "$a-$b";
     }
     return @tlist;
+}
+
+sub get_range_n {
+    my ($a, $count) = @_;
+    if($a=~/^\d+$/){
+        return get_range($a, $a+$count-1);
+    }
+    elsif($a=~/^[a-zA-Z]$/){
+        return get_range($a, chr(ord($a)+$count-1));
+    }
+    elsif($a=~/^0x(\d+)$/){
+        return get_range($a, "0x".($1+$count-1));
+    }
+    else{
+        return ["$a-"];
+    }
 }
 
 sub for_list_expand {
@@ -203,7 +238,7 @@ sub proper_split {
         elsif($param=~/\G("([^"\\]|\\.)*")/gc){
             $t.=$1;
         }
-        elsif($param=~/\G('([^'\\]|\\.)*')/gc){
+        elsif($param=~/\G('([^'\\]|\\.|'')*')/gc){
             $t.=$1;
         }
         elsif($param=~/\G([\(\[\{])/gc){
@@ -363,7 +398,7 @@ sub string_symbol_name {
             $name.="Emark";
         }
         elsif($c eq "~"){
-            $name.="Tlide";
+            $name.="Tilde";
         }
         elsif($c eq "^"){
             $name.="Ctrl";
@@ -407,6 +442,9 @@ sub string_symbol_name {
         elsif($c eq "'"){
             $name.="Sq";
         }
+        elsif($c eq "`"){
+            $name.="Backtick";
+        }
         elsif($c eq ","){
             $name.="Comma";
         }
@@ -421,6 +459,9 @@ sub string_symbol_name {
         }
         elsif($c eq ";"){
             $name.="Semi";
+        }
+        elsif($c eq "\\"){
+            $name.="Backslash";
         }
         else{
             die "string_symbol_name: [$c] not defined\n";
