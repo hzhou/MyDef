@@ -87,10 +87,13 @@ subcode:: preproc_elifs
 fncode: set_macro($m, $p)
     $if $debug eq "macro"
         print "set_macro $m: [$p]\n";
-    $if $p=~/(\w+)([\+\-\*\/\.])=(.+)/
-        my ($t1, $op, $num)=($1, $2, $3)
+    $if $p=~/(\w+)([\+\-\*\/\.]?)=(.+)/
+        my ($t1, $op, $t2)=($1, $2, $3)
         my $t = get_macro_word($t1, 1)
-        $m->{$t1} = calc_op($t, $op, $num)
+        $if $op
+            $m->{$t1} = calc_op($t, $op, $t2)
+        $else
+            $m->{$t1} = $t2
     $elif $p=~/(\w+)\[(.*?)\]=(.+)/
         my ($t1, $sep, $item)=($1, $2, $3)
         $if $m->{$t1}

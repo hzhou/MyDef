@@ -104,15 +104,6 @@ subcode: parsecode_function
         $else
             $call parsecode_for_support, c_style
         return 0
-    $elif $func eq "boolhash"
-        $if $param=~/^\((.*?)\)\s*(.*)/
-            my $v = $1
-            my @plist=split /,\s*/, $2
-            my @tlist
-            $foreach $t in @plist
-                push @tlist, "$t=>1"
-            push @$out, "$v= (".join(', ', @tlist).");"
-        return 0
     $elif $func eq "sumcode" or $func eq "loop" or $func eq "sum"
         $if $param=~/^\((.*?)\)\s+(.*)/
             my $dimstr=$1

@@ -148,15 +148,12 @@ subcode: parse_catch_meta
         $else
             $call debug_on, $1
         next
-    $elif $l =~ /^BLOCK RELEASE/i
-        # docs/block_release.txt
-        $block_stack[-1]->{eindex}=$block_stack[-2]->{eindex}
-        next
     $elif $l =~/^SOURCE: (.*) - (\d+)$/
         $cur_file=$1
         $cur_line=$2
         # $call @debug_SOURCE
         next
+    $call @parse_catch_meta_elifs
     # -----------------
     subcode: debug_SOURCE
         $if $cur_file=~/perl_cur_line/ 

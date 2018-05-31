@@ -1,0 +1,17 @@
+page: test
+    module: perl
+
+    ...
+    $for $i=0:100
+        $if $i% 5 ==0
+            $(block:...)
+                my $count
+            $count++
+        $call check_mod_3
+    $print count: $count, cnt_3: $cnt_3
+
+subcode: check_mod_3
+    $if $i % 3 == 0
+        $(block:...)
+            my $cnt_3
+        $cnt_3++
