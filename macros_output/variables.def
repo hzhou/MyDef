@@ -66,6 +66,80 @@ subcode: parse_add_vars(has_type)
         $else
             $call warn, \$$func not implemented.
 
+fncode: split_var_line($l)
+    $global $custom_split_var_line
+    $if $custom_split_var_line
+        return $custom_split_var_line->($l)
+    my @plist
+    $if $l=~/;/ or $l=~/\w+\s*:[^:]/
+        $call @check_parts_distribute
+    $else
+        # @plist=split /,\s*/, $l
+        $call var_line_split, $l
+    return @plist
+    # ----------------------------
+    subcode: var_line_split(l)
+        my $t
+        my $angle_level=0
+        $while 1
+            $if $(l)=~/\G\s*$/gc
+                last
+            $elif $angle_level==0
+                $if $(l)=~/\G([^,<]+)/gc
+                    $t.=$1
+                $elif $(l)=~/\G(<)/gc
+                    $angle_level++
+                    $t.=$1
+                $elif $(l)=~/\G(,\s*)/gc
+                    $if $t
+                        push @plist, $t
+                    $t=""
+            $else
+                $if $(l)=~/\G([^<>]+)/gc
+                    $t.=$1
+                $elif $(l)=~/\G(<)/gc
+                    $angle_level++
+                    $t.=$1
+                $elif $(l)=~/\G(>)/gc
+                    $angle_level--
+                    $t.=$1
+        $if $t
+            push @plist, $t
+
+    subcode: check_parts_distribute
+        my @parts=split /;\s*/, $l
+        $foreach $p in @parts
+            my @tlist = split /,\s*/, $p
+            $if @tlist==1
+                push @plist, $p
+            $else
+                $call count_words
+                $if $tlist[0]=~/(.*\S)\s+(\w+)$/ and $cnt==1
+                    my $type = $1
+                    $tlist[0]= $2
+                    $call distr_c_style
+                $elif $tlist[-1]=~/^(\w+)\s*:(?!:)\s*(.+)$/ and $cnt==1
+                    my $type = $2
+                    $tlist[-1]= $1
+                    $call distr_pascal
+                $else
+                    push @plist, @tlist
+
+        subcode: count_words
+            my ($cnt, $idx)
+            $for $i=0:@tlist
+                $if $tlist[$i]!~/^\w+\s*$/
+                    $cnt++
+                    $idx=$i
+
+        subcode: distr_c_style
+            $foreach $w in @tlist
+                push @plist, "$type $w"
+
+        subcode: distr_pascal
+            $foreach $w in @tlist
+                push @plist, "$w:$type"
+
 #---------------------------------------- 
 #- Scopes:   
 #-     global/external, function, block
@@ -120,19 +194,23 @@ fncode: temp_add_var($name, $type, $value)
 
     my $hash=$cur_scope->{var_hash}
     $type=$var->{type}
-    $if $hash->{$name} and $hash->{$name}->{temptype} ne $type
+    $if $hash->{$name} # and $hash->{$name}->{temptype} ne $type
         my $i=2
         $if $name=~/[0-9_]/
             $name.="_"
-        $while $hash->{"$name$i"} and $hash->{"$name$i"}->{temptype} ne $type
+        $while $hash->{"$name$i"} # and $hash->{"$name$i"}->{temptype} ne $type
             $i++
         $name="$name$i"
     $if !$hash->{$name}
         $var->{name}=$name
         $var->{temptype}=$type
         $hash->{$name}=$var
-        my $var_list=$cur_scope->{var_list}
-        push @$var_list, $name
+        $(if:0)
+            my $var_list=$cur_scope->{var_list}
+            push @$var_list, $name
+        $(else)
+            my $decl = var_declare($var, 1)
+            push @$out, $decl
 
     MyDef::compileutil::set_current_macro($macro_name, $name)
     return $name

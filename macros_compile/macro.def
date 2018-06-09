@@ -93,6 +93,8 @@ fncode: set_macro($m, $p)
         $if $op
             $m->{$t1} = calc_op($t, $op, $t2)
         $else
+            $if $t2=~/\$\(.*\)/
+                expand_macro(\$t2)
             $m->{$t1} = $t2
     $elif $p=~/(\w+)\[(.*?)\]=(.+)/
         my ($t1, $sep, $item)=($1, $2, $3)
