@@ -101,7 +101,7 @@ subcode:: get_named_block_fileters
         $name = get_macro_word("stub")
 
 subcode:: parse_catch_meta_elifs
-    $elif $l=~/^...\s*$/ # low profile syntax for readability
+    $elif $l=~/^\.\.\.\s*$/ # low profile syntax for readability
         # scoped DUMP_STUB, e.g. loop inititializations
         $global $stub_idx
         $stub_idx++
