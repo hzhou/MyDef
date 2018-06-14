@@ -5,13 +5,20 @@ page: test
     $for $i=0:100
         $if $i% 5 ==0
             $(block:...)
-                my $count
-            $count++
+                my $cnt_5
+            $cnt_5++
         $call check_mod_3
-    $print count: $count, cnt_3: $cnt_3
+        $call check_mod_7
+    $(for:3,5,7)
+        $print count $1: $cnt_$1
 
 subcode: check_mod_3
     $if $i % 3 == 0
         $(block:...)
             my $cnt_3
         $cnt_3++
+
+subcode: check_mod_7
+    $if $i % 7 == 0
+        $loopvar $cnt_7=0
+        $cnt_7++

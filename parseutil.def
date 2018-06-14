@@ -78,6 +78,7 @@ fncode: import_file($f, $def, $file_type)
             $call update_source_pos
             $call get_source_dedent, $curindent
     subcode: parse_switch
+        # BUG: first line subcode: in included def not detected !!!
         $if $line=~/^\w+code:/ && $(top_scope)
             $call subcode_start
             $call start_code_indent, code, $curindent+1, $t_code

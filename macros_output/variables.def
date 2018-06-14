@@ -48,7 +48,7 @@ subcode: parse_add_vars(has_type)
     # $param=~s/\s*;\s*$//
     # my @vlist=MyDef::utils::proper_split($param)
     my @vlist
-    $if $param=~/=\s*[\(\{'"]/
+    $if $param=~/=\s*([\(\{'"]|[^,]+\()/
         # complex init, assume single decl.
         @vlist = ($param)
     $else

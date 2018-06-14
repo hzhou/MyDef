@@ -111,6 +111,14 @@ subcode:: parsecode_func_other
             $function_autolist{$f}="global"
         return
 
+subcode:: parsecode_func_param_other
+    $elif $func eq "list"
+        my @tlist=split /,\s*/, $param2
+        $foreach $f in @tlist
+            $call add_list_function, $f
+            $function_autolist{$f}=$param1
+        return
+
 #------------------------------------
 subcode: function_list_all
     $(set:lambda=$MyDef::compileutil::named_blocks{"lambda-$1"})
