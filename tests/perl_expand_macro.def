@@ -1,0 +1,20 @@
+page: test
+    DEBUG macro
+    $(set:a=test)
+    $(set:b=hello $1)
+    $(set:c=a)
+    
+    $(set:this=Oh, )
+
+    $print this macro [$.]
+    $print nested inline macro $(b:$(a))
+    $print nested macro [$($(c))]
+
+    $print undefined macro [$(that)]
+
+    $(set:V=$($1))
+    $print no double expand: \$(V:CFLAGS)
+
+    $(set:π=$pi)
+    my π = 3.14
+    $print symbol macro: Π = π

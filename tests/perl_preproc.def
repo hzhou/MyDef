@@ -1,0 +1,7 @@
+page: test
+    DEBUG preproc
+    $(set:t=>test)
+    $(if:t~>t)
+        $print Match
+    $(else)
+        $print misMatch

@@ -1,0 +1,8 @@
+page: test
+    module: general
+    type: prolog
+
+    fac(n, 1) :- n<2.
+    fac(n, X) :- n1 is n-1, fac(n1,Y), X is n*Y
+
+    ?- fac(10, ans)

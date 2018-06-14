@@ -1,0 +1,4 @@
+page: test
+    # fncode: bases defined in std_perl.def
+    my @t = bases(10000, 60, 60, 24)
+    print join(":", reverse @t), "\n"

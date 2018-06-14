@@ -1,0 +1,6 @@
+page: t
+    type: lisp
+
+    (defun hello () (format t "Hello World!"))
+    (hello)
+
