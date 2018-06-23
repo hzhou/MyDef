@@ -5,7 +5,7 @@ subcode: parsecode_for_support(style)
             $call for_$(style)
     $else
         my $var
-        $if $param=~/^(\S+)\s*=\s*(.*)/
+        $if $param=~/^(.+?)\s*=\s*(.*)/
             $var=$1
             $param=$2
         my @tlist=split /:/, $param
