@@ -129,6 +129,7 @@ subcode:: preproc_elifs
     $elif $preproc=~/^block:\s*(\w+|\.\.\.)/
         my $name=$1
         $call _grab
+        my $save_mode
 
         $if $name eq "..."
             $name = get_macro_word("stub")
@@ -138,9 +139,13 @@ subcode:: preproc_elifs
             $if $preproc=~/^block:\s*STUB:(.*)$/
                 $sep=$1
             push @$out, "INSERT_STUB[$sep] $name" 
+            $save_mode = $cur_mode
+            $cur_mode = "bypass"
             unshift @$subblock, "\x24(mode:bypass)"
         &call with_named_block, $name
             $call _parse, block:$name
+        $if $save_mode
+            $cur_mode = $save_mode
 
 subcode:: special_macro_expansions
     $elif $s=~/^stub:(.*)/ -> $t

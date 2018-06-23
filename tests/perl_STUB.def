@@ -16,6 +16,8 @@ page: test
             a
             b
             c
+            $(mode:sub)
+        $print what mode is it now?
 
     &call test, \x24(block:STUB): --> \x7bSTUB\x7d <-- 
         $print --> {STUB} <--\n
@@ -23,6 +25,7 @@ page: test
             a
             b
             c
+        $print what mode is it now?
 
     &call test, \x24(block:STUB:-): --> \x7bSTUB\x7d <-- 
         $print --> {STUB} <--\n
