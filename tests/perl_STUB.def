@@ -1,41 +1,55 @@
 page: test
     module: perl
 
-    DUMP_STUB init
-    $call test_1
-    $(block:init)
-        $a = "Changed in \x24(block:init)"
+    &call test, basic DUMP_STUB
+        DUMP_STUB init
+        $global $a = 1
+        $print \x24a = $a (should be 2 not 1)
+        $(block:init)
+            $a = 2
 
-    &call test, stub:...
-        $print Another stub: $(stub:make_string)!
-    &call test, stub:...
-        $if $(stub:make_cond)
-            $print STUB in \$if works!
-
-
-    &call test, INSERT_STUB
-        $print direct stub --> {STUB} <--.
-        INSERT_STUB _dummy_
+    &call test, INSERT_STUB[, ]: --> \x7bSTUB\x7d <-- 
+        $print --> {STUB} <--\n
+        INSERT_STUB[, ] _dummy_
         $(block:_dummy_)
             $(mode:bypass)
             a
             b
             c
 
-    $print Done.   All is well
+    &call test, \x24(block:STUB): --> \x7bSTUB\x7d <-- 
+        $print --> {STUB} <--\n
+        $(block:STUB)
+            a
+            b
+            c
+
+    &call test, \x24(block:STUB:-): --> \x7bSTUB\x7d <-- 
+        $print --> {STUB} <--\n
+        $(block:STUB:-)
+            a
+            b
+            c
+
+    &call test, \x24(stub:make_string)!
+        $print $(stub:make_string)!
+
+    &call test, \x24(stub:; :make_string)!
+        $print $(stub:; :make_string)!
+
+    &call test, \x24if \x24(stub:make_cond)
+        $if $(stub:make_cond)
+            $print STUB in \$if works!
 
     subcode: test(stubtype)
-        $print \x24($(stubtype))\n    -
+        $print TEST: $(stubtype)\n      -
         BLOCK
 
-subcode: test_1
-    $global $a = 1
-    $print a = $a
 
-bypasscode: make_string
-    Hello
-    World,
-    again
-    
+    bypasscode: make_string
+        a
+        b
+        c
+        
 bypasscode: make_cond
     1
