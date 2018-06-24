@@ -94,10 +94,10 @@ subcode: dumpout
             $call print_line
 
     subcode: print_line
-        $if $l=~/^\s*$/
+        $if $l=~/^\s*(NEWLINE\b.*)?$/
             push @$f, "\n"
-        $elif $l=~/^\s*NEWLINE\b/
-            push @$f, "\n"
+        $elif $l=~/^<-\|(.*)/ # C preprocessing
+            push @$f, "$1\n"
         $else
             chomp $l
             push @$f, "    "x$indentation."$l\n"

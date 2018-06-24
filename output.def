@@ -45,19 +45,6 @@ subcode: output_main
         $if $l=~/^\$warn (.*)/
             $call warn, $1
             return
-        $elif $l=~/^\$template\s+(.*)/
-            my $file = $1
-            $if $file !~ /^\.*\//
-                my $dir = $(getmacro:TemplateDir)
-                $if $dir
-                    $file = "$dir/$file"
-            open In, $file or die "Can't open template $file\n"
-            my @all=<In>
-            close In
-            $foreach $a in @all
-                $call @parsecode_template
-                push @$out, $a
-            return
         $call parsecode_debug
         $call parsecode_eval
         $call parsecode

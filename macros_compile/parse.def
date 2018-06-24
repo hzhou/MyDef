@@ -33,6 +33,7 @@ fncode: parseblock($code)
     subcode: template_special
         &call get_indentation, $1
             $if $2 eq "DUMP_STUB"
+                $MyDef::page->{"has_stub_$3"} = 1
                 push @$out, "DUMP_STUB $3"
             $else
                 my ($func, $param)=("\$call", $3);

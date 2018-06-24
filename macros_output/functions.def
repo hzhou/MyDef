@@ -393,6 +393,7 @@ subcode: in_function
             $(set:B=$MyDef::compileutil::named_blocks{$1})
             $(for:pre,close)
                 $(B:"$fname\_$1") = $(B:"fn$idx\_$1")
+        $func->{skip_declare}=1
         func_push($func)
         my $block
         $if $fname=~/^fn-/
