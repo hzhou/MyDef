@@ -196,15 +196,6 @@ page: mydef_run
 
         # --------------------------
         subcode: run_cmd_expect
-            $if $cmd=~/(.*) && (.*)/
-                $print $1
-                system $1
-                $if $? == -1
-                    die "failed to compile\n"
-                $elif $? & 0xff
-                    die "compile failure\n"
-                $cmd = $2
-
             $call cmp_expect, cmd
 
         # ------------------------
