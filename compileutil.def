@@ -106,10 +106,11 @@ fncode: compile
         $in_autoload=0
 
         #---- main
+        # ref: callsub.def - fncode call_sub
+        $main_called = 0
         $if $page->{_frame}
             call_sub($page->{_frame})
 
-        # ref: callsub.def - fncode call_sub
         $if !$main_called
             call_sub("main")
 

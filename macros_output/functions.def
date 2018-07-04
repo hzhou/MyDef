@@ -17,10 +17,11 @@
 #----------------------------------------------- 
 subcode:: _autoload
     $global @function_stack
-    @function_stack=()
-
     $global %list_function_hash
     $global @list_function_list
+
+subcode:: _initpage
+    @function_stack=()
     %list_function_hash=()
     @list_function_list=()
 
