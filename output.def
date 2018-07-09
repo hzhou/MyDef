@@ -136,12 +136,18 @@ subcode: parsecode_common
     $elif $l=~/^\s*\$(\w+)\((.*?)\)\s+(.*?)\s*$/
         # $function(param1) param2 ----
         my ($func, $param1, $param2)=($1, $2, $3)
-        $call parsecode_plugin # install 
+        $case $func eq "plugin"
+            $call add_plugin, $param1, $param2
+            return
         $call parsecode_func_param
     $elif $l=~/^\s*\$(\w+)\s*(.*)$/
         # $function param  ----
         my ($func, $param)=($1, $2)
         $if $param !~ /^=/
+            $case $func eq "plugin"
+                $foreach $p in split /,\s*/, $param
+                    $call add_plugin, $p, $p
+                return
             $call parsecode_check_plugin # run
             $call parsecode_func
     $elif $l=~/^CALLBACK\s+(\w+)\s*(.*)/
@@ -190,25 +196,17 @@ subcode: return_newblock(scope)
         push @src, $(post);
 
 # ------------------------------------------
-subcode: debug_plugin
-    $while my ($funcname, $codename)=each %plugin_statement
-        print " plugin statement:  $funcname => $codename\n"
-    $while my ($funcname, $codename)=each %plugin_condition
-        print " plugin condition:  $funcname => $codename\n"
-
-subcode: parsecode_plugin
+subcode: add_plugin(p1, p2)
     $global %plugin_statement
     $global %plugin_condition
-    $case $func eq "plugin"
-        $if $param2=~/_condition$/
-            $plugin_condition{$param1}=$param2
-        $else
-            $plugin_statement{$param1}=$param2
-        return
+    $if $(p2)=~/_condition$/
+        $plugin_condition{$(p1)}=$(p2)
+    $else
+        $plugin_statement{$(p1)}=$(p2)
 
 subcode: parsecode_check_plugin
     $(set:C=$plugin_statement{$func})
-    $if $(C)
+    $case $(C)
         MyDef::compileutil::call_sub($(C)." $param")
         # $call parsecode_run_eval, $(C)
         return
