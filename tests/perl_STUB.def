@@ -5,6 +5,9 @@ page: test
         DUMP_STUB init
         $global $a = 1
         $print \x24a = $a (should be 2 not 1)
+        $a++
+        DUMP_STUB init
+        $print \x24a = $a (2nd DUMP_STUB is empty)
         $(block:init)
             $a = 2
 

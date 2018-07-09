@@ -113,6 +113,8 @@ subcode:: parsecode_func_other
         return
 
 subcode:: parsecode_func_param_other
+    # $list(attrs) fnames
+    #      e.g. static, declare, skip_declare
     $elif $func eq "list"
         my @tlist=split /,\s*/, $param2
         $foreach $f in @tlist
