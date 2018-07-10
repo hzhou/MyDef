@@ -2,19 +2,19 @@ An old tutorial is available at http://huizhou.gitbooks.io/programming-with-myde
 
 A more thorough manual that will be kept within the repository is currently in progress. You can view it [here](http://htmlpreview.github.io/?https://github.com/hzhou/MyDef/blob/master/manual/mydef.html).
 
-MyDef is not a new programming language. It is an additional layer on top of your programming language -- a layer that can do almost anything without affecting the demands of the underlying language. The layer can be very thin, in which case you still write your code exactly the same way you used to. And you should if you never had complain in programming career. But if you do, MyDef allows you to do something about it. 
+MyDef is not a new programming language. It is an additional layer on top of your programming language -- a layer that can do almost anything without affecting the demands of the underlying language. The layer can be very thin, in which case you still write your code exactly the same way you used to. And you should if you never had complaints in your programming career. But if you do, MyDef allows you to do something about it. 
 
 * I have always complained about semicolons. Now with MyDef, I don't type them anymore. 
 * I have complained about curly braces. Now with MyDef, I avoided them, along with the grammatical parentheses.
 * I have wished to refactor my code without worry about variable scopes. MyDef allows me to refactor with no side effects.
-* I have wished a less uglier way to write JavaScript, with MyDef, I liked the new look.
+* I have wished a less uglier way to write JavaScript, with MyDef, I like the new look.
 * etc.
 
-And they are not on/off switches. You may start refactor part of your code, and simply paste the rest of your legacy code. Unlike other programming language which will tell you what to do, often strictly, you just do what you want to do in MyDef. You do need know what you want to do in this case.
+And they are not on/off switches. You may start refactoring part of your code, and simply paste the rest of your legacy code. Unlike other programming language which will tell you what to do -- often strictly, you just do what you want to do in MyDef. You do need know what you want to do though.
 
-I cannot show you the freedom unless you feel the restriction. Before you ask what good does MyDef can buy you, recall what bad you have complained. MyDef offers solutions -- without changing your language and still allowing collaboration with your fellow coworkers even when they are stuck in their primal language. 
+I cannot show you the freedom unless you feel the restriction. Before you ask what good does MyDef buy you, recall what bad you have complained. MyDef offers solutions -- without changing your language and still allowing collaboration with your fellow coworkers even when they are stuck in their primal language. 
 
-MyDef is not just syntax, it is about paradigm. If you have a vision on how you think to program, MyDef can realize them. Contrary to what others teach you, you don't need classes to do object oriented programming, you don't need first-class functions to do functional programming. You program in objects when you are thinking in objects, and you program functionally when you are thinking in functions. Do you want a language restrict you on how to think? MyDef liberates you.
+MyDef is not just syntax, it is about paradigm. If you have a vision on how you think to program, MyDef can realize them. Contrary to what others may preach, you don't need classes to do object oriented programming, you don't need first-class functions to do functional programming. You program in objects when you are thinking in objects, and you program functionally when you are thinking in pure functions. Do you want a language restrict you on how to think? MyDef liberates you.
 
 INSTALL
 =======
@@ -22,10 +22,10 @@ INSTALL
 0. Dependency: 
 
         perl -- base language
-        make, sh, git -- covenience requirement, only tested with GNU make, bash
+        make, sh, git -- convenience requirement, only tested with GNU make, bash
         vim -- optional, but you need an editor that supports indentation, syntax, and short-cut keys
 
-1. MyDef currently is in perl. First setup a custome installation environment:
+1. MyDef currently is in perl. First setup a custom installation environment:
 
         PATH=$PATH:$HOME/bin
         PERL5LIB=$HOME/lib/perl5
@@ -52,7 +52,7 @@ INSTALL
 
     Explanation: 
         page outputs a file in that name with the default extension -- in this case t.pl
-        $print is special since it is used so often. It is customized in MyDef to provide many conveniece (and a uniform syntax across languages)
+        $print is special since it is used so often. It is customized in MyDef to provide many convenience (and a uniform syntax across languages)
         In this case, it is translated into `print("Hello World!\n");`
         mydef_run is a convenience for short script. 
         Formally, `mydef_page` compiles .def into .pl (or whatever language of the module), and the normal toolchain of the language follows. 
