@@ -38,7 +38,12 @@ subcode: dumpout
         my $l=shift @$out;
         # $call @debug_dumpout, 20
         $if $custom and $custom->($f, \$l)
-            # custom dump -- used in output_www.def
+            # custom dump -- used in output_www.def -- no longer true
+        $elif $l =~/^INCLUDE_FILE (\S+)/
+            # used to insert long docs with the functions
+            &call open_r, $1
+                push @$f, $_
+            next
         $elif $l =~/^INCLUDE_BLOCK (\S+)/
             push @source_stack, $out
             $out=$dump->{$1}
@@ -52,14 +57,6 @@ subcode: dumpout
             $if $source
                 my $t = join ($sep, @$source)
                 $f->[-1]=~s/\{STUB\}/$t/g
-        $elif $l =~ /^DUMP_PERL\s+(\w+)/
-            my $t = MyDef::compileutil::eval_sub($1)
-            my $source = eval($t)
-            $if $@
-                $print eval error: [$@]
-            $if $source
-                push @source_stack, $out;
-                $out=$source;
         $elif $l=~/^(INDENT|DEDENT|PUSHDENT|POPDENT)\b(.*)/
             $if $1 eq "INDENT"
                 $indentation++;
@@ -94,10 +91,10 @@ subcode: dumpout
             $call print_line
 
     subcode: print_line
-        $if $l=~/^\s*$/
+        $if $l=~/^\s*(NEWLINE\b.*)?$/
             push @$f, "\n"
-        $elif $l=~/^\s*NEWLINE\b/
-            push @$f, "\n"
+        $elif $l=~/^<-\|(.*)/ # C preprocessing
+            push @$f, "$1\n"
         $else
             chomp $l
             push @$f, "    "x$indentation."$l\n"

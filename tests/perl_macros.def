@@ -1,13 +1,15 @@
 page: test
     module: perl
-    a: b
+    a: a
     b: 1
 
-    $(if:0)
+    $(if:1)
         $print [for in a-c,1-5] -
         $(for:a in a-c,1-5)
             $print "$(a)-"
         $print
+
+        $print [a][a:uc] $(a)$(a:uc)
 
         $print [join:(..):sep:list] $(join:($1-1):*:x,y,z)
         $print [join:pat:sep:list] $(join:*:-:a-z)

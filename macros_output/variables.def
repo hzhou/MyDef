@@ -14,6 +14,7 @@ subcode:: parsecode_func_param_other
 
 subcode:: parsecode_func_other
     $elif $func=~/^($(add_vars))$/
+        # special syntax, e.g. $global darray P: int
         $call @check_var_special, $func
         $call parse_add_vars, 0
         return

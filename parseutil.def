@@ -94,6 +94,9 @@ fncode: import_file($f, $def, $file_type)
         $elif $curindent==0 and $line=~/^DEBUG\s*(.*)/
             parse_DEBUG($1)
         $elif $(in_code)
+            $if $line=~/^\$template\s+(.+)/
+                my $name = parse_template($def, $1)
+                $line = "\$call $name"
             $call @push_line_to_source
         $elif $(in_macro)
             $call process_macros
@@ -111,7 +114,7 @@ fncode: import_file($f, $def, $file_type)
 #---------------------------------------- 
 subcode: start_page
     $call @abort_default_page
-    my ($pagename, $framecode)
+    my ($pagename, $frame)
     $call parse_page_line
     $call new_page
     $call start_code_indent, page, 1, $page
@@ -125,9 +128,9 @@ subcode: start_page
     subcode: parse_page_line
         $if $t=~/([\w\-\$\.]+),\s*(\w.*)/
             $pagename=$1;
-            $framecode=$2;
-            $if $framecode=~/^from\s+(\S+)/
-                $framecode = parse_template($def, $1)
+            $frame=$2;
+            $if $frame=~/^from\s+(\S+)/
+                $frame= parse_template($def, $1)
         $elif $t=~/([\w\-\$\.]+)/
             $pagename=$1;
 
@@ -135,8 +138,8 @@ subcode: start_page
         my $page={_pagename=>$pagename}
         $if $pagename=~/(.+)\.(.+)/
             $page->{type}=''
-        $if $framecode
-            $page->{_frame}=$framecode
+        $if $frame
+            $page->{_frame}=$frame
 
     subcode: check_page_macros
         my $sp

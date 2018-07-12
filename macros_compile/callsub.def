@@ -55,6 +55,9 @@ subcode: parse_call_sub
 
 #---------------------------------------- 
 fncode: call_sub($param)
+    $global $main_called
+    $if $param eq "main"
+        $main_called++
     $call call_sub_frame, normal
 
 fncode: map_sub($param, $map_n)

@@ -106,17 +106,14 @@ fncode: compile
         $in_autoload=0
 
         #---- main
-        my $maincode=$page->{codes}->{main};
-        $if !$maincode
-            $maincode=$MyDef::def->{codes}->{main};
-
+        # ref: callsub.def - fncode call_sub
+        $main_called = 0
         $if $page->{_frame}
-            $page->{codes}->{main2}=$maincode
             call_sub($page->{_frame})
-        $elif $maincode
-            parse_code($maincode);
-        $else
-            # die "Missing maincode\n"
+
+        $if !$main_called
+            call_sub("main")
+
         $f_parse->("NOOP POST_MAIN")
 
         #---- restore var

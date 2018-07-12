@@ -17,10 +17,11 @@
 #----------------------------------------------- 
 subcode:: _autoload
     $global @function_stack
-    @function_stack=()
-
     $global %list_function_hash
     $global @list_function_list
+
+subcode:: _initpage
+    @function_stack=()
     %list_function_hash=()
     @list_function_list=()
 
@@ -112,6 +113,8 @@ subcode:: parsecode_func_other
         return
 
 subcode:: parsecode_func_param_other
+    # $list(attrs) fnames
+    #      e.g. static, declare, skip_declare
     $elif $func eq "list"
         my @tlist=split /,\s*/, $param2
         $foreach $f in @tlist
@@ -393,6 +396,7 @@ subcode: in_function
             $(set:B=$MyDef::compileutil::named_blocks{$1})
             $(for:pre,close)
                 $(B:"$fname\_$1") = $(B:"fn$idx\_$1")
+        $func->{skip_declare}=1
         func_push($func)
         my $block
         $if $fname=~/^fn-/
