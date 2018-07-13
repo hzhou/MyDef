@@ -116,23 +116,23 @@ fncode: fmt_string($str, $add_newline)
                     &call if_lex, -
                         # print $var-follow ----
                 &call if_lex, \{(.*?)\}
-                my $v=$1
-                $call printf_var_find_var
-            $else
-                push @fmt_list, '$'
-        &call if_lex, \\\$
-            push @fmt_list, '$'
-        &call if_lex, \}
-            #---------------------------------------- 
-            #- $print $green{some text}
-            $if @group
-                pop @group
-                $if !@group
-                    push @fmt_list, "\\x1b[0m"
+                    my $v=$1
+                    $call printf_var_find_var
                 $else
-                    my $c=$group[-1]
-                    push @fmt_list, "\\x1b[$colors{$c}m"
-            $else
-                push @fmt_list, '}'
-        &call if_lex, [^%\$\}]+
-            push @fmt_list, $&
+                    push @fmt_list, '$'
+            &call if_lex, \\\$
+                push @fmt_list, '$'
+            &call if_lex, \}
+                #---------------------------------------- 
+                #- $print $green{some text}
+                $if @group
+                    pop @group
+                    $if !@group
+                        push @fmt_list, "\\x1b[0m"
+                    $else
+                        my $c=$group[-1]
+                        push @fmt_list, "\\x1b[$colors{$c}m"
+                $else
+                    push @fmt_list, '}'
+            &call if_lex, [^%\$\}]+
+                push @fmt_list, $&
