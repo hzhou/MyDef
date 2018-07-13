@@ -121,6 +121,7 @@ page: mydef_run
                 $call run_c
             $call do_compile, java, javac $file, CD java $name
             $call do_compile, f, gfortran -g -o$exe $file $page->{lib_list}, $exe
+            $call do_compile, f90, gfortran -g -o$exe $file $page->{lib_list}, $exe
             $call do_compile, rs, rustc $file, $exe
             $call do_compile, hs, ghc -o$exe $file, $exe
             $call do_compile, asm, nasm -f elf $file && ld -m elf_i386 $name.o -o$exe, $exe

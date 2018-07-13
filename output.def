@@ -26,7 +26,7 @@ subcode: output_main
             my $init_mode="$(init_mode)"
         $(else)
             my $init_mode="sub"
-        $call @_initpage # perpage global variable initializations
+        $call @on_init_page # perpage global variable initializations
         $call @init_page # page logic initializations
         return $init_mode
 

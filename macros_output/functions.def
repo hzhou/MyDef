@@ -20,7 +20,7 @@ subcode:: _autoload
     $global %list_function_hash
     $global @list_function_list
 
-subcode:: _initpage
+subcode:: on_init_page
     @function_stack=()
     %list_function_hash=()
     @list_function_list=()
@@ -218,7 +218,7 @@ subcode: list_function(f)
             BLOCK
 
 #---------------------------------------- 
-subcode:: function_init
+subcode:: on_init_page
     $global @scope_stack, $cur_scope
     @scope_stack=()
 
@@ -341,11 +341,7 @@ fncode: process_function_std($func)
     $call function_close_$(function_style)
     # variables etc. 
     close_scope($func, $pre, $post)
-
-    $if @{$func->{var_list}}
-        push @$pre, "NEWLINE";
     push @$pre, @{$func->{init}}
-
     push @$post, @{$func->{finish}}
     $if $func->{return}
         push @$post, $func->{return}

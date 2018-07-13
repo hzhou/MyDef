@@ -49,9 +49,11 @@ subcode: parse_add_vars(has_type)
     # $param=~s/\s*;\s*$//
     # my @vlist=MyDef::utils::proper_split($param)
     my @vlist
-    $if $param=~/[\(\{<'"]/
+    $if $param=~/[({<][^)}>]*,/
         # complex init, assume single decl.
         @vlist = ($param)
+    $elif $param=~/=\s*['"][^'"]*,/
+        @vlist = ($param) # ditto
     $else
         @vlist = split_var_line($param)
     $(if:has_type=1)
@@ -181,7 +183,7 @@ fncode:@ my_add_var($name, $type, $value)
     # declare right here ...
     my $decl = var_declare($var, 1)
     push @$out, $decl
-    return $name
+    return $var
 
 fncode: temp_add_var($name, $type, $value)
     my $var=parse_var($name, $type, $value)
@@ -214,7 +216,7 @@ fncode: temp_add_var($name, $type, $value)
             push @$out, $decl
 
     MyDef::compileutil::set_current_macro($macro_name, $name)
-    return $name
+    return $var
 
 #------------------
 subcode: add_var(hash, list)
@@ -224,18 +226,18 @@ fncode: f_add_var($h, $l, $name, $type, $value)
     my $var=parse_var($name, $type, $value)
     $name=$var->{name}
     $if $h->{$name}
-        $call check_var_collision, $h->{$name}
-        return $name
+        my $exist = $h->{$name}
+        $call check_var_exist
+        return $exist
     $else
         $if $l
             push @$l, $name
         $h->{$name}=$var
         # $call warn, add_var $h $name
-        return $name
+        return $var
 
     # -------------------------------
-    subcode: check_var_collision(exist)
-        my $exist=$(exist)
+    subcode: check_var_exist
         $if $var->{type} eq $exist->{type}
             $if $var->{array} > $exist->{array}
                 $exist->{array}=$var->{array}
