@@ -273,6 +273,12 @@ fncode: get_macro($s, $nowarn)
             $(for:fn in lc,uc,uc_first,length)
                 $elif $p eq "$(fn)"
                     return $(fn)($t)
+            $elif $p =~ /regex:(.*)/
+                my $re = qr/$1/
+                $if $t=~ /$re/
+                    return $1
+                $else
+                    return ''
             $elif $p=~/list:(.*)/
                 my $idx=$1
                 my @tlist=MyDef::utils::proper_split($t)
