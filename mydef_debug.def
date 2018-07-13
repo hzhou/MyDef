@@ -13,7 +13,8 @@ page: mydef_debug
     print "    MyDef::compileutil::output(\$plines);\n"
 
     print "\n  MyDef::compileutil::compile\n"
-    print "    parse_code(\$maincode);\n"
+    print "    call_sub(\"_autoload\");\n"
+    print "    call_sub(\"main\");\n"
     print "    \$f_parse->(\"NOOP POST_MAIN\")\n"
     print "    ...\n"
     print "    \$f_dumpout->(\@buffer, fetch_output(0), \$page->{_pageext})\n"
