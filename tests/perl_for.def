@@ -1,6 +1,12 @@
 page: test
     module: perl
 
-    $for 10
-        $print $i
+    $call test_for, 4
+    $call test_for, $i=0:4
+    $call test_for, 1 to 4
+    $call test_for, 4 downto 1
 
+    subcode: test_for(@p)
+        print '-- $for $(p)', "\n"
+        $for $(p)
+            $print "  $i"

@@ -3,14 +3,32 @@ subcode: parsecode_for_support(style)
         &call return_newblock, for
             $(set:type=asis)
             $call for_$(style)
+    # -----------------------------
+    my $var
+    $if $param=~/^(.+?)\s*=\s*(.*)/
+        $var=$1
+        $param=$2
+    # ------------
+    my ($i0, $i1, $step)
+    $if $param=~/^(.+?)\s+to\s+(.+?)/
+        my $to
+        ($i0, $to, $step) = ($1, $2, 1)
+        $if $to=~/(.+?)\s+step\s+(.+)/
+            ($to, $step)=($1, $2)
+        $i1="<=$to"
+    $elif $param=~/^(.+?)\s+downto\s+(.+?)/
+        my $to
+        ($i0, $to, $step) = ($1, $2, 1)
+        $if $to=~/(.+?)\s+step\s+(.+)/
+            ($to, $step)=($1, $2)
+        $i1=">=$to"
+        $if $step!~/^-/
+            $step="-$step"
     $else
-        my $var
-        $if $param=~/^(.+?)\s*=\s*(.*)/
-            $var=$1
-            $param=$2
         my @tlist=split /:/, $param
-        my ($i0, $i1, $step)
         $call parsecode_for_convention
+    # ------------
+    $if defined $i0
         $call @for_i0_i1_step
         &call return_newblock, for
             $(set:type=i0_i1_step)
@@ -27,14 +45,13 @@ subcode: for_i0_i1_step_default(loop_var)
     $else
         $step="+=$step"
 
-    my $my=""
     $(if:loop_var!=-)
         $call $(loop_var)
     $(else)
         $if !$var
             $var = "i"
 
-    $param="$my$var=$i0; $var$i1; $var$step"
+    $param="$var=$i0; $var$i1; $var$step"
 
 subcode: for_c_style
     $call push_single_block, "for($param){", "}"
