@@ -3,7 +3,7 @@ page: test
     a: a
     b: 1
 
-    $(if:1)
+    $(if:0)
         $print [for in a-c,1-5] -
         $(for:a in a-c,1-5)
             $print "$(a)-"
@@ -17,13 +17,14 @@ page: test
         $print [x10,:pat] $(x10,:pat)
         $print [join:::and list] $(join:$1$2:,:x-z and 1-3)
         $print [join:::mul list] $(join:$1$2:,:x,y mul 1,2,3)
+    $(elif:1)
+        $call test_eval
     $(elif:0)
         print "page macro a: $(a)\n"
         $(if:word:a)
             $warn macro a  is a word : [$(a)]
         $(if:!word:b)
             $warn macro b  is not a word : [$(b)]
-        $call test_eval, test_case
         $call test_inline, example
         $call test_for_list
         $call test_macro_join
@@ -58,10 +59,14 @@ subcode: test_named_macros
     subcode: oneup
         $(set-1:a1=oneup)
 
-subcode: test_eval(t)
+subcode: test_eval
+    $(set:t=lowercase)
     $(eval:t2=ucfirst("$(t)"))
-    $print test_eval: $(t)
-    $print "\t ucfirst: $(t2)"
+    $print test_eval: t=$(t) ucfirst("\x24(t)") -> $(t2)
+
+    $(set:t=1)
+    $(eval:t3=t+1)
+    $print test_eval: t=$(t), t+1 -> $(t3)
 
 subcode: test_inline(t)
     $(set:inline=test_inline(\"$1\"))
