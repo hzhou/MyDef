@@ -350,6 +350,9 @@ subcode: check_eachpage
         $call @set_output_name
     # --------------------
     subcode: get_file_type
+        $print get_file_type: $h->{page} - $h->{type}
+        $if $h->{page}=~/\.\w+$/
+            $h->{type}="none"
         $if !$h->{type}
             $if $config_filetype
                 $h->{type}=$config_filetype

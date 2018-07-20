@@ -33,11 +33,6 @@ fncode: output($plines)
                 print Out $l;
         $page->{outname}=$outname
 
-fncode: parse_code($code)
-    modepush($code->{type});
-    parseblock($code);
-    modepop();
-
 fncode: compile
     my $page=$MyDef::page
     my $pagename=$page->{_pagename}
