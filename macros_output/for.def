@@ -10,13 +10,13 @@ subcode: parsecode_for_support(style)
         $param=$2
     # ------------
     my ($i0, $i1, $step)
-    $if $param=~/^(.+?)\s+to\s+(.+?)/
+    $if $param=~/^(.+?)\s+to\s+(.+)/
         my $to
         ($i0, $to, $step) = ($1, $2, 1)
         $if $to=~/(.+?)\s+step\s+(.+)/
             ($to, $step)=($1, $2)
         $i1="<=$to"
-    $elif $param=~/^(.+?)\s+downto\s+(.+?)/
+    $elif $param=~/^(.+?)\s+downto\s+(.+)/
         my $to
         ($i0, $to, $step) = ($1, $2, 1)
         $if $to=~/(.+?)\s+step\s+(.+)/
