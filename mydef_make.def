@@ -1,3 +1,4 @@
+include: version.def
 include: modules.def
 include: macros_util/path.def
 include: macros_util/debug.def
@@ -57,6 +58,7 @@ subcode: parse_args
         $if $a eq "-f"
             $global $flag_force
             $flag_force = 1
+        $call @check_arg_version, $a
 
 ## --------- config -----------
 subcode: create_config

@@ -1,3 +1,4 @@
+include: version.def
 include: custom_run.def?
 ########################################
 #---- Run the mydef scripts directly 
@@ -46,6 +47,7 @@ page: mydef_run
             $elif -f $a
                 # just run_page
                 $config{_file}=$a
+            $call @check_arg_version, $a
 
     subcode: guess_module
         guess_module:
