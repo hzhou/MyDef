@@ -1,55 +1,7 @@
+include: perl/make_dist.def
+
 page: make_dist
     module: perl
     arg: 1.0
 
-    $call get_version
-    $call get_date
-    $call mk_root
-    $call copy_manifest
-    $call update_version
-    $print "  --> [$root.tar.gz]"
-    system "tar czf $root.tar.gz $root"
-
-subcode: get_version
-    my $version = $ARGV[0]
-    $if $version!~/^\d+\.\S+/
-        die "Usage: $0 version\n"
-
-subcode: get_date
-    my @t = localtime
-    # ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) 
-    my $date = sprintf("%4d/%02d/%02d", $t[5]+1900, $t[4]+1, $t[3])
-
-subcode: update_version
-    $call get_file_lines, ../version.def
-    &call open_w, $root/version.def
-        $foreach $l in @lines
-            $if $l=~/^\s+version:/
-                print Out "    version: $version\n"
-            $elif $l=~/^\s+date:/
-                print Out "    date: $date\n"
-            $else
-                print Out $l
-
-subcode: mk_root
-    my $root = "mydef-$version"
-    $if -d $root
-        system "rm -r $root"
-    mkdir $root
-
-subcode: copy_manifest
-    &call open_r, manifest
-        $if /^(.+)\/(\S+)/ -> $d, $f
-            $if $d!~/[\*\?]/
-                $call copy_path, $d, $f
-            $else
-                my @all = glob("../$d")
-                $foreach $a in @all
-                    $a=~s/^\.\.\///
-                    $call copy_path, $a, $f
-
-        $elif /^(\S+)/
-            system "cp -r ../$1 $root/"
-    subcode: copy_path(d, f)
-        system "mkdir -p $root/$(d)"
-        system "cp -r ../$(d)/$(f) $root/$(d)/"
+    $call make_dist, mydef

@@ -67,7 +67,7 @@ subcode: parse_add_vars(has_type)
             func_add_var($(v));
         $call @parse_add_var_cases
         $else
-            $call warn, \$$func not implemented.
+            $call warn, add_vars: \$$func not implemented.
 
 fncode: split_var_line($l)
     $global $custom_split_var_line

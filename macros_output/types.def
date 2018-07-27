@@ -12,6 +12,9 @@ subcode:: parsecode_func_param_other
         return
 
 #---- type from name ------
+macros:
+    type_prefix_chars: t
+
 fncode: get_type_name($name, $no_prefix)
     # typename
     $if $type_name{$name}
@@ -21,13 +24,13 @@ fncode: get_type_name($name, $no_prefix)
     $elif $name=~/^([a-zA-Z]+)\d+$/ and ($type_name{$1} or $type_prefix{$1})
         return get_type_name($1)
     # ---------------------
-    $elif !$no_prefix and $name=~/^([t$(type_prefix_char)]+)_(.+)$/ 
+    $elif !$no_prefix and $name=~/^([$(type_prefix_chars)]+)_(.+)$/ 
         # p_nxxx
         my $type = get_type_name($2, 1)
         $if $type
             return get_type_word_prefix($1, $type)
 
-    $if !$no_prefix and $name=~/^([t$(type_prefix_char)]+)(.)(_.+)?$/ and $type_prefix{$2}
+    $if !$no_prefix and $name=~/^([$(type_prefix_chars)]+)(.)(_.+)?$/ and $type_prefix{$2}
         # pn_xxx
         return get_type_word_prefix($1, $type_prefix{$2})
     # ---------------------
@@ -39,7 +42,7 @@ fncode: get_type_name($name, $no_prefix)
         return $type_name{$1}
     return undef
 
-#--   modify $type with $(type_prefix_char) --
+#--   modify $type with $(type_prefix_chars) --
 fncode: get_type_word_prefix($prefix, $type)
     $foreach $c in reverse(split //, $prefix)
         $if $c eq "t"

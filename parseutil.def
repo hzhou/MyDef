@@ -245,6 +245,8 @@ subcode: add_include(t)
     $if $(t) eq "noconfig"
         # skip config, see below
         $includes{$(t)}=1
+    $elif $(t) eq "$def->{name}.def"
+        $print include main self [$(t)]?
     $elif substr($(t), -1) eq "/"
         add_path($(t))
     $else

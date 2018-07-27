@@ -105,7 +105,7 @@ fncode: compile
         $main_called = 0
         $if $page->{_frame}
             call_sub($page->{_frame})
-
+        # if frame didn't call main --
         $if !$main_called
             call_sub("main")
 
