@@ -51,6 +51,7 @@ subcode: autolist_functions(add_type)
                     $return_type=$2
             $elif $l=~/^\$return_type\s+(.+)/
                 $return_type = $1
+                $call @check_type, $return_type
             $elif $l=~/^\$autolist\s+(\w+)/
                 # $autolist skip, $autolist 
                 $autolist = $1

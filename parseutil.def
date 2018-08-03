@@ -22,7 +22,6 @@ page: parseutil
 #---------------------------------------- 
 fncode: import_data($file)
     my $def={
-            "resource"=>{}, # like codes, but data
             "pages"=>{},    # pages hash
             "pagelist"=>[], # pages list
             # "codes"=>{},  # merged at end

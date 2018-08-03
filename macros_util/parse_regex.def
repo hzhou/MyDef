@@ -1,23 +1,14 @@
 #-----------------------------------------
-#-- parse regex pattern
+#-- parse regex pattern -> nested hash tree
 fncode: parse_regex($re, $flag_combine_chars)
-    $call @parse_regex_vars
-    my $has_Any=0
-
+    my @paren_stack
+    my $atoms=[]
+    my $alts=[]
+    my %stat
     &call regex_parse_loop, normal
         $elif $c eq '('
             $call push_paren
-            $if substr($re, $i, 2) eq "?:"
-                $paren_stack[-1]->{type}="seq"
-                $i+=2
-            $elif substr($re, $i, 2) eq "?="
-                # positive lookahead
-                $paren_stack[-1]->{type}="?="
-                $i+=2
-            $elif substr($re, $i, 2) eq "?!"
-                # negative lookahead
-                $paren_stack[-1]->{type}="?!"
-                $i+=2
+            $call check_paren_type # (?:...)
         $elif $c eq ')'
             $call concat_atoms, group
             $call concat_alts
@@ -42,7 +33,7 @@ fncode: parse_regex($re, $flag_combine_chars)
             my $atom={type=>"AnyChar"}
             $if substr($re, $i, 1) eq "*"
                 $atom->{type}="Any"
-                $has_Any++
+                $stat{has_Any}++
                 $i++
             $call push_atom
         $else
@@ -52,11 +43,15 @@ fncode: parse_regex($re, $flag_combine_chars)
     $call check_paren_stack
     $call concat_atoms, final
     $call concat_alts
-    $if $has_Any
-        $atom->{has_Any}=$has_Any
+    $foreach %stat
+        $atom->{$k}=$v
     return $atom
 
 #-----------------------------
+# char char
+# AnyChar
+# class [list]
+# group|seq|alt n [list]
 fncode: debug_regex($r, $level)
     $if !$level
         $level=0
@@ -143,12 +138,6 @@ subcode: esc_char(c)
         $c= "\$(c)"
 
 #---------------------------------------- 
-subcode:: parse_regex_vars
-    my @paren_stack
-    my $atoms=[]
-    my $alts=[]
-
-# ----
 subcode: push_paren
     push @paren_stack, {atoms=>$atoms, alts=>$alts, type=>"group"}
     $atoms=[]
@@ -165,7 +154,20 @@ subcode: check_paren_stack
     $if @paren_stack
         die "REGEX $re: Unmatched parenthesis\n";
 
-# ----
+subcode: check_paren_type
+    $if substr($re, $i, 2) eq "?:"
+        $paren_stack[-1]->{type}="seq"
+        $i+=2
+    $elif substr($re, $i, 2) eq "?="
+        # positive lookahead
+        $paren_stack[-1]->{type}="?="
+        $i+=2
+    $elif substr($re, $i, 2) eq "?!"
+        # negative lookahead
+        $paren_stack[-1]->{type}="?!"
+        $i+=2
+
+#----------------------------------------------- 
 subcode: concat_atoms(type)
     &call block
         my $type="seq"
