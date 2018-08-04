@@ -43,6 +43,7 @@ subcode: check_default_page_framecode
 
 subcode: parse_default_page_macros
     $while $plines->[$cur_line]=~/^(\w+):\s*(.*)/ -> $k, $v
+        $v=~s/\s*#.*//
         $if $k =~ /^(page|macros|\w+code|template)$/
             last
         $elif $k eq "include"
