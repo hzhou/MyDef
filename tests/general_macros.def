@@ -1,10 +1,59 @@
 page: test
-    module: perl
+    module: general
 
-    $print a: [$(a)]
-    $(for:c,d in 1,2, 3 and 2, 3, 4)
-        $print c d: [$(c) $(d)]
+    $call test_basic
+    $call set_macro
+    $call export
+    a: [$(a)]
+    $call enumset
+    $call test_calc
+    $call test_eval
+    $call test_split
+
+subcode: set_macro
+    $(setmacro:a=set)
+    $(set1:b=set1: $1)
+    $call test_basic
+
+subcode: export
+    $(export:a=export)
+
+subcode: enumset
+    $(enumset:a, b)
+    a, b: $(a), $(b)
+
+subcode: test_calc
+    $(set:a+=1)
+    a: $(a)
+    $(set:a.=1)
+    a: $(a)
+subcode: test_eval
+    $(eval:a=`echo backtick`)
+    a: $(a)
+
+subcode: test_split
+    $(set:a=test,split)
+    $(split:a)
+    $(p_1) - $(p_2)
+
+subcode: test_basic
+    a: [$(a)]
+    $(b:b)
 
 macros:
-    a: 1 2 3
-    a:: 4 5
+    a: 1, 2, 3
+    a:: 4, 5
+    b: param: $1
+
+/* expect test.txt:
+a: [1, 2, 3, 4, 5]
+param: b
+a: [set]
+set1: b
+a: [export]
+a, b: 1, 2
+a: 1
+a: 11
+a: backtick
+test - split
+*/

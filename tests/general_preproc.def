@@ -3,3 +3,10 @@ page: t
         Commented out
     $(else)
         Show this instead
+
+subcode: test_for
+    $(for:a,b in 1,2 and 2, 4)
+        $(a) - $(b)
+    $(for:1,2 and 2, 4)
+        $1 : $2
+
