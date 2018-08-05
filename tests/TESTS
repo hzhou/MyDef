@@ -1,4 +1,6 @@
 general_autoload.def
 general_macros.def
 general_macro_special.def
+general_stub.def
+general_ext.def
 perl_for.def

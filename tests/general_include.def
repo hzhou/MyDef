@@ -1,3 +1,13 @@
+include: notfound.def
 include: hello.def?
+include: inc.def
+
 page: test
+    module: general
     Hello World
+    $call inc_test
+    $call inc_test_2
+
+/* expect test.txt:
+Hello World
+*/

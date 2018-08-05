@@ -1,0 +1,36 @@
+#---- includes ---------------------------- 
+subcode: _autoload
+    $call dbl_list, includes
+
+# ref: parseutil.def - fncode: import_file
+subcode: parse_switch_include
+    $elif $curindent==0 and $line=~/^include:? (.*)/
+        $call add_include, $1
+
+# ref: macros_parse/default_page.def
+subcode: default_page_include
+    $elif $k eq "include"
+        $call add_include, $v
+
+#----------------------------------------
+subcode: add_include(t)
+    $if $(t) eq "noconfig"
+        # skip config, see below
+        $includes{$(t)}=1
+    $elif $(t) eq "$def->{name}.def"
+        $print include main self [$(t)]?
+    $elif substr($(t), -1) eq "/"
+        add_path($(t))
+    $else
+        $call dbl_push, includes, $(t)
+
+subcode: load_standard_includes
+    my $module = $MyDef::var->{module}
+
+    my @standard_includes
+    $if $MyDef::var->{'include'} and !$includes{"noconfig"}
+        push @standard_includes, split(/[:,]\s*/, $MyDef::var->{'include'})
+
+    my $stdinc="std_$module.def"
+    push @standard_includes, $stdinc
+

@@ -273,6 +273,8 @@ subcode: cmp_expect(type)
         exit 1
 
 subcode: expect_normalize
+    $if /^\s*$/
+        next
     chomp
     s/\s+/ /g
     s/\s*$//g

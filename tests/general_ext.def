@@ -1,0 +1,34 @@
+page: test
+    module: general
+
+    $(set:M=codelist)
+    &call codelist
+        $(M)
+
+    $call inject_sub
+    $call @test_inject_sub
+
+    $call run_src
+
+perlcode: codelist
+    require MyDef::ext
+    my $codelist = MyDef::ext::grab_codelist(do_macro=>1)
+    $foreach @$codelist
+        push @$out, "TEST $_"
+
+
+perlcode: inject_sub
+    my @src=("TEST inject_sub")
+    require MyDef::ext
+    MyDef::ext::inject_sub("test_inject_sub", \@src)
+
+perlcode: run_src
+    my @src=("TEST run_src")
+    require MyDef::ext
+    MyDef::ext::run_src(\@src)
+
+/* expect test.txt:
+TEST codelist
+TEST inject_sub
+TEST run_src
+*/
