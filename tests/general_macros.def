@@ -19,7 +19,9 @@ subcode: export
     $(export:a=export)
 
 subcode: enumset
-    $(enumset:a, b)
+    $(for:a,b)
+        $(set:_base+=1)
+        $(set:$1=$(_base))
     a, b: $(a), $(b)
 
 subcode: test_calc

@@ -15,7 +15,7 @@ page: mydef_test
     my $n_tests=@tests
     my $n_fail=0
     $foreach $t in @tests
-        $print "$t --\n"
+        $print "*** [ $t ] ***"
         system("mydef_run $t") == 0 or $n_fail++
         $call @check_system
 

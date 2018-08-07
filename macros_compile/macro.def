@@ -36,15 +36,6 @@ subcode:: preproc_elifs
                 $call warn, unset only accepts single word(s)
     # autoinc -> $(set-2:v+=1)
     # enuminc -> use subcode which increments bases
-    $elif $preproc=~/^enumset:\s*(.*)/
-        my $t=$1
-        expand_macro(\$t)
-        my @t = split /,\s*/, $t
-        my $base = 1
-        my $m = $deflist->[-1]
-        $foreach $t in @t
-            $m->{$t}=$base
-            $base++
     $elif $preproc=~/^export:\s*(.*)/
         my $t=$1;
         $if $t=~/^\w+,/

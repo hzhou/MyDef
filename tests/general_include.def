@@ -10,4 +10,6 @@ page: test
 
 /* expect test.txt:
 Hello World
+FROM inc_test
+FROM inc_test_2
 */
