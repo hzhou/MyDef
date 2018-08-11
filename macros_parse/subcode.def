@@ -79,8 +79,9 @@ fncode: new_code($type,$name,$attr,$t)
             $t_code->{tail} = $1
 
 subcode: parse_subcode_order(attr)
-    # 1-8 merge -- consider only use 1,5,8
-    # 0,9 keep one
+    # 1-8 merge -- consider only use 1,5,8, default :: is 5
+    # 0 -- default, gets overwritten
+    # 9 -- overwrite all others
     $if !$(attr)
         # keep one, overwrite
         $t_code->{order}=9
