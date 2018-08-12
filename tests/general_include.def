@@ -1,6 +1,6 @@
 include: notfound.def
 include: hello.def?
-include: inc.def
+include: inc/inc.def
 
 page: test
     module: general
@@ -8,8 +8,18 @@ page: test
     $call inc_test
     $call inc_test_2
 
+/* error message:
+notfound.def not found
+  search path: ...
+*/
+
 /* expect test.txt:
 Hello World
 FROM inc_test
 FROM inc_test_2
 */
+
+/* note:
+std_xxx.def is always included, but it may be shadowed by putting a std_xxx.def in your include_path or current path
+*/
+

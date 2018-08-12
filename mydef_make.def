@@ -259,17 +259,16 @@ subcode: read_eachfile
                         $page->{output_dir}=$output_dir
 
     subcode: read_def_file
-        my $include_noconfig
         my $got_page=0
-        &call protect_path
-            my $inpage=0;
-            &call open_r, $f
-                $if $inpage
-                    $call parse_inpage
-                $if !$inpage
-                    $call parse_global
-
-        $if !$include_noconfig && $got_page
+        # ----
+        my $inpage=0;
+        &call open_r, $f
+            $if $inpage
+                $call parse_inpage
+            $if !$inpage
+                $call parse_global
+        # ----
+        $if $got_page
             $if @include_default
                 $foreach $i in @include_default
                     $call include_file, $i
@@ -278,10 +277,6 @@ subcode: read_eachfile
         subcode: parse_global
             $if /^include:?\s*(\S+\.def)/
                 $call include_file, $1
-            $elif /^include:?\s*(noconfig)/
-                $include_noconfig = 1
-            $elif /^path:\s*(.+)/
-                $call protect_add_path, $1
             $elif /^page: .*\$\d.*/
                 $inpage=1;
                 $page={};
