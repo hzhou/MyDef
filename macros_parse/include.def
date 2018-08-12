@@ -6,15 +6,11 @@ subcode: _autoload
 subcode: parse_switch_include
     $elif $curindent==0 and $line=~/^include:?\s*(.*)/
         $call add_include, $1
-    $elif $curindent==0 and $line=~/^include_path:\s*(.*)/
-        add_path($1)
 
 # ref: macros_parse/default_page.def
 subcode: default_page_include
     $elif $k eq "include"
         $call add_include, $v
-    $elif $k eq "include_path"
-        add_path($v)
 
 #----------------------------------------
 subcode: add_include(t)
