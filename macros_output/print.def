@@ -75,8 +75,12 @@ fncode: fmt_string($str, $add_newline)
                 push @arg_list, $var->{strlen}
                 push @arg_list, $v
             $else
-                push @fmt_list, get_var_fmt($v, 1)
-                push @arg_list, $v
+                my @t=get_var_fmt($v, 1)
+                push @fmt_list, shift @t
+                $if @t
+                    push @arg_list, @t
+                $else
+                    push @arg_list, $v
     # -----------------------
     subcode: parse_fmt_string
         my @group
