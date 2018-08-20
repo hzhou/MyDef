@@ -90,6 +90,7 @@ subcode: parse_preproc
         subcode: for_list_anonymous
             my $block_ref = $subblock
             $for $i=0:$n
+                push @$deflist, {_i=>$i}
                 my @block = @$block_ref
                 $foreach $l in @block
                     $if $l and $l!~/^SOURCE:/
@@ -99,6 +100,7 @@ subcode: parse_preproc
                             $j++
                 my $subblock = \@block
                 $call _parse, for_list
+                pop @$deflist
 
     # ---------------------------------------- 
     subcode: foreach_p
