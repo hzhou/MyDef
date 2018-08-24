@@ -82,9 +82,9 @@ subcode: parse_subcode_order(attr)
     # 1-8 merge -- consider only use 1,5,8, default :: is 5
     # 0 -- default, gets overwritten
     # 9 -- overwrite all others
-    $if !$(attr)
-        # keep one, overwrite
-        $t_code->{order}=9
+    $if $(attr)=~/^[0-9]$/
+        # \d, direct priority
+        $t_code->{order}=$(attr)
     $elif $(attr) eq '@'
         # default, gets overwritten
         $t_code->{order}=0
@@ -92,8 +92,8 @@ subcode: parse_subcode_order(attr)
         # 1-8, merge, append
         $t_code->{order}=5
     $else
-        # \d, direct priority
-        $t_code->{order}=$(attr)
+        # keep one, overwrite
+        $t_code->{order}=9
 
 fncode: merge_codes($codeitem)
     my $L=$codeitem->{code_list}

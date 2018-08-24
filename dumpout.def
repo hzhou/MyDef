@@ -56,7 +56,11 @@ subcode: dumpout
             my $source=$MyDef::compileutil::named_blocks{$name}
             $if $source
                 my $t = join ($sep, @$source)
-                $f->[-1]=~s/\{STUB\}/$t/g
+                my $i=$#$f
+                $while $i>=0 && $f->[$i]!~/\{STUB\}/
+                    $i--
+                $if $i>=0
+                    $f->[$i]=~s/\{STUB\}/$t/g
         $elif $l=~/^(INDENT|DEDENT|PUSHDENT|POPDENT)\b(.*)/
             $if $1 eq "INDENT"
                 $indentation++;

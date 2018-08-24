@@ -1,0 +1,43 @@
+page: test
+    module: general
+
+    &call A
+        Hello
+
+    &call B
+        Hello
+
+    &call C
+        Hello
+
+subcode: A
+    A --
+    BLOCK
+    A --
+
+subcode: B
+    # multiblock
+    B --
+    BLOCK
+    B --
+    BLOCK
+    B --
+
+subcode: C
+    $(for:1-2)
+        C$1
+        BLOCK
+/* expect test.txt:
+A --
+Hello
+A --
+B --
+Hello
+B --
+Hello
+B --
+C1
+Hello
+C2
+Hello
+*/
