@@ -120,9 +120,11 @@ fncode: merge_codes($codeitem)
         $if $a==0
             $(C)=$code
         $elif $b==9
-            $if $a>0
-                $call @warn_overwrite
-            $(C)=$code
+            $if $a==9
+                $call @warn_overwrite, no
+            $else
+                $call @warn_overwrite, yes
+                $(C)=$code
         $else
             $call merge_source
             $call merge_macros
@@ -149,12 +151,15 @@ fncode: merge_codes($codeitem)
         $if $codeitem->{codes}
             warn "parseutils: codeitem with existing {codes}?\n"
 
-    subcode: warn_overwrite
+    subcode: warn_overwrite(yes)
         my $loc_a = $(C)->{source}->[0]
         my $loc_b = $code->{source}->[0]
         $loc_a=~s/SOURCE: //
         $loc_b=~s/SOURCE: //
-        $print Overwriting subcode $name: [$loc_a] -> [$loc_b]
+        $(if:yes=yes)
+            $print Overwriting subcode $name: [$loc_a] -> [$loc_b]
+        $(else)
+            $print Not overwriting subcode $name: [$loc_a] -> [$loc_b]
 
 fncode: clean_up_source($src)
     $if $src and @$src

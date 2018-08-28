@@ -242,6 +242,11 @@ fncode: f_add_var($h, $l, $name, $type, $value)
             $if $var->{array} > $exist->{array}
                 $exist->{array}=$var->{array}
                 $exist->{dimension}=$var->{array}
+            $if defined $var->{init}
+                $if !defined $exist->{init}
+                    $exist->{init}=$var->{init}
+                $elif $exist->{init} ne $var->{init}
+                    $call warn, var $name has double initializations
 
 #-----------------------
 # inside fcode: parse_var($name, $type, $value)

@@ -4,11 +4,11 @@ page: test
     $call test_basic
     $call set_macro
     $call export
-    a: [$(a)]
     $call enumset
     $call test_calc
     $call test_eval
     $call test_split
+    $call test_perl
 
 subcode: set_macro
     $(setmacro:a=set)
@@ -17,11 +17,13 @@ subcode: set_macro
 
 subcode: export
     $(export:a=export)
+    a: [$(a)]
 
 subcode: enumset
     $(for:a,b)
-        $(set:_base+=1)
-        $(set:$1=$(_base))
+        # $(for:...) creates extra scope, unlike $(if:...)
+        $(set-1:_base+=1)
+        $(set-1:$1=$(_base))
     a, b: $(a), $(b)
 
 subcode: test_calc
@@ -38,6 +40,15 @@ subcode: test_split
     $(split:a)
     $(p_1) - $(p_2)
 
+subcode: test_perl
+    $call perl_set_macro
+    $(macro-from-perl)
+
+    perlcode: perl_set_macro
+        $MyDef::def->{macros}->{"macro-from-perl"} = "macro set from perl"
+        
+
+#----------------------------------------------- 
 subcode: test_basic
     a: [$(a)]
     $(b:b)
@@ -58,4 +69,5 @@ a: 1
 a: 11
 a: backtick
 test - split
+macro set from perl
 */
