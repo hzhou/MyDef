@@ -76,25 +76,25 @@ subcode: case_unwrap
 #----------------------------------------------- 
 #----- c style ----------------------
 #-- $call parsecode_case_support, if, else if, c_style
-subcode: case_c_style
+subcode:0 case_c_style
     $call push_single_block, "$case($cond){", "}"
 
-subcode: else_c_style
+subcode:0 else_c_style
     $call push_single_block, "else{", "}"
 
 #---- sh style ----------------
 #-- $call parsecode_case_support, if, elif, sh_style
-subcode: case_sh_style
-    push @src, "$case $cond then"
-    $call push_indent_block
+subcode:0 case_sh_style
+    push @src, "$case $cond; then"
+    $call push_indented_block
     $if $case eq "if"
         $if !$case_wrap
             $case_wrap=[]
         push @$case_wrap, "fi"
 
-subcode: else_sh_style
+subcode:0 else_sh_style
     push @src, "else"
-    $call push_indent_block
+    $call push_indented_block
 
 # -------------------------------------------
 subcode: debug_case_push
