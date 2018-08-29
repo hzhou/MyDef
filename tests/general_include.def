@@ -4,19 +4,28 @@ include: inc/inc.def
 
 page: test
     module: general
-    Hello World
+    $(msg)
+    $(msg2)
     $call inc_test
     $call inc_test_2
+
+subcode: inc_test_2
+    First come first stay
+
+macros: 
+    msg2: msg2: defined in main
 
 /* error message:
 notfound.def not found
   search path: ...
+Not overwriting subcode inc_test_2: ...
 */
 
 /* expect test.txt:
-Hello World
+msg: defined in inc.def
+msg2: defined in main
 FROM inc_test
-FROM inc_test_2
+First come first stay
 */
 
 /* note:
