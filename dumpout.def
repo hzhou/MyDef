@@ -36,7 +36,7 @@ subcode: dumpout
                 next;
 
         my $l=shift @$out;
-        $l=~s/^\\x23\b/#/ # use leading \x23 to passthru # comments
+        $l=~s/^\\x([0-9a-f]+)\b/chr(hex($1))/ie # use leading \x23 to passthru # comments
         # $call @debug_dumpout, 20
         # $if $custom and $custom->($f, \$l)
             # custom dump -- used in output_www.def -- no longer true
