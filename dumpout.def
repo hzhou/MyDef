@@ -36,10 +36,11 @@ subcode: dumpout
                 next;
 
         my $l=shift @$out;
+        $l=~s/^\\x23\b/#/ # use leading \x23 to passthru # comments
         # $call @debug_dumpout, 20
-        $if $custom and $custom->($f, \$l)
+        # $if $custom and $custom->($f, \$l)
             # custom dump -- used in output_www.def -- no longer true
-        $elif $l =~/^INCLUDE_FILE (\S+)/
+        $case $l =~/^INCLUDE_FILE (\S+)/
             # used to insert long docs with the functions
             &call open_r, $1
                 push @$f, $_
