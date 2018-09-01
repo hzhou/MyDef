@@ -1,0 +1,39 @@
+# $L is a list of names, $H is a hash of dpendency
+fncode: top_sort($L, $H)
+    # Kahn's algorith, $H gets destroyed
+    my (@S, %invdep)
+    $call init_S_invdep
+    my @L
+    $while @S
+        my $name = shift @S
+        push @L, $name
+        $if $invdep{$name}
+            $foreach $k in @{$invdep{$name}}
+                my $cnt=0
+                $call remove_dep
+                $if $cnt==0
+                    # "unshift" to cluster the dependency group
+                    unshift @S, $k
+    $if @L<@$L
+        die "top_sort: cyclic dependency exist!\n"
+    return \@L
+
+    subcode: init_S_invdep
+        $foreach $name in @$L
+            $if !$H->{$name} or @{$H->{$name}}==0
+                push @S, $name
+            $else
+                $foreach $k in @{$H->{$name}}
+                    $if !$invdep{$k}
+                        $invdep{$k}=[$name]
+                    $else
+                        push @{$invdep{$k}}, $name
+
+    subcode: remove_dep
+        $foreach $d in @{$H->{$k}}
+            $if defined $d
+                $if $d eq $name
+                    $d = undef
+                $else
+                    $cnt++
+
