@@ -14,6 +14,7 @@ subcode:: parsecode_func_param_other
 
 subcode:: parsecode_func_other
     $elif $func=~/^($(add_vars))$/
+        # special syntax, e.g. $global darray P: int
         $call @check_var_special, $func
         $call parse_add_vars, 0
         return
@@ -48,9 +49,11 @@ subcode: parse_add_vars(has_type)
     # $param=~s/\s*;\s*$//
     # my @vlist=MyDef::utils::proper_split($param)
     my @vlist
-    $if $param=~/=\s*[\(\{'"]/
+    $if $param=~/[({<][^)}>]*,/
         # complex init, assume single decl.
         @vlist = ($param)
+    $elif $param=~/=\s*['"][^'"]*,/
+        @vlist = ($param) # ditto
     $else
         @vlist = split_var_line($param)
     $(if:has_type=1)
@@ -64,7 +67,81 @@ subcode: parse_add_vars(has_type)
             func_add_var($(v));
         $call @parse_add_var_cases
         $else
-            $call warn, \$$func not implemented.
+            $call warn, add_vars: \$$func not implemented.
+
+fncode: split_var_line($l)
+    $global $custom_split_var_line
+    $if $custom_split_var_line
+        return $custom_split_var_line->($l)
+    my @plist
+    $if $l=~/;/ or $l=~/\w+\s*:[^:]/
+        $call @check_parts_distribute
+    $else
+        # @plist=split /,\s*/, $l
+        $call var_line_split, $l
+    return @plist
+    # ----------------------------
+    subcode: var_line_split(l)
+        my $t
+        my $angle_level=0
+        $while 1
+            $if $(l)=~/\G\s*$/gc
+                last
+            $elif $angle_level==0
+                $if $(l)=~/\G([^,<]+)/gc
+                    $t.=$1
+                $elif $(l)=~/\G(<)/gc
+                    $angle_level++
+                    $t.=$1
+                $elif $(l)=~/\G(,\s*)/gc
+                    $if $t
+                        push @plist, $t
+                    $t=""
+            $else
+                $if $(l)=~/\G([^<>]+)/gc
+                    $t.=$1
+                $elif $(l)=~/\G(<)/gc
+                    $angle_level++
+                    $t.=$1
+                $elif $(l)=~/\G(>)/gc
+                    $angle_level--
+                    $t.=$1
+        $if $t
+            push @plist, $t
+
+    subcode: check_parts_distribute
+        my @parts=split /;\s*/, $l
+        $foreach $p in @parts
+            my @tlist = split /,\s*/, $p
+            $if @tlist==1
+                push @plist, $p
+            $else
+                $call count_words
+                $if $tlist[0]=~/(.*\S)\s+(\w+)$/ and $cnt==1
+                    my $type = $1
+                    $tlist[0]= $2
+                    $call distr_c_style
+                $elif $tlist[-1]=~/^(\w+)\s*:(?!:)\s*(.+)$/ and $cnt==1
+                    my $type = $2
+                    $tlist[-1]= $1
+                    $call distr_pascal
+                $else
+                    push @plist, @tlist
+
+        subcode: count_words
+            my ($cnt, $idx)
+            $for $i=0:@tlist
+                $if $tlist[$i]!~/^\w+\s*$/
+                    $cnt++
+                    $idx=$i
+
+        subcode: distr_c_style
+            $foreach $w in @tlist
+                push @plist, "$type $w"
+
+        subcode: distr_pascal
+            $foreach $w in @tlist
+                push @plist, "$w:$type"
 
 #---------------------------------------- 
 #- Scopes:   
@@ -106,7 +183,7 @@ fncode:@ my_add_var($name, $type, $value)
     # declare right here ...
     my $decl = var_declare($var, 1)
     push @$out, $decl
-    return $name
+    return $var
 
 fncode: temp_add_var($name, $type, $value)
     my $var=parse_var($name, $type, $value)
@@ -120,22 +197,26 @@ fncode: temp_add_var($name, $type, $value)
 
     my $hash=$cur_scope->{var_hash}
     $type=$var->{type}
-    $if $hash->{$name} and $hash->{$name}->{temptype} ne $type
+    $if $hash->{$name} # and $hash->{$name}->{temptype} ne $type
         my $i=2
         $if $name=~/[0-9_]/
             $name.="_"
-        $while $hash->{"$name$i"} and $hash->{"$name$i"}->{temptype} ne $type
+        $while $hash->{"$name$i"} # and $hash->{"$name$i"}->{temptype} ne $type
             $i++
         $name="$name$i"
     $if !$hash->{$name}
         $var->{name}=$name
         $var->{temptype}=$type
         $hash->{$name}=$var
-        my $var_list=$cur_scope->{var_list}
-        push @$var_list, $name
+        $(if:0)
+            my $var_list=$cur_scope->{var_list}
+            push @$var_list, $name
+        $(else)
+            my $decl = var_declare($var, 1)
+            push @$out, $decl
 
     MyDef::compileutil::set_current_macro($macro_name, $name)
-    return $name
+    return $var
 
 #------------------
 subcode: add_var(hash, list)
@@ -145,22 +226,27 @@ fncode: f_add_var($h, $l, $name, $type, $value)
     my $var=parse_var($name, $type, $value)
     $name=$var->{name}
     $if $h->{$name}
-        $call check_var_collision, $h->{$name}
-        return $name
+        my $exist = $h->{$name}
+        $call check_var_exist
+        return $exist
     $else
         $if $l
             push @$l, $name
         $h->{$name}=$var
         # $call warn, add_var $h $name
-        return $name
+        return $var
 
     # -------------------------------
-    subcode: check_var_collision(exist)
-        my $exist=$(exist)
+    subcode: check_var_exist
         $if $var->{type} eq $exist->{type}
             $if $var->{array} > $exist->{array}
                 $exist->{array}=$var->{array}
                 $exist->{dimension}=$var->{array}
+            $if defined $var->{init}
+                $if !defined $exist->{init}
+                    $exist->{init}=$var->{init}
+                $elif $exist->{init} ne $var->{init}
+                    $call warn, var $name has double initializations
 
 #-----------------------
 # inside fcode: parse_var($name, $type, $value)

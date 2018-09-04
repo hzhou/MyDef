@@ -1,3 +1,5 @@
+include: version.def
+
 page: mydef_page
     output_dir: script
     type:
@@ -52,6 +54,7 @@ page: mydef_page
                     die "$a is not a regular file\n"
             $elif $a eq "-pipe"
                 $def_file="-pipe"
+            $call @check_arg_version, $a
 
         $if !$def_file
             die "Please supply data definition file.";

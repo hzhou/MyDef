@@ -2,7 +2,7 @@
 use strict;
 our $flag_force;
 our $module="perl";
-our %module_type=(general=>"txt",perl=>"pl",www=>"html",win32=>"c",win32rc=>"rc",apple=>"m",matlab=>"m",autoit=>"au3",python=>"py",fortran=>"f",plot=>"pl",rust=>"rs");
+our %module_type=(general=>"txt",perl=>"pl",as=>"s",www=>"html",win32=>"c",win32rc=>"rc",apple=>"m",matlab=>"m",autoit=>"au3",python=>"py",fortran=>"f",pascal=>"pas",plot=>"pl",rust=>"rs");
 our @master_config;
 our $config_outputdir;
 our $config_outputdir_make=0;
@@ -256,43 +256,48 @@ while(my $f=pop @files){
         open In, "$f" or die "Can't open $f.\n";
         while(<In>){
             if($inpage){
-                if(/^\s*output_dir: (\S+)/){
-                    my $dir=expand_macros($1);
-                    if($dir !~/^[\/\.]/ and $output_dir){
-                        $dir=$output_dir."/".$dir;
-                    }
-                    $page->{output_dir}=$dir;
-                    my $key = "$f-$page->{page}";
-                    my $tlist=$folder{$dir};
-                    if($tlist){
-                        push @$tlist, $key;
-                    }
-                    else{
-                        $folder{$dir}=[$key];
-                    }
-                    $page->{in_var}=$dir;
+                if(/^\S/){
+                    $inpage=0;
                 }
-                elsif(/^\s*\$include\s+(\S*)/ and $module ne "c" and -f $1){
-                    $page->{include}->{$1}=1;
-                }
-                elsif(/^\s*(type|module):\s*(\w+)/){
-                    if(!$page->{$1}){
+                elsif($inpage==1 and /^(\s*)(\w+):/){
+                    if(/^\s*output_dir: (\S+)/){
+                        my $dir=expand_macros($1);
+                        if($dir !~/^[\/\.]/ and $output_dir){
+                            $dir=$output_dir."/".$dir;
+                        }
+                        $page->{output_dir}=$dir;
+                        my $key = "$f-$page->{page}";
+                        my $tlist=$folder{$dir};
+                        if($tlist){
+                            push @$tlist, $key;
+                        }
+                        else{
+                            $folder{$dir}=[$key];
+                        }
+                        $page->{in_var}=$dir;
+                    }
+                    elsif(/^\s*\$include\s+(\S*)/ and $module ne "c" and -f $1){
+                        $page->{include}->{$1}=1;
+                    }
+                    elsif(/^\s*(type|module):\s*(\w+)/){
+                        if(!$page->{$1}){
+                            $page->{$1}=$2;
+                        }
+                    }
+                    elsif(/^\s*type:\s*$/){
+                        $page->{type}="none";
+                    }
+                    elsif(/^\s*package:/){
+                        if($module eq "perl"){
+                            $page->{type}="pm";
+                        }
+                    }
+                    elsif(/^\s*(make_dep|make_cmd|other|CC|CFLAGS|LIB):\s+(.*)/){
                         $page->{$1}=$2;
                     }
                 }
-                elsif(/^\s*type:\s*$/){
-                    $page->{type}="none";
-                }
-                elsif(/^\s*package:/){
-                    if($module eq "perl"){
-                        $page->{type}="pm";
-                    }
-                }
-                elsif(/^\s*(make_dep|make_cmd|other|CC|CFLAGS|LIB):\s+(.*)/){
-                    $page->{$1}=$2;
-                }
-                elsif(/^\S/){
-                    $inpage=0;
+                else{
+                    $inpage=2;
                 }
             }
             if(!$inpage){
@@ -321,18 +326,20 @@ while(my $f=pop @files){
                     push @page_list, $page;
                 }
                 elsif(/^page: ([\w\.-]+)/){
-                    $inpage=1;
-                    $got_page=1;
-                    $page={};
-                    push @page_list, $page;
-                    $page->{page}=$1;
-                    $page->{def}=$f;
-                    $page->{include}={};
-                    my $key="$f-$1";
-                    while($h_page{$key}){
-                        $key.='1';
+                    if($1 ne "test"){
+                        $inpage=1;
+                        $got_page=1;
+                        $page={};
+                        push @page_list, $page;
+                        $page->{page}=$1;
+                        $page->{def}=$f;
+                        $page->{include}={};
+                        my $key="$f-$1";
+                        while($h_page{$key}){
+                            $key.='1';
+                        }
+                        $h_page{$key}=$page;
                     }
-                    $h_page{$key}=$page;
                 }
                 elsif(/^output_(dir|path): (\S+)/){
                     $output_dir=$1;

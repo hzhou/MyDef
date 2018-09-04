@@ -1,10 +1,73 @@
 page: test
-    module: perl
+    module: general
 
-    $print a: [$(a)]
-    $(for:c,d in 1,2, 3 and 2, 3, 4)
-        $print c d: [$(c) $(d)]
+    $call test_basic
+    $call set_macro
+    $call export
+    $call enumset
+    $call test_calc
+    $call test_eval
+    $call test_split
+    $call test_perl
+
+subcode: set_macro
+    $(setmacro:a=set)
+    $(set1:b=set1: $1)
+    $call test_basic
+
+subcode: export
+    $(export:a=export)
+    a: [$(a)]
+
+subcode: enumset
+    $(for:a,b)
+        # $(for:...) creates extra scope, unlike $(if:...)
+        $(set-1:_base+=1)
+        $(set-1:$1=$(_base))
+    a, b: $(a), $(b)
+
+subcode: test_calc
+    $(set:a+=1)
+    a: $(a)
+    $(set:a.=1)
+    a: $(a)
+subcode: test_eval
+    $(eval:a=`echo backtick`)
+    a: $(a)
+
+subcode: test_split
+    $(set:a=test,split)
+    $(split:a)
+    $(p_1) - $(p_2)
+
+subcode: test_perl
+    $call perl_set_macro
+    $(macro-from-perl)
+
+    perlcode: perl_set_macro
+        $MyDef::def->{macros}->{"macro-from-perl"} = "macro set from perl"
+        
+
+#----------------------------------------------- 
+subcode: test_basic
+    a: [$(a)]
+    $(b:b)
 
 macros:
-    a: 1 2 3
-    a:: 4 5
+    a: 1, 2, 3
+    a:: 4, 5
+    b: param: $1
+
+/* expect test.txt:
+a: [1, 2, 3, 4, 5]
+param: b
+a: [set]
+set1: b
+a: [export]
+a, b: 1, 2
+a: 1
+a: 11
+a: backtick
+test - split
+macro set from perl
+*/

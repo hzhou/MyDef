@@ -36,15 +36,6 @@ subcode:: preproc_elifs
                 $call warn, unset only accepts single word(s)
     # autoinc -> $(set-2:v+=1)
     # enuminc -> use subcode which increments bases
-    $elif $preproc=~/^enumset:\s*(.*)/
-        my $t=$1
-        expand_macro(\$t)
-        my @t = split /,\s*/, $t
-        my $base = 1
-        my $m = $deflist->[-1]
-        $foreach $t in @t
-            $m->{$t}=$base
-            $base++
     $elif $preproc=~/^export:\s*(.*)/
         my $t=$1;
         $if $t=~/^\w+,/
@@ -63,7 +54,7 @@ subcode:: preproc_elifs
             set_macro($deflist->[-2], $p)
     $elif $preproc=~/^eval:\s*(\S+)=(.*)/
         my ($t1,$t2)=($1,$2)
-        expand_macro(\$t2)
+        expand_eval(\$t2)
         $t2 = eval($t2)
         set_macro($deflist->[-1], "$t1=$t2")
     $elif $preproc=~/^split:\s*(\w+)$/
@@ -87,10 +78,15 @@ subcode:: preproc_elifs
 fncode: set_macro($m, $p)
     $if $debug eq "macro"
         print "set_macro $m: [$p]\n";
-    $if $p=~/(\w+)([\+\-\*\/\.])=(.+)/
-        my ($t1, $op, $num)=($1, $2, $3)
+    $if $p=~/(\w+)([\+\-\*\/\.]?)=(.+)/
+        my ($t1, $op, $t2)=($1, $2, $3)
         my $t = get_macro_word($t1, 1)
-        $m->{$t1} = calc_op($t, $op, $num)
+        $if $op
+            $m->{$t1} = calc_op($t, $op, $t2)
+        $else
+            $if $t2=~/\$\(.*\)/
+                expand_macro(\$t2)
+            $m->{$t1} = $t2
     $elif $p=~/(\w+)\[(.*?)\]=(.+)/
         my ($t1, $sep, $item)=($1, $2, $3)
         $if $m->{$t1}
@@ -145,6 +141,25 @@ fncode: export_macro($i, $name, $val)
 
 fncode: get_current_macro($name)
     return $deflist->[-1]->{$name}
+
+# ------------------------------------------------------
+# treat non-keyword identifiers as macro words and expands it
+fncode: expand_eval($lref)
+    $if $$lref=~/\$(\(\w|\.)|[\x80-\xff]/
+        $$lref = MyDef::utils::expand_macro($$lref, \&get_macro)
+        return 1
+    # --------------------------
+    my @t=split /(\w+)/, $$lref
+    my $flag
+    $foreach $t in @t
+        $if $t=~/^[_a-zA-Z]\w*$/
+            $if $t!~/abs|atan2|cos|exp|hex|int|log|oct|rand|sin|sqrt|srand|chr|ord|lc|lcfirst|uc|uc_first|substr|sprintf/
+                my $s = get_macro_word($t, 1)
+                $if defined $s
+                    $t=$s
+                    $flag=1
+    $if $flag
+        $$lref = join('', @t)
 
 # ------------------------------------------------------
 # only call MyDef::utils::expand_macro once now
@@ -249,6 +264,12 @@ fncode: get_macro($s, $nowarn)
             $(for:fn in lc,uc,uc_first,length)
                 $elif $p eq "$(fn)"
                     return $(fn)($t)
+            $elif $p =~ /regex:(.*)/
+                my $re = qr/$1/
+                $if $t=~ /$re/
+                    return $1
+                $else
+                    return ''
             $elif $p=~/list:(.*)/
                 my $idx=$1
                 my @tlist=MyDef::utils::proper_split($t)

@@ -1,0 +1,12 @@
+page: test
+    module: perl
+
+    ...
+    $for $i=10
+        $if $i==5
+            break flag_found
+        $if $i==7
+            break flag_found
+
+    $if $flag_found
+        $print Found 5!

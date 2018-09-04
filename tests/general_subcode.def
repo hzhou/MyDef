@@ -1,0 +1,45 @@
+page: test
+    module: general
+
+    $call A
+    $call B
+
+# 0   -- default, gets overwritten
+# 1-8 -- merge
+# 9   -- always overwrite, default, warns
+
+subcode: B
+    B9_1
+
+subcode:0 A
+    A0
+
+subcode:7 A
+    A7
+
+subcode:2 A
+    A2
+
+subcode:: A
+    A5
+
+subcode:1 A
+    A1
+
+subcode:8 A
+    A8
+
+subcode:9 B
+    B9_2
+
+subcode: B
+    B9_3
+
+/* expect test.txt:
+A1
+A2
+A5
+A7
+A8
+B9_3
+*/

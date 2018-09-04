@@ -1,4 +1,5 @@
 include: macros_parse/indentation.def
+include: macros_parse/include.def
 include: macros_parse/macros.def
 include: macros_parse/subcode.def
 include: macros_parse/template.def
@@ -22,7 +23,6 @@ page: parseutil
 #---------------------------------------- 
 fncode: import_data($file)
     my $def={
-            "resource"=>{}, # like codes, but data
             "pages"=>{},    # pages hash
             "pagelist"=>[], # pages list
             # "codes"=>{},  # merged at end
@@ -86,13 +86,15 @@ fncode: import_file($f, $def, $file_type)
             $call start_code_indent, macro, $curindent+1, $macros
         $elif $line=~/^template:/ && $(top_scope)
             $call grab_template
-        $elif $curindent==0 and $line=~/^include:? (.*)/
-            $call add_include, $1
+        $call @parse_switch_include
         $elif $curindent==0 and $line=~/^page:\s*(.*)/ -> $t
             $call start_page
         $elif $curindent==0 and $line=~/^DEBUG\s*(.*)/
             parse_DEBUG($1)
         $elif $(in_code)
+            $if $line=~/^\$template\s+(.+)/
+                my $name = parse_template($def, $1)
+                $line = "\$call $name"
             $call @push_line_to_source
         $elif $(in_macro)
             $call process_macros
@@ -110,7 +112,7 @@ fncode: import_file($f, $def, $file_type)
 #---------------------------------------- 
 subcode: start_page
     $call @abort_default_page
-    my ($pagename, $framecode)
+    my ($pagename, $frame)
     $call parse_page_line
     $call new_page
     $call start_code_indent, page, 1, $page
@@ -124,9 +126,9 @@ subcode: start_page
     subcode: parse_page_line
         $if $t=~/([\w\-\$\.]+),\s*(\w.*)/
             $pagename=$1;
-            $framecode=$2;
-            $if $framecode=~/^from\s+(\S+)/
-                $framecode = parse_template($def, $1)
+            $frame=$2;
+            $if $frame=~/^from\s+(\S+)/
+                $frame= parse_template($def, $1)
         $elif $t=~/([\w\-\$\.]+)/
             $pagename=$1;
 
@@ -134,8 +136,8 @@ subcode: start_page
         my $page={_pagename=>$pagename}
         $if $pagename=~/(.+)\.(.+)/
             $page->{type}=''
-        $if $framecode
-            $page->{_frame}=$framecode
+        $if $frame
+            $page->{_frame}=$frame
 
     subcode: check_page_macros
         my $sp
@@ -232,29 +234,6 @@ subcode: grab_template
         $else
             last
     $cur_line--
-
-#---- includes ---------------------------- 
-subcode: _autoload
-    $call dbl_list, includes
-
-subcode: add_include(t)
-    $if $(t) eq "noconfig"
-        # skip config, see below
-        $includes{$(t)}=1
-    $elif substr($(t), -1) eq "/"
-        add_path($(t))
-    $else
-        $call dbl_push, includes, $(t)
-
-subcode: load_standard_includes
-    my $module = $MyDef::var->{module}
-
-    my @standard_includes
-    $if $MyDef::var->{'include'} and !$includes{"noconfig"}
-        push @standard_includes, split(/[:,]\s*/, $MyDef::var->{'include'})
-
-    my $stdinc="std_$module.def"
-    push @standard_includes, $stdinc
 
 #---- utils ------------------------------------ 
 fncode: get_lines($file)

@@ -1,0 +1,10 @@
+macros:
+    version: development
+    date: latest
+
+subcode: check_arg_version(a)
+    $case $(a) eq "-v" or $(a) eq "--version"
+        my $prog=$0
+        $prog=~s/^.*\///
+        $print $prog: version $(version) - $(date)"
+        exit(0)

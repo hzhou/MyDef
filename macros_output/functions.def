@@ -17,10 +17,11 @@
 #----------------------------------------------- 
 subcode:: _autoload
     $global @function_stack
-    @function_stack=()
-
     $global %list_function_hash
     $global @list_function_list
+
+subcode:: on_init_page
+    @function_stack=()
     %list_function_hash=()
     @list_function_list=()
 
@@ -50,6 +51,7 @@ subcode: autolist_functions(add_type)
                     $return_type=$2
             $elif $l=~/^\$return_type\s+(.+)/
                 $return_type = $1
+                $call @check_type, $return_type
             $elif $l=~/^\$autolist\s+(\w+)/
                 # $autolist skip, $autolist 
                 $autolist = $1
@@ -109,6 +111,16 @@ subcode:: parsecode_func_other
         $foreach $f in @tlist
             $call add_list_function, $f
             $function_autolist{$f}="global"
+        return
+
+subcode:: parsecode_func_param_other
+    # $list(attrs) fnames
+    #      e.g. static, declare, skip_declare
+    $elif $func eq "list"
+        my @tlist=split /,\s*/, $param2
+        $foreach $f in @tlist
+            $call add_list_function, $f
+            $function_autolist{$f}=$param1
         return
 
 #------------------------------------
@@ -207,7 +219,7 @@ subcode: list_function(f)
             BLOCK
 
 #---------------------------------------- 
-subcode:: function_init
+subcode:: on_init_page
     $global @scope_stack, $cur_scope
     @scope_stack=()
 
@@ -315,48 +327,6 @@ subcode:@ add_function_params(func)
     $foreach $i,$p in @plist
         $call function_param_$(function_style)
 
-fncode: split_var_line($l)
-    my @plist
-    $if $l=~/[:;]/
-        $call @check_parts_distribute
-    $else
-        @plist=split /,\s*/, $l
-    return @plist
-
-    subcode: check_parts_distribute
-        my @parts=split /;\s*/, $l
-        $foreach $p in @parts
-            my @tlist = split /,\s*/, $p
-            $if @tlist==1
-                push @plist, $p
-            $else
-                $call count_words
-                $if $tlist[0]=~/(.*\S)\s+(\w+)$/ and $cnt==1
-                    my $type = $1
-                    $tlist[0]= $2
-                    $call distr_c_style
-                $elif $tlist[-1]=~/^(\w+)\s*:\s*(.+)$/ and $cnt==1
-                    my $type = $2
-                    $tlist[-1]= $1
-                    $call distr_pascal
-                $else
-                    push @plist, @tlist
-
-        subcode: count_words
-            my ($cnt, $idx)
-            $for $i=0:@tlist
-                $if $tlist[$i]!~/^\w+\s*$/
-                    $cnt++
-                    $idx=$i
-
-        subcode: distr_c_style
-            $foreach $w in @tlist
-                push @plist, "$type $w"
-
-        subcode: distr_pascal
-            $foreach $w in @tlist
-                push @plist, "$w:$type"
-
 #---------------------------------------- 
 fncode: process_function_std($func)
     my $name=$func->{name};
@@ -372,11 +342,7 @@ fncode: process_function_std($func)
     $call function_close_$(function_style)
     # variables etc. 
     close_scope($func, $pre, $post)
-
-    $if @{$func->{var_list}}
-        push @$pre, "NEWLINE";
     push @$pre, @{$func->{init}}
-
     push @$post, @{$func->{finish}}
     $if $func->{return}
         push @$post, $func->{return}
@@ -427,6 +393,7 @@ subcode: in_function
             $(set:B=$MyDef::compileutil::named_blocks{$1})
             $(for:pre,close)
                 $(B:"$fname\_$1") = $(B:"fn$idx\_$1")
+        $func->{skip_declare}=1
         func_push($func)
         my $block
         $if $fname=~/^fn-/

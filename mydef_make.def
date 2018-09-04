@@ -1,3 +1,4 @@
+include: version.def
 include: modules.def
 include: macros_util/path.def
 include: macros_util/debug.def
@@ -57,6 +58,7 @@ subcode: parse_args
         $if $a eq "-f"
             $global $flag_force
             $flag_force = 1
+        $call @check_arg_version, $a
 
 ## --------- config -----------
 subcode: create_config
@@ -192,7 +194,7 @@ subcode: collect_files
             # ---- folder ----
             $if -e "$f/skipmake"
                 print "    Skip folder $f\n"
-            $elif $f =~ /^(cmp|bootstrap|old|tests|macros|deflib|macros_.*)$/
+            $elif $f =~ /^(cmp|bootstrap|old|tests|macros|deflib|dist|macros_.*)$/
                 print "    Skip folder $f\n"
             $elif $f eq $config_outputdir and -f "$f/Makefile"
                 $config_outputdir_make = 1
@@ -257,17 +259,16 @@ subcode: read_eachfile
                         $page->{output_dir}=$output_dir
 
     subcode: read_def_file
-        my $include_noconfig
         my $got_page=0
-        &call protect_path
-            my $inpage=0;
-            &call open_r, $f
-                $if $inpage
-                    $call parse_inpage
-                $if !$inpage
-                    $call parse_global
-
-        $if !$include_noconfig && $got_page
+        # ----
+        my $inpage=0;
+        &call open_r, $f
+            $if $inpage
+                $call parse_inpage
+            $if !$inpage
+                $call parse_global
+        # ----
+        $if $got_page
             $if @include_default
                 $foreach $i in @include_default
                     $call include_file, $i
@@ -276,10 +277,6 @@ subcode: read_eachfile
         subcode: parse_global
             $if /^include:?\s*(\S+\.def)/
                 $call include_file, $1
-            $elif /^include:?\s*(noconfig)/
-                $include_noconfig = 1
-            $elif /^path:\s*(.+)/
-                $call protect_add_path, $1
             $elif /^page: .*\$\d.*/
                 $inpage=1;
                 $page={};
@@ -350,6 +347,9 @@ subcode: check_eachpage
         $call @set_output_name
     # --------------------
     subcode: get_file_type
+        # $print get_file_type: $h->{page} - $h->{type}
+        $if $h->{page}=~/\.\w+$/
+            $h->{type}="none"
         $if !$h->{type}
             $if $config_filetype
                 $h->{type}=$config_filetype
@@ -382,6 +382,7 @@ subcode: check_eachpage
 
 subcode: write_makefile
     &call open_w, Makefile
+        $(set:print_to=Out)
         $if $0=~/(bootstrap\/script)\/mydef_make/
             # android termux, /usr/bin/perl won't work
             print Out "MakePage=perl $1/mydef_page\n";
@@ -401,6 +402,7 @@ subcode: write_makefile
         $call write_rule_copylist
         $call write_rule_pages
         $call write_rule_install
+        $call write_rule_test
         $call write_rule_submake
         $call write_rule_targets
     # ----------------
@@ -422,6 +424,10 @@ subcode: write_makefile
             print Out "install: $config_outputdir\n"
             print Out "\tmake -C $config_outputdir install\n"
             print Out "\n"
+
+    subcode: write_rule_test
+        $if -f "tests/TESTS"
+            $print "test:\n\tcd tests; mydef_test\n\n"
 
 subcode: write_var_folder
     my %var_hash;

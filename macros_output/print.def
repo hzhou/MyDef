@@ -31,64 +31,7 @@ fncode: fmt_string($str, $add_newline)
     my @fmt_list
     my @arg_list
     my $missing = 0
-
-    my @group
-    my $flag_hyphen=0
-    &call parse_loop, $str
-        &call if_lex, %
-            &call if_lex, %
-                push @fmt_list, '%%'
-            &call if_lex, [-+ #]*[0-9]*(\.\d+)?[$(printf_formats)]
-                #---------------------------------------- 
-                $if !@pre_list
-                    $missing++
-                push @arg_list, shift @pre_list
-                push @fmt_list, "%$&"
-            $else
-                push @fmt_list, '%%'
-        &call if_lex, \$
-            &call if_lex, (red|green|yellow|blue|magenta|cyan)
-                #---------------------------------------- 
-                #- $print $green ---------
-                push @fmt_list, "\\x1b[$colors{$1}m"
-                &call if_lex, \{
-                    push @group, $1
-            &call if_lex, reset
-                push @fmt_list, "\\x1b[0m"
-            &call if_lex, clear
-                push @fmt_list, "\\x1b[H\\x1b[J"
-            &call if_lex, (\w+)
-                #---------------------------------------- 
-                my $v=$1
-                &call if_lex, (\[.*?\])
-                    $v.=$1
-                &call if_lex, (\{.*?\})
-                    $v.=$1
-                    $v=check_expression($v)
-                $call printf_var_find_var
-                &call if_lex, -
-                    # print $var-follow ----
-            &call if_lex, \{(.*?)\}
-                my $v=$1
-                $call printf_var_find_var
-            $else
-                push @fmt_list, '$'
-        &call if_lex, \\\$
-            push @fmt_list, '$'
-        &call if_lex, \}
-            #---------------------------------------- 
-            #- $print $green{some text}
-            $if @group
-                pop @group
-                $if !@group
-                    push @fmt_list, "\\x1b[0m"
-                $else
-                    my $c=$group[-1]
-                    push @fmt_list, "\\x1b[$colors{$c}m"
-            $else
-                push @fmt_list, '}'
-        &call if_lex, [^%\$\}]+
-            push @fmt_list, $&
+    $call parse_fmt_string
 
     $if @pre_list
         my $s = join(', ', @pre_list)
@@ -101,12 +44,12 @@ fncode: fmt_string($str, $add_newline)
     $if !@arg_list
         return (0, '"'.join('',@fmt_list).'"')
     $else
-        my $vcnt=@arg_list
-        my $f = join('', @fmt_list)
-        my $a = join(', ', @arg_list)
-        $(if:printf_python)
-            return ($vcnt, "\"$f\" % ($a)")
+        $(if:hascode:fmt_string_return)
+            $call fmt_string_return
         $(else)
+            my $vcnt=@arg_list
+            my $f = join('', @fmt_list)
+            my $a = join(', ', @arg_list)
             return ($vcnt, "\"$f\", $a")
 
     # ------------------------
@@ -132,5 +75,68 @@ fncode: fmt_string($str, $add_newline)
                 push @arg_list, $var->{strlen}
                 push @arg_list, $v
             $else
-                push @fmt_list, get_var_fmt($v, 1)
-                push @arg_list, $v
+                my @t=get_var_fmt($v, 1)
+                push @fmt_list, shift @t
+                $if @t
+                    push @arg_list, @t
+                $else
+                    push @arg_list, $v
+    # -----------------------
+    subcode: parse_fmt_string
+        my @group
+        my $flag_hyphen=0
+        &call parse_loop, $str
+            &call if_lex, %
+                &call if_lex, %
+                    push @fmt_list, '%%'
+                &call if_lex, [-+ #]*[0-9]*(\.\d+)?[$(printf_formats)]
+                    #---------------------------------------- 
+                    $if !@pre_list
+                        $missing++
+                    push @arg_list, shift @pre_list
+                    push @fmt_list, "%$&"
+                $else
+                    push @fmt_list, '%%'
+            &call if_lex, \$
+                &call if_lex, (red|green|yellow|blue|magenta|cyan)
+                    #---------------------------------------- 
+                    #- $print $green ---------
+                    push @fmt_list, "\\x1b[$colors{$1}m"
+                    &call if_lex, \{
+                        push @group, $1
+                &call if_lex, reset
+                    push @fmt_list, "\\x1b[0m"
+                &call if_lex, clear
+                    push @fmt_list, "\\x1b[H\\x1b[J"
+                &call if_lex, (\w+)
+                    #---------------------------------------- 
+                    my $v=$1
+                    &call if_lex, (\[.*?\])
+                        $v.=$1
+                    &call if_lex, (\{.*?\})
+                        $v.=$1
+                        $v=check_expression($v)
+                    $call printf_var_find_var
+                    &call if_lex, -
+                        # print $var-follow ----
+                &call if_lex, \{(.*?)\}
+                    my $v=$1
+                    $call printf_var_find_var
+                $else
+                    push @fmt_list, '$'
+            &call if_lex, \\\$
+                push @fmt_list, '$'
+            &call if_lex, \}
+                #---------------------------------------- 
+                #- $print $green{some text}
+                $if @group
+                    pop @group
+                    $if !@group
+                        push @fmt_list, "\\x1b[0m"
+                    $else
+                        my $c=$group[-1]
+                        push @fmt_list, "\\x1b[$colors{$c}m"
+                $else
+                    push @fmt_list, '}'
+            &call if_lex, [^%\$\}]+
+                push @fmt_list, $&

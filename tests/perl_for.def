@@ -1,6 +1,20 @@
 page: test
     module: perl
 
-    $for 10
-        $print $i
+    $call test_for, 4
+    $call test_for, $i=0:4
+    $call test_for, 1 to 4
+    $call test_for, 4 downto 1
 
+    subcode: test_for(@p)
+        $print " %-20s:  -", '$for $(p)'
+        $for $(p)
+            $print "$i -"
+        $print
+
+/* expect output:
+ $for 4              :  0 1 2 3 
+ $for $i=0:4         :  0 1 2 3 
+ $for 1 to 4         :  1 2 3 4 
+ $for 4 downto 1     :  4 3 2 1 
+*/

@@ -7,8 +7,7 @@ fncode: get_cur_code
 fncode: get_def($name)
     return get_macro_word($name, 1)
 
-fncode: get_def_attr
-    my ($name, $attr)=@_;
+fncode: get_def_attr($name, $attr)
     $for $i=$#$deflist:0:-1
         my $t=$deflist->[$i]->{$name}
         $if $t and $t->{$attr}
@@ -62,21 +61,33 @@ fncode: set_named_block($name, $block)
     $named_blocks{$name}=$block
 
 fncode: get_named_block($name)
-    $if $name=~/^_(post|pre)(\d*)$/
+    $call @get_named_block_fileters
+    $if !$named_blocks{$name}
+        $named_blocks{$name}=[]
+    return $named_blocks{$name}
+
+# ----
+subcode: with_named_block(name)
+    my $output=get_named_block($(name))
+    my $temp=$out;
+    set_output($output)
+    BLOCK
+    set_output($temp)
+
+# ----
+subcode:: get_named_block_fileters
+    $case $name=~/^_(post|pre)(\d*)$/
         my $idx
         $if !$2
             $idx=$block_stack[-1]->{eindex}
         $else
             $idx=$block_stack[-$2]->{eindex}
         $name="block$idx\_$1"
-    $elif $name=~/^_init_block$/
-        my $page=$deflist->[2]
-        $name=$page->{_init_block}
 
-    $if !$named_blocks{$name}
-        $named_blocks{$name}=[]
-
-    return $named_blocks{$name}
+subcode:: preproc_elifs
+    $elif $preproc=~/^block_release/
+        # docs/block_release.txt, mostly used to support $local_allocate
+        $block_stack[-1]->{eindex}=$block_stack[-2]->{eindex}
 
 fncode: trigger_block_post
     #-- reference parse_stack_pop in compile/parse.def --------
@@ -87,26 +98,6 @@ fncode: trigger_block_post
         push @$out, "DUMP_STUB $new_name"
         $named_blocks{$new_name}=$named_blocks{$name}
         undef $named_blocks{$name}
-
-subcode: with_named_block(name)
-    my $output=get_named_block($(name))
-    my $temp=$out;
-    set_output($output)
-    BLOCK
-    set_output($temp)
-
-subcode: with_stub_block
-    my $i=1
-    my $name = "_stub_$i"
-    $while $named_blocks{$name}
-        $i++
-        $name = "_stub_$i"
-    my $output = []
-    $named_blocks{$name}=$output
-    my $temp=$out;
-    set_output($output)
-    BLOCK
-    set_output($temp)
 
 #----------------------------------------------- 
 subcode: dump_deflist
@@ -134,21 +125,53 @@ fncode: modepop
 #----------------------------------------------- 
 # {STUB} are replaced in dumpout, preservs semantic integrity
 subcode:: preproc_elifs
-    $elif $preproc=~/^block:\s*(\w+)/
-        my $name=$1;
-        $call grab
+    $elif $preproc=~/^block:\s*(\w+|\.\.\.)/
+        my $name=$1
+        $call _grab
+        my $save_mode
+
+        $if $name eq "..."
+            $name = get_macro_word("stub")
+        $elif $name eq "STUB"
+            $name = get_STUB_name()
+            my $sep=' '
+            $if $preproc=~/^block:\s*STUB:(.*)$/
+                $sep=$1
+            push @$out, "INSERT_STUB[$sep] $name" 
+            $save_mode = $cur_mode
+            $cur_mode = "bypass"
+            unshift @$subblock, "\x24(mode:bypass)"
         &call with_named_block, $name
-            $call parseblock, block:$name
+            $call _parse, block:$name
+        $if $save_mode
+            $cur_mode = $save_mode
 
 subcode:: special_macro_expansions
     $elif $s=~/^stub:(.*)/ -> $t
         my $sep=' '
         $if $t=~/^(.*):(.*)/
             ($sep, $t) = ($1, $2)
-        &call with_stub_block
+
+        my $name = get_STUB_name()
+        &call with_named_block, $name
             call_sub($t)
         push @stub, "INSERT_STUB[$sep] $name"
         return "{STUB}"
+
+subcode:: parse_catch_meta_elifs
+    $elif $l=~/^\.\.\.\s*$/ # low profile syntax for readability
+        # scoped DUMP_STUB, e.g. loop inititializations
+        $global $stub_idx
+        $stub_idx++
+        push @$out, "DUMP_STUB stub_$stub_idx"
+        $deflist->[-1]->{stub} = "stub_$stub_idx"
+        next
+
+fncode: get_STUB_name
+    $global $STUB_idx=0
+    $STUB_idx++
+    return "_stub_$STUB_idx"
+
 #----------------------------------------------- 
 # ref: parse.def:parseblock and here:grabblock
 subcode: loop_block_lines

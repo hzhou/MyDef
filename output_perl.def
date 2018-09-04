@@ -41,9 +41,6 @@ subcode: parsecode
         $elif $l=~/^NOOP POST_MAIN/
             $call list_functions
             return 0
-        $elif $l=~/^loop:/
-            $call define_loop_var
-            return 0
         # $call check_hash_equal
         $call check_termination
     check_fcall($l)
@@ -53,7 +50,7 @@ subcode: parsecode
 
 fncode: check_fcall($l)
     $while $l=~/\b(\w+)\(/g
-        $call add_function, $1
+        $call add_function, $1, nowarn
 
 subcode: parsecode_function
     # TODO: think about $loopvar 
@@ -61,16 +58,13 @@ subcode: parsecode_function
         $call var_declare, global
     $elif $func =~ /^my$/ and $param !~/^\s*[=+\-*\/]/
         $call var_declare, my
-    $elif $func =~ /^loopvar$/
-        $call add_loop_var
-        return 0
     $elif $func =~ /^use$/
         $call dbl_push_list, uses, $param
         return 0
     $elif $func eq "list"
         my @flist = MyDef::utils::proper_split($param)
         $foreach $name in @flist
-            $call add_function, $name
+            $call add_function, $name, warn
         return 0
     $elif $func eq "sub"
         $if $param=~/^(\w+)\((.*)\)/
@@ -104,16 +98,9 @@ subcode: parsecode_function
         $else
             $call parsecode_for_support, c_style
         return 0
-    $elif $func eq "boolhash"
-        $if $param=~/^\((.*?)\)\s*(.*)/
-            my $v = $1
-            my @plist=split /,\s*/, $2
-            my @tlist
-            $foreach $t in @plist
-                push @tlist, "$t=>1"
-            push @$out, "$v= (".join(', ', @tlist).");"
-        return 0
-    $elif $func eq "sumcode" or $func eq "loop" or $func eq "sum"
+    $elif $func =~ /^loop$/
+        return single_block("while(1){", "}", "while")
+    $elif $func eq "sumcode" or $func eq "sum"
         $if $param=~/^\((.*?)\)\s+(.*)/
             my $dimstr=$1
             $param=$2
@@ -160,14 +147,14 @@ subcode: check_regex_capture(t)
         $regex_capture = "my (".join(', ', @t1).") = (".join(', ', @t2).");"
 
 #---------------------------------------- 
-subcode: define_loop_var
-    $global $loop_idx
-    $loop_idx+=1
-    push @$out, "DUMP_STUB loop_$loop_idx"
+subcode:: parsecode_func_other
+    $elif $func =~ /^loopvar$/
+        $call add_loop_var
+        return 0
 
 subcode: add_loop_var
     my @tlist=MyDef::utils::proper_split($param)
-    my $block=MyDef::compileutil::get_named_block("loop_$loop_idx")
+    my $block=MyDef::compileutil::get_named_block("...")
     $foreach $v in @tlist
         push @$block, "my $v;"
 
@@ -318,11 +305,14 @@ subcode: survey_functions
         $fn_hash{$name}=$code
     $call dbl_list, functions
 
-subcode: add_function(name)
+subcode: add_function(name, warn)
     $if $fn_hash{$(name)}
         $if !$functions{$(name)}
             push @functions, $(name)
             $functions{$(name)} = $MyDef::def->{codes}->{$(name)}
+    $(if:warn=warn)
+        $else
+            $call warn, add_function: [$(name)] not found
 
 subcode: list_functions
     $global $fn_block=[]
@@ -362,7 +352,10 @@ subcode: check_hash_equal
 subcode: check_termination
     $if $l=~/^\s*$/
         # NOOP
-    $elif $l=~/^break\s*$/
+    $elif $l=~/^break\s*((not|flag)_\w+)?\s*$/
+        $if $1
+            $call @break_flag
+            push @$out, "\$$1 = 1;"
         $l="last;"
     $elif $l=~/^continue\s*$/
         $l="next;"
@@ -375,7 +368,17 @@ subcode: check_termination
         $l.=";";
     $else
         # NOOP
-
+    # ---------------------
+    subcode: break_flag
+        my $blkname=MyDef::compileutil::get_macro_word("stub")
+        my $blk = MyDef::compileutil::get_named_block($blkname)
+        my $t = "my \$$1;"
+        ...
+        $foreach $_l in @$blk
+            $if $_l eq $t
+                break flag_exist
+        $if !$flag_exist
+            push @$blk, $t
 #---------------------------------------- 
 subcode:: parsecode_func_other
     $elif $func eq "print"

@@ -1,0 +1,39 @@
+page: test
+    module: general
+
+    x:    $(x3:a) - $(x3,:test)
+    eval: $(eval:1+1)
+    nest: $(nest:3:sqrt(*):x)
+    join: $(join:*:,:a-c)
+    $(set:a=test_something)
+    subst: $(subst:a:test_:do_)
+    sym:  $(sym:,)
+    $(set:a=a word)
+    $(a:1:word)
+    $(set:a=is 123)
+    $(a:2:number)
+    strlen: $(a:strlen)
+    strip:  $(a:strip)
+    regex:  $(a:regex:(\d+))
+
+    $(set:a=a, b, c)
+    list [$(a:list:n)]: $(a:list:1) 
+    $(a:list:shift 1)
+    $(a:list:-*-)
+
+/* expect test.txt:
+x:    aaa - test,test,test
+eval: 2
+nest: sqrt(sqrt(sqrt(x)))
+join: a,b,c
+subst: do_something
+sym:  Comma
+word
+123
+strlen: 6
+strip:  s 12
+regex:  123
+list [3]: b
+b, c
+-a-, -b-, -c-
+*/

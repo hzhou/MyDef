@@ -14,7 +14,8 @@ fncode: add_path($dir)
 
     my @tlist = split /:/, $dir
     $foreach $t in @tlist
-        $if !$path{$t}
+        $t=~s/\/$//
+        $if $t and !$path{$t}
             $if -d $t
                 $path{$t}=1
                 push @path, $t
@@ -40,7 +41,7 @@ fncode: find_file($file)
 
     return undef
 
-#----ref:  mydef_make ----------------------- 
+#----ref:  mydef_make --------------------- 
 subcode: protect_path
     my @save_path
     BLOCK

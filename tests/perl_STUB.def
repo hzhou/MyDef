@@ -35,11 +35,11 @@ subcode: test_1
     $global $a = 1
     $print a = $a
 
-bypasscode: make_string
-    Hello
-    World,
-    again
-    
+    bypasscode: make_string
+        a
+        b
+        c
+        
 bypasscode: make_cond
     1
     2

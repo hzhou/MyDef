@@ -7,7 +7,7 @@ subcode: parse_preproc
     $call @parse_preproc_switch
     my $flag_done = 1
     $if $preproc=~/^for:\s*(.*)/ -> $t
-        $call grab
+        $call _grab
         $if $t=~/^(\w+)\s+in\s+(.*)/
             # $(for:x in x,y,z)
             my ($vname, $vparam)=($1,$2)
@@ -16,7 +16,7 @@ subcode: parse_preproc
             # $(for:x,y,z and 0,1,2)
             $call for_list
     $elif $preproc=~/^foreach:p/
-        $call grab
+        $call _grab
         $call foreach_p
     $call @preproc_assert
     $call @preproc_elifs
@@ -27,11 +27,6 @@ subcode: parse_preproc
         $else
             $code->{allow_recurse}=$1
             $deflist->[-1]->{recurse}=0
-    $elif $preproc=~/^_init_block$/
-        my $idx=$block_stack[-1]->{eindex}
-        push @$out, "DUMP_STUB _init_$idx"
-        my $page=$deflist->[2]
-        $page->{_init_block}="_init_$idx"
     $elif $preproc=~/^mode:(.*)/
         # $(mode:bypass::)
         $cur_mode = $1
@@ -40,9 +35,9 @@ subcode: parse_preproc
     $if $flag_done
         goto Done_Parse
     # ---------------------------------------- 
-    subcode: grab
+    subcode: _grab
         my $subblock=grabblock($block, \$lindex);
-    subcode: parseblock(name)
+    subcode: _parse(name)
         parseblock({source=>$subblock, name=>"$(name)"})
     # ---------------------------------------- 
     subcode: for_in
@@ -53,7 +48,7 @@ subcode: parse_preproc
             #-- new layer of macro context ----
             my $macro={$vname=>$t, _i=>$i}
             push @$deflist, $macro;
-            $call parseblock, foreach_p
+            $call _parse, foreach_p
             pop @$deflist;
             $i++
 
@@ -88,13 +83,14 @@ subcode: parse_preproc
                 $for $j=0:@plist
                     $macro->{$plist[$j]}=$tlist[$j]->[$i]
                 push @$deflist, $macro;
-                $call parseblock, for_list
+                $call _parse, for_list
                 pop @$deflist;
 
         # ----
         subcode: for_list_anonymous
             my $block_ref = $subblock
             $for $i=0:$n
+                push @$deflist, {_i=>$i}
                 my @block = @$block_ref
                 $foreach $l in @block
                     $if $l and $l!~/^SOURCE:/
@@ -103,7 +99,8 @@ subcode: parse_preproc
                             $l=~s/\$$j/$tlist->[$i]/g
                             $j++
                 my $subblock = \@block
-                $call parseblock, for_list
+                $call _parse, for_list
+                pop @$deflist
 
     # ---------------------------------------- 
     subcode: foreach_p

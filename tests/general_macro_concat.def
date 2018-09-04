@@ -1,0 +1,14 @@
+page: t
+    module: general
+    $(a)
+
+macros:
+    a::
+    a:: a, b, c
+    a:: d, e, f
+    a::
+    a:: g, h, i
+
+/* expect t.txt:
+a, b, c, d, e, f, g, h, i
+*/

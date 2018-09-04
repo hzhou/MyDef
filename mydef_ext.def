@@ -38,7 +38,21 @@ fncode: grab_codelist(%opt)
         $else
             push @t, $t
 
-#----------------------------------------------- 
+fncode: inject_sub($name, $src)
+    my $param
+    $if $name=~/(\w+)\s*(\(.*\))/
+        ($name, $param)=($1, $2)
+    my $t_code=MyDef::parseutil::new_code("sub", $name, 9, $param)
+    $t_code->{source}=$src
+    $MyDef::def->{codes}->{$name}=$t_code
+
+fncode: run_src($src)
+    my $t_code=MyDef::parseutil::new_code("sub", "_", 9)
+    $t_code->{source}=$src
+    $MyDef::def->{codes}->{"_"}=$t_code
+    MyDef::compileutil::call_sub("_")
+
+#------------------------------------------ 
 # item1: value 
 # item2: value
 # item3:

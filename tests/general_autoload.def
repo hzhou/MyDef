@@ -13,11 +13,20 @@ subcode: _autoload
     $call autoload_sub
 
     subcode: autoload_sub
-        test autoload_sub
+        autoload_sub
 
 subcode: post
     Post
     $call post_sub
 
     subcode: post_sub
-        Post sub
+        post_sub
+
+/* expect test.txt:
+autoload 1
+autoload 2
+autoload_sub
+Main Text
+Post
+post_sub
+*/

@@ -21,8 +21,8 @@ fncode: parseblock($code)
 
         $if $cur_mode eq "template"
             # -- only $call is honored
-            $if $l=~/^(\s*)\$call\s+(.+)/
-                $call template_call_sub
+            $if $l=~/^(\s*)(\$call|DUMP_STUB)\s+(.+)/
+                $call template_special
             $else
                 push @$out, $l
         $elif $l
@@ -30,21 +30,25 @@ fncode: parseblock($code)
     parse_stack_pop()
 
     # -----------------------
-    subcode: template_call_sub
-        my ($func, $param)=("\$call", $2);
+    subcode: template_special
         &call get_indentation, $1
-            $call parse_call_sub
+            $if $2 eq "DUMP_STUB"
+                $MyDef::page->{"has_stub_$3"} = 1
+                push @$out, "DUMP_STUB $3"
+            $else
+                my ($func, $param)=("\$call", $3);
+                $call parse_call_sub
 
-        subcode: get_indentation(leading_space)
-            my $len = MyDef::parseutil::get_indent_spaces($1)
-            my $n = int($len/4)
-            $if $len%4
-                $n++
-            $for $i=0:$n
-                push @$out, "INDENT"
-            BLOCK
-            $for $i=0:$n
-                push @$out, "DEDENT"
+    subcode: get_indentation(leading_space)
+        my $len = MyDef::parseutil::get_indent_spaces($(leading_space))
+        my $n = int($len/4)
+        $if $len%4
+            $n++
+        $for $i=0:$n
+            push @$out, "INDENT"
+        BLOCK
+        $for $i=0:$n
+            push @$out, "DEDENT"
 
 #----------------------------------------------
 subcode: compile_line
@@ -148,15 +152,12 @@ subcode: parse_catch_meta
         $else
             $call debug_on, $1
         next
-    $elif $l =~ /^BLOCK RELEASE/i
-        # docs/block_release.txt
-        $block_stack[-1]->{eindex}=$block_stack[-2]->{eindex}
-        next
     $elif $l =~/^SOURCE: (.*) - (\d+)$/
         $cur_file=$1
         $cur_line=$2
         # $call @debug_SOURCE
         next
+    $call @parse_catch_meta_elifs
     # -----------------
     subcode: debug_SOURCE
         $if $cur_file=~/perl_cur_line/ 

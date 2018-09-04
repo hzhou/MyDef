@@ -1,0 +1,66 @@
+# A general binary format interface, started, to be finished
+
+page: t
+    my $cw = 50
+    my $w = $cw*8
+    my $h = $cw*8
+
+    my $lines=[]
+    $for $i=0:$h
+        push @$lines, []
+
+    $for $i=0:8
+        $for $j=0:8
+            $call get_color
+            $call fill_cell
+
+    subcode: get_color
+        my $color = 0
+        $if ($i+$j) %2 ==0
+            $color=255
+    subcode: fill_cell
+        $for $i2 = 0:$cw
+            my $l = $lines->[$i*$cw+$i2]
+            $for $j2 = 0:$cw
+                $l->[$j*$cw+$j2]=$color
+
+    &call open_w, t.bmp
+        $call write_binary, bmp
+
+template: bmp
+    BMP: BITMAPFILEHEADER BITMAPINFOHEADER IMAGE
+    BITMAPFILEHEADER: [C2x8I] - 'BM', (offset:IMAGE)
+    BITMAPINFOHEADER: [Iiissx8x16] - (size:), w, h, 1, bpp(8)
+    IMAGE: LINE[h] - lines
+    LINE: C[w] pad4
+    
+perlcode: write_binary
+    my $codelib = MyDef::compileutil::get_def_attr("codes", $param)
+    my $source = $codelib->{source}
+
+    my (%h, $root)
+    $call load_fmt
+    $foreach @$source
+        $if /^\s*(\w+):\s*(.*)/
+            $h{$1}=$2
+            $if !$root
+                $root = $2
+            $call parse_fmt
+    
+    push @$out, @$source
+
+    subcode: load_fmt
+        my %bits, %bytes
+        $(for:b,B,h,H and 1,1,4,4)
+            $bits{$1}=$2
+        $(for:a,A,c,C)
+            $bytes{$1}=1
+        $(for:f,i,I,l,L,N
+    subcode: parse_fmt
+        $if $2=~/(.*?)\s*-\s*(.*)/
+            my ($t, $v) = ($1, $2)
+            my @v = split /,\s*/, $v
+            $h{values}=\@v
+            my $size
+            $while $t=~/\G\s*([a-zA-Z])(\d*)/gc
+

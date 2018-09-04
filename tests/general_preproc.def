@@ -1,5 +1,30 @@
-page: t
+page: test
+    module: general
+
     $(if:0)
         Commented out
     $(else)
         Show this instead
+    $call test_for_in
+    $call test_for
+
+subcode: test_for_in
+    $(for:a-c)
+        $(_i): $1
+
+subcode: test_for
+    $(for:a,b in 1,2 and 2, 4)
+        $(a) - $(b)
+    $(for:1,2 and 2, 4)
+        $1 : $2
+
+/* expect test.txt:
+Show this instead
+0: a
+1: b
+2: c
+1 - 2
+2 - 4
+1 : 2
+2 : 4
+*/

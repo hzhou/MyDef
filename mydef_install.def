@@ -1,3 +1,5 @@
+include: version.def
+
 page: mydef_install
     type:
     output_dir: script
@@ -17,6 +19,7 @@ page: mydef_install
         install_all($src_list, $install_dir, $ext)
 
 subcode: parse_args
+    $call @check_arg_version, $ARGV[0]
     $global $b_force
     $if $ARGV[0] eq "-f"
         $b_force = 1

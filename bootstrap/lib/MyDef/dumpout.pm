@@ -11,8 +11,6 @@ sub dumpout {
     my @source_stack;
     my $indentation=0;
     my @indentation_stack;
-    my @make_string_stack;
-    my $string_list=undef;
     while(1){
         if(!@$out){
             $out=pop @source_stack;
@@ -30,11 +28,19 @@ sub dumpout {
             push @source_stack, $out;
             $out=$dump->{$1};
         }
-        elsif($l =~ /^(\s*)DUMP_STUB\s+([\w\-]+)/){
-            my $source=$MyDef::compileutil::named_blocks{$2};
+        elsif($l =~ /^DUMP_STUB\s+([\w\-]+)/){
+            my $source=$MyDef::compileutil::named_blocks{$1};
             if($source){
                 push @source_stack, $out;
                 $out=$source;
+            }
+        }
+        elsif($l =~ /^INSERT_STUB\[(.*)\]\s+([\w\-]+)/){
+            my ($sep, $name) = ($1, $2);
+            my $source=$MyDef::compileutil::named_blocks{$name};
+            if($source){
+                my $t = join ($sep, @$source);
+                $f->[-1]=~s/\{STUB\}/$t/g;
             }
         }
         elsif($l =~ /^DUMP_PERL\s+(\w+)/){
@@ -48,7 +54,7 @@ sub dumpout {
                 $out=$source;
             }
         }
-        elsif($l=~/^\s*(INDENT|DEDENT|PUSHDENT|POPDENT)\b(.*)/){
+        elsif($l=~/^(INDENT|DEDENT|PUSHDENT|POPDENT)\b(.*)/){
             if($1 eq "INDENT"){
                 $indentation++;
             }
@@ -71,66 +77,19 @@ sub dumpout {
                 next;
             }
         }
-        elsif($l=~/^\s*SOURCE_INDENT/){
+        elsif($l=~/^SOURCE_INDENT/){
             $indentation++;
         }
-        elsif($l=~/^\s*SOURCE_DEDENT/){
+        elsif($l=~/^SOURCE_DEDENT/){
             $indentation-- if $indentation;
         }
-        elsif($l=~/^\s*BLOCK_(\d+)/){
+        elsif($l=~/^BLOCK_(\d+)/){
             push @source_stack, $out;
             $out=MyDef::compileutil::fetch_output($1);
         }
         elsif($l=~/^SUBBLOCK (BEGIN|END)/){
         }
         elsif($l=~/^NOOP/){
-        }
-        elsif($l=~/^MAKE_STRING:(.*)/){
-            $string_list=[];
-            push @make_string_stack, {quote=>'"', join=>'\n', line=>$1, list=>$string_list, indent=>$indentation};
-        }
-        elsif($l =~/^POP_STRING/){
-            my $h=pop @make_string_stack;
-            if(!$h){
-                die "Error POP_STRING\n";
-            }
-            if(@make_string_stack){
-                $string_list=$make_string_stack[-1]->{list};
-            }
-            else{
-                $string_list=undef;
-            }
-            my $l=$h->{line};
-            my $join='';
-            if($l=~/\bSTRING\[([^\]]*)\]/){
-                $join=$1;
-                $l=~s/\bSTRING\[[^\]]*\]/STRING/g;
-            }
-            my $t=join($join, @{$h->{list}});
-            if($l=~/"STRING"/){
-                $t=~s/"/\\"/g;
-            }
-            $l=~s/\bSTRING\b/$t/;
-            if($l=~/^\s*$/){
-                push @$f, "\n";
-            }
-            elsif($l=~/^\s*NEWLINE\b/){
-                push @$f, "\n";
-            }
-            else{
-                chomp $l;
-                push @$f, "    "x$indentation."$l\n";
-            }
-        }
-        elsif(@make_string_stack){
-            if($l=~/^\s*$/){
-            }
-            elsif($l=~/^\s*NEWLINE\b/){
-                push @$string_list, "";
-            }
-            else{
-                push @$string_list, "    "x($indentation-$make_string_stack[-1]->{indent}-1) . $l;
-            }
         }
         else{
             if($l=~/^\s*$/){

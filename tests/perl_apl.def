@@ -1,0 +1,8 @@
+include: perl/apl.def
+
+#- we need work out a array dimension system
+
+page: test
+    # $call array, a, 10
+    $sumcode(10) $a[i]=i*i
+    print "@a\n"

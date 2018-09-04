@@ -95,20 +95,29 @@ if($file=~/^(.*)\.(\w+)$/){
     ($name, $type)=($1, $2);
 }
 my $exe = "$name";
-if($config{module} eq "win32"){
+if($page->{exe_type}){
+    $exe .= "." . $page->{exe_type};
+}
+elsif($MyDef::var->{exe_type}){
+    $exe .= "." . $MyDef::var->{exe_type};
+}
+elsif($config{module} eq "win32"){
     $exe .= ".exe";
 }
 my $cmd;
-if($type=~/^c(pp)?$/){
+if($page->{run}){
+    $cmd=$page->{run};
+}
+elsif($type=~/^c(pp)?$/){
     my $cc = "gcc -std=c99 -O2";
-    if($name=~/\.cpp$/){
-        $cc = "g++ -O2";
+    if($file=~/\.cpp$/){
+        $cc = "g++ -std=c++11 -O2";
     }
-    if($page->{CC}){
-        $cc = $page->{CC};
+    if($page->{cc}){
+        $cc = $page->{cc};
     }
-    elsif($MyDef::var->{CC}){
-        $cc = $MyDef::var->{CC};
+    elsif($MyDef::var->{cc}){
+        $cc = $MyDef::var->{cc};
     }
     $cmd="$cc -o$exe $file $page->{lib_list}";
     if($config{dump_rule}){
@@ -128,39 +137,39 @@ if($type=~/^c(pp)?$/){
         if($exe!~/\//){
             $exe = "./$exe";
         }
-        my $run = "$exe";
-        if($page->{run}){
-            $run = $page->{run};
+        my $exe = "$exe";
+        if($page->{exe}){
+            $exe = $page->{exe};
         }
-        elsif($MyDef::var->{run}){
-            $run = $MyDef::var->{run};
+        elsif($MyDef::var->{exe}){
+            $exe = $MyDef::var->{exe};
         }
-        if($run ne "none"){
-            if($file_dir and $run=~/CD\s+(.*)/){
+        if($exe ne "none"){
+            if($file_dir and $exe=~/CD\s+(.*)/){
                 my $t = $1;
                 $t=~s/$file_dir\///g;
-                $run = "cd $file_dir && $t";
+                $exe = "cd $file_dir && $t";
             }
-            $cmd .= " && $run";
+            $cmd .= " && $exe";
         }
     }
 }
 elsif($type eq "java"){
     $cmd="javac $file";
-    my $run = "CD java $name";
-    if($page->{run}){
-        $run = $page->{run};
+    my $exe = "CD java $name";
+    if($page->{exe}){
+        $exe = $page->{exe};
     }
-    elsif($MyDef::var->{run}){
-        $run = $MyDef::var->{run};
+    elsif($MyDef::var->{exe}){
+        $exe = $MyDef::var->{exe};
     }
-    if($run ne "none"){
-        if($file_dir and $run=~/CD\s+(.*)/){
+    if($exe ne "none"){
+        if($file_dir and $exe=~/CD\s+(.*)/){
             my $t = $1;
             $t=~s/$file_dir\///g;
-            $run = "cd $file_dir && $t";
+            $exe = "cd $file_dir && $t";
         }
-        $cmd .= " && $run";
+        $cmd .= " && $exe";
     }
 }
 elsif($type eq "f"){
@@ -168,20 +177,20 @@ elsif($type eq "f"){
     if($exe!~/\//){
         $exe = "./$exe";
     }
-    my $run = "$exe";
-    if($page->{run}){
-        $run = $page->{run};
+    my $exe = "$exe";
+    if($page->{exe}){
+        $exe = $page->{exe};
     }
-    elsif($MyDef::var->{run}){
-        $run = $MyDef::var->{run};
+    elsif($MyDef::var->{exe}){
+        $exe = $MyDef::var->{exe};
     }
-    if($run ne "none"){
-        if($file_dir and $run=~/CD\s+(.*)/){
+    if($exe ne "none"){
+        if($file_dir and $exe=~/CD\s+(.*)/){
             my $t = $1;
             $t=~s/$file_dir\///g;
-            $run = "cd $file_dir && $t";
+            $exe = "cd $file_dir && $t";
         }
-        $cmd .= " && $run";
+        $cmd .= " && $exe";
     }
 }
 elsif($type eq "rs"){
@@ -189,20 +198,20 @@ elsif($type eq "rs"){
     if($exe!~/\//){
         $exe = "./$exe";
     }
-    my $run = "$exe";
-    if($page->{run}){
-        $run = $page->{run};
+    my $exe = "$exe";
+    if($page->{exe}){
+        $exe = $page->{exe};
     }
-    elsif($MyDef::var->{run}){
-        $run = $MyDef::var->{run};
+    elsif($MyDef::var->{exe}){
+        $exe = $MyDef::var->{exe};
     }
-    if($run ne "none"){
-        if($file_dir and $run=~/CD\s+(.*)/){
+    if($exe ne "none"){
+        if($file_dir and $exe=~/CD\s+(.*)/){
             my $t = $1;
             $t=~s/$file_dir\///g;
-            $run = "cd $file_dir && $t";
+            $exe = "cd $file_dir && $t";
         }
-        $cmd .= " && $run";
+        $cmd .= " && $exe";
     }
 }
 elsif($type eq "hs"){
@@ -210,20 +219,20 @@ elsif($type eq "hs"){
     if($exe!~/\//){
         $exe = "./$exe";
     }
-    my $run = "$exe";
-    if($page->{run}){
-        $run = $page->{run};
+    my $exe = "$exe";
+    if($page->{exe}){
+        $exe = $page->{exe};
     }
-    elsif($MyDef::var->{run}){
-        $run = $MyDef::var->{run};
+    elsif($MyDef::var->{exe}){
+        $exe = $MyDef::var->{exe};
     }
-    if($run ne "none"){
-        if($file_dir and $run=~/CD\s+(.*)/){
+    if($exe ne "none"){
+        if($file_dir and $exe=~/CD\s+(.*)/){
             my $t = $1;
             $t=~s/$file_dir\///g;
-            $run = "cd $file_dir && $t";
+            $exe = "cd $file_dir && $t";
         }
-        $cmd .= " && $run";
+        $cmd .= " && $exe";
     }
 }
 elsif($type eq "asm"){
@@ -231,24 +240,63 @@ elsif($type eq "asm"){
     if($exe!~/\//){
         $exe = "./$exe";
     }
-    my $run = "$exe";
-    if($page->{run}){
-        $run = $page->{run};
+    my $exe = "$exe";
+    if($page->{exe}){
+        $exe = $page->{exe};
     }
-    elsif($MyDef::var->{run}){
-        $run = $MyDef::var->{run};
+    elsif($MyDef::var->{exe}){
+        $exe = $MyDef::var->{exe};
     }
-    if($run ne "none"){
-        if($file_dir and $run=~/CD\s+(.*)/){
+    if($exe ne "none"){
+        if($file_dir and $exe=~/CD\s+(.*)/){
             my $t = $1;
             $t=~s/$file_dir\///g;
-            $run = "cd $file_dir && $t";
+            $exe = "cd $file_dir && $t";
         }
-        $cmd .= " && $run";
+        $cmd .= " && $exe";
     }
 }
-elsif($page->{run}){
-    $cmd=$page->{run};
+elsif($type eq "s"){
+    $cmd="gcc -masm=intel -o$exe $file";
+    if($exe!~/\//){
+        $exe = "./$exe";
+    }
+    my $exe = "$exe";
+    if($page->{exe}){
+        $exe = $page->{exe};
+    }
+    elsif($MyDef::var->{exe}){
+        $exe = $MyDef::var->{exe};
+    }
+    if($exe ne "none"){
+        if($file_dir and $exe=~/CD\s+(.*)/){
+            my $t = $1;
+            $t=~s/$file_dir\///g;
+            $exe = "cd $file_dir && $t";
+        }
+        $cmd .= " && $exe";
+    }
+}
+elsif($type eq "pas"){
+    $cmd="fpc $file";
+    if($exe!~/\//){
+        $exe = "./$exe";
+    }
+    my $exe = "$exe";
+    if($page->{exe}){
+        $exe = $page->{exe};
+    }
+    elsif($MyDef::var->{exe}){
+        $exe = $MyDef::var->{exe};
+    }
+    if($exe ne "none"){
+        if($file_dir and $exe=~/CD\s+(.*)/){
+            my $t = $1;
+            $t=~s/$file_dir\///g;
+            $exe = "cd $file_dir && $t";
+        }
+        $cmd .= " && $exe";
+    }
 }
 elsif($type eq "sh"){
     $cmd = "sh $file";
@@ -266,10 +314,13 @@ elsif($type eq "go"){
     $cmd = "go run $file";
 }
 elsif($type eq "js"){
-    $cmd = "node $file";
+    $cmd = "nodejs $file";
 }
 elsif($type eq "tcl"){
     $cmd = "tclsh $file";
+}
+elsif($type eq "lua"){
+    $cmd = "lua $file";
 }
 elsif($type eq "lisp"){
     $cmd = "clisp $file";
@@ -283,11 +334,11 @@ elsif($type eq "latex"){
 elsif($type eq "awk"){
     $cmd = "awk -f $file";
 }
-if($config{expect} and $name=~/\b$config{expect_type}$/){
+if($config{expect} and $config{expect_type} ne "output"){
     my $expect = $config{expect};
     my $i = 0;
     my ($n_ok, $n_nok);
-    open In, "$name" or die "Can't open $name.\n";
+    open In, "$file" or die "Can't open $file.\n";
     while(<In>){
         print $_;
         s/\s+/ /g;

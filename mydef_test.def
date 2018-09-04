@@ -1,0 +1,36 @@
+page: mydef_test
+    module: perl
+    output_dir: script
+    type:
+
+    $if !-f "TESTS"
+        $print No TESTS found
+        exit 0
+
+    my @tests
+    &call open_r, TESTS
+        $if /^(\S+\.def)/
+            push @tests, $1
+
+    my $n_tests=@tests
+    my $n_fail=0
+    $foreach $t in @tests
+        $print "*** [ $t ] ***"
+        system("mydef_run $t") == 0 or $n_fail++
+        $call @check_system
+
+    $if $n_fail>0
+        die "Tests failed: $n_fail / $n_tests\n"
+
+    $print Ran $n_tests tests.
+    exit 0
+
+    # -------------------------------------- 
+    subcode: check_system
+        $if $?==-1
+            # Failed to run
+        $elif $? & 0xff
+            # Died with signal
+        $elif $? > 0 
+            # exit non_zero
+

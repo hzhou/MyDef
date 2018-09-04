@@ -1,6 +1,23 @@
 page: test
     module: perl
 
+    $(if:1)
+        $call test_inject_sub
+    $(elif:1)
+        $call test_grab_ogdl
+
+subcode: test_inject_sub
+    $call inject_sub
+    $call P, world
+
+perlcode: inject_sub
+    require MyDef::ext
+    my @src
+    push @src, "\$print Hello \x24(name)!"
+    MyDef::ext::inject_sub("P(name)", \@src)
+
+#----------------------------------------------- 
+subcode: test_grab_ogdl
     &call grab_ogdl
         item 1
         item 2
@@ -22,7 +39,16 @@ perlcode: grab_ogdl
 perlcode: print_ogdl
     my $ogdl = $MyDef::def->{_ogdl}
     $foreach $t in @$ogdl
-        $print [$t]
-        $if ref($t) eq "HASH"
-            $foreach %$t
-                $print "    $k: $v"
+        my @stack=([0,undef,$t])
+        $while my $_t = pop(@stack)
+            my ($indent, $k, $v)=@$_t
+            my $sp = "    " x $indent
+            $if defined $k
+                $print "$sp$k: -"
+            $if ref($v) eq "HASH"
+                $print [$v->{_}]
+                $foreach $k2 in sort {$b cmp $a} keys(%$v)
+                    $if $k2 ne "_"
+                        push @stack, [$indent+1, $k2, $v->{$k2}]
+            $else
+                $print [$v]

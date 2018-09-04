@@ -1,0 +1,11 @@
+subcode: do_test
+    $print Hello world!
+
+subcode: test2
+    $print test 2
+
+page: test
+    type: pl
+    subcode: main
+        $call do_test
+        $call test2

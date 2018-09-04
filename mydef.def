@@ -1,3 +1,4 @@
+include: version.def
 include: modules.def
 
 page: MyDef
@@ -18,6 +19,8 @@ page: MyDef
 
     1;
 
+fncode: get_version
+    return "$(version)"
 #---------------------------------------- 
 #- embed "MyDef::debug()" and rund perl -d and break at MyDef::debug
 fncode: debug

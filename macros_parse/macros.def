@@ -10,16 +10,22 @@ subcode: macros_start
     $call get_parent, macros
 
 subcode: process_macros
-    $if $line=~/^(\w+):([:=])?\s*(.*)/
+    $if $line=~/^(\w+):([:!=])?\s*(.*)/
         my ($k,$dblcolon, $v)=($1, $2, $3)
         expand_macro(\$v, $macros);
         $v=~s/\s+$//
-        $if $macros->{$k}
+        $if $macros->{$k}!~/^$/
             $if $dblcolon eq ':'
-                $macros->{$k}.=", $v"
+                # :: append
+                $if $v!~/^$/
+                    $macros->{$k}.=", $v"
+            $elif $dblcolon eq '!'
+                # :! overwrite
+                $macros->{$k}=$v
             $elif $macros->{$k} ne $v
                 # $print "[$cur_file:$cur_line] Denied overwriting macro $k"
         $elif $dblcolon eq '='
+            # := eval
             $macros->{$k} = eval($v)
         $else
             $macros->{$k}=$v
