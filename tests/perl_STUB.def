@@ -1,32 +1,35 @@
 page: test
     module: perl
 
-    DUMP_STUB init
-    $call test_1
-    $(block:init)
+    &call test, DUMP_STUB
+        DUMP_STUB init
+        $call test_1
+        $(block:init)
         $a = "Changed in \x24(block:init)"
 
+    # Essentially $(stub:...) are inline macros
     &call test, stub:...
         $print Another stub: $(stub:make_string)!
     &call test, stub:...
-        $if $(stub:make_cond)
+        $if $(stub: && :make_cond)
             $print STUB in \$if works!
 
-
-    &call test, INSERT_STUB
-        $print direct stub --> {STUB} <--.
-        INSERT_STUB _dummy_
-        $(block:_dummy_)
-            $(mode:bypass)
-            a
-            b
-            c
-
+    $call test_verbose
     $print Done.   All is well
 
     subcode: test(stubtype)
-        $print \x24($(stubtype))\n    -
+        $print [$(stubtype)]\n    -
         BLOCK
+
+    subcode: test_verbose
+        &call test, INSERT_STUB
+            $print direct stub --> {STUB} <--.
+            INSERT_STUB[ ] _dummy_
+            $(block:_dummy_)
+                $(mode:bypass)
+                a
+                b
+                c
 
 subcode: test_1
     $global $a = 1
@@ -39,3 +42,5 @@ bypasscode: make_string
     
 bypasscode: make_cond
     1
+    2
+    3
