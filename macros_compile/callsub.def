@@ -56,7 +56,7 @@ subcode: parse_call_sub
 #---------------------------------------- 
 fncode: call_sub($param)
     $global $main_called
-    $if $param eq "main"
+    $if $param =~/^\@?main$/
         $main_called++
     $call call_sub_frame, normal
 

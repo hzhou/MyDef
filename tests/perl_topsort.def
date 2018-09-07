@@ -1,0 +1,17 @@
+include: perl/topsort.def
+
+page: test
+    module: perl
+
+    # example from wikipedia: topological sorting
+    my @tlist = (2,3,5,7,8,9,10,11) 
+    my %H
+    $H{2}=[11]
+    $H{8}=[3,7]
+    $H{9}=[8,11]
+    $H{10}=[3,11]
+    $H{11}=[5,7]
+
+    $print "input: @tlist"
+    my $L=top_sort(\@tlist, \%H)
+    $print "output: @$L"
