@@ -132,6 +132,7 @@ fncode: parse_condition($t)
                 $t=$1."!$2 || $2 ne $4"
     return $t
 
+#- TODO: it would be nice to turn ".*" or '.*' or (.*) into excaped or recursive match automatically
 subcode: check_regex_capture(t)
     my $regex_capture
     $if $(t)=~/(.*\S\/\w*)\s*->\s*([^\/]+?)\s*$/

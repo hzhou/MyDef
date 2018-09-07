@@ -54,11 +54,14 @@ subcode: open_w(name)
         open Out, "$(name)" or die "Can't write $(name).\n"
     $(else)
         open Out, ">$(name)" or die "Can't write $(name).\n"
-    $(if:open_w_print)
-        $print "  --> [$(name)]"
-        $(set:print_to=Out)
     BLOCK
     close Out
+
+subcode: open_W(name)
+    &call open_w, $(name)
+        $print "  --> [$(name)]"
+        $(set:print_to=Out)
+        BLOCK
 
 subcode: assert(cond)
     $if !($(cond))
