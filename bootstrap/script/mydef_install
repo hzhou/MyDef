@@ -77,6 +77,12 @@ sub load_srcs_dir {
     return \@srcs;
 }
 
+if($ARGV[0] eq "-v" or $ARGV[0] eq "--version"){
+    my $prog=$0;
+    $prog=~s/^.*\///;
+    print "$prog: version development - latest\"\n";
+    exit(0);
+}
 if($ARGV[0] eq "-f"){
     $b_force = 1;
     shift @ARGV;

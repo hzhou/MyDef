@@ -57,6 +57,12 @@ subcode: open_w(name)
     BLOCK
     close Out
 
+subcode: open_W(name)
+    &call open_w, $(name)
+        $print "  --> [$(name)]"
+        $(set:print_to=Out)
+        BLOCK
+
 subcode: assert(cond)
     $if !($(cond))
         die "$(cond) - FALSE!\n"

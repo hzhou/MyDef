@@ -68,7 +68,8 @@ sub add_path {
     }
     my @tlist = split /:/, $dir;
     foreach my $t (@tlist){
-        if(!$path{$t}){
+        $t=~s/\/$//;
+        if($t and !$path{$t}){
             if(-d $t){
                 $path{$t}=1;
                 push @path, $t;
@@ -107,6 +108,12 @@ if(@ARGV and $ARGV[0] eq 'nosub'){
 foreach my $a (@ARGV){
     if($a eq "-f"){
         $flag_force = 1;
+    }
+    elsif($a eq "-v" or $a eq "--version"){
+        my $prog=$0;
+        $prog=~s/^.*\///;
+        print "$prog: version development - latest\"\n";
+        exit(0);
     }
 }
 if(@ARGV and -d $ARGV[0]){
@@ -220,7 +227,7 @@ foreach my $f (@allfiles){
         if(-e "$f/skipmake"){
             print "    Skip folder $f\n";
         }
-        elsif($f =~ /^(cmp|bootstrap|old|tests|macros|deflib|macros_.*)$/){
+        elsif($f =~ /^(cmp|bootstrap|old|tests|macros|deflib|dist|macros_.*)$/){
             print "    Skip folder $f\n";
         }
         elsif($f eq $config_outputdir and -f "$f/Makefile"){
@@ -249,9 +256,7 @@ while(my $f=pop @files){
     if(!$h_def{$f} or $h_def{$f} == 1){
         my $deplist=[];
         $h_def{$f}=$deplist;
-        my $include_noconfig;
         my $got_page=0;
-        my @save_path;
         my $inpage=0;
         open In, "$f" or die "Can't open $f.\n";
         while(<In>){
@@ -311,15 +316,6 @@ while(my $f=pop @files){
                         }
                     }
                 }
-                elsif(/^include:?\s*(noconfig)/){
-                    $include_noconfig = 1;
-                }
-                elsif(/^path:\s*(.+)/){
-                    if(!@save_path){
-                        @save_path=@path;
-                    }
-                    add_path($1);
-                }
                 elsif(/^page: .*\$\d.*/){
                     $inpage=1;
                     $page={};
@@ -347,15 +343,7 @@ while(my $f=pop @files){
             }
         }
         close In;
-        if(@save_path){
-            %path=();
-            @path=@save_path;
-            foreach my $t (@path){
-                $path{$t}=1;
-            }
-            @save_path=();
-        }
-        if(!$include_noconfig && $got_page){
+        if($got_page){
             if(@include_default){
                 foreach my $i (@include_default){
                     my $f=find_file($i);
@@ -379,6 +367,9 @@ while(my $f=pop @files){
     }
 }
 while(my ($p, $h) = each %h_page){
+    if($h->{page}=~/\.\w+$/){
+        $h->{type}="none";
+    }
     if(!$h->{type}){
         if($config_filetype){
             $h->{type}=$config_filetype;
@@ -549,6 +540,9 @@ elsif($make_folders[0] eq $config_outputdir){
     print Out "install: $config_outputdir\n";
     print Out "\tmake -C $config_outputdir install\n";
     print Out "\n";
+}
+if(-f "tests/TESTS"){
+    print Out "test:\n\tcd tests; mydef_test\n\n";
 }
 if(@make_folders){
     foreach my $f (@make_folders){

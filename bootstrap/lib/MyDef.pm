@@ -9,6 +9,10 @@ our $def;
 our $page;
 our $var={};
 
+sub get_version {
+    return "development";
+}
+
 sub debug {
     my @info = caller;
     print "MyDef::debug @info\n";
@@ -44,6 +48,10 @@ sub init {
     elsif($module eq "c"){
         require MyDef::output_c;
         MyDef::compileutil::set_interface(MyDef::output_c::get_interface());
+    }
+    elsif($module eq "sh"){
+        require MyDef::output_sh;
+        MyDef::compileutil::set_interface(MyDef::output_sh::get_interface());
     }
     elsif($module eq "xs"){
         require MyDef::output_xs;
@@ -136,6 +144,10 @@ sub init {
     elsif($module eq "fortran"){
         require MyDef::output_fortran;
         MyDef::compileutil::set_interface(MyDef::output_fortran::get_interface());
+    }
+    elsif($module eq "f90"){
+        require MyDef::output_f90;
+        MyDef::compileutil::set_interface(MyDef::output_f90::get_interface());
     }
     elsif($module eq "pascal"){
         require MyDef::output_pascal;
@@ -187,6 +199,10 @@ sub pipe_page {
         require MyDef::output_c;
         MyDef::compileutil::set_interface(MyDef::output_c::get_interface());
     }
+    elsif($module eq "sh"){
+        require MyDef::output_sh;
+        MyDef::compileutil::set_interface(MyDef::output_sh::get_interface());
+    }
     elsif($module eq "xs"){
         require MyDef::output_xs;
         MyDef::compileutil::set_interface(MyDef::output_xs::get_interface());
@@ -278,6 +294,10 @@ sub pipe_page {
     elsif($module eq "fortran"){
         require MyDef::output_fortran;
         MyDef::compileutil::set_interface(MyDef::output_fortran::get_interface());
+    }
+    elsif($module eq "f90"){
+        require MyDef::output_f90;
+        MyDef::compileutil::set_interface(MyDef::output_f90::get_interface());
     }
     elsif($module eq "pascal"){
         require MyDef::output_pascal;

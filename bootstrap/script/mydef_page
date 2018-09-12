@@ -31,6 +31,12 @@ foreach my $a (@ARGV){
     elsif($a eq "-pipe"){
         $def_file="-pipe";
     }
+    elsif($a eq "-v" or $a eq "--version"){
+        my $prog=$0;
+        $prog=~s/^.*\///;
+        print "$prog: version development - latest\"\n";
+        exit(0);
+    }
 }
 if(!$def_file){
     die "Please supply data definition file.";

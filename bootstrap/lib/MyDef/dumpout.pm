@@ -24,6 +24,14 @@ sub dumpout {
         my $l=shift @$out;
         if($custom and $custom->($f, \$l)){
         }
+        elsif($l =~/^INCLUDE_FILE (\S+)/){
+            open In, "$1" or die "Can't open $1.\n";
+            while(<In>){
+                push @$f, $_;
+            }
+            close In;
+            next;
+        }
         elsif($l =~/^INCLUDE_BLOCK (\S+)/){
             push @source_stack, $out;
             $out=$dump->{$1};
@@ -40,18 +48,13 @@ sub dumpout {
             my $source=$MyDef::compileutil::named_blocks{$name};
             if($source){
                 my $t = join ($sep, @$source);
-                $f->[-1]=~s/\{STUB\}/$t/g;
-            }
-        }
-        elsif($l =~ /^DUMP_PERL\s+(\w+)/){
-            my $t = MyDef::compileutil::eval_sub($1);
-            my $source = eval($t);
-            if($@){
-                print "eval error: [$@]\n";
-            }
-            if($source){
-                push @source_stack, $out;
-                $out=$source;
+                my $i=$#$f;
+                while($i>=0 && $f->[$i]!~/\{STUB\}/){
+                    $i--;
+                }
+                if($i>=0){
+                    $f->[$i]=~s/\{STUB\}/$t/g;
+                }
             }
         }
         elsif($l=~/^(INDENT|DEDENT|PUSHDENT|POPDENT)\b(.*)/){
@@ -92,11 +95,11 @@ sub dumpout {
         elsif($l=~/^NOOP/){
         }
         else{
-            if($l=~/^\s*$/){
+            if($l=~/^\s*(NEWLINE\b.*)?$/){
                 push @$f, "\n";
             }
-            elsif($l=~/^\s*NEWLINE\b/){
-                push @$f, "\n";
+            elsif($l=~/^<-\|(.*)/){
+                push @$f, "$1\n";
             }
             else{
                 chomp $l;
