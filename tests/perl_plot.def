@@ -21,7 +21,7 @@ subcode: test_1
     $for $i=0:100
         push @y, sin($i*0.1)
 
-    &call get_plot, PLOT
+    &call get_plot, "PLOT"
         $call set_x_n, 100
         $call add_data, @y, Sin
         $call add_function, cos(0.1*x), Cos

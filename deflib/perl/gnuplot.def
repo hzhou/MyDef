@@ -115,6 +115,14 @@ subcode: gnuplot(output, @size)
             set xtics pi
             set format x '%.0P{/Symbol p}'
 
+#---- title_list, data_list  ----------------------------
+subcode: batch_plot
+    &call get_plot, $title_list[0]
+        $call set, title, $title_list[0]
+        $call set_x, $data_list[0]
+        $for $i=1:@data_list
+            $call add_data, $data_list[$i], $title_list[$i]
+
 #---- add_data ------------------------------------------- 
 subcode: get_plot(title)
     my ($plot_x, $data_idx, $ls_idx)

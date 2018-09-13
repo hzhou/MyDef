@@ -475,7 +475,7 @@ sub parse_regex {
     my @paren_stack;
     my $atoms=[];
     my $alts=[];
-    my $has_Any=0;
+    my %stat;
     my $escape;
     my $_recurse="[1]";
     my $i=0;
@@ -720,7 +720,7 @@ sub parse_regex {
             my $atom={type=>"AnyChar"};
             if(substr($re, $i, 1) eq "*"){
                 $atom->{type}="Any";
-                $has_Any++;
+                $stat{has_Any}++;
                 $i++;
             }
             push @$atoms, $atom;
@@ -786,8 +786,8 @@ sub parse_regex {
         $atom={type=>"alt", n=>$n, list=>$alts};
         $alts=[];
     }
-    if($has_Any){
-        $atom->{has_Any}=$has_Any;
+    while (my ($k, $v) = each %stat){
+        $atom->{$k}=$v;
     }
     return $atom;
 }

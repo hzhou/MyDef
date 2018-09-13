@@ -16,6 +16,12 @@ foreach my $a (@ARGV){
     elsif(-f $a){
         $config{_file}=$a;
     }
+    elsif($a eq "-v" or $a eq "--version"){
+        my $prog=$0;
+        $prog=~s/^.*\///;
+        print "$prog: version development - latest\"\n";
+        exit(0);
+    }
 }
 if($config{def_file}){
     guess_module:
@@ -49,6 +55,10 @@ if($config{def_file}){
                     last;
                 }
                 else{
+                    if(/^\s*$/){
+                        next;
+                    }
+                    chomp;
                     s/\s+/ /g;
                     s/\s*$//g;
                     push @expect, $_;
@@ -72,11 +82,11 @@ if($config{def_file}){
         MyDef::createpage($pagename);
         $page=$MyDef::page;
         if($page->{skiprun}){
-            exit;
+            exit 0;
         }
     }
     else{
-        exit;
+        die "No page found\n";
     }
 }
 elsif($config{_file}){
@@ -119,6 +129,12 @@ elsif($type=~/^c(pp)?$/){
     elsif($MyDef::var->{cc}){
         $cc = $MyDef::var->{cc};
     }
+    if($page->{CC}){
+        $cc = $page->{CC};
+    }
+    elsif($MyDef::var->{CC}){
+        $cc = $MyDef::var->{CC};
+    }
     $cmd="$cc -o$exe $file $page->{lib_list}";
     if($config{dump_rule}){
         if($exe=~/([^\/]+)$/){
@@ -131,7 +147,7 @@ elsif($type=~/^c(pp)?$/){
         print "\nCC=$cc\n\n";
         print "$exe: $name\n";
         print "\t$cmd\n";
-        exit;
+        exit 0;
     }
     else{
         if($exe!~/\//){
@@ -193,8 +209,29 @@ elsif($type eq "f"){
         $cmd .= " && $exe";
     }
 }
+elsif($type eq "f90"){
+    $cmd="gfortran -g -o$exe $file $page->{lib_list}";
+    if($exe!~/\//){
+        $exe = "./$exe";
+    }
+    my $exe = "$exe";
+    if($page->{exe}){
+        $exe = $page->{exe};
+    }
+    elsif($MyDef::var->{exe}){
+        $exe = $MyDef::var->{exe};
+    }
+    if($exe ne "none"){
+        if($file_dir and $exe=~/CD\s+(.*)/){
+            my $t = $1;
+            $t=~s/$file_dir\///g;
+            $exe = "cd $file_dir && $t";
+        }
+        $cmd .= " && $exe";
+    }
+}
 elsif($type eq "rs"){
-    $cmd="rustc $file";
+    $cmd="rustc -o$exe $file";
     if($exe!~/\//){
         $exe = "./$exe";
     }
@@ -336,11 +373,15 @@ elsif($type eq "awk"){
 }
 if($config{expect} and $config{expect_type} ne "output"){
     my $expect = $config{expect};
-    my $i = 0;
     my ($n_ok, $n_nok);
+    my $i = 0;
     open In, "$file" or die "Can't open $file.\n";
     while(<In>){
         print $_;
+        if(/^\s*$/){
+            next;
+        }
+        chomp;
         s/\s+/ /g;
         s/\s*$//g;
         if($expect->[$i] ne $_){
@@ -359,6 +400,7 @@ if($config{expect} and $config{expect_type} ne "output"){
     }
     if($n_nok>0){
         print "    \x1b[31mnot ok\x1b[0m $n_nok/$i\n";
+        exit 1;
     }
 }
 elsif($cmd){
@@ -366,24 +408,17 @@ elsif($cmd){
         $cmd .= " $page->{arg}";
     }
     if($config{expect_type} eq "output"){
-        if($cmd=~/(.*) && (.*)/){
-            print "$1\n";
-            system $1;
-            if($? == -1){
-                die "failed to compile\n";
-            }
-            elsif($? & 0xff){
-                die "compile failure\n";
-            }
-            $cmd = $2;
-        }
         my $expect = $config{expect};
-        my $i = 0;
         my ($n_ok, $n_nok);
         print "$cmd\n";
+        my $i = 0;
         open In, "$cmd |" or die "Can't open $cmd |.\n";
         while(<In>){
             print $_;
+            if(/^\s*$/){
+                next;
+            }
+            chomp;
             s/\s+/ /g;
             s/\s*$//g;
             if($expect->[$i] ne $_){
@@ -402,11 +437,12 @@ elsif($cmd){
         }
         if($n_nok>0){
             print "    \x1b[31mnot ok\x1b[0m $n_nok/$i\n";
+            exit 1;
         }
     }
     else{
         print "$cmd\n";
-        system $cmd;
+        exec $cmd;
     }
 }
 else{
