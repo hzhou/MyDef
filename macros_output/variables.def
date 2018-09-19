@@ -246,7 +246,7 @@ fncode: f_add_var($h, $l, $name, $type, $value)
                 $if !defined $exist->{init}
                     $exist->{init}=$var->{init}
                 $elif $exist->{init} ne $var->{init}
-                    $call warn, var $name has double initializations
+                    $call warn, var $name has double initializations ($exist->{init} -> $var->{init})
 
 #-----------------------
 # inside fcode: parse_var($name, $type, $value)

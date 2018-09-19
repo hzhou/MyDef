@@ -20,7 +20,6 @@ our @case_stack;
 our $case_state;
 our $case_wrap;
 our $fn_block=[];
-our $loop_idx;
 
 sub check_fcall {
     my ($l) = @_;
@@ -211,22 +210,6 @@ sub parsecode {
     if($l=~/^\$warn (.*)/){
         my $curfile=MyDef::compileutil::curfile_curline();
         print "[$curfile]\x1b[33m $1\n\x1b[0m";
-        return;
-    }
-    elsif($l=~/^\$template\s+(.*)/){
-        my $file = $1;
-        if($file !~ /^\.*\//){
-            my $dir = MyDef::compileutil::get_macro_word("TemplateDir", 1);
-            if($dir){
-                $file = "$dir/$file";
-            }
-        }
-        open In, $file or die "Can't open template $file\n";
-        my @all=<In>;
-        close In;
-        foreach my $a (@all){
-            push @$out, $a;
-        }
         return;
     }
     elsif($l=~/^DEBUG (\w+)/){
@@ -429,14 +412,6 @@ sub parsecode {
                 }
                 return 0;
             }
-            elsif($func =~ /^loopvar$/){
-                my @tlist=MyDef::utils::proper_split($param);
-                my $block=MyDef::compileutil::get_named_block("loop_$loop_idx");
-                foreach my $v (@tlist){
-                    push @$block, "my $v;";
-                }
-                return 0;
-            }
             elsif($func =~ /^use$/){
                 $param=~s/\s*;\s*$//;
                 my @tlist=split /,\s*/, $param;
@@ -456,6 +431,10 @@ sub parsecode {
                             push @functions, $name;
                             $functions{$name} = $MyDef::def->{codes}->{$name};
                         }
+                    }
+                    else{
+                        my $curfile=MyDef::compileutil::curfile_curline();
+                        print "[$curfile]\x1b[33m add_function: [$name] not found\n\x1b[0m";
                     }
                 }
                 return 0;
@@ -515,7 +494,7 @@ sub parsecode {
                     }
                     if($n>3){
                         my $curfile=MyDef::compileutil::curfile_curline();
-                        print "[$curfile]\x1b[33m $(msg:strip)\n\x1b[0m";
+                        print "[$curfile]\x1b[33m error: [\$while $param]\n\x1b[0m";
                     }
                     elsif($n==3){
                         ($init, $cond, $next) = @clause;
@@ -583,7 +562,7 @@ sub parsecode {
                                         foreach my $v (@v){
                                             if($v eq $idx){
                                                 my $curfile=MyDef::compileutil::curfile_curline();
-                                                print "[$curfile]\x1b[33m $(msg:strip)\n\x1b[0m";
+                                                print "[$curfile]\x1b[33m foreach zip: dummy variable $idx is in conflict\n\x1b[0m";
                                             }
                                         }
                                         foreach my $t (@t){
@@ -634,14 +613,33 @@ sub parsecode {
                         MyDef::compileutil::set_named_block("NEWBLOCK", \@src);
                         return "NEWBLOCK-for";
                     }
-                    else{
-                        my $var;
-                        if($param=~/^(\S+)\s*=\s*(.*)/){
-                            $var=$1;
-                            $param=$2;
+                    my $var;
+                    if($param=~/^(.+?)\s*=\s*(.*)/){
+                        $var=$1;
+                        $param=$2;
+                    }
+                    my ($i0, $i1, $step);
+                    if($param=~/^(.+?)\s+to\s+(.+)/){
+                        my $to;
+                        ($i0, $to, $step) = ($1, $2, 1);
+                        if($to=~/(.+?)\s+step\s+(.+)/){
+                            ($to, $step)=($1, $2);
                         }
+                        $i1="<=$to";
+                    }
+                    elsif($param=~/^(.+?)\s+downto\s+(.+)/){
+                        my $to;
+                        ($i0, $to, $step) = ($1, $2, 1);
+                        if($to=~/(.+?)\s+step\s+(.+)/){
+                            ($to, $step)=($1, $2);
+                        }
+                        $i1=">=$to";
+                        if($step!~/^-/){
+                            $step="-$step";
+                        }
+                    }
+                    else{
                         my @tlist=split /:/, $param;
-                        my ($i0, $i1, $step);
                         if(@tlist==1){
                             $i0="0";
                             $i1="<$param";
@@ -674,6 +672,8 @@ sub parsecode {
                                 $i1="<$tlist[1]";
                             }
                         }
+                    }
+                    if(defined $i0){
                         if($step eq "1"){
                             $step="++";
                         }
@@ -683,14 +683,13 @@ sub parsecode {
                         else{
                             $step="+=$step";
                         }
-                        my $my="";
                         if(!$var){
                             $var="\$i";
                         }
                         elsif($var=~/^(\w+)/){
                             $var='$'.$var;
                         }
-                        $param="$my$var=$i0; $var$i1; $var$step";
+                        $param="$var=$i0; $var$i1; $var$step";
                         $param = "my $param";
                         my @src;
                         push @src, "for($param){";
@@ -704,7 +703,10 @@ sub parsecode {
                 }
                 return 0;
             }
-            elsif($func eq "sumcode" or $func eq "loop" or $func eq "sum"){
+            elsif($func =~ /^loop$/){
+                return single_block("while(1){", "}", "while");
+            }
+            elsif($func eq "sumcode" or $func eq "sum"){
                 if($param=~/^\((.*?)\)\s+(.*)/){
                     my $dimstr=$1;
                     $param=$2;
@@ -978,6 +980,14 @@ sub parsecode {
             elsif($func eq "source-$param"){
                 return "SKIPBLOCK";
             }
+            elsif($func =~ /^loopvar$/){
+                my @tlist=MyDef::utils::proper_split($param);
+                my $block=MyDef::compileutil::get_named_block("...");
+                foreach my $v (@tlist){
+                    push @$block, "my $v;";
+                }
+                return 0;
+            }
             elsif($func eq "print"){
                 my $str=$param;
                 my $printf_args;
@@ -1128,16 +1138,12 @@ sub parsecode {
             MyDef::compileutil::set_output($old_out);
             return 0;
         }
-        elsif($l=~/^loop:/){
-            $loop_idx+=1;
-            push @$out, "DUMP_STUB loop_$loop_idx";
-            return 0;
-        }
         if($l=~/^\s*$/){
         }
         elsif($l=~/^break\s*((not|flag)_\w+)?\s*$/){
             if($1){
-                my $blk = MyDef::compileutil::get_named_block("...");
+                my $blkname=MyDef::compileutil::get_macro_word("stub");
+                my $blk = MyDef::compileutil::get_named_block($blkname);
                 my $t = "my \$$1;";
                 my $flag_exist;
                 foreach my $_l (@$blk){
@@ -1149,8 +1155,8 @@ sub parsecode {
                 if(!$flag_exist){
                     push @$blk, $t;
                 }
+                push @$out, "\$$1 = 1;";
             }
-            push @$out, "\$$1 = 1;";
             $l="last;";
         }
         elsif($l=~/^continue\s*$/){
