@@ -143,12 +143,13 @@ fncode: get_current_macro($name)
     return $deflist->[-1]->{$name}
 
 # ------------------------------------------------------
-# treat non-keyword identifiers as macro words and expands it
+# $(eval:m=...)
 fncode: expand_eval($lref)
+    # if contains macros, then expand them
     $if $$lref=~/\$(\(\w|\.)|[\x80-\xff]/
         $$lref = MyDef::utils::expand_macro($$lref, \&get_macro)
         return 1
-    # --------------------------
+    # otherwise, treat all non-keyword words as macros
     my @t=split /(\w+)/, $$lref
     my $flag
     $foreach $t in @t

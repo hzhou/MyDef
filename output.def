@@ -139,7 +139,7 @@ subcode: parsecode_common
         $case $func eq "plugin"
             $call add_plugin, $param1, $param2
             return
-        $call parsecode_func_param
+        $call @parsecode_func_param
     $elif $l=~/^\s*\$(\w+)\s*(.*)$/
         # $function param  ----
         my ($func, $param)=($1, $2)
@@ -149,7 +149,7 @@ subcode: parsecode_common
                     $call add_plugin, $p, $p
                 return
             $call parsecode_check_plugin # run
-            $call parsecode_func
+            $call @parsecode_func
     $elif $l=~/^CALLBACK\s+(\w+)\s*(.*)/
         # $function param  ----
         #     callback

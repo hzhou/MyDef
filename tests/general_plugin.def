@@ -1,0 +1,19 @@
+page: test
+    module: general
+
+    $plugin A
+    $plugin(B) C
+    $A a
+    $B b
+
+subcode: A(t)
+    A: $(t)
+
+perlcode: C
+    my $t = "[$param]"
+    push @$out, "C: $t"
+
+/* expect test.txt:
+A: a
+C: [b]
+*/

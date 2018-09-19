@@ -6,3 +6,5 @@ page: output_general, output_main
     ext: txt
     package: MyDef::output_general
 
+    subcode: parsecode
+        $call parsecode_common
