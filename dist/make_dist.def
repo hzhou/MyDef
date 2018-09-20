@@ -2,6 +2,6 @@ include: perl/make_dist.def
 
 page: make_dist
     module: perl
-    arg: 1.0
+    arg: 1.0.1
 
     $call make_dist, mydef
