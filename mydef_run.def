@@ -171,16 +171,23 @@ subcode: run_page
 
         # --------------------
         subcode: run_c
-            $(if:CC)
-                my $cc="$(CC)"
-            $(else)
-                my $cc = "gcc -std=c99 -O2"
-                # my $cc = "x86_64-w64-mingw32-gcc -O2 -Wl,--subsystem,windows"
+            my $cc
             $if $file=~/\.cpp$/
-                $cc = "g++ -std=c++11 -O2"
+                $(if:CXX)
+                    $cc="$(CXX)"
+                $(else)
+                    $cc = "g++ -std=c++11 -O2"
+                $call set_config, $cc, cxx
+                $call set_config, $cc, CXX
+            $else
+                $(if:CC)
+                    $cc="$(CC)"
+                $(else)
+                    $cc = "gcc -std=c99 -O2"
+                    # $cc = "x86_64-w64-mingw32-gcc -O2 -Wl,--subsystem,windows"
+                $call set_config, $cc, cc
+                $call set_config, $cc, CC
 
-            $call set_config, $cc, cc
-            $call set_config, $cc, CC
             # ---------------------
             $cmd="$cc -o$exe $file $page->{lib_list}"
 
