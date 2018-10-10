@@ -15,13 +15,13 @@ subcode: parsecode_for_support(style)
         ($i0, $to, $step) = ($1, $2, 1)
         $if $to=~/(.+?)\s+step\s+(.+)/
             ($to, $step)=($1, $2)
-        $i1="<=$to"
+        $i1=" <= $to"
     $elif $param=~/^(.+?)\s+downto\s+(.+)/
         my $to
         ($i0, $to, $step) = ($1, $2, 1)
         $if $to=~/(.+?)\s+step\s+(.+)/
             ($to, $step)=($1, $2)
-        $i1=">=$to"
+        $i1=" >= $to"
         $if $step!~/^-/
             $step="-$step"
     $else
@@ -43,7 +43,7 @@ subcode: for_i0_i1_step_default(loop_var)
     $elif $step eq "-1"
         $step="--"
     $else
-        $step="+=$step"
+        $step=" += $step"
 
     $(if:loop_var!=-)
         $call $(loop_var)
@@ -51,10 +51,10 @@ subcode: for_i0_i1_step_default(loop_var)
         $if !$var
             $var = "i"
 
-    $param="$var=$i0; $var$i1; $var$step"
+    $param="$var = $i0; $var$i1; $var$step"
 
 subcode: for_c_style
-    $call push_single_block, "for($param){", "}"
+    $call push_single_block, "for ($param) {", "}"
 
 #---------------------------------------- 
 #- counting up: [i0, i1)
