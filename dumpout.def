@@ -99,8 +99,9 @@ subcode: dumpout
 
     subcode: print_line
         $if $l=~/^\s*(NEWLINE\b.*)?$/
-            $if $1 eq "NEWLINE?" && $f->[-1] ne "\n"
-                push @$f, "\n"
+            $if $1 eq "NEWLINE?"
+                $if $f->[-1] ne "\n"
+                    push @$f, "\n"
             $else
                 push @$f, "\n"
         $elif $l=~/^<-\|(.*)/ # C preprocessing
