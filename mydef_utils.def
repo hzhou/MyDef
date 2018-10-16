@@ -299,6 +299,34 @@ fncode: uniq_name($name, $hash)
         return "$name$i"
 
 #---------------------------------------- 
+fncode: longline_split($l, $style)
+    my @out
+    my $n = 80
+    $if $l=~/^(\s*)(.+)/ -> $sp, $t
+        $n -= length($sp)
+        $l=~s/\s+$//
+        $call basic_split
+    return @out
+
+    subcode: basic_split
+        $while length($l)>$n
+            my $j=$n
+            $while $j>0 && substr($l, $j, 1) ne ' '
+                $j--
+            $if $j==0
+                $j = $n
+                $while $j<length($l) && substr($l, $j, 1) ne ' '
+                    $j++
+                $if $j==length($l)
+                    last
+            $if $j>0
+                push @out, $sp.substr($l, 0, $j)
+                $l = substr($l, $j)
+                $l=~s/^\s+//
+        push @out, $sp.$l
+
+
+#---------------------------------------- 
 fncode: string_symbol_name($s)
     my $n=length($s)
     my $name=""
