@@ -374,7 +374,8 @@ subcode: check_termination
         # NOOP
     # ---------------------
     subcode: break_flag
-        my $blkname=MyDef::compileutil::get_macro_word("stub")
+        my $stub_idx = $MyDef::compileutil::stub_idx
+        my $blkname="-$stub_idx"
         my $blk = MyDef::compileutil::get_named_block($blkname)
         my $t = "my \$$1;"
         ...

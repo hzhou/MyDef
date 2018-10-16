@@ -37,9 +37,11 @@ subcode: dumpout
 
         my $l=shift @$out;
         $l=~s/^\\x([0-9a-f]+)\b/chr(hex($1))/ie # use leading \x23 to passthru # comments
-        # $call @debug_dumpout, 20
-        # $if $custom and $custom->($f, \$l)
+        # $call @debug_dumpout, 50
+        /*
+        $if $custom and $custom->($f, \$l)
             # custom dump -- used in output_www.def -- no longer true
+        */
         $case $l =~/^INCLUDE_FILE (\S+)/
             # used to insert long docs with the functions
             &call open_r, $1
@@ -97,7 +99,10 @@ subcode: dumpout
 
     subcode: print_line
         $if $l=~/^\s*(NEWLINE\b.*)?$/
-            push @$f, "\n"
+            $if $1 eq "NEWLINE?" && $f->[-1] ne "\n"
+                push @$f, "\n"
+            $else
+                push @$f, "\n"
         $elif $l=~/^<-\|(.*)/ # C preprocessing
             push @$f, "$1\n"
         $else

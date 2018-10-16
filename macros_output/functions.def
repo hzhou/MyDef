@@ -124,6 +124,7 @@ subcode:: parsecode_func_param_other
         return
 
 #------------------------------------
+# reference, output_c customizes it in parsecode_post.
 subcode: function_list_all
     $(set:lambda=$MyDef::compileutil::named_blocks{"lambda-$1"})
     $while my $f=shift @list_function_list

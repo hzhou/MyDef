@@ -1,6 +1,9 @@
 page: test
     module: perl
 
+    # ref: macros_compile/util.def
+    #   ... => DUMP_STUB stub_$stub_idx
+    #   $(block:...) => $(block:$(stub))
     ...
     $for $i=10
         $if $i==5
