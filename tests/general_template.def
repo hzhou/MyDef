@@ -1,0 +1,16 @@
+page: test, from inc/template.txt
+    NEWLINE?
+    Hello
+    $call T
+
+template: T
+    ---- 1
+template: T
+    ---- 2
+
+/* expect test.txt:
+TEMPLATE
+Hello
+---- 1
+END
+*/
