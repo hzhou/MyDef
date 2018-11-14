@@ -91,15 +91,20 @@ fncode: is_sub($subname)
         return 0;
 
 fncode: set_page_extension($default_ext)
-    my $ext=$default_ext
-    $if exists $var->{filetype}
-        $ext=$var->{filetype}
-    $if exists $page->{type}
-        $ext=$page->{type};
-    $if $ext eq "none"
-        $ext=""
+    $if !exists $page->{_pageext}
+        my $ext=$default_ext
+        $if exists $var->{filetype}
+            $ext=$var->{filetype}
 
-    $page->{_pageext}=$ext 
+        $if exists $page->{type}
+            $ext=$page->{type};
+        $elif $page->{_pagename}=~/(.+)\.(.+)/
+            $ext=""
+
+        $if $ext eq "none"
+            $ext=""
+
+        $page->{_pageext}=$ext 
 
 # --------------------------
 fncode: import_config($file)

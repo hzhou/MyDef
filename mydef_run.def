@@ -172,7 +172,7 @@ subcode: run_page
         # --------------------
         subcode: run_c
             my $cc
-            $if $file=~/\.cpp$/
+            $if $file=~/\.(cpp|cxx|cc)$/
                 $(if:CXX)
                     $cc="$(CXX)"
                 $(else)
