@@ -34,7 +34,7 @@ fncode: dupe_page
     my $page={};
     $while my ($k, $v)=each(%$orig)
         $if $k eq "pagename"
-            $page->{name}=$pagename;
+            $page->{_pagename}=$pagename;
         $elif $k eq "codes"
             my $codes={};
             $while my ($tk, $tv)=each(%$v)

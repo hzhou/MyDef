@@ -24,7 +24,7 @@ subcode: abort_default_page
 
 #-------------------------------------
 subcode: start_default_page
-    my $page={_pagename=>$def->{name}}
+    my $page={_pagename=>$def->{_defname}}
     $call add_default_page_main_code
     $codetype   = "code"
     $codeindent = 0
@@ -32,7 +32,7 @@ subcode: start_default_page
     $lastindent = 0
 
 subcode: add_default_page(page)
-    my $pagename = $def->{name}
+    my $pagename = $def->{_defname}
     $def->{pages}->{$pagename} = $(page)
     push @{$def->{pagelist}}, $pagename
     $def->{in_default_page}=1

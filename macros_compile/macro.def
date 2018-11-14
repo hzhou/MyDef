@@ -333,8 +333,8 @@ subcode:: special_macro_expansions
     $elif $s=~/^def:(.*)/
         # current def file: $(def:date) -> yyyy-mm-dd
         my $t
-        $if $MyDef::def->{file}
-            my @t = stat($MyDef::def->{file})
+        $if $MyDef::def->{_deffile}
+            my @t = stat($MyDef::def->{_deffile})
             $t=$t[9]
         $else
             $t = time
@@ -343,7 +343,5 @@ subcode:: special_macro_expansions
             return sprintf("%4d-%02d-%02d", $year+1900, $mon+1, $mday)
         $elif $1 eq "datetime"
             return sprintf("%4d-%02d-%02d %02d:%02d", $year+1900, $mon+1, $mday, $hour, $min)
-        $elif $1 eq "name"
-            return $MyDef::def->{name}
         $else
             return ""

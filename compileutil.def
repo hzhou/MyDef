@@ -18,7 +18,7 @@ fncode: output($plines)
     my $page=$MyDef::page
     my $pagename=$page->{_pagename}
     my $pageext=$page->{_pageext}
-    my $outdir=$page->{outdir}
+    my $outdir=$page->{_outdir}
 
     my $outname=$outdir."/".$pagename;
     $if $pageext
@@ -65,7 +65,7 @@ fncode: compile
                 $if ! -d $tdir
                     mkdir $tdir or die "Can't create output directory: $tdir\n";
         #---------------------
-        $page->{outdir}=$outdir
+        $page->{_outdir}=$outdir
 
     # -----------------
     subcode: do_compile
