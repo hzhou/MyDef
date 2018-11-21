@@ -120,7 +120,7 @@ subcode: run_page
 
     # ---- construc $cmd based on $type ------
     subcode: construct_cmd_from_type
-        $elif $type=~/^c(pp)?$/
+        $elif $type=~/^c(pp|xx|c|u)?$/
             $call run_c
         $call do_compile, java, javac $file, CD java $name
         $call do_compile, f, gfortran -g -o$exe $file $page->{lib_list}, $exe
@@ -179,6 +179,10 @@ subcode: run_page
                     $cc = "g++ -std=c++11 -O2"
                 $call set_config, $cc, cxx
                 $call set_config, $cc, CXX
+            $elif $file=~/\.(cu)$/
+                $cc = "nvcc"
+                $call set_config, $cc, cc
+                $call set_config, $cc, CC
             $else
                 $(if:CC)
                     $cc="$(CC)"
@@ -189,14 +193,14 @@ subcode: run_page
                 $call set_config, $cc, CC
 
             # ---------------------
-            $cmd="$cc -o$exe $file $page->{lib_list}"
+            $cmd="$cc -o $exe $file $page->{lib_list}"
 
             $if $config{dump_rule}
                 $if $exe=~/([^\/]+)$/
                     $exe = "script/$1"
                 $if $name=~/([^\/]+)$/
                     $name = "$1"
-                $cmd = '$'."{CC} -o\$@ \$< $page->{lib_list}"
+                $cmd = '$'."{CC} -o \$@ \$< $page->{lib_list}"
                 print "\nCC=$cc\n\n"
                 print "$exe: $name\n"
                 print "\t$cmd\n"

@@ -37,6 +37,8 @@ subcode: autolist_functions(add_type)
     $global %function_autolist
     &call each_subcode, fn
         my ($return_type, $autolist)
+        $if $code->{tail}
+            $return_type = $code->{tail}
         my $source=$code->{source}
         $foreach $l in @$source
             $if $l=~/^SOURCE/
@@ -122,6 +124,12 @@ subcode:: parsecode_func_param_other
             $call add_list_function, $f
             $function_autolist{$f}=$param1
         return
+    $elif $func eq "get_fn_type"
+        my $type = "void"
+        $if $functions{$param2}
+            $type=$functions{$param2}->{ret_type}
+        MyDef::compileutil::set_current_macro($param1, $type)
+        return 
 
 #------------------------------------
 # reference, output_c customizes it in parsecode_post.
@@ -298,7 +306,7 @@ fncode: open_function($fname, $param, $ret_type)
             $call function_override
     $(if:hascode:function_param_api)
         my $api_name
-        $if $param eq "api" and $fname=~/.+?_(.+)/
+        $if (!$param or $param eq "api") and $fname=~/.+?_(.+)/ and $fntype{$1}
             $api_name=$1
         $elif $param=~/^api\s+(\w+)$/
             $api_name=$1
