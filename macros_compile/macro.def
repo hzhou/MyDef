@@ -78,8 +78,8 @@ subcode:: preproc_elifs
 fncode: set_macro($m, $p)
     $if $debug eq "macro"
         print "set_macro $m: [$p]\n";
-    $if $p=~/(\w+)([\+\-\*\/\.]?)=(.+)/
-        my ($t1, $op, $t2)=($1, $2, $3)
+    $if $p=~/^(\w+)([\+\-\*\/\.]?)=(.+)/ -> $t1, $op, $t2
+        # $print set_macro op: $t1 $op $t2
         my $t = get_macro_word($t1, 1)
         $if $op
             $m->{$t1} = calc_op($t, $op, $t2)
@@ -87,22 +87,25 @@ fncode: set_macro($m, $p)
             $if $t2=~/\$\(.*\)/
                 expand_macro(\$t2)
             $m->{$t1} = $t2
-    $elif $p=~/(\w+)\[(.*?)\]=(.+)/
-        my ($t1, $sep, $item)=($1, $2, $3)
+    $elif $p=~/^(\w+)\[(.*?)\]=(.+)/ -> $t1, $sep, $item
+        # $print set_macro concat: $t1 $sep $item
         $if $m->{$t1}
             $m->{$t1}.="$sep$item"
         $else
             $m->{$t1}=$item
-    $elif $p=~/(\S+?):=(.*)/
+    $elif $p=~/^(\S+?):=(.*)/
+        # $print set_macro direct: $1 = $2
         $m->{$1}=$2
-    $elif $p=~/(\S+?)=(.*)/
-        my ($t1, $t2)=($1, $2)
+    $elif $p=~/^(\S+?)=(.*)/ -> $t1, $t2
+        # $print set_macro: $t1 = $t2
+        # NOTE: dynamic macros are supported but somewhat restrictive -- no support for op
         $if $t1=~/\$\(.*\)/
             expand_macro(\$t1)
         $if $t2=~/\$\(.*\)/
             expand_macro(\$t2)
         $m->{$t1}=$t2
     $else
+        # $print set_macro else: $p
         my $t=get_def($p)
         $if defined $t
             $m->{$p}=$t
