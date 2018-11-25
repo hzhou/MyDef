@@ -5,10 +5,7 @@
 #      $(if:...) do not add additional macro level
 #      $(for:...) do add macro level
 
-subcode: strip_quote(v)
-    $if $(v)=~/^["'](.*)["']$/
-        $(v)=$1
-
+# Global custom macro space -- simply use prefix to create namespace 
 subcode:: preproc_elifs
     $elif $preproc=~/^set:\s*(.*)/
         # immediate macros
