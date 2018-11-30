@@ -62,9 +62,12 @@ subcode: autolist_functions(add_type)
                 last
         $if $return_type
             $functions{$name}={ret_type=>$return_type}
-        # ---- autolist
-        # $print func $name - autolist: $autolist
-        $if $autolist ne "skip" and ($page->{autolist} eq "global" || $autolist)
+
+        # ---- $autolist gets set within @$source ----
+        $call @autolist_custom
+        $if $autolist eq "skip"
+            $function_autolist{$name}="$(add_type)"
+        $elif $autolist or $page->{autolist} eq "global"
             $function_autolist{$name}=$autolist
             $call add_list_function, $name
         $else
@@ -123,6 +126,9 @@ subcode:: parsecode_func_param_other
         $foreach $f in @tlist
             $call add_list_function, $f
             $function_autolist{$f}=$param1
+        return
+    $elif $func eq "set_fn_attr"
+        $cur_function->{$param1} = $param2
         return
     $elif $func eq "get_fn_type"
         my $type = "void"

@@ -1,0 +1,20 @@
+page: test
+    module: general
+
+    $call set_a
+    $call test_basic
+
+    subcode: set_a
+        setting a...
+        # $(export:a=1)
+        $(set-1:a=1)
+        # $(set-2:a=1)
+
+#----------------------------------------------- 
+subcode: test_basic
+    a: [$(a)]
+
+/* expect test.txt:
+setting a...
+a: [1]
+*/
