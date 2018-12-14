@@ -193,6 +193,11 @@ subcode: run_page
                 $call set_config, $cc, CC
 
             # ---------------------
+            my $cflags
+            $call set_config, $cflags, CFLAGS
+            $if $cflags
+                $cc .= " $cflags"
+            # ---------------------
             $cmd="$cc -o $exe $file $page->{lib_list}"
 
             $if $config{dump_rule}
