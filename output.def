@@ -146,7 +146,10 @@ subcode: parsecode_common
         $if $param !~ /^=/
             $case $func eq "plugin"
                 $foreach $p in split /,\s*/, $param
-                    $call add_plugin, $p, $p
+                    $if $p=~/^&(.+)/
+                        $call add_plugin, $1, $p
+                    $else
+                        $call add_plugin, $p, $p
                 return
             $call parsecode_check_plugin # run
             $call @parsecode_func
@@ -207,7 +210,11 @@ subcode: add_plugin(p1, p2)
 subcode: parsecode_check_plugin
     $(set:C=$plugin_statement{$func})
     $case $(C)
-        MyDef::compileutil::call_sub($(C)." $param")
+        my $c= $(C)
+        $if $c=~/^&(.+)/
+            return "PARSE:\&call $1, $param"
+        $else
+            MyDef::compileutil::call_sub("$c, $param")
         # $call parsecode_run_eval, $(C)
         return
 

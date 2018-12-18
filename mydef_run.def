@@ -213,10 +213,12 @@ subcode: run_page
         my $exe = "$(exe)"
         $call set_config, $exe, exe
         $if $exe ne "none"
-            $if $file_dir and $exe=~/CD\s+(.*)/
-                my $t = $1
-                $t=~s/$file_dir\///g
-                $exe = "cd $file_dir && $t"
+            $if $exe=~/CD\s+(.*)/ -> $t
+                $if $file_dir
+                    $t=~s/$file_dir\///g
+                    $exe = "cd $file_dir && $t"
+                $else
+                    $exe = $t
             $cmd .= " && $exe"
 
     subcode: append_arg
