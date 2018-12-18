@@ -37,6 +37,8 @@ subcode: autolist_functions(add_type)
     $global %function_autolist
     &call each_subcode, fn
         my ($return_type, $autolist)
+        $if $code->{tail}
+            $return_type = $code->{tail}
         my $source=$code->{source}
         $foreach $l in @$source
             $if $l=~/^SOURCE/
@@ -60,9 +62,12 @@ subcode: autolist_functions(add_type)
                 last
         $if $return_type
             $functions{$name}={ret_type=>$return_type}
-        # ---- autolist
-        # $print func $name - autolist: $autolist
-        $if $autolist ne "skip" and ($page->{autolist} eq "global" || $autolist)
+
+        # ---- $autolist gets set within @$source ----
+        $call @autolist_custom
+        $if $autolist eq "skip"
+            $function_autolist{$name}="$(add_type)"
+        $elif $autolist or $page->{autolist} eq "global"
             $function_autolist{$name}=$autolist
             $call add_list_function, $name
         $else
@@ -122,8 +127,18 @@ subcode:: parsecode_func_param_other
             $call add_list_function, $f
             $function_autolist{$f}=$param1
         return
+    $elif $func eq "set_fn_attr"
+        $cur_function->{$param1} = $param2
+        return
+    $elif $func eq "get_fn_type"
+        my $type = "void"
+        $if $functions{$param2}
+            $type=$functions{$param2}->{ret_type}
+        MyDef::compileutil::set_current_macro($param1, $type)
+        return 
 
 #------------------------------------
+# reference, output_c customizes it in parsecode_post.
 subcode: function_list_all
     $(set:lambda=$MyDef::compileutil::named_blocks{"lambda-$1"})
     $while my $f=shift @list_function_list
@@ -297,7 +312,7 @@ fncode: open_function($fname, $param, $ret_type)
             $call function_override
     $(if:hascode:function_param_api)
         my $api_name
-        $if $param eq "api" and $fname=~/.+?_(.+)/
+        $if (!$param or $param eq "api") and $fname=~/.+?_(.+)/ and $fntype{$1}
             $api_name=$1
         $elif $param=~/^api\s+(\w+)$/
             $api_name=$1

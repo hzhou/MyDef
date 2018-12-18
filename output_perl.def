@@ -164,7 +164,7 @@ subcode: for_i0_i1_step
     $call for_i0_i1_step_default, loop_var
     $param = "my $param"
 
-subcode: case_perl_style
+subcode: if_perl_style
     $call check_regex_capture, $cond
     push @src, "$case($cond){";
     push @src, "INDENT";
@@ -173,6 +173,9 @@ subcode: case_perl_style
     push @src, "BLOCK";
     push @src, "DEDENT";
     push @src, "}";
+
+subcode: elif_perl_style
+    $call if_perl_style
 
 subcode: else_perl_style
     $call push_single_block, "else{", "}"
@@ -371,7 +374,8 @@ subcode: check_termination
         # NOOP
     # ---------------------
     subcode: break_flag
-        my $blkname=MyDef::compileutil::get_macro_word("stub")
+        my $stub_idx = $MyDef::compileutil::stub_idx
+        my $blkname="-$stub_idx"
         my $blk = MyDef::compileutil::get_named_block($blkname)
         my $t = "my \$$1;"
         ...

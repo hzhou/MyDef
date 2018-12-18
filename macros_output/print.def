@@ -89,7 +89,7 @@ fncode: fmt_string($str, $add_newline)
             &call if_lex, %
                 &call if_lex, %
                     push @fmt_list, '%%'
-                &call if_lex, [-+ #]*[0-9]*(\.\d+)?[$(printf_formats)]
+                &call if_lex, [-+ #]*[0-9]*(\.\d+)?[l$(printf_formats)]
                     #---------------------------------------- 
                     $if !@pre_list
                         $missing++

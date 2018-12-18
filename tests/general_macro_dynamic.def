@@ -1,0 +1,12 @@
+page: test
+    module: general
+
+    $(set:a=A)
+    $(set:$(a)_flag=flag for $(a))
+    [ $(A_flag) ]
+    [ $($(a)_flag) ]
+
+/* expect test.txt:
+[ flag for A ]
+[ flag for A ]
+*/

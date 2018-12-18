@@ -61,7 +61,9 @@ fncode: set_named_block($name, $block)
     $named_blocks{$name}=$block
 
 fncode: get_named_block($name)
-    $call @get_named_block_fileters
+    $if $name=~/^(\w*)\.\.\./
+        $name = "$1-$stub_idx"
+    $call @get_named_block_filters
     $if !$named_blocks{$name}
         $named_blocks{$name}=[]
     return $named_blocks{$name}
@@ -75,7 +77,7 @@ subcode: with_named_block(name)
     set_output($temp)
 
 # ----
-subcode:: get_named_block_fileters
+subcode:: get_named_block_filters
     $case $name=~/^_(post|pre)(\d*)$/
         my $idx
         $if !$2
@@ -125,14 +127,12 @@ fncode: modepop
 #----------------------------------------------- 
 # {STUB} are replaced in dumpout, preservs semantic integrity
 subcode:: preproc_elifs
-    $elif $preproc=~/^block:\s*(\w+|\.\.\.)/
+    $elif $preproc=~/^block:\s*([\w\.]+)/
         my $name=$1
         $call _grab
         my $save_mode
 
-        $if $name eq "..."
-            $name = get_macro_word("stub")
-        $elif $name eq "STUB"
+        $if $name eq "STUB"
             $name = get_STUB_name()
             my $sep=' '
             $if $preproc=~/^block:\s*STUB:(.*)$/
@@ -141,6 +141,7 @@ subcode:: preproc_elifs
             $save_mode = $cur_mode
             $cur_mode = "bypass"
             unshift @$subblock, "\x24(mode:bypass)"
+        # --------------------------
         &call with_named_block, $name
             $call _parse, block:$name
         $if $save_mode
@@ -161,10 +162,16 @@ subcode:: special_macro_expansions
 subcode:: parse_catch_meta_elifs
     $elif $l=~/^\.\.\.\s*$/ # low profile syntax for readability
         # scoped DUMP_STUB, e.g. loop inititializations
-        $global $stub_idx
+        # ref: fncode: get_named_block($name)
+        $global $stub_idx=0
         $stub_idx++
-        push @$out, "DUMP_STUB stub_$stub_idx"
-        $deflist->[-1]->{stub} = "stub_$stub_idx"
+        $deflist->[-1]->{stub_idx} = "$stub_idx"
+
+        push @$out, "DUMP_STUB -$stub_idx"
+        next
+
+    $elif $l=~/^DUMP_STUB\s+(\w+)\.\.\./
+        push @$out, "DUMP_STUB $1-$stub_idx"
         next
 
 fncode: get_STUB_name

@@ -1,0 +1,15 @@
+page: t
+    _pagename = $(_pagename)
+    _pageext = $(_pageext)
+    _outdir = $(_outdir)
+
+    _defname = $(_defname)
+    _deffile = $(_deffile)
+
+/* expect t.txt:
+_pagename = t
+_pageext = txt
+_outdir = .
+_defname = general_macro_preset
+_deffile = general_macro_preset.def
+*/

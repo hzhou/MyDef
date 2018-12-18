@@ -30,7 +30,8 @@ subcode: subcode_start
 
     my $t_code
     expand_macro(\$line, $macros)
-    $if $line=~/^(\w+)code:([:@\d]?)\s*(\w+)(.*)/ -> $type, $attr, $name, $t
+    # allows names such as Namespace::function_name
+    $if $line=~/^(\w+)code:([:@\d]?)\s*([\w:]+)(.*)/ -> $type, $attr, $name, $t
         $call @line_extra
         $call add_subcode, $source, $type,$name,$attr,$t
         $t_code = $_t

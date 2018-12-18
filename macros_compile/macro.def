@@ -5,10 +5,7 @@
 #      $(if:...) do not add additional macro level
 #      $(for:...) do add macro level
 
-subcode: strip_quote(v)
-    $if $(v)=~/^["'](.*)["']$/
-        $(v)=$1
-
+# Global custom macro space -- simply use prefix to create namespace 
 subcode:: preproc_elifs
     $elif $preproc=~/^set:\s*(.*)/
         # immediate macros
@@ -78,8 +75,8 @@ subcode:: preproc_elifs
 fncode: set_macro($m, $p)
     $if $debug eq "macro"
         print "set_macro $m: [$p]\n";
-    $if $p=~/(\w+)([\+\-\*\/\.]?)=(.+)/
-        my ($t1, $op, $t2)=($1, $2, $3)
+    $if $p=~/^(\w+)([\+\-\*\/\.]?)=(.+)/ -> $t1, $op, $t2
+        # $print set_macro op: $t1 $op $t2
         my $t = get_macro_word($t1, 1)
         $if $op
             $m->{$t1} = calc_op($t, $op, $t2)
@@ -87,22 +84,25 @@ fncode: set_macro($m, $p)
             $if $t2=~/\$\(.*\)/
                 expand_macro(\$t2)
             $m->{$t1} = $t2
-    $elif $p=~/(\w+)\[(.*?)\]=(.+)/
-        my ($t1, $sep, $item)=($1, $2, $3)
+    $elif $p=~/^(\w+)\[(.*?)\]=(.+)/ -> $t1, $sep, $item
+        # $print set_macro concat: $t1 $sep $item
         $if $m->{$t1}
             $m->{$t1}.="$sep$item"
         $else
             $m->{$t1}=$item
-    $elif $p=~/(\S+?):=(.*)/
+    $elif $p=~/^(\S+?):=(.*)/
+        # $print set_macro direct: $1 = $2
         $m->{$1}=$2
-    $elif $p=~/(\S+?)=(.*)/
-        my ($t1, $t2)=($1, $2)
+    $elif $p=~/^(\S+?)=(.*)/ -> $t1, $t2
+        # $print set_macro: $t1 = $t2
+        # NOTE: dynamic macros are supported but somewhat restrictive -- no support for op
         $if $t1=~/\$\(.*\)/
             expand_macro(\$t1)
         $if $t2=~/\$\(.*\)/
             expand_macro(\$t2)
         $m->{$t1}=$t2
     $else
+        # $print set_macro else: $p
         my $t=get_def($p)
         $if defined $t
             $m->{$p}=$t
@@ -184,11 +184,14 @@ fncode: get_macro($s, $nowarn)
     $if $debug eq "macro"
         $print get_macro: [$s], nowarn: [$nowarn]
 
-    $if $s=~/^x(\d+)([^:]*):(.*)/
-        # e.g. $(x3,:a) rep $3 with sep=$2, sep can't have ':'
-        $if $1>1
-            return "$3$2" x ($1-1) . $3
-        $elif $1==1
+    $if $s=~/^x(\d+)([^:]*):(.*)/ -> $n, $sep, $pat
+        # e.g. $(x3,:a), sep can't have ':'
+        $if !$sep && $pat=~/^(:+)(.+)/
+            $sep=$1
+            $pat=$2
+        $if $n>1
+            return "$pat$sep" x ($n-1) . $pat
+        $elif $n==1
             return $3
         $else
             return ""
@@ -330,8 +333,8 @@ subcode:: special_macro_expansions
     $elif $s=~/^def:(.*)/
         # current def file: $(def:date) -> yyyy-mm-dd
         my $t
-        $if $MyDef::def->{file}
-            my @t = stat($MyDef::def->{file})
+        $if $MyDef::def->{_deffile}
+            my @t = stat($MyDef::def->{_deffile})
             $t=$t[9]
         $else
             $t = time
@@ -340,7 +343,5 @@ subcode:: special_macro_expansions
             return sprintf("%4d-%02d-%02d", $year+1900, $mon+1, $mday)
         $elif $1 eq "datetime"
             return sprintf("%4d-%02d-%02d %02d:%02d", $year+1900, $mon+1, $mday, $hour, $min)
-        $elif $1 eq "name"
-            return $MyDef::def->{name}
         $else
             return ""

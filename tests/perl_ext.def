@@ -1,8 +1,10 @@
 page: test
     module: perl
 
-    $(if:1)
+    $(if:0)
         $call test_inject_sub
+    $(elif:1)
+        $call test_grab_block
     $(elif:1)
         $call test_grab_ogdl
 
@@ -15,6 +17,21 @@ perlcode: inject_sub
     my @src
     push @src, "\$print Hello \x24(name)!"
     MyDef::ext::inject_sub("P(name)", \@src)
+
+#----------------------------------------------- 
+subcode: test_grab_block
+    &call grab_block, param1
+        Some text
+          indented by 2 spaces
+
+        MOre text
+
+perlcode: grab_block
+    require MyDef::ext
+    $print param: $param
+    my $codelist = MyDef::ext::grab_codelist(do_macro=>1)
+    $foreach @$codelist
+        $print "    [$_]"
 
 #----------------------------------------------- 
 subcode: test_grab_ogdl

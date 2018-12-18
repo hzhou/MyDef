@@ -49,10 +49,10 @@ fncode: import_data($file)
     # -----------------------------
     subcode: find_file
         $if $file=~/([^\/]+)\.def/
-            $def->{name}=$1
-            $def->{file}=find_file($file)
+            $def->{_defname}=$1
+            $def->{_deffile}=find_file($file)
         $else
-            $def->{name}="default"
+            $def->{_defname}="default"
 
 #------------------------------
 fncode: import_file($f, $def, $file_type)
@@ -134,8 +134,6 @@ subcode: start_page
 
     subcode: new_page
         my $page={_pagename=>$pagename}
-        $if $pagename=~/(.+)\.(.+)/
-            $page->{type}=''
         $if $frame
             $page->{_frame}=$frame
 

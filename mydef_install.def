@@ -20,9 +20,12 @@ page: mydef_install
 
 subcode: parse_args
     $call @check_arg_version, $ARGV[0]
-    $global $b_force
+    $global $b_force, $b_debug
     $if $ARGV[0] eq "-f"
         $b_force = 1
+        shift @ARGV
+    $if $ARGV[0] eq "-debug"
+        $b_debug = 1
         shift @ARGV
 
     my ($dst, $ext) 
@@ -44,6 +47,10 @@ subcode: parse_args
             $elif -d $a
                 my $tlist = load_srcs_dir($a,"-")
                 push @$src_list, @$tlist
+            $else
+                warn "[$a] not found\n"
+                $if $a=~/\{.*\}/
+                    warn "    note: {*} expansion may not work in your shell, try bash.\n"
 
     subcode: install_src_dst_type
         $if !$ext

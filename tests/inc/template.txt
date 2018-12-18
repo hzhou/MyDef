@@ -1,0 +1,3 @@
+$call @A
+DUMP_STUB _A
+TEMPLATE
