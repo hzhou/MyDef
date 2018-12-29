@@ -58,11 +58,11 @@ subcode: dumpout
         $elif $l =~ /^INSERT_STUB\[(.*)\]\s+([\w\-]+)/ -> $sep, $name
             my $source=$MyDef::compileutil::named_blocks{$name}
             $if $source
-                my $t = join ($sep, @$source)
                 my $i=$#$f
                 $while $i>=0 && $f->[$i]!~/\{STUB\}/
                     $i--
                 $if $i>=0
+                    my $t = join ($sep, @$source)
                     $f->[$i]=~s/\{STUB\}/$t/g
         $elif $l=~/^(INDENT|DEDENT|PUSHDENT|POPDENT)\b(.*)/
             $if $1 eq "INDENT"
@@ -102,8 +102,11 @@ subcode: dumpout
             $if $1 eq "NEWLINE?"
                 $if $f->[-1] ne "\n"
                     push @$f, "\n"
-            $else
+            $elif $1
                 push @$f, "\n"
+            $else
+                # likely from template
+                push @$f, $l
         $elif $l=~/^<-\|(.*)/ # C preprocessing
             push @$f, "$1\n"
         $else
