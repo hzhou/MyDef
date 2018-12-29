@@ -1,0 +1,24 @@
+page: run_tex
+    my $f_tex = $ARGV[0]
+    $if $f_tex =~ /^(.*)\/(.*)/
+        chdir $1 or die "can't chdir $1\n"
+        $f_tex = $2
+
+    my $P = "pdflatex"
+    $if $f_tex=~/\.tex$/
+        $P = "pdftex"
+
+    $use IPC::Open3
+
+    my $stage
+    my $pid = open3(\*P_IN, \*P_OUT, \*P_ERR, "$P $f_tex") or die "open3 failed $!"
+    $while <P_OUT>
+        $if /! LaTeX Error:/
+            print P_IN "x\n"
+            $stage="Err"
+
+        $if $stage eq "Err"
+            print $_
+        $elif /^(\w+) written on/
+            print $_
+
