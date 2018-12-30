@@ -41,6 +41,11 @@ subcode:: preproc_elifs
                 set_macro($deflist->[-2], $p)
         $else
             set_macro($deflist->[-2], $t)
+    $elif $preproc=~/^reset:\s*(\w+)(.*)/
+        my $n = @{$deflist}
+        $for my $i=$n-1; $i>=0; $i--
+            $if defined $deflist->[$i]->{$1}
+                set_macro($deflist->[$i], "$1$2")
     $elif $preproc=~/^mset:\s*(.*)/
         my @plist=split /,\s*/, $1
         $foreach $p in @plist
