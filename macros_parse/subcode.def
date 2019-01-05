@@ -32,6 +32,7 @@ subcode: subcode_start
     expand_macro(\$line, $macros)
     # allows names such as Namespace::function_name
     $if $line=~/^(\w+)code:([:@\d]?)\s*([\w:]+)(.*)/ -> $type, $attr, $name, $t
+        $call @hack_name_with_colons
         $call @line_extra
         $call add_subcode, $source, $type,$name,$attr,$t
         $t_code = $_t
@@ -40,7 +41,15 @@ subcode: subcode_start
         $t_code= {} # sink hole
 
     # ------------
+    subcode: hack_name_with_colons
+        # C++
+        # $name may contain ':' to allow CLASS::method 
+        $if $name=~/^((?:\w+::)*\w*)(:(?:$|\w.*))/
+            $name = $1
+            $t = "$2$t"
+
     subcode: line_extra
+        # Java -- FIXME: merge with class::method
         # fncode: class.method
         $if $t=~/^(\.\w+)(.*)/
             $name .= $1
