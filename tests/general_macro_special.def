@@ -5,16 +5,21 @@ page: test
     eval: $(eval:1+1)
     nest: $(nest:3:sqrt(*):x)
     join: $(join:*:,:a-c)
+    sym:  $(sym:,)
+
     $(set:a=test_something)
     subst: $(subst:a:test_:do_)
-    sym:  $(sym:,)
+
     $(set:a=a word)
-    $(a:1:word)
+    word: $(a:1:word)
+    subword: $(a:3:)
+
     $(set:a=is 123)
     $(a:2:number)
     strlen: $(a:strlen)
     strip:  $(a:strip)
     regex:  $(a:regex:(\d+))
+    uc: $(a:uc) # lc,uc_first,length
 
     $(set:a=a, b, c)
     list [$(a:list:n)]: $(a:list:1) 
@@ -26,13 +31,15 @@ x:    aaa - test,test,test
 eval: 2
 nest: sqrt(sqrt(sqrt(x)))
 join: a,b,c
-subst: do_something
 sym:  Comma
-word
+subst: do_something
+word: word
+subword: ord
 123
 strlen: 6
 strip:  s 12
 regex:  123
+uc: IS 123
 list [3]: b
 b, c
 -a-, -b-, -c-

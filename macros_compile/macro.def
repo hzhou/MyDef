@@ -46,10 +46,16 @@ subcode:: preproc_elifs
         $for my $i=$n-1; $i>=0; $i--
             $if defined $deflist->[$i]->{$1}
                 set_macro($deflist->[$i], "$1$2")
-    $elif $preproc=~/^mset:\s*(.*)/
-        my @plist=split /,\s*/, $1
-        $foreach $p in @plist
-            set_macro($deflist->[-1], $p)
+    $elif $preproc=~/^mset:\s*(.*)/ -> $t
+        $if $t=~/^split:(.*?):(\w+)->(.*)/ -> $sep, $word, $plist
+            my @tlist = split /$sep/, get_macro_word($word)
+            my @plist = split /,\s*/, $plist
+            $foreach $i, $p in @plist
+                set_macro($deflist->[-1], "$p=$tlist[$i]")
+        $else
+            my @plist=split /,\s*/, $1
+            $foreach $p in @plist
+                set_macro($deflist->[-1], $p)
     $elif $preproc=~/^mexport:\s*(.*)/
         my @plist=split /,\s*/, $1
         $foreach $p in @plist
@@ -159,7 +165,7 @@ fncode: expand_eval($lref)
     my $flag
     $foreach $t in @t
         $if $t=~/^[_a-zA-Z]\w*$/
-            $if $t!~/abs|atan2|cos|exp|hex|int|log|oct|rand|sin|sqrt|srand|chr|ord|lc|lcfirst|uc|uc_first|substr|sprintf/
+            $if $t!~/abs|atan2|cos|exp|hex|int|log|oct|rand|sin|sqrt|srand|chr|ord|lc|lcfirst|uc|ucfirst|substr|sprintf/
                 my $s = get_macro_word($t, 1)
                 $if defined $s
                     $t=$s
@@ -270,7 +276,7 @@ fncode: get_macro($s, $nowarn)
                     return length($t)
             $elif $p eq "strip"
                 return substr($t, 1, -1)
-            $(for:fn in lc,uc,uc_first,length)
+            $(for:fn in lc,uc,ucfirst,length)
                 $elif $p eq "$(fn)"
                     return $(fn)($t)
             $elif $p =~ /regex:(.*)/

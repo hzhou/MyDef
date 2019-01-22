@@ -8,6 +8,7 @@ include: macros_output/sumcode.def
 page: output_perl, output_main
     output_dir: lib/MyDef
     ext: pl
+    type: pm
     package: MyDef::output_perl
 
 subcode:: _autoload
