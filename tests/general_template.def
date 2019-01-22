@@ -2,6 +2,8 @@ page: test, from inc/template.txt
     NEWLINE?
     Hello
     $call T
+    # *************************
+    # $template inc/template.txt
 
 template: T
     ---- 1
@@ -19,5 +21,4 @@ test DUMP_STUB in template
 TEMPLATE
 Hello
 ---- 1
-END
 */

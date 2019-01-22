@@ -13,10 +13,14 @@ page: run_tex
     my $stage
     my $pid = open3(\*P_IN, \*P_OUT, \*P_ERR, "$P $f_tex") or die "open3 failed $!"
     $while <P_OUT>
-        $if /! LaTeX Error:/
-            print P_IN "x\n"
+        $if /^! /
             $stage="Err"
+            $if /! LaTeX Error:/
+                print P_IN "x\n"
+        $if /\(Press Enter to retry, or Control-D to exit\)/
+            last
 
+        # selectively show error messages
         $if $stage eq "Err"
             print $_
         $elif /^(\w+) written on/
