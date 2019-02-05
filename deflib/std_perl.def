@@ -104,18 +104,6 @@ perlcode: print_block
             $t=~s/"/\\\"/g
             push @$out, "print Out \"$t\\n\";"
 
-# -- COMMON PATTERNS ---------------
-subcode: topdown_loop(name, top)
-    my %$(name)_hash
-    my @$(name)_list
-    $global @topdown_list
-    @topdown_list = ($(top))
-
-    $while my $$(name)=pop @topdown_list
-        $if !$$(name)_hash{$$(name)}
-            $$(name)_hash{$$(name)}=1
-            BLOCK
-
 # -- dbl_list ----------------
 subcode: dbl_list(name)
     $global @$(name), %$(name)
@@ -142,6 +130,9 @@ subcode: dbl_push_list(name, list)
 # $call match_count, $n, $s=~/'/g
 subcode: match_count(n, @re)
     $(n) = () = $(re)
+
+macros:
+    RE_PAREN: (\((?:[^()]++|(?-1))*+\))
 
 #-- Parser -------------------
 # for simple parsing; for more complicated cases, ref perl/parse.def
@@ -175,3 +166,16 @@ subcode: init_debug_console
         $|=1
         select $ofh
     }
+
+# -- PATTERNS (less-used) ---------------
+subcode: topdown_loop(name, top)
+    my %$(name)_hash
+    my @$(name)_list
+    $global @topdown_list
+    @topdown_list = ($(top))
+
+    $while my $$(name)=pop @topdown_list
+        $if !$$(name)_hash{$$(name)}
+            $$(name)_hash{$$(name)}=1
+            BLOCK
+
