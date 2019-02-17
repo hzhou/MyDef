@@ -383,7 +383,7 @@ fncode: func_return($t)
 subcode: parse_function
     &call direct_function_line_parse
         my $funcname=MyDef::utils::uniq_name($fname, \%list_function_hash)
-        my ($func, $block)=function_block($funcname, $paramline)
+        my ($func, $block)=function_block($funcname, $paramline, $return_type)
         func_push($func)
         # redirects all output to a named block
         unshift @$block, "OUTPUT:lambda-$funcname"
@@ -403,7 +403,7 @@ subcode: in_function
             # only need $func, $block is discarded
             #   manually insert DUMP_STUB somewhere
             my $block
-            ($func, $block)=function_block($fname, $paramline)
+            ($func, $block)=function_block($fname, $paramline, $return_type)
             my $idx = $func->{_idx}
             $(set:B=$MyDef::compileutil::named_blocks{$1})
             $(for:pre,close)
