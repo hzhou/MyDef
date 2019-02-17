@@ -5,15 +5,18 @@ page: mydef_install
     output_dir: script
 
     $call parse_args
+    $if $b_debug
+        $print mydef_install: ARGV = @ARGV
     # mydef_install deflib . def      --> *.def -> ${MYDEFLIB}
     # mydef_install MyDef/lib . pm    --> *.pm  -> ${PERL5LIB}
     # mydef_install MyDef/script . -  --> *     -> ${PATH}
     # mydef_install - out/{a,b,c}     --> *     -> ${PATH}
 
     $call check_install_dir
-
     $if $dst ne "."
         $install_dir.="/$dst"
+    $if $b_debug
+        $print install_dir: $install_dir
 
     $if @$src_list
         install_all($src_list, $install_dir, $ext)

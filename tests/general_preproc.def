@@ -5,10 +5,20 @@ page: test
         Commented out
     $(else)
         Show this instead
+    $call test_if
     $call test_for_in
     $call test_for
 
+subcode: test_if
+    ---------------------------
+    $(set:a=abc)
+    $(if:a~a)
+        $(a) starts with a
+    $(if:a~.*(B|b))
+        $(a) contains B|b
+
 subcode: test_for_in
+    ---------------------------
     $(for:a-c)
         $(_i): $1
 
@@ -29,6 +39,10 @@ subcode: test_for
 
 /* expect test.txt:
 Show this instead
+---------------------------
+abc starts with a
+abc contains B|b
+---------------------------
 0: a
 1: b
 2: c
