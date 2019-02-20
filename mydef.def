@@ -46,8 +46,6 @@ fncode: import_data($file)
 
 fncode: createpage($pagename)
     $page=$def->{pages}->{$pagename};
-    $if $page->{output_path} and !$page->{output_dir}
-        $page->{output_dir}=$page->{output_path}
 
     my $plines=MyDef::compileutil::compile()
     MyDef::compileutil::output($plines)
@@ -115,6 +113,3 @@ fncode: import_config($file)
             $var->{$1}=$2;
     close In;
     
-    $if $var->{output_path} and !$var->{output_dir}
-        $var->{output_dir}=$var->{output_path}
-
