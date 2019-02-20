@@ -172,25 +172,21 @@ subcode: run_page
         # --------------------
         subcode: run_c
             my $cc
+            my $default_cc
             $if $file=~/\.(cpp|cxx|cc)$/
-                $(if:CXX)
-                    $cc="$(CXX)"
-                $(else)
-                    $cc = "g++ -std=c++11 -O2"
-                $call set_config, $cc, cxx
-                $call set_config, $cc, CXX
+                $default_cc = "g++ -std=c++11 -g -O2"
             $elif $file=~/\.(cu)$/
-                $cc = "nvcc"
-                $call set_config, $cc, cc
-                $call set_config, $cc, CC
+                $default_cc = "nvcc"
             $else
-                $(if:CC)
-                    $cc="$(CC)"
-                $(else)
-                    $cc = "gcc -std=c99 -O2"
-                    # $cc = "x86_64-w64-mingw32-gcc -O2 -Wl,--subsystem,windows"
-                $call set_config, $cc, cc
-                $call set_config, $cc, CC
+                $default_cc = "gcc -std=c99 -g -O2"
+
+            $(if:CC)
+                $cc="$(CC)"
+            $(else)
+                $cc = $default_cc
+                # $cc = "x86_64-w64-mingw32-gcc -O2 -Wl,--subsystem,windows"
+            $call set_config, $cc, cc
+            $call set_config, $cc, CC
 
             # ---------------------
             my $cflags
