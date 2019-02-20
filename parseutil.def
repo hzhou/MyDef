@@ -86,6 +86,8 @@ fncode: import_file($f, $def, $file_type)
             $call start_code_indent, macro, $curindent+1, $macros
         $elif $line=~/^template:/ && $(top_scope)
             $call grab_template
+        $elif $line=~/^output_dir:\s*(.+)/
+            $MyDef::var->{output_dir}=$1
         $call @parse_switch_include
         $elif $curindent==0 and $line=~/^page:\s*(.*)/ -> $t
             $call start_page

@@ -294,7 +294,7 @@ subcode: read_eachfile
                     $while $h_page{$key}
                         $key.='1';
                     $h_page{$key}=$page;
-            $elif /^output_(dir|path): (\S+)/
+            $elif /^output_dir: (\S+)/
                 $output_dir=$1
 
         # ---------------------
