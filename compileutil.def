@@ -51,7 +51,7 @@ fncode: compile
                 $outdir=$outdir."/".$page->{output_dir};
         $outdir=~s/^\s+//;
         # create output dir
-        $if ! -d $outdir
+        $if ! -d "$outdir/"
             my @tdir_list=split /\//, $outdir;
             my $tdir;
             my $slash=0;
