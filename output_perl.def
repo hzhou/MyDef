@@ -263,6 +263,7 @@ subcode: dumpout
     # needed for wrapping up &case support
     parsecode("NOOP")
     $if $out->[0] eq "EVAL"
+        # A mode to skip #! and accessories
         shift @$out
     $else
         my $pagetype = $page->{_pageext}
@@ -271,36 +272,42 @@ subcode: dumpout
         $call dump_accessories
     # ---------------
     subcode: dump_accessories
+        my @tmp_out
+
         $(set:p=$MyDef::page->{$1})
         $if !$(p:relax)
-            push @$f, "use strict;\n"
+            push @tmp_out, "use strict;"
             $(if:0)
-                push @$f, "use warnings;\n"
+                push @tmp_out, "use warnings;"
                 
                 $if !$(p:nowarn)
-                    push @$f, "no warnings qw(uninitialized);\n"
+                    push @tmp_out, "no warnings qw(uninitialized);"
                 $elif $(p:nowarn) ne "none"
-                    push @$f, "no warnings qw($(p:nowarn));\n"
+                    push @tmp_out, "no warnings qw($(p:nowarn));"
 
         $if @uses
             $foreach $v in @uses
-                push @$f, "use $v;\n"
-            push @$f, "\n"
+                push @tmp_out, "use $v;"
+            push @tmp_out, ""
 
         $if $(p:package)
-            push @$f, "package ".$(p:package).";\n"
+            push @tmp_out, "package ".$(p:package).";"
         
+        push @tmp_out, "DUMP_STUB frame_init"
+
         $if @globals
             $foreach $v in @globals
-                push @$f, "our $v;\n"
-            push @$f, "\n"
+                push @tmp_out, "our $v;"
+            push @tmp_out, ""
 
         #-- to be processed by dumpout -- reverse order due to unshift
         $if @$fn_block
             $dump->{fn_block}=$fn_block
-            unshift @$out, "INCLUDE_BLOCK fn_block"
+            push @tmp_out, "INCLUDE_BLOCK fn_block"
 
-        unshift @$out, "DUMP_STUB global_init"
+        push @tmp_out, "DUMP_STUB global_init"
+
+        unshift @$out, @tmp_out
 
 #----------------------------------------------- 
 subcode: survey_functions
