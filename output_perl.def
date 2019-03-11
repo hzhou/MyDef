@@ -118,7 +118,7 @@ macros:
 
 # -------
 fncode: parse_condition($t)
-    $if $t=~/^\/|[!=]~\s*\//
+    $if $t=~/^!?\/|[!=]~\s*\//
         # regex 
     $elif $t=~/[^!=><]=[^="]/
         $if $t!~/["'].*=.*['"]/
@@ -472,7 +472,7 @@ subcode: parsecode_print
 
 #---- scope  for sumcode -------
 subcode: var_declare(scope)
-    $call @remove_trailing_semi
+    # $call @remove_trailing_semi
     my @tlist=MyDef::utils::proper_split($param)
     $foreach $v in @tlist
         my ($name, $var)
@@ -492,6 +492,7 @@ subcode: var_declare(scope)
     return 0
 
     subcode: remove_trailing_semi
+        # not needed as any with ; gets by passed anyway
         $param=~s/\s*;\s*$//
 
     subcode: check_array_dims
