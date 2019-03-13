@@ -78,6 +78,9 @@ fncode: list_sub($codelib)
 #---------------------------------------- 
 subcode: call_sub_frame(type)
     $call load_codelib
+    $(if:type=callback)
+        $if !$codelib
+            $codelib={source=>["BLOCK"]}
     $if $codelib
         $if $codelib->{type} eq "perl"
             $call callsub_perl

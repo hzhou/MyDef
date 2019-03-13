@@ -10,6 +10,10 @@ page: test
     &call C
         Hello
 
+    D --
+    &call @D
+        Hello
+
 subcode: A
     A --
     BLOCK
@@ -39,5 +43,7 @@ B --
 C1
 Hello
 C2
+Hello
+D --
 Hello
 */
