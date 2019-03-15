@@ -89,11 +89,11 @@ fncode: set_macro($m, $p)
     $if $p=~/^(\w+)([\+\-\*\/\.]?)=(.+)/ -> $t1, $op, $t2
         # $print set_macro op: $t1 $op $t2
         my $t = get_macro_word($t1, 1)
+        $if $t2=~/\$\(.*\)/
+            expand_macro(\$t2)
         $if $op
             $m->{$t1} = calc_op($t, $op, $t2)
         $else
-            $if $t2=~/\$\(.*\)/
-                expand_macro(\$t2)
             $m->{$t1} = $t2
     $elif $p=~/^(\w+)\[(.*?)\]=(.+)/ -> $t1, $sep, $item
         # $print set_macro concat: $t1 $sep $item
