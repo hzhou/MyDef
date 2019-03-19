@@ -43,17 +43,16 @@ subcode: autolist_functions(add_type)
         $foreach $l in @$source
             $if $l=~/^SOURCE/
                 #skip
-            $elif $l=~/^(lexical|parameter|return):\s*(.+?)\s*$/
+            $elif $l=~/^(lexical|parameter|return|frame):\s*(.+?)\s*$/
                 $if $1 eq "lexical"
                     $call parse_lexical
-                $elif $1 eq "parameter"
-                    $l="\$parameter $2"
                 $elif $1 eq "return"
                     $l="\$return_type $2"
                     $return_type=$2
+                $else
+                    $l="\$$1 $2"
             $elif $l=~/^\$return_type\s+(.+)/
                 $return_type = $1
-                $call @check_type, $return_type
             $elif $l=~/^\$autolist\s+(\w+)/
                 # $autolist skip, $autolist 
                 $autolist = $1
@@ -61,7 +60,8 @@ subcode: autolist_functions(add_type)
             $else
                 last
         $if $return_type
-            $functions{$name}={ret_type=>$return_type}
+            $call @check_type, $return_type
+            $functions{$name}={return_type=>$return_type}
 
         # ---- $autolist gets set within @$source ----
         $call @autolist_custom
@@ -97,11 +97,11 @@ subcode: autolist_functions(add_type)
 
 #----
 subcode:: parsecode_func_other
-    $elif $func =~/^(return_type|parameter|lexical)/
-        $if $1 eq "return_type"
-            $cur_function->{ret_type}=$param;
-        $elif $1 eq "parameter"
+    $elif $func =~/^(return_type|parameter|frame)/
+        $if $1 eq "parameter"
             $call add_function_params, $cur_function
+        $else
+            $cur_function->{$1}=$param
         return 1
 
 subcode:: parsecode_func_other
@@ -133,7 +133,7 @@ subcode:: parsecode_func_param_other
     $elif $func eq "get_fn_type"
         my $type = "void"
         $if $functions{$param2}
-            $type=$functions{$param2}->{ret_type}
+            $type=$functions{$param2}->{return_type}
         MyDef::compileutil::set_current_macro($param1, $type)
         return 
 
@@ -198,7 +198,9 @@ subcode: list_function(f)
         $foreach $l in @$block
             $if $l eq "BLOCK"
                 $call @function_push, $func
+                $call @call_frame_pre
                 MyDef::compileutil::list_sub($codelib)
+                $call @call_frame_post
                 $if $out->[-1]=~/^return/
                     $func->{return}=pop @$out
                 $call @function_pop
@@ -232,6 +234,16 @@ subcode: list_function(f)
             my $return_type = $codelib->{tail}
 
             BLOCK
+
+    # ------------------
+    subcode: call_frame_pre
+        $if $func->{frame}
+            my $t = '@'.$func->{frame}."_pre, $funcname"
+            MyDef::compileutil::call_sub($t)
+    subcode: call_frame_post
+        $if $func->{frame}
+            my $t = '@'.$func->{frame}."_post, $funcname"
+            MyDef::compileutil::call_sub($t)
 
 #---------------------------------------- 
 subcode:: on_init_page
@@ -290,7 +302,7 @@ fncode: function_block($funcname, $paramline, $return_type)
     $call set_macro, "recurse", $funcname
     return ($func, \@block)
 
-fncode: open_function($fname, $param, $ret_type)
+fncode: open_function($fname, $param, $return_type)
     $(set:setblk=MyDef::compileutil::set_named_block)
     $(set:getblk=MyDef::compileutil::get_named_block)
     my $func
@@ -312,17 +324,20 @@ fncode: open_function($fname, $param, $ret_type)
             $call function_override
     $(if:hascode:function_param_api)
         my $api_name
-        $if (!$param or $param eq "api") and $fname=~/.+?_(.+)/ and $fntype{$1}
+        $if $param=~/^api\s+(\w+)$/
             $api_name=$1
-        $elif $param=~/^api\s+(\w+)$/
-            $api_name=$1
+        $elif (!$param or $param eq "api") and ($fntype{$fname} or $fname=~/.+?_(.+)/ and $fntype{$1})
+            $if $fntype{$fname}
+                $api_name = $fname
+            $else
+                $api_name=$1
         # $print check function api [$param] -> $api_name ..
         $if $api_name
             $call function_param_api
     $if $param
         $call add_function_params, $func
-    $if $ret_type
-        $func->{ret_type}=$ret_type
+    $if $return_type
+        $func->{return_type}=$return_type
     # --
     $if $func->{name}
         my $name=$func->{name};
@@ -347,7 +362,7 @@ fncode: process_function_std($func)
     my $name=$func->{name};
     $(for:open,close,pre,post)
         my $$1 = $func->{$1block}
-    $if !$func->{ret_type} and $func->{ret_var}
+    $if !$func->{return_type} and $func->{ret_var}
         $call warn, Failed to infer function $name return type from [$func->{ret_var}]
 
     $(if:!function_style)
@@ -362,17 +377,17 @@ fncode: process_function_std($func)
     $if $func->{return}
         push @$post, $func->{return}
 
-#---- detect function ->{ret_type}
+#---- detect function ->{return_type}
 fncode: func_return($t)
     MyDef::compileutil::trigger_block_post()
     $(if:function_return_style)
         $call func_return_$(function_return_style)
     $(else)
-        $if $cur_function->{ret_type}
+        $if $cur_function->{return_type}
             # $call @check_ret_type_conflict
             return "return $t"
         $elif !$t and $t ne '0'
-            $cur_function->{ret_type}=undef
+            $cur_function->{return_type}=undef
             return "return"
         $else
             $cur_function->{ret_var} = $t
