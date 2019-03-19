@@ -36,46 +36,49 @@ subcode: autolist_page_functions
 subcode: autolist_functions(add_type)
     $global %function_autolist
     &call each_subcode, fn
-        my ($return_type, $autolist)
-        $if $code->{tail}
-            $return_type = $code->{tail}
         my $source=$code->{source}
+        my $func = {}
+        $functions{$name}=$func
+
+        $if $code->{tail}
+            $func->{return_type} = $code->{tail}
+
         $foreach $l in @$source
             $if $l=~/^SOURCE/
                 #skip
-            $elif $l=~/^(lexical|parameter|return|frame):\s*(.+?)\s*$/
-                $if $1 eq "lexical"
-                    $call parse_lexical
-                $elif $1 eq "return"
-                    $l="\$return_type $2"
-                    $return_type=$2
-                $else
-                    $l="\$$1 $2"
-            $elif $l=~/^\$return_type\s+(.+)/
-                $return_type = $1
-            $elif $l=~/^\$autolist\s+(\w+)/
-                # $autolist skip, $autolist 
-                $autolist = $1
+            $elif $l=~/^lexical:\s*(.+?)\s*$/
+                $func->{lexical} = $1
+                $l="NOOP"
+            $elif $l=~/^(return):\s*(.+?)\s*$/
+                $func->{return_type} = $2
+                $l="NOOP"
+            $elif $l=~/^(parameter|return_type|frame|autolist):\s*(.+?)\s*$/
+                $func->{$1} = $2
+                $l="NOOP"
+            $elif $l=~/^\x24(parameter|return_type|frame|autolist)\s+(.*)/
+                $func->{$1} = $2
                 $l="NOOP"
             $else
                 last
-        $if $return_type
-            $call @check_type, $return_type
-            $functions{$name}={return_type=>$return_type}
 
-        # ---- $autolist gets set within @$source ----
+        $if $func->{lexical}
+            $call parse_lexical, $func->{lexical}
+        $if $func->{return_type}
+            $call @check_type, $func->{return_type}
+
+        # ---- autolist gets set within @$source ----
         $call @autolist_custom
-        $if $autolist eq "skip"
+        $if $func->{autolist} eq "skip"
             $function_autolist{$name}="$(add_type)"
-        $elif $autolist or $page->{autolist} eq "global"
-            $function_autolist{$name}=$autolist
+        $elif $func->{autolist} or $page->{autolist} eq "global"
+            $function_autolist{$name}=$func->{autolist}
             $call add_list_function, $name
         $else
             $function_autolist{$name}="$(add_type)"
 
     # -- lexical parameter ------
-    subcode: parse_lexical
-        my @tlist=split /,\s*/, $2
+    subcode: parse_lexical(t)
+        my @tlist=split /,\s*/, $(t)
         my @params
         my @segs
         $foreach $t in @tlist
@@ -91,19 +94,10 @@ subcode: autolist_functions(add_type)
 
         # ref: output_c/macros_c/expression.def
         # ref: deflib/c/lex.def
-        $global %function_defaults
-        $function_defaults{$name}="append:".join(', ', @segs)
-        $l="\$parameter ". join(", ", @params)
+        $func->{append} = join(', ', @segs)
+        $func->{parameter} = join(", ", @params)
 
 #----
-subcode:: parsecode_func_other
-    $elif $func =~/^(return_type|parameter|frame)/
-        $if $1 eq "parameter"
-            $call add_function_params, $cur_function
-        $else
-            $cur_function->{$1}=$param
-        return 1
-
 subcode:: parsecode_func_other
     $elif $func eq "function"
         $call parse_function
@@ -238,11 +232,11 @@ subcode: list_function(f)
     # ------------------
     subcode: call_frame_pre
         $if $func->{frame}
-            my $t = '@'.$func->{frame}."_pre, $funcname"
+            my $t = '@'.$func->{frame}."_pre"
             MyDef::compileutil::call_sub($t)
     subcode: call_frame_post
         $if $func->{frame}
-            my $t = '@'.$func->{frame}."_post, $funcname"
+            my $t = '@'.$func->{frame}."_post"
             MyDef::compileutil::call_sub($t)
 
 #---------------------------------------- 
@@ -310,15 +304,27 @@ fncode: open_function($fname, $param, $return_type)
         $func = $main_func
         $func->{init} = $(getblk)("main_init")
         $func->{finish} = $(getblk)("main_exit")
+    $elif $functions{$fname}
+        $func = $functions{$fname}
+        $if !$param and $func->{parameter}
+            $param = $func->{parameter}
     $else
-        $func= {param_list=>[], var_list=>[], var_hash=>{}, init=>[], finish=>[]};
+        $func = {}
+        $functions{$fname} = $func
+
+    $func->{name} = $fname
+    $func->{param_list} = []
+    $func->{var_list} = []
+    $func->{var_hash} = {}
+
     #---- reserve fn_init and fn_finish for user def use.----
     #-    e.g. $(block:fn_init) 
+    $func->{init} = []
+    $func->{finish} = []
     $(setblk)("fn_init", $func->{init})
     $(setblk)("fn_finish", $func->{finish})
-    #---------
-    $func->{name}=$fname;
-    # -- parsing param list
+
+    # -- parsing param list --------------
     $(if:hascode:function_override)
         $if !$param
             $call function_override
@@ -336,14 +342,13 @@ fncode: open_function($fname, $param, $return_type)
             $call function_param_api
     $if $param
         $call add_function_params, $func
+    # --
     $if $return_type
         $func->{return_type}=$return_type
     # --
-    $if $func->{name}
-        my $name=$func->{name};
-        $functions{$name}=$func;
+    $if $fname
         $(if:function_need_declare=1)
-            push @function_declare_list, $name
+            push @function_declare_list, $fname
     # --
     return $func
 
