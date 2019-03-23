@@ -304,6 +304,7 @@ fncode: open_function($fname, $param, $return_type)
         $func = $main_func
         $func->{init} = $(getblk)("main_init")
         $func->{finish} = $(getblk)("main_exit")
+        $functions{$fname} = $func
     $elif $functions{$fname}
         $func = $functions{$fname}
         $if !$param and $func->{parameter}
