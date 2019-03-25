@@ -1,3 +1,4 @@
 $call @A
 DUMP_STUB _A
+$template inc/template_inc.txt
 TEMPLATE

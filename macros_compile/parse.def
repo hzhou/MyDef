@@ -21,7 +21,7 @@ fncode: parseblock($code)
 
         $if $cur_mode eq "template"
             # -- only $call is honored
-            $if $l=~/^(\s*)(\$call|DUMP_STUB)\s+(.+)/
+            $if $l=~/^(\s*)(\$call|\$template|DUMP_STUB)\s+(.+)/
                 $call template_special
             $else
                 push @$out, $l

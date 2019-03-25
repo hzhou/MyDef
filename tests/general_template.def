@@ -18,6 +18,7 @@ subcode: A
 /* expect test.txt:
 test $call in template
 test DUMP_STUB in template
+INCLUDE another template_inc.txt
 TEMPLATE
 Hello
 ---- 1
