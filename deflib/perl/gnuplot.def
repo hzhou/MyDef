@@ -43,7 +43,10 @@ subcode: gnuplot(output, @size)
                 push @$out, "push \@extra_settings, \"$t\";"
     # -------------------------------------- 
     subcode: set(name, @value)
-        push @extra_settings, "set $(name) $(value)"
+        $(if:name=title)
+            push @extra_settings, "set $(name) \"$(value)\""
+        $(else)
+            push @extra_settings, "set $(name) $(value)"
         # $call set, yrange, [y0:yn]
 
     subcode: plot(@p)
@@ -121,7 +124,44 @@ subcode: batch_plot
         $call set, title, $title_list[0]
         $call set_x, $data_list[0]
         $for $i=1:@data_list
-            $call add_data, $data_list[$i], $title_list[$i]
+            $(set:D=$data_list[$i])
+            $(set:T=$title_list[$i])
+            $if ref($(D)) eq "ARRAY"
+                $call add_y, $(D), $(T)
+            $elif ref($(D)) eq "HASH"
+                $if $(D)->{attr}
+                    $(set:attr=$(D)->{attr})
+                    $call add_hash_data
+                $else
+                    $call add_hash_data
+            $elif $(D)=~/^x\s*=\s*(.*)/
+                $call add_v_line, $1
+            $else
+                $call add_function, $(D), $(T)
+
+    subcode: add_hash_data
+        $if $(D)->{r}
+            $call add_xyr, $(D)->{x}, $(D)->{y}, $(D)->{r}, $(T)
+        $else
+            $call add_xy, $(D)->{x}, $(D)->{y}, $(T)
+
+subcode: quick_plot(x, y, @datalist)
+    &call get_plot, "plot"
+        $(if:x=-)
+            $(if:y~@)
+                my $n = $(y)
+            $(else)
+                my $n = @{$(y)}
+            $call set_x_n, $n
+        $(else)
+            $call set_x, $(x)
+        my $label='$(y)'
+        $label=~s/[\$\@]//
+        $call add_data, $(y), $label
+        $(for:d in $(datalist))
+            my $label='$(d)'
+            $label=~s/[\$\@]//
+            $call add_data, $(d), $label
 
 #---- add_data ------------------------------------------- 
 subcode: get_plot(title)
@@ -170,24 +210,23 @@ subcode: get_plot(title)
         push @plot_list, "    $t"
 
     # ----------------------------
+    subcode: add_v_line(x)
+        push @extra_settings, "set arrow from $(x),graph 0 to $(x),graph 1 nohead"
+
     subcode: add_function(f, label)
         my $t = "$(f) with lines"
         $call append_attr, $(label), 1
 
-    # -----
-    subcode: add_data(data, label)
+    subcode: add_y(y, label)
         $data_idx++ 
         my $name = "$tempdata-$data_idx.dat"
-        $(if:data~@)
-            $if !$plot_x
-                my $n = $(data)
-                $call set_x_n, $n
-            add_xy_data($name, $plot_x, \$(data))
-        $(else)
-            $if !$plot_x
-                my $n = @{$(data)}
-                $call set_x_n, $n
-            add_xy_data($name, $plot_x, $(data))
+        $if !$plot_x
+            $(if:y~@)
+                my $n = $(y)
+            $(else)
+                my $n = @{$(y)}
+            $call set_x_n, $n
+        add_xy_data($name, $plot_x, $(y))
         my $t = "'$name' u 1:2 with lines"
         $call append_attr, $(label), 2
 

@@ -1,8 +1,12 @@
 include: perl/gnuplot.def
 page: test
     module: perl
-    $(if:1)
-        $call test_1
+    $(if:0)
+        $call test_quick
+    $(elif:1)
+        $call test_batch
+    $(elif:1)
+        $call test_general
     $(elif:0)
         $call test_klein_bottle
     $(elif:0)
@@ -16,14 +20,48 @@ page: test
     $(elif:1)
         $call test_bessel
 
-subcode: test_1
+subcode: test_quick
+    my (@y1, @y2)
+    $for $i=0:100
+        push @y1, sin($i*0.1)
+        push @y2, sin($i*0.1+1)
+    $call quick_plot, -, @y1, @y2
+
+subcode: test_batch
+    my (@x, @y1, @y2)
+    $for $i=0:100
+        push @x, $i
+        push @y1, sin($i*0.1)
+        push @y2, sin($i*0.1+2)
+    my (@title_list, @data_list)
+    $(if:0)
+        push @title_list, "batch PLOT - y"
+        push @data_list, \@x
+
+        push @title_list, "y1"
+        push @data_list, \@y1
+        push @title_list, "y2"
+        push @data_list, \@y2
+    $(else)
+        push @title_list, "batch PLOT - xy"
+        push @data_list, "-"
+
+        push @title_list, "y1"
+        push @data_list, {x=>\@x, y=>\@y1}
+        push @title_list, "y2"
+        push @data_list, {x=>\@x, y=>\@y2}
+    push @title_list, "event 1"
+    push @data_list, "x=40"
+    $call batch_plot
+
+subcode: test_general
     my @y
     $for $i=0:100
         push @y, sin($i*0.1)
 
     &call get_plot, "PLOT"
         $call set_x_n, 100
-        $call add_data, @y, Sin
+        $call add_y, @y, Sin
         $call add_function, cos(0.1*x), Cos
 
 # -----------------------
