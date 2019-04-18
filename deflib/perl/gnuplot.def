@@ -136,6 +136,8 @@ subcode: batch_plot
                     $call add_hash_data
             $elif $(D)=~/^x\s*=\s*(.*)/
                 $call add_v_line, $1
+            $elif $(D)=~/^set (.*)/
+                push @extra_settings, $(D)
             $else
                 $call add_function, $(D), $(T)
 
