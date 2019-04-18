@@ -1,0 +1,9 @@
+page: test
+    A:1,2,3
+
+    $(split:A)
+    $(p_n) parts: 1: $(p_1), 2: $(p_2), 3: $(p_3)
+
+/* expect test.txt:
+3 parts: 1: 1, 2: 2, 3: 3
+*/
