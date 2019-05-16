@@ -46,6 +46,8 @@ subcode: parse_default_page_macros
         $v=~s/\s*#.*//
         $if $k =~ /^(page|macros|\w+code|template)$/
             last
+        $elif $k eq "output_dir"
+            $MyDef::var->{output_dir}=$v
         $call @default_page_include
         $else
             $page->{$k}=$v
