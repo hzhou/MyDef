@@ -118,11 +118,19 @@ my $cmd;
 if($page->{run}){
     $cmd=$page->{run};
 }
-elsif($type=~/^c(pp)?$/){
-    my $cc = "gcc -std=c99 -O2";
-    if($file=~/\.cpp$/){
-        $cc = "g++ -std=c++11 -O2";
+elsif($type=~/^c(pp|xx|c|u)?$/){
+    my $cc;
+    my $default_cc;
+    if($file=~/\.(cpp|cxx|cc)$/){
+        $default_cc = "g++ -std=c++11 -g -O2";
     }
+    elsif($file=~/\.(cu)$/){
+        $default_cc = "nvcc";
+    }
+    else{
+        $default_cc = "gcc -std=c99 -g -O2";
+    }
+    $cc = $default_cc;
     if($page->{cc}){
         $cc = $page->{cc};
     }
@@ -135,7 +143,17 @@ elsif($type=~/^c(pp)?$/){
     elsif($MyDef::var->{CC}){
         $cc = $MyDef::var->{CC};
     }
-    $cmd="$cc -o$exe $file $page->{lib_list}";
+    my $cflags;
+    if($page->{CFLAGS}){
+        $cflags = $page->{CFLAGS};
+    }
+    elsif($MyDef::var->{CFLAGS}){
+        $cflags = $MyDef::var->{CFLAGS};
+    }
+    if($cflags){
+        $cc .= " $cflags";
+    }
+    $cmd="$cc -o $exe $file $page->{lib_list}";
     if($config{dump_rule}){
         if($exe=~/([^\/]+)$/){
             $exe = "script/$1";
@@ -143,7 +161,7 @@ elsif($type=~/^c(pp)?$/){
         if($name=~/([^\/]+)$/){
             $name = "$1";
         }
-        $cmd = '$'."{CC} -o\$@ \$< $page->{lib_list}";
+        $cmd = '$'."{CC} -o \$@ \$< $page->{lib_list}";
         print "\nCC=$cc\n\n";
         print "$exe: $name\n";
         print "\t$cmd\n";
@@ -161,10 +179,15 @@ elsif($type=~/^c(pp)?$/){
             $exe = $MyDef::var->{exe};
         }
         if($exe ne "none"){
-            if($file_dir and $exe=~/CD\s+(.*)/){
-                my $t = $1;
-                $t=~s/$file_dir\///g;
-                $exe = "cd $file_dir && $t";
+            if($exe=~/CD\s+(.*)/){
+                my ($t) = ($1);
+                if($file_dir){
+                    $t=~s/$file_dir\///g;
+                    $exe = "cd $file_dir && $t";
+                }
+                else{
+                    $exe = $t;
+                }
             }
             $cmd .= " && $exe";
         }
@@ -180,10 +203,15 @@ elsif($type eq "java"){
         $exe = $MyDef::var->{exe};
     }
     if($exe ne "none"){
-        if($file_dir and $exe=~/CD\s+(.*)/){
-            my $t = $1;
-            $t=~s/$file_dir\///g;
-            $exe = "cd $file_dir && $t";
+        if($exe=~/CD\s+(.*)/){
+            my ($t) = ($1);
+            if($file_dir){
+                $t=~s/$file_dir\///g;
+                $exe = "cd $file_dir && $t";
+            }
+            else{
+                $exe = $t;
+            }
         }
         $cmd .= " && $exe";
     }
@@ -201,10 +229,15 @@ elsif($type eq "f"){
         $exe = $MyDef::var->{exe};
     }
     if($exe ne "none"){
-        if($file_dir and $exe=~/CD\s+(.*)/){
-            my $t = $1;
-            $t=~s/$file_dir\///g;
-            $exe = "cd $file_dir && $t";
+        if($exe=~/CD\s+(.*)/){
+            my ($t) = ($1);
+            if($file_dir){
+                $t=~s/$file_dir\///g;
+                $exe = "cd $file_dir && $t";
+            }
+            else{
+                $exe = $t;
+            }
         }
         $cmd .= " && $exe";
     }
@@ -222,10 +255,15 @@ elsif($type eq "f90"){
         $exe = $MyDef::var->{exe};
     }
     if($exe ne "none"){
-        if($file_dir and $exe=~/CD\s+(.*)/){
-            my $t = $1;
-            $t=~s/$file_dir\///g;
-            $exe = "cd $file_dir && $t";
+        if($exe=~/CD\s+(.*)/){
+            my ($t) = ($1);
+            if($file_dir){
+                $t=~s/$file_dir\///g;
+                $exe = "cd $file_dir && $t";
+            }
+            else{
+                $exe = $t;
+            }
         }
         $cmd .= " && $exe";
     }
@@ -243,10 +281,15 @@ elsif($type eq "rs"){
         $exe = $MyDef::var->{exe};
     }
     if($exe ne "none"){
-        if($file_dir and $exe=~/CD\s+(.*)/){
-            my $t = $1;
-            $t=~s/$file_dir\///g;
-            $exe = "cd $file_dir && $t";
+        if($exe=~/CD\s+(.*)/){
+            my ($t) = ($1);
+            if($file_dir){
+                $t=~s/$file_dir\///g;
+                $exe = "cd $file_dir && $t";
+            }
+            else{
+                $exe = $t;
+            }
         }
         $cmd .= " && $exe";
     }
@@ -264,10 +307,15 @@ elsif($type eq "hs"){
         $exe = $MyDef::var->{exe};
     }
     if($exe ne "none"){
-        if($file_dir and $exe=~/CD\s+(.*)/){
-            my $t = $1;
-            $t=~s/$file_dir\///g;
-            $exe = "cd $file_dir && $t";
+        if($exe=~/CD\s+(.*)/){
+            my ($t) = ($1);
+            if($file_dir){
+                $t=~s/$file_dir\///g;
+                $exe = "cd $file_dir && $t";
+            }
+            else{
+                $exe = $t;
+            }
         }
         $cmd .= " && $exe";
     }
@@ -285,10 +333,15 @@ elsif($type eq "asm"){
         $exe = $MyDef::var->{exe};
     }
     if($exe ne "none"){
-        if($file_dir and $exe=~/CD\s+(.*)/){
-            my $t = $1;
-            $t=~s/$file_dir\///g;
-            $exe = "cd $file_dir && $t";
+        if($exe=~/CD\s+(.*)/){
+            my ($t) = ($1);
+            if($file_dir){
+                $t=~s/$file_dir\///g;
+                $exe = "cd $file_dir && $t";
+            }
+            else{
+                $exe = $t;
+            }
         }
         $cmd .= " && $exe";
     }
@@ -306,10 +359,15 @@ elsif($type eq "s"){
         $exe = $MyDef::var->{exe};
     }
     if($exe ne "none"){
-        if($file_dir and $exe=~/CD\s+(.*)/){
-            my $t = $1;
-            $t=~s/$file_dir\///g;
-            $exe = "cd $file_dir && $t";
+        if($exe=~/CD\s+(.*)/){
+            my ($t) = ($1);
+            if($file_dir){
+                $t=~s/$file_dir\///g;
+                $exe = "cd $file_dir && $t";
+            }
+            else{
+                $exe = $t;
+            }
         }
         $cmd .= " && $exe";
     }
@@ -327,10 +385,15 @@ elsif($type eq "pas"){
         $exe = $MyDef::var->{exe};
     }
     if($exe ne "none"){
-        if($file_dir and $exe=~/CD\s+(.*)/){
-            my $t = $1;
-            $t=~s/$file_dir\///g;
-            $exe = "cd $file_dir && $t";
+        if($exe=~/CD\s+(.*)/){
+            my ($t) = ($1);
+            if($file_dir){
+                $t=~s/$file_dir\///g;
+                $exe = "cd $file_dir && $t";
+            }
+            else{
+                $exe = $t;
+            }
         }
         $cmd .= " && $exe";
     }

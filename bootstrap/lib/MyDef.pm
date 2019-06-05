@@ -345,17 +345,22 @@ sub is_sub {
 
 sub set_page_extension {
     my ($default_ext) = @_;
-    my $ext=$default_ext;
-    if(exists $var->{filetype}){
-        $ext=$var->{filetype};
+    if(!exists $page->{_pageext}){
+        my $ext=$default_ext;
+        if(exists $var->{filetype}){
+            $ext=$var->{filetype};
+        }
+        if(exists $page->{type}){
+            $ext=$page->{type};
+        }
+        elsif($page->{_pagename}=~/(.+)\.(.+)/){
+            $ext="";
+        }
+        if($ext eq "none"){
+            $ext="";
+        }
+        $page->{_pageext}=$ext;
     }
-    if(exists $page->{type}){
-        $ext=$page->{type};
-    }
-    if($ext eq "none"){
-        $ext="";
-    }
-    $page->{_pageext}=$ext;
 }
 
 sub import_config {

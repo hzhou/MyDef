@@ -27,7 +27,7 @@ our %eval_sub_cache;
 our %eval_sub_error;
 our $cur_ogdl;
 our @stub;
-our $stub_idx;
+our $stub_idx=0;
 our %named_macros=(def=>0,macro=>1,page=>2);
 our $parse_capture;
 our $block_index=0;
@@ -40,7 +40,7 @@ sub output {
     my $page=$MyDef::page;
     my $pagename=$page->{_pagename};
     my $pageext=$page->{_pageext};
-    my $outdir=$page->{outdir};
+    my $outdir=$page->{_outdir};
     my $outname=$outdir."/".$pagename;
     if($pageext){
         $outname.=".$pageext";
@@ -94,7 +94,7 @@ sub compile {
             }
         }
     }
-    $page->{outdir}=$outdir;
+    $page->{_outdir}=$outdir;
     $deflist=[$MyDef::def, $MyDef::def->{macros}, $page];
     $deflist->[0]->{_name_}="def_root";
     $deflist->[1]->{_name_}="macros";
@@ -497,7 +497,7 @@ sub testcondition {
 
 sub call_sub {
     my ($param) = @_;
-    if($param eq "main"){
+    if($param =~/^\@?main$/){
         $main_called++;
     }
     my ($codename, $attr, $codelib);
@@ -570,7 +570,7 @@ sub call_sub {
                 my $n0=$n_param-$n_pre-1;
                 if($codeparams->[$n_param-1]=~/^\@(\w+)/ and $n_p>=$n0){
                     if($n_p>$n0){
-                        for(my $i=0; $i<$n0; $i++){
+                        for (my $i = 0; $i<$n0; $i++) {
                             $pline=~s/^[^,]*,//;
                         }
                         $pline=~s/^\s*//;
@@ -591,11 +591,11 @@ sub call_sub {
                 }
             }
             if($n_pre>0){
-                for(my $i=0; $i<$n_pre; $i++){
+                for (my $i = 0; $i<$n_pre; $i++) {
                     $macro->{$codeparams->[$i]}=$pre_plist[$i];
                 }
             }
-            for(my $j=0; $j<$n_param-$n_pre; $j++){
+            for (my $j = 0; $j<$n_param-$n_pre; $j++) {
                 my $p=$codeparams->[$n_pre+$j];
                 if($p=~/^\@(\w+)/){
                     $p=$1;
@@ -708,10 +708,10 @@ sub map_sub {
             my $i=0;
             while($i<@plist){
                 my $macro={_name_=>"sub $codelib->{name}"};
-                for(my $j=0; $j<$n_pre; $j++){
+                for (my $j = 0; $j<$n_pre; $j++) {
                     $macro->{$codeparams->[$j]}=$pre_plist[$j];
                 }
-                for(my $j=0; $j<$map_n; $j++){
+                for (my $j = 0; $j<$map_n; $j++) {
                     $macro->{$codeparams->[$n_pre+$j]}=$plist[$i];
                     $i++;
                 }
@@ -796,7 +796,7 @@ sub call_back {
                 my $n0=$n_param-$n_pre-1;
                 if($codeparams->[$n_param-1]=~/^\@(\w+)/ and $n_p>=$n0){
                     if($n_p>$n0){
-                        for(my $i=0; $i<$n0; $i++){
+                        for (my $i = 0; $i<$n0; $i++) {
                             $pline=~s/^[^,]*,//;
                         }
                         $pline=~s/^\s*//;
@@ -817,11 +817,11 @@ sub call_back {
                 }
             }
             if($n_pre>0){
-                for(my $i=0; $i<$n_pre; $i++){
+                for (my $i = 0; $i<$n_pre; $i++) {
                     $macro->{$codeparams->[$i]}=$pre_plist[$i];
                 }
             }
-            for(my $j=0; $j<$n_param-$n_pre; $j++){
+            for (my $j = 0; $j<$n_param-$n_pre; $j++) {
                 my $p=$codeparams->[$n_pre+$j];
                 if($p=~/^\@(\w+)/){
                     $p=$1;
@@ -941,7 +941,7 @@ sub multi_call_back {
                 my $n0=$n_param-$n_pre-1;
                 if($codeparams->[$n_param-1]=~/^\@(\w+)/ and $n_p>=$n0){
                     if($n_p>$n0){
-                        for(my $i=0; $i<$n0; $i++){
+                        for (my $i = 0; $i<$n0; $i++) {
                             $pline=~s/^[^,]*,//;
                         }
                         $pline=~s/^\s*//;
@@ -962,11 +962,11 @@ sub multi_call_back {
                 }
             }
             if($n_pre>0){
-                for(my $i=0; $i<$n_pre; $i++){
+                for (my $i = 0; $i<$n_pre; $i++) {
                     $macro->{$codeparams->[$i]}=$pre_plist[$i];
                 }
             }
-            for(my $j=0; $j<$n_param-$n_pre; $j++){
+            for (my $j = 0; $j<$n_param-$n_pre; $j++) {
                 my $p=$codeparams->[$n_pre+$j];
                 if($p=~/^\@(\w+)/){
                     $p=$1;
@@ -1101,7 +1101,7 @@ sub parseblock {
                 }
             }
             elsif($1 eq "MACRO"){
-                for(my $i=0;$i<=$#$deflist;$i++){
+                for (my $i=0;$i<=$#$deflist;$i++) {
                     print "DUMP DEFLIST $i:\n";
                     my $h=$deflist->[$i];
                     foreach my $k (keys(%$h)){
@@ -1123,8 +1123,12 @@ sub parseblock {
         }
         elsif($l=~/^\.\.\.\s*$/){
             $stub_idx++;
-            push @$out, "DUMP_STUB stub_$stub_idx";
-            $deflist->[-1]->{stub} = "stub_$stub_idx";
+            $deflist->[-1]->{stub_idx} = "$stub_idx";
+            push @$out, "DUMP_STUB -$stub_idx";
+            next;
+        }
+        elsif($l=~/^DUMP_STUB\s+(\w+)\.\.\./){
+            push @$out, "DUMP_STUB $1-$stub_idx";
             next;
         }
         if($l eq "SOURCE_INDENT"){
@@ -1140,7 +1144,7 @@ sub parseblock {
                 if($len%4){
                     $n++;
                 }
-                for(my $i=0; $i<$n; $i++){
+                for (my $i = 0; $i<$n; $i++) {
                     push @$out, "INDENT";
                 }
                 if($2 eq "DUMP_STUB"){
@@ -1167,7 +1171,7 @@ sub parseblock {
                     elsif($func =~ /^\&call(\d+)/){
                         my $n=$1;
                         my @sub_blocks;
-                        for(my $i=0; $i<$n; $i++){
+                        for (my $i = 0; $i<$n; $i++) {
                             my $subblock=grabblock($block, \$lindex);
                             my $blk = {source=>$subblock, name=>"BLOCK$i", cur_file=>$cur_file, cur_line=>$cur_line, parsed_counter=>0};
                             push @sub_blocks, $blk;
@@ -1203,14 +1207,14 @@ sub parseblock {
                         foreach my $l (@$subblock){
                             push @t_block, $l;
                         }
-                        for(my $i=0; $i<$n; $i++){
+                        for (my $i = 0; $i<$n; $i++) {
                             push @t_block, "SOURCE_DEDENT";
                         }
                         my $blk = {source=>\@t_block, name=>"BLOCK", cur_file=>$cur_file, cur_line=>$cur_line, parsed_counter=>0};
                         call_back("$codename, $param_0", $blk);
                     }
                 }
-                for(my $i=0; $i<$n; $i++){
+                for (my $i = 0; $i<$n; $i++) {
                     push @$out, "DEDENT";
                 }
             }
@@ -1320,9 +1324,9 @@ sub parseblock {
                         }
                         my $m = @tlist;
                         if(@plist){
-                            for(my $i=0; $i<$n; $i++){
+                            for (my $i = 0; $i<$n; $i++) {
                                 my $macro={_i=>$i};
-                                for(my $j=0; $j<@plist; $j++){
+                                for (my $j = 0; $j<@plist; $j++) {
                                     $macro->{$plist[$j]}=$tlist[$j]->[$i];
                                 }
                                 push @$deflist, $macro;
@@ -1332,7 +1336,7 @@ sub parseblock {
                         }
                         else{
                             my $block_ref = $subblock;
-                            for(my $i=0; $i<$n; $i++){
+                            for (my $i = 0; $i<$n; $i++) {
                                 push @$deflist, {_i=>$i};
                                 my @block = @$block_ref;
                                 foreach my $l (@block){
@@ -1426,6 +1430,14 @@ sub parseblock {
                         set_macro($deflist->[-2], $t);
                     }
                 }
+                elsif($preproc=~/^reset:\s*(\w+)(.*)/){
+                    my $n = @{$deflist};
+                    for (my $i=$n-1; $i>=0; $i--) {
+                        if(defined $deflist->[$i]->{$1}){
+                            set_macro($deflist->[$i], "$1$2");
+                        }
+                    }
+                }
                 elsif($preproc=~/^mset:\s*(.*)/){
                     my @plist=split /,\s*/, $1;
                     foreach my $p (@plist){
@@ -1449,7 +1461,7 @@ sub parseblock {
                     my @tlist=MyDef::utils::proper_split($p);
                     my $n=@tlist;
                     $deflist->[-1]->{p_n}=$n;
-                    for(my $i=1; $i<$n+1; $i++){
+                    for (my $i = 1; $i<$n+1; $i++) {
                         $deflist->[-1]->{"p_$i"}=$tlist[$i-1];
                     }
                 }
@@ -1458,7 +1470,7 @@ sub parseblock {
                     my @tlist=split /$1/, $p;
                     my $n=@tlist;
                     $deflist->[-1]->{p_n}=$n;
-                    for(my $i=1; $i<$n+1; $i++){
+                    for (my $i = 1; $i<$n+1; $i++) {
                         $deflist->[-1]->{"p_$i"}=$tlist[$i-1];
                     }
                 }
@@ -1538,14 +1550,11 @@ sub parseblock {
                 elsif($preproc=~/^block_release/){
                     $block_stack[-1]->{eindex}=$block_stack[-2]->{eindex};
                 }
-                elsif($preproc=~/^block:\s*(\w+|\.\.\.)/){
+                elsif($preproc=~/^block:\s*([\w\.]+)/){
                     my $name=$1;
                     my $subblock=grabblock($block, \$lindex);
                     my $save_mode;
-                    if($name eq "..."){
-                        $name = get_macro_word("stub");
-                    }
-                    elsif($name eq "STUB"){
+                    if($name eq "STUB"){
                         $name = get_STUB_name();
                         my $sep=' ';
                         if($preproc=~/^block:\s*STUB:(.*)$/){
@@ -1662,7 +1671,7 @@ sub parseblock {
                     elsif($func =~ /^\&call(\d+)/){
                         my $n=$1;
                         my @sub_blocks;
-                        for(my $i=0; $i<$n; $i++){
+                        for (my $i = 0; $i<$n; $i++) {
                             my $subblock=grabblock($block, \$lindex);
                             my $blk = {source=>$subblock, name=>"BLOCK$i", cur_file=>$cur_file, cur_line=>$cur_line, parsed_counter=>0};
                             push @sub_blocks, $blk;
@@ -1698,7 +1707,7 @@ sub parseblock {
                         foreach my $l (@$subblock){
                             push @t_block, $l;
                         }
-                        for(my $i=0; $i<$n; $i++){
+                        for (my $i = 0; $i<$n; $i++) {
                             push @t_block, "SOURCE_DEDENT";
                         }
                         my $blk = {source=>\@t_block, name=>"BLOCK", cur_file=>$cur_file, cur_line=>$cur_line, parsed_counter=>0};
@@ -1861,8 +1870,8 @@ sub set_macro {
     if($debug eq "macro"){
         print "set_macro $m: [$p]\n";
     }
-    if($p=~/(\w+)([\+\-\*\/\.]?)=(.+)/){
-        my ($t1, $op, $t2)=($1, $2, $3);
+    if($p=~/^(\w+)([\+\-\*\/\.]?)=(.+)/){
+        my ($t1, $op, $t2) = ($1, $2, $3);
         my $t = get_macro_word($t1, 1);
         if($op){
             $m->{$t1} = calc_op($t, $op, $t2);
@@ -1874,8 +1883,8 @@ sub set_macro {
             $m->{$t1} = $t2;
         }
     }
-    elsif($p=~/(\w+)\[(.*?)\]=(.+)/){
-        my ($t1, $sep, $item)=($1, $2, $3);
+    elsif($p=~/^(\w+)\[(.*?)\]=(.+)/){
+        my ($t1, $sep, $item) = ($1, $2, $3);
         if($m->{$t1}){
             $m->{$t1}.="$sep$item";
         }
@@ -1883,11 +1892,11 @@ sub set_macro {
             $m->{$t1}=$item;
         }
     }
-    elsif($p=~/(\S+?):=(.*)/){
+    elsif($p=~/^(\S+?):=(.*)/){
         $m->{$1}=$2;
     }
-    elsif($p=~/(\S+?)=(.*)/){
-        my ($t1, $t2)=($1, $2);
+    elsif($p=~/^(\S+?)=(.*)/){
+        my ($t1, $t2) = ($1, $2);
         if($t1=~/\$\(.*\)/){
             expand_macro(\$t1);
         }
@@ -2000,10 +2009,15 @@ sub get_macro {
         print "get_macro: [$s], nowarn: [$nowarn]\n";
     }
     if($s=~/^x(\d+)([^:]*):(.*)/){
-        if($1>1){
-            return "$3$2" x ($1-1) . $3;
+        my ($n, $sep, $pat) = ($1, $2, $3);
+        if(!$sep && $pat=~/^(:+)(.+)/){
+            $sep=$1;
+            $pat=$2;
         }
-        elsif($1==1){
+        if($n>1){
+            return "$pat$sep" x ($n-1) . $pat;
+        }
+        elsif($n==1){
             return $3;
         }
         else{
@@ -2079,8 +2093,8 @@ sub get_macro {
     }
     elsif($s=~/^def:(.*)/){
         my $t;
-        if($MyDef::def->{file}){
-            my @t = stat($MyDef::def->{file});
+        if($MyDef::def->{_deffile}){
+            my @t = stat($MyDef::def->{_deffile});
             $t=$t[9];
         }
         else{
@@ -2092,9 +2106,6 @@ sub get_macro {
         }
         elsif($1 eq "datetime"){
             return sprintf("%4d-%02d-%02d %02d:%02d", $year+1900, $mon+1, $mday, $hour, $min);
-        }
-        elsif($1 eq "name"){
-            return $MyDef::def->{name};
         }
         else{
             return "";
@@ -2233,7 +2244,7 @@ sub get_macro {
 
 sub get_macro_word {
     my ($name, $nowarn) = @_;
-    for(my $j=$#$deflist; $j>=-1; $j--){
+    for (my $j = $#$deflist; $j>=-1; $j--) {
         my $macros=$deflist->[$j];
         if(exists($macros->{$name})){
             return $macros->{$name};
@@ -2290,7 +2301,7 @@ sub get_def {
 
 sub get_def_attr {
     my ($name, $attr) = @_;
-    for(my $i=$#$deflist; $i>=0; $i--){
+    for (my $i = $#$deflist; $i>=0; $i--) {
         my $t=$deflist->[$i]->{$name};
         if($t and $t->{$attr}){
             return $t->{$attr};
@@ -2300,7 +2311,7 @@ sub get_def_attr {
 }
 
 sub debug_def_stack {
-    for(my $i=$#$deflist; $i>=0; $i--){
+    for (my $i = $#$deflist; $i>=0; $i--) {
         my $name = $deflist->[$i]->{_name_};
         if(!$name){
             $name="Unknown";
@@ -2334,7 +2345,10 @@ sub set_named_block {
 
 sub get_named_block {
     my ($name) = @_;
-    if($name=~/^_(post|pre)(\d*)$/){
+    if($name=~/^(\w*)\.\.\./){
+        $name = "$1-$stub_idx";
+    }
+    elsif($name=~/^_(post|pre)(\d*)$/){
         my $idx;
         if(!$2){
             $idx=$block_stack[-1]->{eindex};

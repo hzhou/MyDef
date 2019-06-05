@@ -22,9 +22,8 @@ sub dumpout {
             }
         }
         my $l=shift @$out;
-        if($custom and $custom->($f, \$l)){
-        }
-        elsif($l =~/^INCLUDE_FILE (\S+)/){
+        $l=~s/^\\x([0-9a-f]+)\b/chr(hex($1))/ie;
+        if($l =~/^INCLUDE_FILE (\S+)/){
             open In, "$1" or die "Can't open $1.\n";
             while(<In>){
                 push @$f, $_;
@@ -47,12 +46,12 @@ sub dumpout {
             my ($sep, $name) = ($1, $2);
             my $source=$MyDef::compileutil::named_blocks{$name};
             if($source){
-                my $t = join ($sep, @$source);
                 my $i=$#$f;
                 while($i>=0 && $f->[$i]!~/\{STUB\}/){
                     $i--;
                 }
                 if($i>=0){
+                    my $t = join ($sep, @$source);
                     $f->[$i]=~s/\{STUB\}/$t/g;
                 }
             }
@@ -96,7 +95,17 @@ sub dumpout {
         }
         else{
             if($l=~/^\s*(NEWLINE\b.*)?$/){
-                push @$f, "\n";
+                if($1 eq "NEWLINE?"){
+                    if($f->[-1] ne "\n"){
+                        push @$f, "\n";
+                    }
+                }
+                elsif($1){
+                    push @$f, "\n";
+                }
+                else{
+                    push @$f, $l;
+                }
             }
             elsif($l=~/^<-\|(.*)/){
                 push @$f, "$1\n";
