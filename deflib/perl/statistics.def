@@ -1,0 +1,125 @@
+#    get $mean, $dev, $min, $max, $min_i, $max_i
+	
+# ----- example of using mean loops
+subcode: stat_loop(loop)
+    $call mean_init
+    &call $(loop)
+	$call mean_step, $t
+    $call mean_final
+    # my $stat_str=sprintf "cnt: $cnt, min $min_i: %.2f, max $max_i: %.2f, mean: %.2f, dev: %.2f", $min, $max, $mean, $dev
+
+    subcode: mean_init
+        my ($sum1, $sum2, $min_i, $max_i, $min, $max)
+        my $cnt=0
+
+    subcode: mean_step(i)
+        $sum1+=$(i)
+        $sum2+=($(i))*($(i))
+        $if $cnt==0
+            $min=$(i)
+            $max=$(i)
+            $min_i=0
+            $max_i=0
+        $else
+            $if $min>$(i)
+                $min=$(i)
+                $min_i=$cnt
+            $if $max<$(i)
+                $max=$(i)
+                $max_i=$cnt
+        $cnt++
+
+    subcode: mean_final
+        $if $cnt==0
+            die "Error in calculating mean, 0 elements\n"
+        $else
+            $sum1/=$cnt
+            $sum2/=$cnt
+            $sum2-=$sum1*$sum1
+            $if $sum2>0
+                $sum2=sqrt($sum2)
+            $else
+                $sum2=0.0
+        my ($mean, $dev)=($sum1, $sum2)
+
+# -- Correlation Coefficient -------------------------
+subcode: ecc_init(array, start, end)
+    my @ecc_target
+    my $ecc_size=0
+    my $sum1=0
+    my $sum2=0
+    $for $i=$(start):$(end)
+	push @ecc_target, $$(array)[$i]
+	$sum1+=$$(array)[$i]
+	$sum2+=$$(array)[$i]*$$(array)[$i]
+	$ecc_size++
+    $sum1/=$ecc_size
+    $sum2/=$ecc_size
+    $sum2-=$sum1*$sum1
+    $if $sum2>0
+	$sum2=sqrt($sum2)
+    $else
+	die "ECC error: Target is flat!\n"
+    $for $i=0:$ecc_size
+	$ecc_target[$i]=($ecc_target[$i]-$sum1)/$sum2
+
+subcode: ecc_calc(array, offset)
+    my $sum_xy=0.0
+    my $sum_y=0.0
+    my $sum_y2=0.0
+    $for $i=0:$ecc_size
+	my $t=$$(array)[$i+$(offset)]
+	$sum_xy+=$ecc_target[$i]*$t
+	$sum_y+=$t
+	$sum_y2+=$t*$t
+    $sum_xy/=$ecc_size
+    $sum_y/=$ecc_size
+    $sum_y2/=$ecc_size
+    my $avg=$sum_y
+    my $ecc=$sum_xy/sqrt($sum_y2-$sum_y*$sum_y)
+
+# -- First Order Fit -------------------------
+subcode: fit_init
+    my $sum_xy=0
+    my $sum_x2=0
+    my $sum_x=0
+    my $sum_y=0
+    my $cnt=0
+
+subcode: fit_add(x, y)
+    $sum_x+=$(x)
+    $sum_y+=$(y)
+    $sum_xy+=$(x)*$(y)
+    $sum_x2+=$(x)*$(x)
+    $cnt++
+
+subcode: fit_final
+    $sum_x/=$cnt
+    $sum_y/=$cnt
+    $sum_xy/=$cnt
+    $sum_x2/=$cnt
+    my $a1=($sum_xy-$sum_x*$sum_y)/($sum_x2-$sum_x*$sum_x)
+    my $a0=$sum_y-$a1*$sum_x
+
+
+# -- Filter ------------------------------------------
+#    moving average
+subcode: average(array, size)
+    my $n=@$(array)
+    my $t=0
+    $for $i=0:$(size)
+	$t+=$$(array)[$i]
+    $for $i=0:$n-$(size)
+	my $a0=$$(array)[$i]
+	$$(array)[$i]=$t/$(size)
+	$t+=$$(array)[$i+$(size)]-$a0
+    # -- center shift --
+    my $shift=int($(size)/2)
+    $for $i=$n-$(size)+$shift-1:$shift-1:-1
+	$$(array)[$i]=$$(array)[$i-$shift]
+    $for $i=1:$shift
+	$$(array)[$i]=$$(array)[0]
+    $for $i=$n-$(size)+$shift:$n
+	$$(array)[$i]=$$(array)[$i-1]
+
+

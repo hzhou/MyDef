@@ -141,6 +141,7 @@ subcode: parsecode_common
         # $function(param1) param2 ----
         my ($func, $param1, $param2)=($1, $2, $3)
         $case $func eq "plugin"
+            # $call $param2, ...
             $call add_plugin, $param1, $param2
             return
         $call @parsecode_func_param
@@ -151,8 +152,10 @@ subcode: parsecode_common
             $case $func eq "plugin"
                 $foreach $p in split /,\s*/, $param
                     $if $p=~/^&(.+)/
+                        # &call $1, ...
                         $call add_plugin, $1, $p
                     $else
+                        # $call $p, ...
                         $call add_plugin, $p, $p
                 return
             $call parsecode_check_plugin # run

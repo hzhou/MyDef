@@ -4,6 +4,8 @@ our $debug=0;
 our $out;
 our $mode;
 our $page;
+our %plugin_statement;
+our %plugin_condition;
 
 sub get_interface {
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
@@ -54,6 +56,62 @@ sub parsecode {
             print "[$t]\n";
             print "eval error: [$@] package [", __PACKAGE__, "]\n";
         }
+        return;
+    }
+    if($l=~/^DUMP_STUB\s/){
+        push @$out, $l;
+    }
+    elsif($l=~/^\s*\$(\w+)\((.*?)\)\s+(.*?)\s*$/){
+        my ($func, $param1, $param2)=($1, $2, $3);
+        if($func eq "plugin"){
+            if($param2=~/_condition$/){
+                $plugin_condition{$param1}=$param2;
+            }
+            else{
+                $plugin_statement{$param1}=$param2;
+            }
+            return;
+        }
+    }
+    elsif($l=~/^\s*\$(\w+)\s*(.*)$/){
+        my ($func, $param)=($1, $2);
+        if($param !~ /^=/){
+            if($func eq "plugin"){
+                foreach my $p (split /,\s*/, $param){
+                    if($p=~/^&(.+)/){
+                        if($p=~/_condition$/){
+                            $plugin_condition{$1}=$p;
+                        }
+                        else{
+                            $plugin_statement{$1}=$p;
+                        }
+                    }
+                    else{
+                        if($p=~/_condition$/){
+                            $plugin_condition{$p}=$p;
+                        }
+                        else{
+                            $plugin_statement{$p}=$p;
+                        }
+                    }
+                }
+                return;
+            }
+            elsif($plugin_statement{$func}){
+                my $c= $plugin_statement{$func};
+                if($c=~/^&(.+)/){
+                    return "PARSE:\&call $1, $param";
+                }
+                else{
+                    MyDef::compileutil::call_sub("$c, $param");
+                }
+                return;
+            }
+        }
+    }
+    elsif($l=~/^CALLBACK\s+(\w+)\s*(.*)/){
+        my ($func, $param)=($1, $2);
+        my $codelist=$MyDef::compileutil::named_blocks{"last_grab"};
         return;
     }
     push @$out, $l;

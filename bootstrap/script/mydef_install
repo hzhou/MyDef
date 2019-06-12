@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 use strict;
 our $b_force;
+our $b_debug;
 
 sub install_all {
     my ($src_list, $install_dir, $ext) = @_;
@@ -87,6 +88,10 @@ if($ARGV[0] eq "-f"){
     $b_force = 1;
     shift @ARGV;
 }
+if($ARGV[0] eq "-debug"){
+    $b_debug = 1;
+    shift @ARGV;
+}
 my ($dst, $ext);
 my $src_list;
 if($ARGV[0] eq "-"){
@@ -100,6 +105,12 @@ if($ARGV[0] eq "-"){
         elsif(-d $a){
             my $tlist = load_srcs_dir($a,"-");
             push @$src_list, @$tlist;
+        }
+        else{
+            warn "[$a] not found\n";
+            if($a=~/\{.*\}/){
+                warn "    note: {*} expansion may not work in your shell, try bash.\n";
+            }
         }
     }
 }

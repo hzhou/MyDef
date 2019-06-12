@@ -18,7 +18,6 @@ our $case_if="if";
 our $case_elif="elsif";
 our @case_stack;
 our $case_state;
-our $case_wrap;
 our $fn_block=[];
 
 sub check_fcall {
@@ -247,19 +246,10 @@ sub parsecode {
             my $level=@case_stack;
             print "        $level:[$case_state]$l\n";
         }
-        my $check_unwrap;
         if($l=~/^\x24(if|elif|elsif|elseif|case)\s+(.*)$/){
             my $cond=$2;
             my $case=$case_if;
             if($1 eq "if"){
-                if($case_wrap){
-                    if($debug eq "case"){
-                        my $level=@case_stack;
-                        print "   $level:[case_unwrap]$l\n";
-                    }
-                    push @$out, @$case_wrap;
-                    undef $case_wrap;
-                }
             }
             elsif($1 eq "case"){
                 if(!$case_state){
@@ -274,33 +264,59 @@ sub parsecode {
             }
             $cond=parse_condition($cond);
             my @src;
-            my $regex_capture;
-            if($cond=~/(.*\S\/\w*)\s*->\s*([^\/]+?)\s*$/){
-                $cond = $1;
-                my @tlist=MyDef::utils::proper_split($2);
-                my (@t1, @t2);
-                my $i=1;
-                foreach my $v (@tlist){
-                    if($v ne "-"){
-                        push @t1, $v;
-                        push @t2, '$'.$i;
+            if($case eq $case_if){
+                my $regex_capture;
+                if($cond=~/(.*\S\/\w*)\s*->\s*([^\/]+?)\s*$/){
+                    $cond = $1;
+                    my @tlist=MyDef::utils::proper_split($2);
+                    my (@t1, @t2);
+                    my $i=1;
+                    foreach my $v (@tlist){
+                        if($v ne "-"){
+                            push @t1, $v;
+                            push @t2, '$'.$i;
+                        }
+                        $i++;
                     }
-                    $i++;
+                    $regex_capture = "my (".join(', ', @t1).") = (".join(', ', @t2).");";
                 }
-                $regex_capture = "my (".join(', ', @t1).") = (".join(', ', @t2).");";
+                push @src, "$case($cond){";
+                push @src, "INDENT";
+                if($regex_capture){
+                    push @src, $regex_capture;
+                }
+                push @src, "BLOCK";
+                push @src, "DEDENT";
+                push @src, "}";
             }
-            push @src, "$case($cond){";
-            push @src, "INDENT";
-            if($regex_capture){
-                push @src, $regex_capture;
+            else{
+                my $regex_capture;
+                if($cond=~/(.*\S\/\w*)\s*->\s*([^\/]+?)\s*$/){
+                    $cond = $1;
+                    my @tlist=MyDef::utils::proper_split($2);
+                    my (@t1, @t2);
+                    my $i=1;
+                    foreach my $v (@tlist){
+                        if($v ne "-"){
+                            push @t1, $v;
+                            push @t2, '$'.$i;
+                        }
+                        $i++;
+                    }
+                    $regex_capture = "my (".join(', ', @t1).") = (".join(', ', @t2).");";
+                }
+                push @src, "$case($cond){";
+                push @src, "INDENT";
+                if($regex_capture){
+                    push @src, $regex_capture;
+                }
+                push @src, "BLOCK";
+                push @src, "DEDENT";
+                push @src, "}";
             }
-            push @src, "BLOCK";
-            push @src, "DEDENT";
-            push @src, "}";
             push @src, "PARSE:CASEPOP";
-            push @case_stack, {state=>"if", wrap=>$case_wrap};
+            push @case_stack, {state=>"if"};
             undef $case_state;
-            undef $case_wrap;
             if($debug eq "case"){
                 my $level=@case_stack;
                 print "Entering case [$level]: $l\n";
@@ -320,9 +336,8 @@ sub parsecode {
             push @src, "DEDENT";
             push @src, "}";
             push @src, "PARSE:CASEPOP";
-            push @case_stack, {state=>undef, wrap=>$case_wrap};
+            push @case_stack, {state=>undef};
             undef $case_state;
-            undef $case_wrap;
             if($debug eq "case"){
                 my $level=@case_stack;
                 print "Entering case [$level]: $l\n";
@@ -332,23 +347,14 @@ sub parsecode {
         }
         elsif($l!~/^SUBBLOCK/){
             undef $case_state;
-            if($case_wrap){
-                if($debug eq "case"){
-                    my $level=@case_stack;
-                    print "   $level:[case_unwrap]$l\n";
-                }
-                push @$out, @$case_wrap;
-                undef $case_wrap;
-            }
             if($l eq "CASEPOP"){
                 if($debug eq "case"){
                     my $level=@case_stack;
-                    print "    Exit case [$level][wrap:$case_wrap]\n";
+                    print "    Exit case [$level]\n";
                 }
                 my $t_case=pop @case_stack;
                 if($t_case){
                     $case_state=$t_case->{state};
-                    $case_wrap=$t_case->{wrap};
                 }
                 return 0;
             }
@@ -605,7 +611,7 @@ sub parsecode {
                 else{
                     if($param=~/(.*);(.*);(.*)/){
                         my @src;
-                        push @src, "for($param){";
+                        push @src, "for ($param) {";
                         push @src, "INDENT";
                         push @src, "BLOCK";
                         push @src, "DEDENT";
@@ -625,7 +631,7 @@ sub parsecode {
                         if($to=~/(.+?)\s+step\s+(.+)/){
                             ($to, $step)=($1, $2);
                         }
-                        $i1="<=$to";
+                        $i1=" <= $to";
                     }
                     elsif($param=~/^(.+?)\s+downto\s+(.+)/){
                         my $to;
@@ -633,7 +639,7 @@ sub parsecode {
                         if($to=~/(.+?)\s+step\s+(.+)/){
                             ($to, $step)=($1, $2);
                         }
-                        $i1=">=$to";
+                        $i1=" >= $to";
                         if($step!~/^-/){
                             $step="-$step";
                         }
@@ -681,7 +687,7 @@ sub parsecode {
                             $step="--";
                         }
                         else{
-                            $step="+=$step";
+                            $step=" += $step";
                         }
                         if(!$var){
                             $var="\$i";
@@ -689,10 +695,10 @@ sub parsecode {
                         elsif($var=~/^(\w+)/){
                             $var='$'.$var;
                         }
-                        $param="$var=$i0; $var$i1; $var$step";
+                        $param="$var = $i0; $var$i1; $var$step";
                         $param = "my $param";
                         my @src;
-                        push @src, "for($param){";
+                        push @src, "for ($param) {";
                         push @src, "INDENT";
                         push @src, "BLOCK";
                         push @src, "DEDENT";
@@ -1142,7 +1148,8 @@ sub parsecode {
         }
         elsif($l=~/^break\s*((not|flag)_\w+)?\s*$/){
             if($1){
-                my $blkname=MyDef::compileutil::get_macro_word("stub");
+                my $stub_idx = $MyDef::compileutil::stub_idx;
+                my $blkname="-$stub_idx";
                 my $blk = MyDef::compileutil::get_named_block($blkname);
                 my $t = "my \$$1;";
                 my $flag_exist;

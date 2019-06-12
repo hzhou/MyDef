@@ -1,0 +1,16 @@
+page: test
+    module: general
+
+    $call A, Hello
+    $call A, Hello, World
+
+subcode: A(a, @b)
+    $(if:b)
+        $(a) - $(b)
+    $(else)
+        $(a)
+
+/* expect out/test.txt:
+Hello
+Hello - World
+*/

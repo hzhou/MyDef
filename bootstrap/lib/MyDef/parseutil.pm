@@ -18,11 +18,11 @@ sub import_data {
         "macros"=>{},
         };
     if($file=~/([^\/]+)\.def/){
-        $def->{name}=$1;
-        $def->{file}=find_file($file);
+        $def->{_defname}=$1;
+        $def->{_deffile}=find_file($file);
     }
     else{
-        $def->{name}="default";
+        $def->{_defname}="default";
     }
     my $macros=$def->{macros};
     while(my ($k, $v)=each %$MyDef::var){
@@ -99,7 +99,7 @@ sub import_file {
     my $lastindent;
     my $source;
     if($file_type eq "main"){
-        my $page={_pagename=>$def->{name}};
+        my $page={_pagename=>$def->{_defname}};
         $source=[];
         my $parent=$page;
         my $code_list;
@@ -131,7 +131,7 @@ sub import_file {
                 last;
             }
             elsif($k eq "include"){
-                if($v eq "$def->{name}.def"){
+                if($v eq "$def->{_defname}.def"){
                     print "include main self [$v]?\n";
                 }
                 else{
@@ -221,8 +221,12 @@ sub import_file {
             push @$source, "SOURCE: $cur_file - $cur_line";
             my $t_code;
             expand_macro(\$line, $macros);
-            if($line=~/^(\w+)code:([:@\d]?)\s*(\w+)(.*)/){
+            if($line=~/^(\w+)code:([:@\d]?)\s*([\w:]+)(.*)/){
                 my ($type, $attr, $name, $t) = ($1, $2, $3, $4);
+                if($name=~/^((?:\w+::)*\w*)(:(?:$|\w.*))/){
+                    $name = $1;
+                    $t = "$2$t";
+                }
                 if($t=~/^(\.\w+)(.*)/){
                     $name .= $1;
                     $t = $2;
@@ -355,7 +359,7 @@ sub import_file {
             $cur_line--;
         }
         elsif($curindent==0 and $line=~/^include:?\s*(.*)/){
-            if($1 eq "$def->{name}.def"){
+            if($1 eq "$def->{_defname}.def"){
                 print "include main self [$1]?\n";
             }
             else{
@@ -380,9 +384,6 @@ sub import_file {
                 $pagename=$1;
             }
             my $page={_pagename=>$pagename};
-            if($pagename=~/(.+)\.(.+)/){
-                $page->{type}='';
-            }
             if($frame){
                 $page->{_frame}=$frame;
             }
@@ -462,7 +463,6 @@ sub import_file {
             if($line=~/^(\w+):([:!=])?\s*(.*)/){
                 my ($k,$dblcolon, $v)=($1, $2, $3);
                 expand_macro(\$v, $macros);
-                $v=~s/\s+$//;
                 if($macros->{$k}!~/^$/){
                     if($dblcolon eq ':'){
                         if($v!~/^$/){
@@ -498,7 +498,7 @@ sub import_file {
     }
     if($file_type eq "main"){
         if($in_default_page){
-            my $pagename = $def->{name};
+            my $pagename = $def->{_defname};
             $def->{pages}->{$pagename} = $in_default_page;
             push @{$def->{pagelist}}, $pagename;
             $def->{in_default_page}=1;
@@ -735,7 +735,7 @@ sub dupe_page {
     my $page={};
     while(my ($k, $v)=each(%$orig)){
         if($k eq "pagename"){
-            $page->{name}=$pagename;
+            $page->{_pagename}=$pagename;
         }
         elsif($k eq "codes"){
             my $codes={};
@@ -773,7 +773,7 @@ sub dupe_page {
 
 sub dupe_line {
     my ($l, $n, @pat_list)=@_;
-    for(my $i=1; $i<=$n; $i++){
+    for (my $i=1; $i<=$n; $i++) {
         my $rep=$pat_list[$i-1];
         $l=~s/\$$i/$rep/g;
     }
@@ -930,7 +930,7 @@ sub print_def_node {
         if($continue){
             print "$n elements\n";
         }
-        for(my $i=0; $i<$m; $i++){
+        for (my $i = 0; $i<$m; $i++) {
             if($i<$n){
                 print_def_node($node->[$i], $indent+1);
             }
@@ -1111,7 +1111,7 @@ sub get_indent_spaces {
     use integer;
     my $n=length($t);
     my $count=0;
-    for(my $i=0; $i<$n; $i++){
+    for (my $i = 0; $i<$n; $i++) {
         if(substr($t, $i, 1) eq ' '){
             $count++;
         }
