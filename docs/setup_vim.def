@@ -1,4 +1,6 @@
 page: t
+    module: perl
+
     my $cwd = `pwd`
     chomp $cwd
     my $home = $ENV{HOME}
