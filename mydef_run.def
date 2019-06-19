@@ -55,6 +55,7 @@ page: mydef_run
         &call open_r, $config{def_file}
             $if /^page:\s*(\w+)/
                 $under_page = $1
+
             $if /module:\s*(\w+)/
                 $if !$config{module} or $pagename eq $under_page
                     $config{module}=$1
@@ -69,11 +70,19 @@ page: mydef_run
             $elif /^\/\*\s*expect (\S+):\s*$/
                 $config{expect_type}=$1
                 $call grab_expect_block
+            $elif !$config{module}
+                $call @looklike_perl
+
         $if !$config{module}
             $config{module}=$MyDef::var->{module}
         $if !$config{module}
             $config{module}="general"
 
+        subcode: looklike_perl
+            $case /^\s*(my|our)\s*\(?[\$\@\%]\w+/
+                $config{module}="perl"
+
+    # ------------------
     subcode: guess_os
         my $ostype
         # $ENV{OSTYPE} dissappears in perl
