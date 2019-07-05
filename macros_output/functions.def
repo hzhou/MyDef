@@ -126,7 +126,7 @@ subcode:: parsecode_func_param_other
         return
     $elif $func eq "get_fn_type"
         my $type = "void"
-        $if $functions{$param2}
+        $if $functions{$param2} and $functions{$param2}->{return_type}
             $type=$functions{$param2}->{return_type}
         MyDef::compileutil::set_current_macro($param1, $type)
         return 

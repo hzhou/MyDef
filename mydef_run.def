@@ -50,18 +50,22 @@ page: mydef_run
             $call @check_arg_version, $a
 
     subcode: guess_module
+        my $guessed_module = "general"
+        # if we are certain (e.g. module: xxx, include: xxx/), set $config{module}
+        # if we are guessing, set $guessed_module
         guess_module:
         my $under_page
         &call open_r, $config{def_file}
             $if /^page:\s*(\w+)/
                 $under_page = $1
-
+            # ----
             $if /module:\s*(\w+)/
                 $if !$config{module} or $pagename eq $under_page
                     $config{module}=$1
                 # last
             $elif /^run:\s*(\S+\.def)/
                 $config{def_file}=$1
+                close In
                 goto guess_module
             $elif /^run:\s*(\w+)/
                 $pagename = $1
@@ -70,17 +74,19 @@ page: mydef_run
             $elif /^\/\*\s*expect (\S+):\s*$/
                 $config{expect_type}=$1
                 $call grab_expect_block
+            $elif /^include:\s*(perl|c)\//
+                $config{module}=$1
             $elif !$config{module}
                 $call @looklike_perl
 
         $if !$config{module}
             $config{module}=$MyDef::var->{module}
         $if !$config{module}
-            $config{module}="general"
+            $config{module}=$guessed_module
 
         subcode: looklike_perl
-            $case /^\s*(my|our)\s*\(?[\$\@\%]\w+/
-                $config{module}="perl"
+            $case /^\s*(my|our|\$global)\s*\(?[\$\@\%]\w+/
+                $guessed_module="perl"
 
     # ------------------
     subcode: guess_os
