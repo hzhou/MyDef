@@ -96,6 +96,7 @@ subcode: dumpout
     subcode: print_line
         $if $l=~/^\s*(NEWLINE\b.*)?$/
             $if $1 eq "NEWLINE?"
+                # prevent multiple empty lines
                 $if $f->[-1] ne "\n"
                     push @$f, "\n"
             $elif $1
@@ -103,7 +104,7 @@ subcode: dumpout
             $else
                 # likely from template
                 push @$f, $l
-        $elif $l=~/^<-\|(.*)/ # C preprocessing
+        $elif $l=~/^<-\|(.*)/ # e.g. C preprocessing
             push @$f, "$1\n"
         $else
             chomp $l

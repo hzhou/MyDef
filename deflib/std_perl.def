@@ -77,13 +77,15 @@ subcode: get_file_in_t(name)
         $t=<In>
         close In
 
-subcode: get_file_lines(name)
+subcode: get_file_lines(name, @lines)
     $(if:name~")
         $(set:name=$(name:strip))
-    my @lines
+    $(if:!lines)
+        $(set:lines=@lines)
+    my $(lines)
     &call block
         open In, "$(name)" or die "Can't open $(name).\n"
-        @lines=<In>
+        $(lines)=<In>
         close In
 
 #---------------------------------------- 
