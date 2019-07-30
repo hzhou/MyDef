@@ -310,6 +310,7 @@ subcode: dumpout
             $(else)
                 # subs after main
                 push @$out, "NEWLINE?"
+                push @$out, "# ---- subroutines ----"."-"x40
                 push @$out, "INCLUDE_BLOCK fn_block"
 
         push @tmp_out, "DUMP_STUB global_init"

@@ -4,8 +4,6 @@ page: utils
     output_dir: lib/MyDef
     package: MyDef::utils
 
-    1;
-
 /*
 fncode: get_tlist($t)
 fncode: for_list_expand($pat, $list)
