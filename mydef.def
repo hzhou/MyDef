@@ -17,8 +17,6 @@ page: MyDef
     MyDef::parseutil::add_path($var->{include_path})
     MyDef::parseutil::add_path($ENV{MYDEFLIB})
 
-    1;
-
 fncode: get_version
     return "$(version)"
 #---------------------------------------- 

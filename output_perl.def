@@ -293,6 +293,7 @@ subcode: dumpout
         $if $(p:package)
             push @tmp_out, "package ".$(p:package).";"
         
+        push @tmp_out, "NEWLINE?"
         push @tmp_out, "DUMP_STUB frame_init"
 
         $if @globals
@@ -303,11 +304,20 @@ subcode: dumpout
         #-- to be processed by dumpout -- reverse order due to unshift
         $if @$fn_block
             $dump->{fn_block}=$fn_block
-            push @tmp_out, "INCLUDE_BLOCK fn_block"
+            $(if:0)
+                # subs before main
+                push @tmp_out, "INCLUDE_BLOCK fn_block"
+            $(else)
+                # subs after main
+                push @$out, "NEWLINE?"
+                push @$out, "INCLUDE_BLOCK fn_block"
 
         push @tmp_out, "DUMP_STUB global_init"
 
         unshift @$out, @tmp_out
+        $if $(p:package) or $page->{type} eq "pm"
+            push @$out, "NEWLINE?"
+            push @$out, "1;"
 
 #----------------------------------------------- 
 subcode: survey_functions
@@ -327,18 +337,20 @@ subcode: add_function(name, warn)
             $call warn, add_function: [$(name)] not found
 
 subcode: list_functions
-    $global $fn_block=[]
+    $global $fn_block=[], @fn_decls
     &call replace_output, $fn_block
         $if $page->{autolist}
             &call each_subcode, fn
                 # $name, $code
                 $call parse_function
         $else
-            $while my $name = pop @functions
+            # $while my $name = pop @functions
+            $foreach $name in @functions
                 my $code = $functions{$name}
                 $call parse_function
 
     subcode: parse_function
+        push @fn_decls, "sub $name;"
         push @$out, "sub $name {"
         push @$out, "INDENT"
         my $params=$code->{params}

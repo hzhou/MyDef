@@ -13,7 +13,12 @@ subcode: set_source_pos_1
 subcode: source_indent
     push @$source, "SOURCE_INDENT";
 subcode: source_dedent
-    push @$source, "SOURCE_DEDENT";
+    $if $source->[-1] eq "NEWLINE?"
+        pop @$source
+        push @$source, "SOURCE_DEDENT";
+        push @$source, "NEWLINE?"
+    $else
+        push @$source, "SOURCE_DEDENT";
 
 #----------------------------
 # ref: grab_template, subcode_start
@@ -174,7 +179,7 @@ fncode: merge_codes($codeitem)
 fncode: clean_up_source($src)
     $if $src and @$src
         my $i=$#$src
-        $while $i>=0 and $src->[$i]=~/^(SOURCE: .*|\s*)$/
+        $while $i>=0 and $src->[$i]=~/^(SOURCE: .*|\s*|NEWLINE\?)$/
             pop @$src
             $i--
 

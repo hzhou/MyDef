@@ -195,7 +195,7 @@ subcode: get_multiline_comment
 subcode: get_indentation
     $if $line=~/^\s*$/
         # sometime empty lines are significant, passes on, where compileutil will filter
-        $line=""
+        $line="NEWLINE?"
     $elif $line=~/^(\s*)(.*)/
         # get current indentation and stripping starting spaces
         # ref: deflib/perl/indentations.def
@@ -204,7 +204,7 @@ subcode: get_indentation
         $if $line=~/^#(?!(define|undef|include|line|error|pragma|if|ifdef|ifndef|elif|else|endif)\b)/
             # Leading # with exclusions
             $if $line=~/^#\\n/
-                $line="NEWLINE"
+                $line="NEWLINE?"
             $elif $indent != $curindent
                 $line="NOOP"
             $else
