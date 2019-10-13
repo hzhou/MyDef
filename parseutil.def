@@ -126,7 +126,7 @@ subcode: start_page
 
     # ------------------------
     subcode: parse_page_line
-        $if $t=~/([\w\-\$\.]+),\s*(\w.*)/
+        $if $t=~/([\w\-\$\.]+),\s*(\w.*|-)/
             $pagename=$1;
             $frame=$2;
             $if $frame=~/^from\s+(\S+)/

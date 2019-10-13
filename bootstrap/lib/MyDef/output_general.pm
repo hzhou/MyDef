@@ -1,5 +1,6 @@
 use strict;
 package MyDef::output_general;
+
 our $debug=0;
 our $out;
 our $mode;
@@ -10,6 +11,7 @@ our %plugin_condition;
 sub get_interface {
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
 }
+
 sub init_page {
     my ($t_page)=@_;
     $page=$t_page;
@@ -17,13 +19,16 @@ sub init_page {
     my $init_mode="sub";
     return $init_mode;
 }
+
 sub set_output {
     my ($newout)=@_;
     $out = $newout;
 }
+
 sub modeswitch {
     my ($mode, $in)=@_;
 }
+
 sub parsecode {
     my ($l)=@_;
     if($debug eq "parse"){
@@ -31,6 +36,7 @@ sub parsecode {
         my $normal="\033[0m";
         print "$yellow parsecode: [$l]$normal\n";
     }
+
     if($l=~/^\$warn (.*)/){
         my $curfile=MyDef::compileutil::curfile_curline();
         print "[$curfile]\x1b[33m $1\n\x1b[0m";
@@ -114,13 +120,17 @@ sub parsecode {
         my $codelist=$MyDef::compileutil::named_blocks{"last_grab"};
         return;
     }
+
+
     push @$out, $l;
 }
+
 sub dumpout {
     my ($f, $out)=@_;
     my $dump={out=>$out,f=>$f};
     MyDef::dumpout::dumpout($dump);
 }
+
 sub single_block {
     my ($t1, $t2, $scope)=@_;
     my @src;
@@ -137,4 +147,7 @@ sub single_block {
         return "NEWBLOCK";
     }
 }
+
+1;
+
 1;

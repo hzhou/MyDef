@@ -1,0 +1,177 @@
+include: std_perl.def
+
+macros:
+    PDF: MyPlot::pdf
+    PLOT: MyPlot
+    PUSH: push @$MyPlot::page_content, 
+
+subcode: _autoload
+    $use $(PLOT)
+
+subcode: basic_frame(@outname)
+    $(PLOT)::init()
+    $(PLOT)::newpage()
+    $call main2
+    $print "  --> $(outname)"
+    $(PLOT)::write_pdf("$(outname)")
+
+#---------------------------------------- 
+#- Common Shapes
+#---------------------------------------- 
+
+macros:
+    circle: (-$1,0)..(0,-$1)..($1,0)..(0,$1)..cycle
+    square: (0,0)--($1,0)--($1,$1)--(0,$1)--cycle
+
+#----------------------------------------
+#- Graphic State
+#-    CTM, clippingpath, colorspace, color, textstate
+#-    linewidth, linecap, linejoin, dashpattern 
+#----------------------------------------
+
+subcode: open_pdf(f)
+    $(if:f~")
+	$(set:f=$(f:strip))
+    $(setmacro:fmt=pdf)
+
+    $use $(PDF)
+    $(PDF)::init()
+    $(PDF)::newpage()
+    BLOCK
+    # ToDo: multiple page support
+    $(PDF)::write_pdf("$(f)")
+    print " --> $(f)\n"
+
+subcode: newpage
+    $global @contents
+    $(if:fmt=pdf)
+        $(PDF)::newpage()
+
+subcode: newshape
+    BLOCK
+    $(PLOT)::close_path()
+
+subcode: draw
+    $(if:draw)
+        # stroke, fill, fillstroke, clip, clipstroke
+        $(PLOT)::$(draw)()
+    $(else)
+        $(PLOT)::stroke()
+
+subcode: moveto(x, y)
+    $(PLOT)::moveto($(x), $(y))
+
+subcode: curveto(x1, y1, x2, y2, x3, y3)
+    $(PLOT)::curveto($(x1),$(y1),$(x2),$(y2),$(x3),$(y3))
+
+#---------------------------------------- 
+subcode: rect(x, y, w, h)
+    $(PUSH) join " ", $(x), $(y), $(w), $(h), "re"
+    $call draw
+
+subcode: circle(x0, y0, r)
+    &call newshape
+        my $c=0.551915024494*$(r)
+        $call moveto, $(x0), $(y0)+$(r)
+        $call curveto, $(x0)+$c, $(y0)+$(r), $(x0)+$(r), $(y0)+$c, $(x0)+$(r), $(y0)
+        $call curveto, $(x0)+$(r), $(y0)-$c, $(x0)+$c, $(y0)-$(r), $(x0), $(y0)-$(r)
+        $call curveto, $(x0)-$c, $(y0)-$(r), $(x0)-$(r), $(y0)-$c, $(x0)-$(r), $(y0)
+        $call curveto, $(x0)-$(r), $(y0)+$c, $(x0)-$c, $(y0)+$(r), $(x0), $(y0)+$(r)
+    $call draw
+
+subcode: cross(x0, y0, r)
+    &call newshape
+        $(PLOT)::moveto($(x0)-$(r), $(y0)-$(r))
+        $(PLOT)::lineto($(x0)+$(r), $(y0)+$(r))
+        $(PLOT)::moveto($(x0)+$(r), $(y0)-$(r))
+        $(PLOT)::lineto($(x0)-$(r), $(y0)+$(r))
+    $call draw
+
+#---- Text ------------------------------------ 
+subcode: set_font(name, size)
+    $global $cur_font, $cur_font_size
+    $(if:name~")
+        $(set:name=$(name:strip))
+    my $ft = $(PLOT)::find_font("$(name)")
+    $(PLOT)::set_font($ft, $(size))
+
+subcode: setcharspacing(tc)
+    $(PUSH) "$(tc) Tc"
+
+subcode: setwordspacing(tw)
+    $(PUSH) "$(tw) Tw"
+
+subcode: setlinespacing(tl)
+    $(PUSH) "$(tl) TL"
+
+subcode: settextmode(mode)
+    #--- 0 Fill, 1 Stroke, 2 FillStroke, 3 Invisible ----
+    #--- 4 Fill, 5 Stroke, 6 FillStroke, 7 None + Path
+    $(PUSH) "$(mode) Tr"
+
+subcode: settextrise(ts)
+    $(PUSH) "$(ts) Ts"
+
+# --------------------------------------- 
+subcode: text_block(x, y)
+    $(PUSH) "BT"
+    $(PUSH) "$cur_font_size TL"
+    $(PUSH) join ' ', $(x), $(y), "Td"
+    BLOCK
+    $(PUSH) "ET"
+
+subcode: textshift(tx, ty)
+    $(PUSH) join ' ', $(tx), $(ty), "Td"
+
+# -------------
+subcode: text(@str)
+    $(if:str~")
+	$(set:str=$(str:strip))
+    $(if:str~utf:)
+	use utf8
+	my $t=$(PLOT)::encode_utf("$(str:4:strip)")
+	$(PUSH) "<$t> Tj"
+    $(else)
+	$(PUSH) "($(str)) Tj"
+
+subcode: textline(@str)
+    $call text, $(str)
+    $(PUSH) "T*"
+    # $(PUSH) "0 -$cur_font_size Td"
+
+subcode: text_at(x, y, @str)
+    &call text_block, $(x), $(y)
+	$call text, $(str)
+
+subcode: text_center(x, y, @str)
+    $(if:str~")
+	$(set:str=$(str:strip))
+    my $tw=$(PLOT)::text_width("$(str)", $cur_font, $cur_font_size)
+    $call text_at, $(x)-$tw/2, $(y), $(str)
+
+#---------------------------------------- 
+subcode: jpeg_at(x, y, w, imagefile)
+    $(if:imagefile~")
+	$(set:imagefile=$(imagefile:strip))
+    #/media/tmp/t.jpg JPEG 256x256 256x256+0+0 8-bit PseudoClass 256c 6.7KB 0.000u 0:00.000
+    my $t=`identify $(imagefile)`
+    $if $t=~/JPEG (\d+)x(\d+) \S+ (\d+)-bit/
+	my ($iw, $ih, $bpp) = ($1, $2, $3)
+	&call add_image, $iw, $ih
+	    my $name = $(PLOT)::add_jpg("$(imagefile)", $iw, $ih, $bpp)
+
+subcode: image_at(x, y, w, image)
+    &call add_image, $(image)->{width}, $(image)->{height}
+	my $name = $(PLOT)::add_image($(image))
+
+# ----------------
+subcode: add_image(iw, ih)
+    my $w=$(w)
+    my $h=$w/$(iw)*$(ih)
+    my $x=$(x)
+    my $y=$(y)-$h
+    BLOCK
+    $(PUSH) "q"
+    $(PUSH) "$w 0 0 $h $x $y cm"
+    $(PUSH) "/$name Do"
+    $(PUSH) "Q"

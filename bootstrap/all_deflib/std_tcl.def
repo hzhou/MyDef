@@ -1,0 +1,5 @@
+subcode: open_r(f)
+    set In [open "$(f)" "r"]
+    $foreach _ in [split [read $In] "\n"]
+        BLOCK
+    close $In

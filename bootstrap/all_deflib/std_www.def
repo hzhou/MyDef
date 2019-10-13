@@ -1,0 +1,39 @@
+include: std_html.def
+## Frames -----------
+htmlcode: basic_frame
+    $call @process
+    <!doctype html>
+    $html
+        $head
+            DUMP_STUB meta
+            $call @meta
+            $call @script
+        $body
+            $call @main2
+
+#-----------------
+htmlcode: js_frame
+    $call @css_global
+    <!doctype html>
+    $html
+        $head
+            DUMP_STUB meta
+            $call @meta
+            $script
+                DUMP_STUB js_init
+                $call @js_global
+                &call setf, window.onload
+                    $call @js_onload
+        $body
+            $call @main2
+
+#-----------------
+htmlcode: php_frame
+    $call php_main
+
+phpcode: php_main
+    $call main2
+
+#----------------------------------------------- 
+include: std_js.def
+include: std_php.def

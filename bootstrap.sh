@@ -27,9 +27,15 @@ $MY_INSTALL bootstrap/script . -
 $MY_INSTALL bootstrap/lib    . pm
 $MY_INSTALL bootstrap/deflib . def
 $MY_INSTALL -f deflib        . def
+
+if [ x$1 = xall ]; then
+    $MY_INSTALL bootstrap/all_lib    . pm
+    $MY_INSTALL bootstrap/all_deflib . def
+fi 
+
 # In case some system do not record file stamps higher than 1 sec.
 
-if [ -z $1 ]; then # so "sh bootstrap.sh skip" will skip these
+if [ x$1 != xskip ]; then # so "sh bootstrap.sh skip" will skip these
     sleep 1
     printf "\n${C}#---- Compile from fresh MyDef source ----${NC}\n"
     perl bootstrap/script/mydef_make

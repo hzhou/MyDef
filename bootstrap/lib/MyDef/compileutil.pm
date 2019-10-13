@@ -1,5 +1,6 @@
 use strict;
 package MyDef::compileutil;
+
 our $deflist;
 our %misc_vars;
 our $debug=0;
@@ -35,12 +36,16 @@ our @block_stack;
 our $n_get_macro;
 our $STUB_idx=0;
 
+1;
+
+# ---- subroutines --------------------------------------------
 sub output {
     my ($plines) = @_;
     my $page=$MyDef::page;
     my $pagename=$page->{_pagename};
     my $pageext=$page->{_pageext};
     my $outdir=$page->{_outdir};
+
     my $outname=$outdir."/".$pagename;
     if($pageext){
         $outname.=".$pageext";
@@ -76,7 +81,7 @@ sub compile {
         }
     }
     $outdir=~s/^\s+//;
-    if(! -d $outdir){
+    if(! -d "$outdir/"){
         my @tdir_list=split /\//, $outdir;
         my $tdir;
         my $slash=0;
@@ -99,6 +104,7 @@ sub compile {
     $deflist->[0]->{_name_}="def_root";
     $deflist->[1]->{_name_}="macros";
     $deflist->[2]->{_name_}="page $page->{_pagename}";
+
     if($page->{macros}){
         while (my ($k, $v) = each %{$page->{macros}}){
             if(!defined $page->{$k}){
@@ -106,18 +112,22 @@ sub compile {
             }
         }
     }
+
     my $mode=$f_init->($page);
     if($mode){
         modepush($mode);
     }
     init_output();
     print STDERR "PAGE: $pagename\n";
+
     my %varsave;
     while(my ($k, $v)=each %$page){
         $varsave{$k}=$MyDef::var->{$k};
         $MyDef::var->{$k}=$v;
     }
+
     $in_autoload=1;
+
     my $codelist=$MyDef::def->{codes};
     foreach my $codename (sort keys %$codelist){
         if($codename=~/_autoload$/){
@@ -125,17 +135,27 @@ sub compile {
         }
     }
     $in_autoload=0;
+
     $main_called = 0;
-    if($page->{_frame}){
+
+    if(!$page->{_frame} and $codelist->{basic_frame}){
+        $page->{_frame} = "basic_frame";
+    }
+
+    if($page->{_frame} and $page->{_frame} ne "-"){
         call_sub($page->{_frame});
     }
+
     if(!$main_called){
         call_sub("main");
     }
+
     $f_parse->("NOOP POST_MAIN");
+
     while(my ($k, $v)=each %varsave){
         $MyDef::var->{$k}=$v;
     }
+
     if(!$page->{subpage}){
         my @buffer;
         $f_dumpout->(\@buffer, fetch_output(0));
@@ -166,6 +186,7 @@ sub set_interface_partial {
 sub push_interface {
     my ($module) = @_;
     push @interface_stack, [$f_init, $f_parse, $f_setout, $f_modeswitch, $f_dumpout];
+
     if($module eq "general"){
         require MyDef::output_general;
         set_interface_partial(MyDef::output_general::get_interface());
@@ -299,6 +320,7 @@ sub push_interface {
         }
         return undef;
     }
+
     $f_setout->($out);
 }
 
@@ -326,6 +348,7 @@ sub test_op {
         $test=$';
         $a=substr($a, 0, $1);
     }
+
     if($test=~/^\s*(!?)~(.*)/){
         my ($not, $b) = ($1, $2);
         if($b=~/(.*)\$$/){
@@ -526,6 +549,7 @@ sub call_sub {
     else{
         warn "    call_sub [$param] parse failure\n";
     }
+
     if($codelib){
         if($codelib->{type} eq "perl"){
             $param=~s/^\s*,\s*//;
@@ -551,11 +575,13 @@ sub call_sub {
             else{
                 @plist=MyDef::utils::smart_split($param, $n_param);
             }
+
             my @pre_plist;
             my $n_pre=0;
             $codelib->{recurse}++;
             push @callsub_stack, $codename;
             modepush($codelib->{type});
+
             my $macro={_name_=>"sub $codelib->{name}"};
             if(1==$n_param && $codeparams->[0] eq "\@plist"){
                 $macro->{np}=$#plist+1;
@@ -590,11 +616,13 @@ sub call_sub {
                     }
                 }
             }
+
             if($n_pre>0){
                 for (my $i = 0; $i<$n_pre; $i++) {
                     $macro->{$codeparams->[$i]}=$pre_plist[$i];
                 }
             }
+
             for (my $j = 0; $j<$n_param-$n_pre; $j++) {
                 my $p=$codeparams->[$n_pre+$j];
                 if($p=~/^\@(\w+)/){
@@ -626,6 +654,7 @@ sub call_sub {
             push @$deflist, $macro;
             parseblock($codelib);
             pop @$deflist;
+
             modepop();
             pop @callsub_stack;
             $codelib->{recurse}--;
@@ -664,6 +693,7 @@ sub map_sub {
     else{
         warn "    call_sub [$param] parse failure\n";
     }
+
     if($codelib){
         if($codelib->{type} eq "perl"){
             $param=~s/^\s*,\s*//;
@@ -692,6 +722,7 @@ sub map_sub {
             $codelib->{recurse}++;
             push @callsub_stack, $codename;
             modepush($codelib->{type});
+
             if($map_n+@pre_plist!=$n_param){
                 warn " Code $codename parameter mismatch.\n";
             }
@@ -705,6 +736,7 @@ sub map_sub {
                     }
                 }
             }
+
             my $i=0;
             while($i<@plist){
                 my $macro={_name_=>"sub $codelib->{name}"};
@@ -719,6 +751,7 @@ sub map_sub {
                 parseblock($codelib);
                 pop @$deflist;
             }
+
             modepop();
             pop @callsub_stack;
             $codelib->{recurse}--;
@@ -749,6 +782,10 @@ sub call_back {
     else{
         warn "    call_sub [$param] parse failure\n";
     }
+
+    if(!$codelib){
+        $codelib={source=>["BLOCK"]};
+    }
     if($codelib){
         if($codelib->{type} eq "perl"){
             $param=~s/^\s*,\s*//;
@@ -776,12 +813,15 @@ sub call_back {
             else{
                 @plist=MyDef::utils::smart_split($param, $n_param);
             }
+
             my @pre_plist;
             my $n_pre=0;
             $codelib->{recurse}++;
             push @callsub_stack, $codename;
             modepush($codelib->{type});
+
             push @callback_block_stack, $sub_blk;
+
             my $macro={_name_=>"sub $codelib->{name}"};
             if(1==$n_param && $codeparams->[0] eq "\@plist"){
                 $macro->{np}=$#plist+1;
@@ -816,11 +856,13 @@ sub call_back {
                     }
                 }
             }
+
             if($n_pre>0){
                 for (my $i = 0; $i<$n_pre; $i++) {
                     $macro->{$codeparams->[$i]}=$pre_plist[$i];
                 }
             }
+
             for (my $j = 0; $j<$n_param-$n_pre; $j++) {
                 my $p=$codeparams->[$n_pre+$j];
                 if($p=~/^\@(\w+)/){
@@ -860,7 +902,9 @@ sub call_back {
                 else{
                 }
             }
+
             pop @callback_block_stack;
+
             modepop();
             pop @callsub_stack;
             $codelib->{recurse}--;
@@ -896,6 +940,7 @@ sub multi_call_back {
     else{
         warn "    call_sub [$param] parse failure\n";
     }
+
     if($codelib){
         if($codelib->{type} eq "perl"){
             $param=~s/^\s*,\s*//;
@@ -921,12 +966,15 @@ sub multi_call_back {
             else{
                 @plist=MyDef::utils::smart_split($param, $n_param);
             }
+
             my @pre_plist;
             my $n_pre=0;
             $codelib->{recurse}++;
             push @callsub_stack, $codename;
             modepush($codelib->{type});
+
             push @callback_block_stack, $sub_blks;
+
             my $macro={_name_=>"sub $codelib->{name}"};
             if(1==$n_param && $codeparams->[0] eq "\@plist"){
                 $macro->{np}=$#plist+1;
@@ -961,11 +1009,13 @@ sub multi_call_back {
                     }
                 }
             }
+
             if($n_pre>0){
                 for (my $i = 0; $i<$n_pre; $i++) {
                     $macro->{$codeparams->[$i]}=$pre_plist[$i];
                 }
             }
+
             for (my $j = 0; $j<$n_param-$n_pre; $j++) {
                 my $p=$codeparams->[$n_pre+$j];
                 if($p=~/^\@(\w+)/){
@@ -1005,7 +1055,9 @@ sub multi_call_back {
                 else{
                 }
             }
+
             pop @callback_block_stack;
+
             modepop();
             pop @callsub_stack;
             $codelib->{recurse}--;
@@ -1067,13 +1119,16 @@ sub parseblock {
     if(!$block){
         warn "parseblock: undefined block [$code]\n";
     }
+
     my $switch_context;
     my @ogdl_stack;
     my @ogdl_path;
     my $ogdl_path_index_base;
     my %ogdl_path_index;
+
     my $indent=0;
     parse_stack_push($code);
+
     my $lindex=0;
     while(1){
         my $l;
@@ -1124,9 +1179,11 @@ sub parseblock {
         elsif($l=~/^\.\.\.\s*$/){
             $stub_idx++;
             $deflist->[-1]->{stub_idx} = "$stub_idx";
+
             push @$out, "DUMP_STUB -$stub_idx";
             next;
         }
+
         elsif($l=~/^DUMP_STUB\s+(\w+)\.\.\./){
             push @$out, "DUMP_STUB $1-$stub_idx";
             next;
@@ -1137,8 +1194,9 @@ sub parseblock {
         elsif($l eq "SOURCE_DEDENT"){
             $indent-- if $indent>0;
         }
+
         if($cur_mode eq "template"){
-            if($l=~/^(\s*)(\$call|DUMP_STUB)\s+(.+)/){
+            if($l=~/^(\s*)(\$call|\$template|DUMP_STUB)\s+(.+)/){
                 my $len = MyDef::parseutil::get_indent_spaces($1);
                 my $n = int($len/4);
                 if($len%4){
@@ -1165,6 +1223,7 @@ sub parseblock {
                         my $blk = {source=>$subblock, name=>"BLOCK", cur_file=>$cur_file, cur_line=>$cur_line, parsed_counter=>0};
                         call_back($param, $blk);
                     }
+
                     elsif($func =~ /^\$map(\d+)/){
                         map_sub($param, $1);
                     }
@@ -1198,6 +1257,7 @@ sub parseblock {
                         my @tlist = MyDef::utils::proper_split($param);
                         my $codename=shift @tlist;
                         my $param_0 = shift @tlist;
+
                         my @t_block;
                         my $n = @tlist;
                         foreach my $t (@tlist){
@@ -1210,6 +1270,7 @@ sub parseblock {
                         for (my $i = 0; $i<$n; $i++) {
                             push @t_block, "SOURCE_DEDENT";
                         }
+
                         my $blk = {source=>\@t_block, name=>"BLOCK", cur_file=>$cur_file, cur_line=>$cur_line, parsed_counter=>0};
                         call_back("$codename, $param_0", $blk);
                     }
@@ -1290,6 +1351,7 @@ sub parseblock {
                 else{
                     undef $switch_context;
                 }
+
                 my $flag_done = 1;
                 if($preproc=~/^for:\s*(.*)/){
                     my ($t) = ($1);
@@ -1297,6 +1359,7 @@ sub parseblock {
                     if($t=~/^(\w+)\s+in\s+(.*)/){
                         my ($vname, $vparam)=($1,$2);
                         my @tlist = MyDef::utils::get_tlist($vparam);
+
                         my $i=0;
                         foreach my $t (@tlist){
                             my $macro={$vname=>$t, _i=>$i};
@@ -1312,6 +1375,7 @@ sub parseblock {
                             $t = $2;
                             @plist = split /,\s*/, $1;
                         }
+
                         my @vlist=split /\s+and\s+/, $t;
                         my $n;
                         my @tlist;
@@ -1323,6 +1387,7 @@ sub parseblock {
                             push @tlist, \@t;
                         }
                         my $m = @tlist;
+
                         if(@plist){
                             for (my $i = 0; $i<$n; $i++) {
                                 my $macro={_i=>$i};
@@ -1439,9 +1504,22 @@ sub parseblock {
                     }
                 }
                 elsif($preproc=~/^mset:\s*(.*)/){
-                    my @plist=split /,\s*/, $1;
-                    foreach my $p (@plist){
-                        set_macro($deflist->[-1], $p);
+                    my ($t) = ($1);
+                    if($t=~/^split:(.*?):(\w+)->(.*)/){
+                        my ($sep, $word, $plist) = ($1, $2, $3);
+                        my @tlist = split /$sep/, get_macro_word($word);
+                        my @plist = split /,\s*/, $plist;
+                        my $i = -1;
+                        foreach my $p (@plist){
+                            $i++;
+                            set_macro($deflist->[-1], "$p=$tlist[$i]");
+                        }
+                    }
+                    else{
+                        my @plist=split /,\s*/, $1;
+                        foreach my $p (@plist){
+                            set_macro($deflist->[-1], $p);
+                        }
                     }
                 }
                 elsif($preproc=~/^mexport:\s*(.*)/){
@@ -1474,6 +1552,7 @@ sub parseblock {
                         $deflist->[-1]->{"p_$i"}=$tlist[$i-1];
                     }
                 }
+
                 elsif($preproc=~/^ogdl_/){
                     expand_macro(\$preproc);
                     if($preproc=~/^ogdl_load:\s*(\w+)/){
@@ -1554,6 +1633,7 @@ sub parseblock {
                     my $name=$1;
                     my $subblock=grabblock($block, \$lindex);
                     my $save_mode;
+
                     if($name eq "STUB"){
                         $name = get_STUB_name();
                         my $sep=' ';
@@ -1665,6 +1745,7 @@ sub parseblock {
                         my $blk = {source=>$subblock, name=>"BLOCK", cur_file=>$cur_file, cur_line=>$cur_line, parsed_counter=>0};
                         call_back($param, $blk);
                     }
+
                     elsif($func =~ /^\$map(\d+)/){
                         map_sub($param, $1);
                     }
@@ -1698,6 +1779,7 @@ sub parseblock {
                         my @tlist = MyDef::utils::proper_split($param);
                         my $codename=shift @tlist;
                         my $param_0 = shift @tlist;
+
                         my @t_block;
                         my $n = @tlist;
                         foreach my $t (@tlist){
@@ -1710,6 +1792,7 @@ sub parseblock {
                         for (my $i = 0; $i<$n; $i++) {
                             push @t_block, "SOURCE_DEDENT";
                         }
+
                         my $blk = {source=>\@t_block, name=>"BLOCK", cur_file=>$cur_file, cur_line=>$cur_line, parsed_counter=>0};
                         call_back("$codename, $param_0", $blk);
                     }
@@ -1735,6 +1818,7 @@ sub parseblock {
                 else{
                     my $callback_output;
                     my $callback_scope;
+
                     my $msg=$f_parse->($l);
                     if($msg){
                         if(ref($msg) eq "ARRAY"){
@@ -1799,6 +1883,7 @@ sub parseblock {
                                 }
                                 else{
                                     $f_parse->($l);
+
                                 }
                             }
                             if($old_out){
@@ -1836,11 +1921,13 @@ sub parse_stack_pop {
         $f_parse->("SUBBLOCK END $blk->{index} $blk->{scope}");
     }
     pop @block_stack;
+
     $cur_file=$blk->{file};
     $cur_line=$blk->{line};
     if($named_blocks{"block$idx\_post"}){
         push @$out, "DUMP_STUB block$idx\_post";
     }
+
     if($blk->{debug}){
         $debug=0;
         $f_parse->("DEBUG OFF");
@@ -1873,13 +1960,13 @@ sub set_macro {
     if($p=~/^(\w+)([\+\-\*\/\.]?)=(.+)/){
         my ($t1, $op, $t2) = ($1, $2, $3);
         my $t = get_macro_word($t1, 1);
+        if($t2=~/\$\(.*\)/){
+            expand_macro(\$t2);
+        }
         if($op){
             $m->{$t1} = calc_op($t, $op, $t2);
         }
         else{
-            if($t2=~/\$\(.*\)/){
-                expand_macro(\$t2);
-            }
             $m->{$t1} = $t2;
         }
     }
@@ -1921,6 +2008,7 @@ sub calc_op {
     if($op eq "."){
         return $v . $t;
     }
+
     my $ret=get_numeric($v);
     if($op eq "+"){
         $ret+=get_numeric($t);
@@ -1977,7 +2065,7 @@ sub expand_eval {
     my $flag;
     foreach my $t (@t){
         if($t=~/^[_a-zA-Z]\w*$/){
-            if($t!~/abs|atan2|cos|exp|hex|int|log|oct|rand|sin|sqrt|srand|chr|ord|lc|lcfirst|uc|uc_first|substr|sprintf/){
+            if($t!~/abs|atan2|cos|exp|hex|int|log|oct|rand|sin|sqrt|srand|chr|ord|lc|lcfirst|uc|ucfirst|substr|sprintf/){
                 my $s = get_macro_word($t, 1);
                 if(defined $s){
                     $t=$s;
@@ -1993,6 +2081,7 @@ sub expand_eval {
 
 sub expand_macro {
     my ($lref) = @_;
+
     if($$lref=~/\$(\(\w|\.)|[\x80-\xff]/){
         $$lref = MyDef::utils::expand_macro($$lref, \&get_macro);
         return 1;
@@ -2005,9 +2094,11 @@ sub expand_macro {
 sub get_macro {
     my ($s, $nowarn) = @_;
     $n_get_macro++;
+
     if($debug eq "macro"){
         print "get_macro: [$s], nowarn: [$nowarn]\n";
     }
+
     if($s=~/^x(\d+)([^:]*):(.*)/){
         my ($n, $sep, $pat) = ($1, $2, $3);
         if(!$sep && $pat=~/^(:+)(.+)/){
@@ -2117,6 +2208,7 @@ sub get_macro {
         if($t=~/^(.*):(.*)/){
             ($sep, $t) = ($1, $2);
         }
+
         my $name = get_STUB_name();
         my $output=get_named_block($name);
         my $temp=$out;
@@ -2166,8 +2258,8 @@ sub get_macro {
             elsif($p eq "uc"){
                 return uc($t);
             }
-            elsif($p eq "uc_first"){
-                return uc_first($t);
+            elsif($p eq "ucfirst"){
+                return ucfirst($t);
             }
             elsif($p eq "length"){
                 return length($t);

@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 use strict;
+
+
 use MyDef;
 my (%config, $pagename);
 my $page;
@@ -24,6 +26,7 @@ foreach my $a (@ARGV){
     }
 }
 if($config{def_file}){
+    my $guessed_module = "general";
     guess_module:
     my $under_page;
     open In, "$config{def_file}" or die "Can't open $config{def_file}.\n";
@@ -38,6 +41,7 @@ if($config{def_file}){
         }
         elsif(/^run:\s*(\S+\.def)/){
             $config{def_file}=$1;
+            close In;
             goto guess_module;
         }
         elsif(/^run:\s*(\w+)/){
@@ -65,13 +69,22 @@ if($config{def_file}){
                 }
             }
         }
+        elsif(/^include:\s*(perl|c)\//){
+            $config{module}=$1;
+        }
+        elsif(!$config{module}){
+            if(/^\s*(my|our|\$global)\s*\(?[\$\@\%]\w+/){
+                $guessed_module="perl";
+            }
+        }
     }
     close In;
+
     if(!$config{module}){
         $config{module}=$MyDef::var->{module};
     }
     if(!$config{module}){
-        $config{module}="general";
+        $config{module}=$guessed_module;
     }
     MyDef::init(%config);
     MyDef::import_data($config{def_file});
@@ -95,7 +108,9 @@ elsif($config{_file}){
 else{
     die "Usage: $0 input_defile.def\n";
 }
+
 my $file=$page->{outname};
+
 my $file_dir;
 if($file=~/(.*)\/(.+)/){
     $file_dir=$1;
@@ -104,6 +119,7 @@ my ($name, $type);
 if($file=~/^(.*)\.(\w+)$/){
     ($name, $type)=($1, $2);
 }
+
 my $exe = "$name";
 if($page->{exe_type}){
     $exe .= "." . $page->{exe_type};
@@ -114,6 +130,7 @@ elsif($MyDef::var->{exe_type}){
 elsif($config{module} eq "win32"){
     $exe .= ".exe";
 }
+
 my $cmd;
 if($page->{run}){
     $cmd=$page->{run};
@@ -130,6 +147,7 @@ elsif($type=~/^c(pp|xx|c|u)?$/){
     else{
         $default_cc = "gcc -std=c99 -g -O2";
     }
+
     $cc = $default_cc;
     if($page->{cc}){
         $cc = $page->{cc};
@@ -143,6 +161,7 @@ elsif($type=~/^c(pp|xx|c|u)?$/){
     elsif($MyDef::var->{CC}){
         $cc = $MyDef::var->{CC};
     }
+
     my $cflags;
     if($page->{CFLAGS}){
         $cflags = $page->{CFLAGS};
@@ -154,6 +173,7 @@ elsif($type=~/^c(pp|xx|c|u)?$/){
         $cc .= " $cflags";
     }
     $cmd="$cc -o $exe $file $page->{lib_list}";
+
     if($config{dump_rule}){
         if($exe=~/([^\/]+)$/){
             $exe = "script/$1";
@@ -194,6 +214,7 @@ elsif($type=~/^c(pp|xx|c|u)?$/){
     }
 }
 elsif($type eq "java"){
+
     $cmd="javac $file";
     my $exe = "CD java $name";
     if($page->{exe}){
@@ -217,6 +238,7 @@ elsif($type eq "java"){
     }
 }
 elsif($type eq "f"){
+
     $cmd="gfortran -g -o$exe $file $page->{lib_list}";
     if($exe!~/\//){
         $exe = "./$exe";
@@ -243,6 +265,7 @@ elsif($type eq "f"){
     }
 }
 elsif($type eq "f90"){
+
     $cmd="gfortran -g -o$exe $file $page->{lib_list}";
     if($exe!~/\//){
         $exe = "./$exe";
@@ -269,6 +292,7 @@ elsif($type eq "f90"){
     }
 }
 elsif($type eq "rs"){
+
     $cmd="rustc -o$exe $file";
     if($exe!~/\//){
         $exe = "./$exe";
@@ -295,6 +319,7 @@ elsif($type eq "rs"){
     }
 }
 elsif($type eq "hs"){
+
     $cmd="ghc -o$exe $file";
     if($exe!~/\//){
         $exe = "./$exe";
@@ -321,6 +346,7 @@ elsif($type eq "hs"){
     }
 }
 elsif($type eq "asm"){
+
     $cmd="nasm -f elf $file && ld -m elf_i386 $name.o -o$exe";
     if($exe!~/\//){
         $exe = "./$exe";
@@ -347,6 +373,7 @@ elsif($type eq "asm"){
     }
 }
 elsif($type eq "s"){
+
     $cmd="gcc -masm=intel -o$exe $file";
     if($exe!~/\//){
         $exe = "./$exe";
@@ -373,6 +400,7 @@ elsif($type eq "s"){
     }
 }
 elsif($type eq "pas"){
+
     $cmd="fpc $file";
     if($exe!~/\//){
         $exe = "./$exe";
@@ -434,9 +462,11 @@ elsif($type eq "latex"){
 elsif($type eq "awk"){
     $cmd = "awk -f $file";
 }
+
 if($config{expect} and $config{expect_type} ne "output"){
     my $expect = $config{expect};
     my ($n_ok, $n_nok);
+
     my $i = 0;
     open In, "$file" or die "Can't open $file.\n";
     while(<In>){
@@ -474,6 +504,7 @@ elsif($cmd){
         my $expect = $config{expect};
         my ($n_ok, $n_nok);
         print "$cmd\n";
+
         my $i = 0;
         open In, "$cmd |" or die "Can't open $cmd |.\n";
         while(<In>){
@@ -511,3 +542,5 @@ elsif($cmd){
 else{
     die "do not know how to run it\n";
 }
+
+

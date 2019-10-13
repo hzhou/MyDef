@@ -1,0 +1,343 @@
+## frame
+subcode:@ basic_frame
+    $include stdio
+    $include stdlib
+    $call @global
+    $function main
+        $call main
+
+###############################################################
+## Utility
+subcode:@ assert(check)
+    $if !($(check))
+        $print "Assert Error: ($(check)) at line %d \n", __LINE__
+        exit(-1)
+
+subcode:@ die(@msg)
+    $call warn, $(msg)
+    exit(-1)
+
+subcode:@ warn(@msg)
+    $(set:print_to=stderr)
+    $print $(msg)
+
+subcode: atexit
+    $function atexit_handler
+        BLOCK
+    atexit($(lambda))
+
+subcode: on_signal(name)
+    $function signal_$(name)
+        BLOCK
+    signal($(name), $(lambda))
+
+#----
+subcode: try
+    $include setjmp
+    $global jmp_buf tryenv
+    $local n_exception_code
+    n_exception_code=setjmp(tryenv)
+    $if n_exception_code==0
+        BLOCK
+
+subcode: catch(exception)
+    $elif n_exception_code==$(exception)
+        BLOCK
+
+subcode: throw(exception)
+    longjmp(tryenv, $(exception))
+
+#----
+subcode: seq_block
+    $dowhile 0
+        BLOCK
+
+#----
+subcode: on_tn_err(fn)
+    $if tn_err
+        $print "Error: $(fn): tn_err=$tn_err"
+        exit(1)
+
+#---- useful ------------
+subcode: swap(a, b)
+    $get_type(type) $(a)
+    $temp $(type) temp
+
+    $(temp)=$(a)
+    $(a)=$(b)
+    $(b)=$(temp)
+
+subcode: update_max(max, a)
+    $if $(max)<$(a)
+        $(max)=$(a)
+
+subcode: update_min(min, a)
+    $if $(min)>$(a)
+        $(min)=$(a)
+
+subcode: clamp(v, min, max)
+    $if $(v)<$(min)
+        $(v)=$(min)
+    $elif $(v)>$(max)
+        $(v)=$(max)
+
+subcode: _autoload
+    $plugin swap, min_set(update_min), max_set(update_max)
+    # how about missing_set, over_set?
+#----
+subcode: get_2d_l(i, j, ldi)
+    $(export:l=$(i)*$(ldi)+$(j))
+
+subcode: free(v)
+    free($(v))
+
+## FILE IO
+subcode: get_file_in_s(file)
+    s = get_file_s($(file), NULL)
+
+fncode: get_file_s(s_file, pn_size)
+    &call2 try_open_r, s_file
+        $my n, s
+        $call get_size, n
+        $allocate(n+1) s
+        n=fread(s, 1, n, file_in)
+        s[n]='\0'
+        $if pn_size
+            *pn_size=n
+        return s
+    fail:
+        return NULL
+
+# --------------------------------
+subcode: open_a(file)
+    $(set:mode=a)
+    &call open_w, $(file)
+        BLOCK
+
+subcode: open_W(file)
+    &call open_w, $(file)
+        $(set:print_to=file_out)
+        BLOCK
+
+subcode: open_w(file)
+    $include stdio
+    $(if:mode!=a)
+        $(set:mode=w)
+    file_out=fopen($(file), "$(mode)b")
+    $if file_out==NULL
+        $call die, "Can't write %s", $(file)
+    $else
+        BLOCK
+        fclose(file_out)
+    # --
+    subcode: write_var_n(name, n)
+        t_n=fwrite(&$(name), $(n), 1, file_out)
+    # --
+    subcode: write_array(a, n, size)
+        t_n = fwrite($(a), $(size), $(n), file_out)
+    # --
+    subcode: write_sig(name)
+        t_n=fwrite("$(name)", 1, $(name:strlen), file_out)
+    subcode: write_sig_n(quoted_sig, n)
+        t_n=fwrite($(quoted_sig), 1, $(n), file_out)
+
+subcode: open_r(file)
+    $include stdio
+    file_in=fopen($(file), "rb")
+    $if file_in==NULL
+        $call die, "Can't open %s", $(file)
+    $else
+        &call fread_frame
+            BLOCK
+        fclose(file_in)
+
+subcode: try_open_r(file)
+    # multi-callback: &call2 try_open_r, file
+    $include stdio
+    file_in=fopen($(file), "rb")
+    $if file_in==NULL
+        BLOCK2
+    $else
+        &call fread_frame
+            BLOCK1
+        fclose(file_in)
+
+subcode: fread_frame
+    BLOCK
+    # --
+    subcode: read_int(n)
+        t_n = fread(&$(n), 4, 1, file_in)
+    subcode: read_array(a, n, size)
+        t_n = fread($(a), $(size), $(n), file_in)
+    # --
+    subcode: get_size(n)
+        fseek(file_in, 0L, SEEK_END)
+        $(n) = ftell(file_in)
+        fseek(file_in, 0L, SEEK_SET)
+    subcode: skip_r(n)
+        t_n=fseek(file_in, $(n), SEEK_CUR)
+    # --
+    subcode: read_sig(name, len)
+        t_n=fread($(name), 1, $(len), file_in)
+        $(name)[$(len)]=0
+    subcode: read_var(name)
+        # 4-byte variable
+        t_n=fread(&$(name), 4, 1, file_in)
+    subcode: read_data(name, size)
+        t_n=fread($(name), 1, $(size), file_in)
+    # --
+    subcode: gets
+        $local char _gets_line[1024]
+        $my s=_gets_line
+        $while fgets(_gets_line, 1024, file_in)
+            BLOCK
+
+subcode: open_rs(file)
+    &call open_r, $(file)
+        &call gets
+            BLOCK
+
+subcode: fread_s_frame
+    &call fread_frame
+        &call gets
+            BLOCK
+
+# ---- sscanf ------------------------------------- 
+subcode: sscanf(s, @plist)
+    $(unset:fmt, vars)
+    $(for:p in $(plist))
+        # init var
+        $(if:p~tf)
+            $local $(p)=0.0
+        $(elif:p~tn)
+            $local $(p)=0
+        $(elif:p~tb)
+            $local $(p)=0
+        $(elif:p~ts)
+            $local $(p)[100]
+        # $(vars)
+        $(if:p~t?s)
+            $(set-1:vars.=,$(p))
+        $(else)
+            $(set-1:vars.=,&$(p))
+        # $(fmt)
+        $(if:p~[tp]?f)
+            $(if:use_double)
+                $(set-1:fmt.= %lf)
+            $(else)
+                $(set-1:fmt.= %f)
+        $(elif:p~[tp]?[inb])
+            $(set-1:fmt.= %i)
+        $(elif:p~t?s)
+            $(set-1:fmt.= %99s)
+
+    $(assert:vars and fmt)
+    sscanf($(s), "$(fmt)" $(vars));
+
+# ---- time -------------------------------------------
+subcode: tick_loop
+    $include time
+    $call tick_reset
+    $while 1
+        BLOCK
+
+    subcode: on_tick(sec)
+        $if time(NULL)-time_tick_set>=$(sec)
+            BLOCK
+
+    subcode: every_tick(sec)
+        $if time(NULL)-time_tick_set>=$(sec)
+            $call tick_reset
+            BLOCK
+
+    subcode: tick_reset
+        time_tick_set=time(NULL)
+
+subcode: print_time(type)
+    $include time
+    time_now=time(NULL)
+    $my struct tm * p_now
+    p_now=localtime(&time_now)
+    $(if:type=default)
+        printf("%d/%d %02d:%02d ", p_now->tm_mon+1, p_now->tm_mday, p_now->tm_hour, p_now->tm_min)
+    $(else)
+        printf("%d/%d %02d:%02d ", p_now->tm_mon+1, p_now->tm_mday, p_now->tm_hour, p_now->tm_min)
+# --
+subcode: start_clock
+    $include time
+    $global clock_t clock_start
+    clock_start = clock()
+
+subcode: report_clock(msg)
+    tf_clock = (double)clock()/CLOCKS_PER_SEC
+    $print "$(msg): %f seconds", (double)(clock()-clock_start)/CLOCKS_PER_SEC
+# --
+subcode: add_clock(name)
+    $global clock_t clock_$(name)=0.0
+    $my clock_t clock_temp
+    clock_temp = clock()
+    BLOCK
+    clock_$(name) += clock() - clock_temp
+    # $dump clock_$(name)
+
+subcode: report_clocks(@namelist)
+    $(for:i in $(namelist))
+        $print "    clock_$(i): %f sec", (double)clock_$(i)/CLOCKS_PER_SEC
+
+subcode: clock_it(name)
+    $call start_clock
+    BLOCK
+    $print "  $(name): %f sec", (double)(clock()-clock_start)/CLOCKS_PER_SEC
+
+# ---- sort -------------------------------------
+subcode: qsort(list, size, type)
+    $function qsort_cmp(const void * a, const void * b)
+        $return_type int
+        $(set:a=(*($(type)*)a))
+        $(set:b=(*($(type)*)b))
+        BLOCK
+    qsort($(list), $(size), sizeof($(type)), $(lambda))
+
+    # -----
+    subcode: numcmp(a, b)
+        $if $(a)<$(b)
+            return -1
+        $elif $(a)>$(b)
+            return 1
+        $else
+            return 0
+        
+
+subcode: numcmp(na, nb)
+    $(allow_recurse:10)
+    $if $(na)<$(nb)
+        return -1
+    $elif $(na)>$(nb)
+        return 1
+    $else
+        BLOCK
+
+#---- scanf ------------------------------------ 
+fncode: get_s_int(s, int * p_n)
+    $return_type char *
+    n=0
+    $while *s>='0' && *s<='9'
+        n*=10
+        n+=(*s-'0')
+        s++
+    *p_n=n
+    $while *s==' '
+        s++
+    return s
+
+#---- template -----
+subcode: global_init
+    DUMP_STUB global_init
+    $call @main
+
+subcode: fn_(@line)
+    $(set:name=$(line:0:word))
+    DUMP_STUB $(name)_pre
+    $in_function $(line)
+        $call fn_$(name)
+        

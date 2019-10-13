@@ -1,5 +1,7 @@
 use strict;
 package MyDef::dumpout;
+
+
 sub dumpout {
     my $dump=shift;
     my $f=$dump->{f};
@@ -9,8 +11,10 @@ sub dumpout {
         die "missing \$out\n";
     }
     my @source_stack;
+
     my $indentation=0;
     my @indentation_stack;
+
     while(1){
         if(!@$out){
             $out=pop @source_stack;
@@ -21,6 +25,7 @@ sub dumpout {
                 next;
             }
         }
+
         my $l=shift @$out;
         $l=~s/^\\x([0-9a-f]+)\b/chr(hex($1))/ie;
         if($l =~/^INCLUDE_FILE (\S+)/){
@@ -70,6 +75,7 @@ sub dumpout {
             elsif($1 eq "POPDENT"){
                 $indentation=pop @indentation_stack;
             }
+
             $l=$2;
             if($l=~/^\s*;?$/){
                 next;
@@ -117,4 +123,7 @@ sub dumpout {
         }
     }
 }
+
+1;
+
 1;

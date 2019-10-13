@@ -3,12 +3,18 @@ use MyDef::utils;
 use MyDef::parseutil;
 use MyDef::compileutil;
 use MyDef::dumpout;
-
 package MyDef;
+
 our $def;
 our $page;
 our $var={};
 
+
+import_config("config");
+MyDef::parseutil::add_path($var->{include_path});
+MyDef::parseutil::add_path($ENV{MYDEFLIB});
+
+# ---- subroutines --------------------------------------------
 sub get_version {
     return "development";
 }
@@ -24,6 +30,7 @@ sub init {
         $var->{$k}=$v;
     }
     my $module=$var->{module};
+
     if(!$module and -f $config{def_file}){
         open In, "$config{def_file}" or die "Can't open $config{def_file}.\n";
         while(<In>){
@@ -34,6 +41,7 @@ sub init {
         }
         close In;
     }
+
     if(!$module){
         die "Module type not defined in config!\n";
     }
@@ -174,9 +182,7 @@ sub import_data {
 sub createpage {
     my ($pagename) = @_;
     $page=$def->{pages}->{$pagename};
-    if($page->{output_path} and !$page->{output_dir}){
-        $page->{output_dir}=$page->{output_path};
-    }
+
     my $plines=MyDef::compileutil::compile();
     MyDef::compileutil::output($plines);
 }
@@ -345,22 +351,27 @@ sub is_sub {
 
 sub set_page_extension {
     my ($default_ext) = @_;
-    if(!exists $page->{_pageext}){
-        my $ext=$default_ext;
-        if(exists $var->{filetype}){
-            $ext=$var->{filetype};
-        }
-        if(exists $page->{type}){
-            $ext=$page->{type};
-        }
-        elsif($page->{_pagename}=~/(.+)\.(.+)/){
-            $ext="";
-        }
-        if($ext eq "none"){
-            $ext="";
-        }
-        $page->{_pageext}=$ext;
+    if($page->{_pageext}){
+        return;
     }
+    my $ext=$default_ext;
+    if(exists $var->{filetype}){
+        $ext=$var->{filetype};
+    }
+
+    if(exists $page->{type}){
+        $ext=$page->{type};
+    }
+    elsif($page->{_pagename}=~/(.+)\.(.+)/){
+        $page->{_pagename}=$1;
+        $ext=$2;
+    }
+
+    if($ext eq "none"){
+        $ext="";
+    }
+
+    $page->{_pageext}=$ext;
 }
 
 sub import_config {
@@ -372,12 +383,6 @@ sub import_config {
         }
     }
     close In;
-    if($var->{output_path} and !$var->{output_dir}){
-        $var->{output_dir}=$var->{output_path};
-    }
 }
 
-import_config("config");
-MyDef::parseutil::add_path($var->{include_path});
-MyDef::parseutil::add_path($ENV{MYDEFLIB});
 1;

@@ -1,0 +1,42 @@
+subcode: basic_frame
+    .intel_syntax noprefix
+    .section .rodata
+    DUMP_STUB _globals
+
+    .text
+    DUMP_STUB _declare
+
+    &call fn_main
+        $call @main2
+
+    DUMP_STUB _other
+
+subcode: fn_main
+    $(block:_declare)
+        .globl main
+        .type main, @function
+
+    main:
+        push rbp
+        mov rbp, rsp
+        BLOCK
+        mov rsp, rbp
+        pop rbp
+        ret
+
+subcode: fn(name)
+    $(block:_declare)
+        .type $(name), @function
+
+    $(block:_other)
+        $(name):
+            BLOCK
+            ret
+
+subcode: print(str)
+    $(setpage:_gid+=1)
+    $(block:_globals)
+        .S$(_gid): .string "$(str)"
+    mov rdi, OFFSET FLAT:.S$(_gid)
+    mov rax, 0
+    call printf

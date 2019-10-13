@@ -1,82 +1,8 @@
 #!/usr/bin/perl
 use strict;
+
 our $b_force;
 our $b_debug;
-
-sub install_all {
-    my ($src_list, $install_dir, $ext) = @_;
-    if(!-d "$install_dir"){
-        mkdir "$install_dir" or die "Can't mkdir $install_dir";
-    }
-    my @cmds;
-    if($ext eq "-"){
-        foreach my $src (@$src_list){
-            my $t=$src;
-            $t=~s/^.*\///;
-            my $dst = "$install_dir/$t";
-            if(!-e $dst or $b_force or (-M $src < -M $dst)){
-                push @cmds, "install -m555 $src $dst";
-            }
-        }
-    }
-    else{
-        foreach my $src (@$src_list){
-            if($src=~/(.*)\//){
-                if(!-d "$install_dir/$1"){
-                    mkdir "$install_dir/$1" or die "Can't mkdir $install_dir/$1";
-                }
-            }
-            my $dst="$install_dir/$src";
-            if(!-e $dst or $b_force or (-M $src < -M $dst)){
-                push @cmds, "install -m644 $src $dst";
-            }
-        }
-    }
-    if(@cmds){
-        print "install_all: $install_dir [$ext]\n";
-        foreach my $cmd (@cmds){
-            print "  :| $cmd\n";
-            system $cmd;
-        }
-    }
-}
-
-sub load_srcs_dir {
-    my ($dir, $ext) = @_;
-    if($dir ne "."){
-        chdir $dir or die "Can't chdir $dir\n";
-    }
-    my @files=glob("*");
-    my @srcs;
-    my @dirs;
-    foreach my $f (@files){
-        if(-d $f){
-            push @dirs, $f;
-        }
-        elsif($ext eq "-"){
-            push @srcs, $f;
-        }
-        elsif($f=~/\.$ext$/){
-            push @srcs, $f;
-        }
-    }
-    foreach my $d (@dirs){
-        if(-f "$d/skip"){
-            next;
-        }
-        my $pat = "$d/*.$ext";
-        if($ext eq "-"){
-            $pat = "$d/*";
-        }
-        my @files=glob($pat);
-        if(@files){
-            foreach my $f (@files){
-                push @srcs, $f;
-            }
-        }
-    }
-    return \@srcs;
-}
 
 if($ARGV[0] eq "-v" or $ARGV[0] eq "--version"){
     my $prog=$0;
@@ -92,6 +18,7 @@ if($ARGV[0] eq "-debug"){
     $b_debug = 1;
     shift @ARGV;
 }
+
 my ($dst, $ext);
 my $src_list;
 if($ARGV[0] eq "-"){
@@ -127,6 +54,10 @@ else{
         die "Not a directory [$src]\n";
     }
 }
+if($b_debug){
+    print "mydef_install: ARGV = @ARGV\n";
+}
+
 my $home = $ENV{HOME};
 my $home2;
 if($ENV{MYDEFLIB}=~/(.*)\/lib\/MyDef/){
@@ -172,12 +103,97 @@ elsif($ext eq "-"){
         exit;
     }
 }
+
 if(!-d $install_dir){
     mkdir $install_dir or die "Can't mkdir $install_dir\n";
 }
 if($dst ne "."){
     $install_dir.="/$dst";
 }
+if($b_debug){
+    print "install_dir: $install_dir\n";
+}
+
 if(@$src_list){
     install_all($src_list, $install_dir, $ext);
 }
+
+# ---- subroutines --------------------------------------------
+sub load_srcs_dir {
+    my ($dir, $ext) = @_;
+    if($dir ne "."){
+        chdir $dir or die "Can't chdir $dir\n";
+    }
+
+    my @files=glob("*");
+
+    my @srcs;
+    my @dirs;
+    foreach my $f (@files){
+        if(-d $f){
+            push @dirs, $f;
+        }
+        elsif($ext eq "-"){
+            push @srcs, $f;
+        }
+        elsif($f=~/\.$ext$/){
+            push @srcs, $f;
+        }
+    }
+    foreach my $d (@dirs){
+        if(-f "$d/skip"){
+            next;
+        }
+        my $pat = "$d/*.$ext";
+        if($ext eq "-"){
+            $pat = "$d/*";
+        }
+        my @files=glob($pat);
+        if(@files){
+            foreach my $f (@files){
+                push @srcs, $f;
+            }
+        }
+    }
+    return \@srcs;
+}
+
+sub install_all {
+    my ($src_list, $install_dir, $ext) = @_;
+    if(!-d "$install_dir"){
+        mkdir "$install_dir" or die "Can't mkdir $install_dir";
+    }
+    my @cmds;
+    if($ext eq "-"){
+        foreach my $src (@$src_list){
+            my $t=$src;
+            $t=~s/^.*\///;
+            my $dst = "$install_dir/$t";
+            if(!-e $dst or $b_force or (-M $src < -M $dst)){
+                push @cmds, "install -m555 $src $dst";
+            }
+        }
+    }
+    else{
+        foreach my $src (@$src_list){
+            if($src=~/(.*)\//){
+                if(!-d "$install_dir/$1"){
+                    mkdir "$install_dir/$1" or die "Can't mkdir $install_dir/$1";
+                }
+            }
+            my $dst="$install_dir/$src";
+            if(!-e $dst or $b_force or (-M $src < -M $dst)){
+                push @cmds, "install -m644 $src $dst";
+            }
+        }
+    }
+
+    if(@cmds){
+        print "install_all: $install_dir [$ext]\n";
+        foreach my $cmd (@cmds){
+            print "  :| $cmd\n";
+            system $cmd;
+        }
+    }
+}
+

@@ -1,15 +1,22 @@
 use strict;
 package MyDef::parseutil;
+
 our @includes;
 our %includes;
 our $in_default_page;
 our $code_index=0;
 our $template_idx=0;
+our %template_file_hash;
 our $debug;
 our @path;
 our %path;
 our @indent_stack=(0);
+@includes=();
+%includes=();
 
+1;
+
+# ---- subroutines --------------------------------------------
 sub import_data {
     my ($file) = @_;
     my $def={
@@ -17,6 +24,7 @@ sub import_data {
         "pagelist"=>[],
         "macros"=>{},
         };
+
     if($file=~/([^\/]+)\.def/){
         $def->{_defname}=$1;
         $def->{_deffile}=find_file($file);
@@ -32,10 +40,12 @@ sub import_data {
     }
     import_file($file, $def, "main");
     my $module = $MyDef::var->{module};
+
     my @standard_includes;
     if($MyDef::var->{'include'}){
         push @standard_includes, split(/[:,]\s*/, $MyDef::var->{'include'});
     }
+
     my $stdinc="std_$module.def";
     push @standard_includes, $stdinc;
     while(1){
@@ -56,6 +66,7 @@ sub import_data {
     while (my ($k, $v) = each %$pages){
         merge_codes($v);
     }
+
     if($in_default_page){
         if($def->{codes}->{basic_frame}){
             $in_default_page->{_frame}="basic_frame";
@@ -130,6 +141,9 @@ sub import_file {
             if($k =~ /^(page|macros|\w+code|template)$/){
                 last;
             }
+            elsif($k eq "output_dir"){
+                $MyDef::var->{output_dir}=$v;
+            }
             elsif($k eq "include"){
                 if($v eq "$def->{_defname}.def"){
                     print "include main self [$v]?\n";
@@ -164,14 +178,14 @@ sub import_file {
             next;
         }
         if($line=~/^\s*$/){
-            $line="";
+            $line="NEWLINE?";
         }
         elsif($line=~/^(\s*)(.*)/){
             my $indent=get_indent($1);
             $line=$2;
             if($line=~/^#(?!(define|undef|include|line|error|pragma|if|ifdef|ifndef|elif|else|endif)\b)/){
                 if($line=~/^#\\n/){
-                    $line="NEWLINE";
+                    $line="NEWLINE?";
                 }
                 elsif($indent != $curindent){
                     $line="NOOP";
@@ -191,7 +205,14 @@ sub import_file {
             if($codetype eq "code"){
                 while($codeindent<$lastindent){
                     $lastindent--;
-                    push @$source, "SOURCE_DEDENT";
+                    if($source->[-1] eq "NEWLINE?"){
+                        pop @$source;
+                        push @$source, "SOURCE_DEDENT";
+                        push @$source, "NEWLINE?";
+                    }
+                    else{
+                        push @$source, "SOURCE_DEDENT";
+                    }
                 }
             }
             my $t = pop @indent_stack;
@@ -213,12 +234,20 @@ sub import_file {
             }
             while($curindent<$lastindent){
                 $lastindent--;
-                push @$source, "SOURCE_DEDENT";
+                if($source->[-1] eq "NEWLINE?"){
+                    pop @$source;
+                    push @$source, "SOURCE_DEDENT";
+                    push @$source, "NEWLINE?";
+                }
+                else{
+                    push @$source, "SOURCE_DEDENT";
+                }
             }
         }
         if($line=~/^\w+code:/ && $curindent == $codeindent and $codetype ne "macro"){
             $source=[];
             push @$source, "SOURCE: $cur_file - $cur_line";
+
             my $t_code;
             expand_macro(\$line, $macros);
             if($line=~/^(\w+)code:([:@\d]?)\s*([\w:]+)(.*)/){
@@ -257,6 +286,7 @@ sub import_file {
             else{
                 $t_code= {};
             }
+
             push @indent_stack, [$codetype, $codeindent, $codeitem];
             $codetype   = "code";
             $codeindent = $curindent+1;
@@ -318,19 +348,20 @@ sub import_file {
             else{
                 warn "parseutil: template missing name\n";
             }
+
             my $grab_indent=$curindent;
             while($cur_line < @$plines){
                 my $line = $plines->[$cur_line];
                 $cur_line++;
                 if($line=~/^\s*$/){
-                    $line="";
+                    $line="NEWLINE?";
                 }
                 elsif($line=~/^(\s*)(.*)/){
                     my $indent=get_indent($1);
                     $line=$2;
                     if($line=~/^#(?!(define|undef|include|line|error|pragma|if|ifdef|ifndef|elif|else|endif)\b)/){
                         if($line=~/^#\\n/){
-                            $line="NEWLINE";
+                            $line="NEWLINE?";
                         }
                         elsif($indent != $curindent){
                             $line="NOOP";
@@ -358,6 +389,9 @@ sub import_file {
             }
             $cur_line--;
         }
+        elsif($line=~/^output_dir:\s*(.+)/){
+            $MyDef::var->{output_dir}=$1;
+        }
         elsif($curindent==0 and $line=~/^include:?\s*(.*)/){
             if($1 eq "$def->{_defname}.def"){
                 print "include main self [$1]?\n";
@@ -373,7 +407,7 @@ sub import_file {
             my ($t) = ($1);
             undef $in_default_page;
             my ($pagename, $frame);
-            if($t=~/([\w\-\$\.]+),\s*(\w.*)/){
+            if($t=~/([\w\-\$\.]+),\s*(\w.*|-)/){
                 $pagename=$1;
                 $frame=$2;
                 if($frame=~/^from\s+(\S+)/){
@@ -416,6 +450,7 @@ sub import_file {
                     elsif($sp ne $1){
                         last;
                     }
+
                     my ($k, $v)=($2,$3);
                     if($k=~/^(macros|\w+code|template)$/){
                         last;
@@ -663,9 +698,10 @@ sub clean_up_source {
     my ($src) = @_;
     if($src and @$src){
         my $i=$#$src;
-        while($i>=0 and $src->[$i]=~/^(SOURCE: .*|\s*)$/){
+        while($i>=0 and $src->[$i]=~/^(SOURCE: .*|\s*|NEWLINE\?)$/){
             pop @$src;
             $i--;
+
         }
     }
 }
@@ -679,32 +715,49 @@ sub parse_template {
     elsif($MyDef::var->{TemplateDir}){
         $template_dir=$MyDef::var->{TemplateDir};
     }
+
     if($template_dir){
         if($template_file!~/^\.*\//){
             $template_file = $template_dir.'/'.$template_file;
         }
     }
-    $template_idx++;
-    my $name="_T$template_idx";
-    my $cur_source=[];
-    my $parent=$def;
-    my $code_list;
-    if(!$parent->{code_list}){
-        $code_list = [];
-        $parent->{code_list}=$code_list;
+
+    if($template_file_hash{$template_file}){
+        return $template_file_hash{$template_file};
     }
     else{
-        $code_list = $parent->{code_list};
+        $template_idx++;
+        my $name="_T$template_idx";
+        $template_file_hash{$template_file} = $name;
+
+        my $cur_source=[];
+        my $parent=$def;
+        my $code_list;
+        if(!$parent->{code_list}){
+            $code_list = [];
+            $parent->{code_list}=$code_list;
+        }
+        else{
+            $code_list = $parent->{code_list};
+        }
+        my $_t = new_code("template", $name);
+        push @{$code_list}, $_t;
+        $_t->{source}=$cur_source;
+        open In, "$template_file" or die "Can't open $template_file.\n";
+        while(<In>){
+            push @$cur_source, $_;
+        }
+        close In;
+        foreach my $l (@$cur_source){
+            if($l=~/^(\s*)(\$template)\s+(.+)/){
+                my $sp = $1;
+                my $t_name = parse_template($def, $3);
+                $l = "$sp\$call $t_name\n";
+            }
+        }
+        return $name;
     }
-    my $_t = new_code("template", $name);
-    push @{$code_list}, $_t;
-    $_t->{source}=$cur_source;
-    open In, "$template_file" or die "Can't open $template_file.\n";
-    while(<In>){
-        push @$cur_source, $_;
-    }
-    close In;
-    return $name;
+
 }
 
 sub post_foreachfile {
@@ -757,6 +810,7 @@ sub dupe_page {
             $page->{$k}=dupe_line($v);
         }
     }
+
     my $pages=$def->{pages};
     my $pagelist=$def->{pagelist};
     if($pages->{$pagename}){
@@ -952,14 +1006,17 @@ sub add_path {
     if(!$dir){
         return;
     }
+
     my $deflib=$ENV{MYDEFLIB};
     my $defsrc=$ENV{MYDEFSRC};
+
     if($dir=~/\$\(MYDEFSRC\)/){
         if(!$defsrc){
             die "MYDEFSRC not defined (in environment)!\n";
         }
         $dir=~s/\$\(MYDEFSRC\)/$defsrc/g;
     }
+
     my @tlist = split /:/, $dir;
     foreach my $t (@tlist){
         $t=~s/\/$//;
@@ -982,9 +1039,11 @@ sub find_file {
         $file=$1;
         $nowarn = 1;
     }
+
     if(-f $file){
         return $file;
     }
+
     if(@path){
         foreach my $dir (@path){
             if(-f "$dir/$file"){
@@ -996,6 +1055,7 @@ sub find_file {
         warn "$file not found\n";
         warn "  search path: ".join(":", @path)."\n";
     }
+
     return undef;
 }
 
@@ -1006,6 +1066,7 @@ sub grab_ogdl {
     my $last_item;
     my $last_item_type;
     my $last_item_key;
+
     my @ogdl_stack;
     foreach my $l (@$llist){
         if($l=~/^(\d)+:(.*)/){
@@ -1032,6 +1093,7 @@ sub grab_ogdl {
                     $cur_i--;
                 }
             }
+
             if($cur_item){
                 if($l=~/(^\S+?):\s*(.+)/){
                     my ($k, $v)=($1, $2);
@@ -1103,12 +1165,14 @@ sub get_indent {
             pop @indent_stack;
         }
     }
+
     return $#indent_stack;
 }
 
 sub get_indent_spaces {
     my ($t) = @_;
     use integer;
+
     my $n=length($t);
     my $count=0;
     for (my $i = 0; $i<$n; $i++) {
@@ -1125,6 +1189,4 @@ sub get_indent_spaces {
     return $count;
 }
 
-@includes=();
-%includes=();
 1;
