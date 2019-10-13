@@ -59,7 +59,7 @@ INSTALL
         `mydef_page` is what should be used in a Makefile.
         
     Try more:
-        Who writes Perl nowadays? If Python is your language, try replace the module with `module: python` and run it.
+        Who writes Perl nowadays? (I do!) If Python is your language, try replace the module with `module: python` and run it.
         You may also try `c`, `cpp`, `java`, `fortran`, `sh`, `js`, `php`, `lua`, `go`, `rust`, `tcl`, `pascal`, etc.
         MyDef is a meta-layer that can easily work with any programming language. You may download specific `output` module or write your own to extend your favorite languages.
 
