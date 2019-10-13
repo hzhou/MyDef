@@ -60,7 +60,7 @@ INSTALL
         
     Try more:
         Who writes Perl nowadays? If Python is your language, try replace the module with `module: python` and run it.
-        You may also try `c`, `cpp`, `java`, `fortran`, `sh`, `lua`, `go`, `rust`, `tcl`, `pascal`, etc.
+        You may also try `c`, `cpp`, `java`, `fortran`, `sh`, `js`, `php`, `lua`, `go`, `rust`, `tcl`, `pascal`, etc.
 
 5. If you use vim, there is simple mydef syntax.
 
