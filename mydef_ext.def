@@ -1,8 +1,7 @@
 page: ext
     output_dir: lib/MyDef
     package: MyDef::ext
-
-    1;
+    type: pm
 
 fncode: grab_codelist(%opt)
     my $codelist = $MyDef::compileutil::named_blocks{"last_grab"}

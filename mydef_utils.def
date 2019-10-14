@@ -2,6 +2,7 @@ include: macros_util/parse_regex.def
 
 page: utils
     output_dir: lib/MyDef
+    type: pm
     package: MyDef::utils
 
 /*

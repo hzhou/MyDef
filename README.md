@@ -36,7 +36,7 @@ INSTALL
 
 2. Now install it:
 
-        sh bootstrap.sh
+        sh bootstrap.sh all
 
 3. If you haven't, read the documentation: http://huizhou.gitbooks.io/programming-with-mydef
 

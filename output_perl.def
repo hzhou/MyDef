@@ -299,7 +299,7 @@ subcode: dumpout
         $if @globals
             $foreach $v in @globals
                 push @tmp_out, "our $v;"
-            push @tmp_out, ""
+            push @tmp_out, "NEWLINE?"
 
         #-- to be processed by dumpout -- reverse order due to unshift
         $if @$fn_block
