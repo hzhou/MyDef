@@ -280,9 +280,7 @@ subcode: cmp_expect(type)
     my ($n_ok, $n_nok)
     $(if:type=cmd)
         $print $cmd
-        # $(set:output="$cmd |")
-        system "$cmd > t.out"
-        $(set:output=t.out)
+        $(set:output="$cmd |")
     $(else)
         $(set:output=$(type))
 
