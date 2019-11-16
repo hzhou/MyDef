@@ -17,4 +17,4 @@ jobs:
         PERL5LIB: $HOME/lib/perl5
         MYDEFLIB: $HOME/lib/MyDef
         MYDEFSRC: $PWD  
-      run: make test
+      run: cd tests; mydef_test
