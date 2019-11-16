@@ -42,7 +42,7 @@ subcode: dump_hash(h)
 subcode: open_r(name)
     $(if:name~")
         $(set:name=$(name:strip))
-    open In, "$(name)" or die "Can't open $(name).\n"
+    open In, "$(name)" or die "Can't open $(name): $!\n"
     $while <In>
         BLOCK
     close In
@@ -51,9 +51,9 @@ subcode: open_w(name)
     $(if:name~")
         $(set:name=$(name:strip))
     $(if:name~[>|])
-        open Out, "$(name)" or die "Can't write $(name).\n"
+        open Out, "$(name)" or die "Can't write $(name): $!\n"
     $(else)
-        open Out, ">$(name)" or die "Can't write $(name).\n"
+        open Out, ">$(name)" or die "Can't write $(name): $!\n"
     BLOCK
     close Out
 
