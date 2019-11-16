@@ -18,5 +18,8 @@ jobs:
         MYDEFLIB: $HOME/lib/MyDef
         MYDEFSRC: $PWD  
       run: |
-        echo [$HOME] - $PATH
+        export PATH=$HOME/bin:$PATH
+        export PERL5LIB=$HOME/lib/perl5
+        export MYDEFLIB=$HOME/lib/MyDef
+        export MYDEFSRC=$PWD
         cd tests; mydef_test
