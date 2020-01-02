@@ -398,6 +398,8 @@ subcode: write_makefile
         $if @make_folders
             print Out "all: all_targets ", join(' ', @make_folders), "\n\n"
 
+        # Since multiple targets may result from a single .def file, let's disable parallel build
+        print Out ".NOTPARALLEL:\n\n"
         # expand def dependcy tree
         $call write_rule_copylist
         $call write_rule_pages
