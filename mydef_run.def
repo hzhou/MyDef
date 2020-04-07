@@ -116,10 +116,8 @@ subcode: run_page
     $call @set_config_exe_type
 
     # $print mydef_run: [$name] [$type]
-    my $cmd
-    $if $page->{run}
-        $cmd=$page->{run}
-    $call @construct_cmd_from_type
+    $call @construct_cmd
+
     # --------------------------------
     $if $config{expect} and $config{expect_type} ne "output"
         $call cmp_expect, $file
@@ -134,7 +132,10 @@ subcode: run_page
         die "do not know how to run it\n"
 
     # ---- construc $cmd based on $type ------
-    subcode: construct_cmd_from_type
+    subcode: construct_cmd
+        my $cmd
+        $if $page->{run}
+            $cmd=$page->{run}
         $elif $type=~/^c(pp|xx|c|u)?$/
             $call run_c
         $call do_compile, java, javac $file, CD java $name
@@ -253,10 +254,15 @@ subcode: run_page
             $cmd .= " $page->{arg}"
 
     subcode: set_config(var, key)
+        my $t
         $if $page->{$(key)}
-            $(var) = $page->{$(key)}
+            $t = $page->{$(key)}
         $elif $MyDef::var->{$(key)}
-            $(var) = $MyDef::var->{$(key)}
+            $t = $MyDef::var->{$(key)}
+        # ---
+        $if $t
+            $t=~s/\$$(key)/$(var)/
+            $(var) = $t
 
     # --------------------------
     subcode: run_cmd_expect
