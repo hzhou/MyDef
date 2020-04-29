@@ -1,127 +1,49 @@
 include: ext.def
-subcode: gnuplot(output, @size)
-    my (@extra_settings, @plot_list, @splot_list)
-    BLOCK
 
-    $print "    --> [$(output)]"
-    open Out, "|gnuplot" or die "Can't execute gnuplot\n";;
-    $(set:print_to=Out)
-    $(if:terminal)
-        $print "set terminal $(terminal)"
-    $(elif:output~.*\.pdf)
-        $(if:!size)
-            $(set:size=size 4,3)
-            $(for:l,r,b,t and 0.1, 0.9, 0.15, 0.85)
-                push @extra_settings, "set $1margin at screen $2;"
-        $print "set terminal pdfcairo $(size) enhanced color"
-    $(elif:output~.*\.eps)
-        $print "set terminal postscript $(size) enhanced color"
-    $(elif:output~.*\.png)
-        $print "set terminal pngcairo $(size) enhanced truecolor"
-    $(else)
-        $print "set terminal png $(size) enhanced truecolor"
-    $print "set output '$(output)'"
+subcode: _autoload
+    $global @title_list, @data_list
+    $global @plot_settings, @plot_list, @splot_list
 
-    $foreach $set in @extra_settings
-        $print $set
-    $if @plot_list
-        $print "plot -"
-        print Out join(",\\\n    ", @plot_list), "\n"
-    $if @splot_list
-        $print "splot -"
-        print Out join(",\\\n    ", @splot_list), "\n"
-    close Out
+perlcode: plot_settings
+    $call grab_codelist
+    $if $codelist
+        $foreach $t in @$codelist
+            $if $t eq "NOOP"
+                next
+            $elif $t =~/^NEWLINE/
+                push @$out, ""
+                next
+            MyDef::compileutil::expand_macro(\$t)
+            push @$out, "push \@plot_settings, \"$t\";"
 
-    # -------------------------------------- 
-    perlcode: extra_settings
-        $call grab_codelist
-        $if $codelist
-            $foreach $t in @$codelist
-                $if $t eq "NOOP"
-                    next
-                MyDef::compileutil::expand_macro(\$t)
-                push @$out, "push \@extra_settings, \"$t\";"
-    # -------------------------------------- 
-    subcode: set(name, @value)
-        $(if:name=title)
-            push @extra_settings, "set $(name) \"$(value)\""
-        $(else)
-            push @extra_settings, "set $(name) $(value)"
-        # $call set, yrange, [y0:yn]
+subcode: add_plot(@p)
+    push @plot_list, "$(p)"
 
-    subcode: plot(@p)
-        push @plot_list, "$(p)"
+subcode: add_splot(@p)
+    push @splot_list, "$(p)"
 
-    subcode: splot(@p)
-        push @splot_list, "$(p)"
+# ---- set macros ---------------------- 
+subcode: set_title(@title)
+    push @plot_settings, "set title '$(title)'"
 
-    # ---- gnuplot macros --------------------------- 
-    subcode: set_3d
-        &call extra_settings
-            set view 60,210,1.5,1
-            set pm3d depthorder hidden3d 1
-            set hidden3d
+subcode: set_xrange(x0, x1)
+    push @plot_settings, "set xrange [$(x0):$(x1)]"
 
-    subcode: set_3d_none
-        &call extra_settings
-            unset colorbox
-            unset key
-            unset border
-            unset tics
-            set ticslevel 0
+subcode: set_yrange(y0, y1)
+    push @plot_settings, "set xrange [$(y0):$(y1)]"
 
-    # --------------------------------------- 
-    subcode: border_xy
-        &call extra_settings
-            set border 3 front lc rgb '#808080' lt 1 lw 1
-            set tics nomirror out scale 0.75
-            set format '%g'
+subcode: set_xlabel(label)
+    push @plot_settings, "set xlabel '$(label)'"
 
-    subcode: border_none
-        &call extra_settings
-            set border 0
-            unset xlabel
-            unset ylabel
-            set format x ''
-            set format y ''
-            set tics scale 0
-
-    subcode: grid
-        &call extra_settings
-            set grid back lc rgb '#d6d7d9' lt 0 lw 1
-
-    subcode: filledcurves
-        &call extra_settings
-            set style fill transparent solid 0.5 noborder
-            set style function filledcurves y1=0
-            set clip two
-
-    # ---------------------------------
-    subcode: set_line_colors(@colors)
-        $(export:linestyle=1)
-        $(for:c in $(colors))
-            $(eval:i=$(_i)+1)
-            push @extra_settings, "set style line $(i) lt 1 lc rgb '#$(c)'"
-
-    subcode: set_palette(@colors)
-        my @t
-        $(for:c in $(colors))
-            push @t, "$(_i) '#$(c)'"
-        # push @extra_settings, "set palette maxcolors $(colors:list:n)"
-        push @extra_settings, "set palette defined (".join(', ', @t).")"
-
-    #----------------------------------------------- 
-    subcode: x_in_pi
-        &call extra_settings
-            # set encoding utf8
-            # set format x '%.1Pπ'
-            set xtics pi
-            set format x '%.0P{/Symbol p}'
+subcode: set_ylabel(label)
+    push @plot_settings, "set ylabel '$(label)'"
 
 #---- title_list, data_list  ----------------------------
-subcode: batch_plot
-    &call get_plot, $title_list[0]
-        $call set, title, $title_list[0]
+subcode: batch_plot(@file)
+    $(if:!file)
+        $(set:file=t.pdf)
+    &call get_plot, $(file)
+        push @plot_settings, "set title '$title_list[0]'"
         $call set_x, $data_list[0]
         $for $i=1:@data_list
             $(set:D=$data_list[$i])
@@ -137,7 +59,7 @@ subcode: batch_plot
             $elif $(D)=~/^x\s*=\s*(.*)/
                 $call add_v_line, $1
             $elif $(D)=~/^set (.*)/
-                push @extra_settings, $(D)
+                push @plot_settings, $(D)
             $else
                 $call add_function, $(D), $(T)
 
@@ -148,7 +70,7 @@ subcode: batch_plot
             $call add_xy, $(D)->{x}, $(D)->{y}, $(T)
 
 subcode: quick_plot(x, y, @datalist)
-    &call get_plot, "plot"
+    &call get_plot, t.pdf
         $(if:x=-)
             $(if:y~@)
                 my $n = $(y)
@@ -157,24 +79,18 @@ subcode: quick_plot(x, y, @datalist)
             $call set_x_n, $n
         $(else)
             $call set_x, $(x)
-        my $label='$(y)'
-        $label=~s/[\$\@]//
-        $call add_data, $(y), $label
+        my $label='$(subst:y:[\$\@]:)'
+        $call add_y, $(y), $label
         $(for:d in $(datalist))
-            my $label='$(d)'
-            $label=~s/[\$\@]//
-            $call add_data, $(d), $label
+            my $label='$(subst:d:[\$\@]:)'
+            $call add_y, $(d), $label
 
 #---- add_data ------------------------------------------- 
-subcode: get_plot(title)
+subcode: get_plot(file)
     my ($plot_x, $data_idx, $ls_idx)
-    &call gnuplot, t.pdf
-        $(if:title!=-)
-            $(if:title~")
-                $(set:title=$(title:strip))
-            $call set, title, '$(title)'
-        my $tempdata=tempname()
-        BLOCK
+    my $tempdata=tempname()
+    BLOCK
+    dump_plot("$(file)")
     $for $j=1:$data_idx+1
         unlink "$tempdata-$j.dat";
 
@@ -213,7 +129,7 @@ subcode: get_plot(title)
 
     # ----------------------------
     subcode: add_v_line(x)
-        push @extra_settings, "set arrow from $(x),graph 0 to $(x),graph 1 nohead"
+        push @plot_settings, "set arrow from $(x),graph 0 to $(x),graph 1 nohead"
 
     subcode: add_function(f, label)
         my $t = "$(f) with lines"
@@ -228,7 +144,10 @@ subcode: get_plot(title)
             $(else)
                 my $n = @{$(y)}
             $call set_x_n, $n
-        add_xy_data($name, $plot_x, $(y))
+        $(if:y~@)
+            add_xy_data($name, $plot_x, \$(y))
+        $(else)
+            add_xy_data($name, $plot_x, $(y))
         my $t = "'$name' u 1:2 with lines"
         $call append_attr, $(label), 2
 
@@ -275,6 +194,37 @@ fncode: add_xy_data($name, $x, $y, $r)
         $else
             $for $i=0:$n
                 print Out "$x->[$i], $y->[$i], $r->[$i]\n"
+
+fncode: dump_plot($file)
+    $print "    --> [$file]"
+    open Out, "|gnuplot" or die "Can't execute gnuplot\n";;
+    $(set:print_to=Out)
+
+    $global $plot_terminal
+    $if $plot_terminal
+        $print "set terminal $plot_terminal"
+    $elif $file=~/\.pdf$/
+        $(set:size=size 4,3)
+        $(for:l,r,b,t and 0.1, 0.9, 0.15, 0.85)
+            push @plot_settings, "set $1margin at screen $2;"
+        $print "set terminal pdfcairo $(size) enhanced color"
+    $elif $file=~/\.eps$/
+        $print "set terminal postscript enhanced color"
+    $elif $file=~/\.png$/
+        $print "set terminal pngcairo"
+    $else
+        $print "set terminal pdfcairo"
+    $print "set output '$file'"
+
+    $foreach $l in @plot_settings
+        $print $l
+    $if @plot_list
+        $print "plot -"
+        print Out join(",\\\n    ", @plot_list), "\n"
+    $if @splot_list
+        $print "splot -"
+        print Out join(",\\\n    ", @splot_list), "\n"
+    close Out
 
 #----------------------------------------------- 
 macros:

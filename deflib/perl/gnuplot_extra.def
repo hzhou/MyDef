@@ -1,0 +1,60 @@
+subcode: set_3d
+    &call plot_settings
+        set view 60,210,1.5,1
+        set pm3d depthorder hidden3d 1
+        set hidden3d
+
+subcode: set_3d_none
+    &call plot_settings
+        unset colorbox
+        unset key
+        unset border
+        unset tics
+        set ticslevel 0
+
+subcode: set_border_xy
+    &call plot_settings
+        set border 3 front lc rgb '#808080' lt 1 lw 1
+        set tics nomirror out scale 0.75
+        set format '%g'
+
+subcode: set_border_none
+    &call plot_settings
+        set border 0
+        unset xlabel
+        unset ylabel
+        set format x ''
+        set format y ''
+        set tics scale 0
+
+subcode: set_grid
+    &call plot_settings
+        set grid back lc rgb '#d6d7d9' lt 0 lw 1
+
+subcode: set_filledcurves
+    &call plot_settings
+        set style fill transparent solid 0.5 noborder
+        set style function filledcurves y1=0
+        set clip two
+
+subcode: set_line_colors(@colors)
+    $(export:linestyle=1)
+    $(for:c in $(colors))
+        $(eval:i=$(_i)+1)
+        push @plot_settings, "set style line $(i) lt 1 lc rgb '#$(c)'"
+
+subcode: set_palette(@colors)
+    my @t
+    $(for:c in $(colors))
+        push @t, "$(_i) '#$(c)'"
+    # push @plot_settings, "set palette maxcolors $(colors:list:n)"
+    push @plot_settings, "set palette defined (".join(', ', @t).")"
+
+subcode: set_x_in_pi
+    &call plot_settings
+        # set encoding utf8
+        # set format x '%.1Pπ'
+        set xtics pi
+        set format x '%.0P{/Symbol p}'
+
+
