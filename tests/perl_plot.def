@@ -3,29 +3,31 @@ page: test
     module: perl
     $(if:0)
         $call test_quick
-    $(elif:1)
+    $(elif:0)
         $call test_batch
-    $(elif:1)
+    $(elif:0)
         $call test_general
     $(elif:0)
-        $call test_klein_bottle
-    $(elif:0)
         $call test_gaussian
+    $(elif:0)
+        $call test_klein_bottle
     $(elif:0)
         $call test_splot
     $(elif:0)
         $call test_vector
-    $(elif:1)
+    $(elif:0)
         $call test_histogram
     $(elif:1)
         $call test_bessel
 
 subcode: test_quick
     my (@y1, @y2)
+    my @x
     $for $i=0:100
+        push @x, $i*0.1
         push @y1, sin($i*0.1)
         push @y2, sin($i*0.1+1)
-    $call quick_plot, -, @y1, @y2
+    $call quick_plot, @x, @y1, @y2
 
 subcode: test_batch
     my (@x, @y1, @y2)
@@ -33,8 +35,7 @@ subcode: test_batch
         push @x, $i
         push @y1, sin($i*0.1)
         push @y2, sin($i*0.1+2)
-    my (@title_list, @data_list)
-    $(if:0)
+    $(if:1)
         push @title_list, "batch PLOT - y"
         push @data_list, \@x
 
@@ -52,69 +53,70 @@ subcode: test_batch
         push @data_list, {x=>\@x, y=>\@y2}
     push @title_list, "event 1"
     push @data_list, "x=40"
-    $call batch_plot
+    $call batch_plot, t.pdf
 
 subcode: test_general
     my @y
     $for $i=0:100
         push @y, sin($i*0.1)
 
-    &call get_plot, "PLOT"
+    &call get_plot, t.pdf
         $call set_x_n, 100
         $call add_y, @y, Sin
         $call add_function, cos(0.1*x), Cos
 
 # -----------------------
 subcode: test_gaussian
-    # plot functions
-    &call gnuplot, t.pdf
-        $call border_xy
-        $call filledcurves
+    $call set_border_xy
+    $call set_filledcurves
 
-        &call extra_settings
-            Gauss(x,mu,sigma) = 1./(sigma*sqrt(2*pi)) * exp( -(x-mu)**2 / (2*sigma**2) )
-            d1(x) = Gauss(x, 0.5, 0.5)
-            d2(x) = Gauss(x,  2.,  1.)
-            d3(x) = Gauss(x, -1.,  2.)
+    &call plot_settings
+        Gauss(x,mu,sigma) = 1./(sigma*sqrt(2*pi)) * exp( -(x-mu)**2 / (2*sigma**2) )
+        d1(x) = Gauss(x, 0.5, 0.5)
+        d2(x) = Gauss(x,  2.,  1.)
+        d3(x) = Gauss(x, -1.,  2.)
 
-        &call extra_settings
-            set xrange [-5:5]
-            set yrange [0:1]
-            set key top left Left reverse samplen 1
-            set lmargin 6
-            set key title 'Gaussian Distribution'
+    &call plot_settings
+        set xrange [-5:5]
+        set yrange [0:1]
+        set key top left Left reverse samplen 1
+        set lmargin 6
+        set key title 'Gaussian Distribution'
 
-        $call plot, d1(x) lc rgb 'forest-green' title 'µ= 0.5 σ=0.5' fs solid 1.0 
-        $call plot, d2(x) lc rgb 'gold' title 'µ= 2.0 σ=1.0'
-        $call plot, d3(x) lc rgb 'red' title 'µ=-1.0 σ=2.0'
+    $call add_plot, d1(x) lc rgb 'forest-green' title 'µ= 0.5 σ=0.5' fs solid 1.0 
+    $call add_plot, d2(x) lc rgb 'gold' title 'µ= 2.0 σ=1.0'
+    $call add_plot, d3(x) lc rgb 'red' title 'µ=-1.0 σ=2.0'
+
+    dump_plot("t.pdf")
 
 subcode: test_klein_bottle
-    # splot w pm3d
-    &call gnuplot, t.pdf, size 4,4
-        $call set_3d_none
-        $call set_3d
+    $call set_3d_none
+    $call set_3d
 
-        &call extra_settings
-            set style fill transparent solid 0.65
-            set palette rgb 9,9,3
+    &call plot_settings
+        set style fill transparent solid 0.65
+        set palette rgb 9,9,3
 
-        &call extra_settings
-            set parametric
-            set urange[0:2*pi]
-            set vrange[0:4*pi]
-            set isosamples 19,44
+    &call plot_settings
+        set parametric
+        set urange[0:2*pi]
+        set vrange[0:4*pi]
+        set isosamples 19,44
 
-            set xrange[-8:8]
-            set yrange[-8:8]
+        set xrange[-8:8]
+        set yrange[-8:8]
 
-        $call define_klein_bottle
-        $call splot, x(u,v),y(u,v),-z(u,v) w pm3d
+    $call define_klein_bottle
+    $call add_splot, x(u,v),y(u,v),-z(u,v) w pm3d
+
+    dump_plot("t.pdf")
+
     # ---------------
     subcode: define_klein_bottle
         # Defining a klein bottle
         # see: http://en.wikipedia.org/wiki/Klein_bottle
         $(set:r=(2.5-1.5*cos(v)))
-        &call extra_settings
+        &call plot_settings
             x(u,v)= v<2*pi ? $(r)*cos(u) : v<3*pi ? -2+(2+cos(u))*cos(v) : -2+2*cos(v)-cos(u)
             y(u,v)= v<2*pi ? $(r)*sin(u) : sin(u)
             z(u,v)= v<pi   ? -2.5*sin(v) : v<2*pi ? 3*v-3*pi : v<3*pi ? (2+cos(u))*sin(v)+3*pi : -3*v+12*pi
@@ -130,14 +132,13 @@ subcode: test_splot
         $print 0 0 1 2 4 3
         $print 0 1 2 3 4 5
                 
-    &call gnuplot, t.png, size 500,500
-        # $print splot '++' using 1:2:(sin(\$1)*cos(\$2)) w image
-        &call extra_settings
-            unset colorbox
-            set pm3d map # image or 3D dots
-            set pm3d interpolate 9,9
-        $call splot, 't.dat' matrix
+    &call plot_settings
+        unset colorbox
+        set pm3d map # image or 3D dots
+        set pm3d interpolate 9,9
+    $call add_splot, 't.dat' matrix
 
+    dump_plot("t.pdf")
 
 subcode: test_vector
     my ($q1, $q2)=(1, -1)
@@ -165,10 +166,11 @@ subcode: test_vector
                         $e$1 = $e$1 / $er * $dx * 0.9
                 $print "%.2f, %.2f, %.2f, %.2f, %.2f", $x-$ex/2, $y-$ey/2, $ex, $ey, $v
 
-    &call gnuplot, t.eps
-        $call set, title, 'Vector Field'
-        $call plot, 't.dat' u 1:2:3:4:5 with vectors head size 0.08,20,60 filled lc palette
-        $call set_palette, fffcf6,fff7db,fff4c2,feecae,f8ca8c,f0a848,c07860,a86060,784860,604860
+    $call set_title, Vector Field
+    $call add_plot, 't.dat' u 1:2:3:4:5 with vectors head size 0.08,20,60 filled lc palette
+    $call set_palette, fffcf6,fff7db,fff4c2,feecae,f8ca8c,f0a848,c07860,a86060,784860,604860
+
+    dump_plot("t.pdf")
 
 subcode: test_histogram
     &call open_w, t.dat
@@ -178,35 +180,37 @@ subcode: test_histogram
 
     $(set:ls1=lc rgb '#FB9A99' lt 1)
     $(set:ls2=lc rgb '#A6CEE3' lt 1)
-    &call gnuplot, t.pdf
-        $call border_xy
+    $call set_border_xy
 
-        &call extra_settings
-            set yrange [0:50]
-            set boxwidth 0.9 relative
-            set style data histograms
-            set style fill solid 1.0 border -1
+    &call plot_settings
+        set yrange [0:50]
+        set boxwidth 0.9 relative
+        set style data histograms
+        set style fill solid 1.0 border -1
 
-        $call plot, 't.dat' u 2:xticlabels(1) t '1'
-        $(for:3-6)
-            $(eval:i=$1-1)
-            $call plot, '' u $1 t '$(i)'
+    $call add_plot, 't.dat' u 2:xticlabels(1) t '1'
+    $(for:3-6)
+        $(eval:i=$1-1)
+        $call add_plot, '' u $1 t '$(i)'
+
+    dump_plot("t.pdf")
 
 #----------------------------------------------- 
 subcode: test_bessel
-    &call get_plot, Bessel Functions
-        $call set, xrange, [0:15]
-        $call bessel_more
-        $call set_line_colors, $(COLOR_dark2)
-        $call border_xy
-        $call grid
-        $call x_in_pi
+    $call set_title, Bessel Functions
+    push @plot_settings, "set xrange [0:15]"
+    $call bessel_more
+    $call set_line_colors, $(COLOR_dark2)
+    $call set_border_xy
+    $call set_grid
+    $call set_x_in_pi
 
-        push @extra_settings, "unset key"
-        $(for:0-6 and 1.4,1.9,3.2,4.3,5.4,6.5,7.6 and 0.90,0.67,0.57,0.51,0.48,0.45,0.43)
-            $(eval:ls=$1+1)
-            push @extra_settings, "set label 'J_$1' at $2,$3 center tc ls $(ls)"
+    push @plot_settings, "unset key"
+    $(for:0-6 and 1.4,1.9,3.2,4.3,5.4,6.5,7.6 and 0.90,0.67,0.57,0.51,0.48,0.45,0.43)
+        $(eval:ls=$1+1)
+        push @plot_settings, "set label 'J_$1' at $2,$3 center tc ls $(ls)"
 
+    &call get_plot, t.pdf
         $(for:0-6)
             $call add_function, besj$1(x), -
 
@@ -214,5 +218,5 @@ subcode: test_bessel
         $(for:i in 2-6)
             $(eval:j=$(i)-1)
             $(eval:k=$(i)-2)
-            push @extra_settings, "besj$(i)(x) = 2*$(j)/x * besj$(j)(x) - besj$(k)(x)"
+            push @plot_settings, "besj$(i)(x) = 2*$(j)/x * besj$(j)(x) - besj$(k)(x)"
 
