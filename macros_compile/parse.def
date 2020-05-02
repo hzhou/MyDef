@@ -63,6 +63,11 @@ subcode: compile_line
     $if $l=~/^BLOCK(\d*)\s*$/
         $call call_back
         goto Done_Parse
+    $elif $l=~/^SINK_STUB\s*(.+)/
+        $global %sink_blocks
+        $foreach $a in split /,\s*/, $1
+            $sink_blocks{$a} = 1
+        goto Done_Parse
     # -----------------
     $call @check_bypass
     # -----------------

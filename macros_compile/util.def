@@ -61,7 +61,9 @@ fncode: set_named_block($name, $block)
     $named_blocks{$name}=$block
 
 fncode: get_named_block($name)
-    $if $name=~/^(\w*)\.\.\./
+    $if $sink_blocks{$name}
+        return []
+    $elif $name=~/^(\w*)\.\.\./
         $name = "$1-$stub_idx"
     $call @get_named_block_filters
     $if !$named_blocks{$name}
