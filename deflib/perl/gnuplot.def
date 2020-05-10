@@ -38,6 +38,37 @@ subcode: set_xlabel(label)
 subcode: set_ylabel(label)
     push @plot_settings, "set ylabel '$(label)'"
 
+subcode: set_grid
+    &call plot_settings
+        set grid back lc rgb '#d6d7d9' lt 0 lw 1
+
+subcode: set_filledcurves
+    &call plot_settings
+        set style fill transparent solid 0.5 noborder
+        set style function filledcurves y1=0
+        set clip two
+
+subcode: set_line_colors(@colors)
+    $(export:linestyle=1)
+    $(for:c in $(colors))
+        $(eval:i=$(_i)+1)
+        push @plot_settings, "set style line $(i) lt 1 lc rgb '#$(c)'"
+
+subcode: set_palette(@colors)
+    my @t
+    $(for:c in $(colors))
+        push @t, "$(_i) '#$(c)'"
+    # push @plot_settings, "set palette maxcolors $(colors:list:n)"
+    push @plot_settings, "set palette defined (".join(', ', @t).")"
+
+subcode: set_x_in_pi
+    &call plot_settings
+        # set encoding utf8
+        # set format x '%.1Pπ'
+        set xtics pi
+        set format x '%.0P{/Symbol p}'
+
+#---------------------------------------------------
 #---- title_list, data_list  ----------------------------
 subcode: batch_plot(@file)
     $(if:!file)
