@@ -215,6 +215,10 @@ fncode: grabblock($block, $index_ref)
             $indent++ 
         push @sub, $l
     $$index_ref=$lindex
+
+    $while $sub[-1] =~/^(NEWLINE\?)?$/
+        pop @sub
+
     #foreach my $l(@sub){print "grabblock: [$l]\n";}
     return \@sub;
 

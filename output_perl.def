@@ -288,7 +288,7 @@ subcode: dumpout
         $if @uses
             $foreach $v in @uses
                 push @tmp_out, "use $v;"
-            push @tmp_out, ""
+            push @tmp_out, "NEWLINE?"
 
         $if $(p:package)
             push @tmp_out, "package ".$(p:package).";"
