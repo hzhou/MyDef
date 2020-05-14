@@ -161,6 +161,7 @@ subcode: run_page
         $call do_script, tex, run_tex
         $call do_script, latex, run_tex
         $call do_script, awk, awk -f
+        $call do_script, plt, gnuplot
 
         # --------------------
         # support custom_run.def 

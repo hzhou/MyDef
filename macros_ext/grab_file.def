@@ -1,0 +1,55 @@
+fncode: grab_file($file, $pat)
+    my @t
+    $if $file eq "-"
+        $file = $MyDef::def->{file}
+    $call @comment_header
+
+    my $flag
+    &call open_r, $file
+        $if $pat
+            $call check_flag_pattern_mydef
+            $elif $flag
+                push @t, $_
+        $else
+            push @t, $_
+    $call @chop_empty
+
+    return \@t
+
+    # -------------------
+    subcode: open_r(f)
+        $if open In, $(f) 
+            $while <In>
+                BLOCK
+            close In
+        $else
+            die "Can't open $file\n"
+
+    #- TODO: support other comment syntax
+    subcode: check_flag_pattern_mydef
+        # main block is marked with #----
+        $if /^\#----\s*$pat\s*----/
+            $flag=1
+        $elif /^\#----.*----/
+            $flag=0
+        # sub-blocks are marked with # --
+        $elif !$flag and /^\s*#\s*--\s*$pat\s*--/
+            $flag=2
+        $elif $flag==2 and /^\s*#\s*--.*--/
+            $flag=0
+
+    subcode: comment_header
+        my $fname=$file
+        $if $file=~/def\/(.*)/
+            $fname = $1
+        $elif $file=~/.*\/(.*)/
+            $fname = $1
+
+        $if $pat
+            push @t, "#---- $fname: $pat ----\n"
+        $else
+            push @t, "#---- file: $fname ----\n"
+
+    subcode: chop_empty
+        $while $t[-1]=~/^\s*$/
+            pop @t

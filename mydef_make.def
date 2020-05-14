@@ -282,7 +282,9 @@ subcode: read_eachfile
                 $page={};
                 push @page_list, $page;
             $elif /^page: ([\w\.-]+)/
-                $if $1 ne "test"
+                $if $1 eq "test"
+                    $print skipping page: test
+                $else
                     $inpage=1;
                     $got_page=1
                     $page={};
