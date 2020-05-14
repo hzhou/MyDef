@@ -176,12 +176,7 @@ subcode: parse_line
     my $msg=$f_parse->($l);
     $if $msg
         $if ref($msg) eq "ARRAY"
-            $(if:1)
-                $call warn, return [ARRAY] deprecated. Use NEWBLOCK and &replace_output instead.
-            $(else)
-                # output is held until post processing
-                #     eg. output_apple.pm $method
-                $callback_output=$msg;
+            $call warn, return [ARRAY] deprecated. Use NEWBLOCK and &replace_output instead.
         $elif $msg=~/^NEWBLOCK(.*)/
             # check the new output for blocks
             #     eg. output.def single_block()
