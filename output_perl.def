@@ -83,14 +83,14 @@ subcode: parsecode_function
         $call check_regex_capture, $param
         $if $regex_capture
             &call return_newblock, while
-                push @src, "while($param){"
+                push @src, "while ($param) {"
                 push @src, "INDENT"
                 push @src, $regex_capture
                 push @src, "BLOCK"
                 push @src, "DEDENT"
                 push @src, "}"
         $elif $param=~/\/.*\/\w*\s*$/
-            return single_block("while($param){", "}", "while")
+            return single_block("while ($param) {", "}", "while")
         $else
             $call parsecode_while_support, c_style
     $elif $func =~ /^for(each)?$/
@@ -100,7 +100,7 @@ subcode: parsecode_function
             $call parsecode_for_support, c_style
         return 0
     $elif $func =~ /^loop$/
-        return single_block("while(1){", "}", "while")
+        return single_block("while (1) {", "}", "while")
     $elif $func eq "sumcode" or $func eq "sum"
         $if $param=~/^\((.*?)\)\s+(.*)/
             my $dimstr=$1
@@ -167,7 +167,7 @@ subcode: for_i0_i1_step
 
 subcode: if_perl_style
     $call check_regex_capture, $cond
-    push @src, "$case($cond){";
+    push @src, "$case ($cond) {";
     push @src, "INDENT";
     $if $regex_capture
         push @src, $regex_capture
@@ -179,7 +179,7 @@ subcode: elif_perl_style
     $call if_perl_style
 
 subcode: else_perl_style
-    $call push_single_block, "else{", "}"
+    $call push_single_block, "else {", "}"
 
 # -------------------------
 subcode: parsecode_foreach
@@ -199,15 +199,15 @@ subcode: parsecode_foreach
     # -----------------------
     subcode: each_single
         $v=~s/^my\s+//
-        return single_block("foreach my $v ($t){", "}", "foreach")
+        return single_block("foreach my $v ($t) {", "}", "foreach")
     subcode: each_implicit
         $if $param=~/^(%.*)/
-            return single_block("while (my (\$k, \$v) = each $1){", "}", "foreach")
+            return single_block("while (my (\$k, \$v) = each $1) {", "}", "foreach")
         $else
-            return single_block("foreach ($param){", "}", "foreach")
+            return single_block("foreach ($param) {", "}", "foreach")
     subcode: each_hash
         my ($k, $v)=@v
-        return single_block("while (my ($k, $v)=each $t){", "}", "foreach")
+        return single_block("while (my ($k, $v)=each $t) {", "}", "foreach")
 
     subcode: each_fancy
         my @t=MyDef::utils::proper_split($t)
@@ -223,7 +223,7 @@ subcode: parsecode_foreach
         my ($idx, $v)=@v
         &call return_newblock, foreach
             push @src, "my $idx = -1;"
-            push @src, "foreach my $v ($t){"
+            push @src, "foreach my $v ($t) {"
             push @src, "INDENT"
             push @src, "$idx++;"
             push @src, "BLOCK"
@@ -233,7 +233,7 @@ subcode: parsecode_foreach
         my $idx=shift @v
         $call @check_tlist
         &call return_newblock, foreach
-            push @src, "for(my $idx=0;$idx<$t[0];$idx++){"
+            push @src, "for (my $idx = 0; $idx < $t[0]; $idx++) {"
             push @src, "INDENT"
             $for $i=0:@v
                 my $a=$v[$i]
