@@ -36,7 +36,8 @@ subcode: dumpout
                 next;
 
         my $l=shift @$out;
-        $l=~s/^\\x([0-9a-f]+)\b/chr(hex($1))/ie # use leading \x23 to passthru # comments
+        $if $l=~/^\s*\\x[0-9a-f]+\b/
+            $l=~s/\\x([0-9a-f]+)\b/chr(hex($1))/ie # use leading \x23 to passthru # comments
         # $call @debug_dumpout, 50
         $case $l =~/^INCLUDE_FILE (\S+)/
             # used to insert long docs with the functions
