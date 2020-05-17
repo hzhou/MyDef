@@ -285,6 +285,11 @@ fncode: get_macro($s, $nowarn)
                     return $1
                 $else
                     return ''
+            $elif $p=~/quotelist/
+                my @tlist=MyDef::utils::proper_split($t)
+                $foreach $t in @tlist
+                    $t = "\"$t\""
+                return join(', ', @tlist)
             $elif $p=~/list:(.*)/
                 my $idx=$1
                 my @tlist=MyDef::utils::proper_split($t)
