@@ -285,10 +285,13 @@ fncode: get_macro($s, $nowarn)
                     return $1
                 $else
                     return ''
-            $elif $p=~/quotelist/
+            $elif $p=~/quotelist(-single)?/ -> $type
                 my @tlist=MyDef::utils::proper_split($t)
                 $foreach $t in @tlist
-                    $t = "\"$t\""
+                    $if $type eq "-single"
+                        $t = "'$t'"
+                    $else
+                        $t = "\"$t\""
                 return join(', ', @tlist)
             $elif $p=~/list:(.*)/
                 my $idx=$1
