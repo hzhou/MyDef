@@ -4,124 +4,129 @@ use strict;
 our $b_force;
 our $b_debug;
 
-if($ARGV[0] eq "-v" or $ARGV[0] eq "--version"){
+if ($ARGV[0] eq "-v" or $ARGV[0] eq "--version") {
     my $prog=$0;
     $prog=~s/^.*\///;
     print "$prog: version development - latest\"\n";
     exit(0);
 }
-if($ARGV[0] eq "-f"){
+if ($ARGV[0] eq "-f") {
     $b_force = 1;
     shift @ARGV;
 }
-if($ARGV[0] eq "-debug"){
+if ($ARGV[0] eq "-debug") {
     $b_debug = 1;
     shift @ARGV;
 }
 
 my ($dst, $ext);
 my $src_list;
-if($ARGV[0] eq "-"){
+if ($ARGV[0] eq "-") {
     ($dst, $ext) = (".", "-");
     shift @ARGV;
     $src_list=[];
-    foreach my $a (@ARGV){
-        if(-f $a){
+    foreach my $a (@ARGV) {
+        if (-f $a) {
             push @$src_list, $a;
         }
-        elsif(-d $a){
+        elsif (-d $a) {
             my $tlist = load_srcs_dir($a,"-");
             push @$src_list, @$tlist;
         }
-        else{
+        else {
             warn "[$a] not found\n";
-            if($a=~/\{.*\}/){
+            if ($a=~/\{.*\}/) {
                 warn "    note: {*} expansion may not work in your shell, try bash.\n";
             }
         }
     }
 }
-else{
+else {
     my $src;
     ($src, $dst, $ext)=($ARGV[0], $ARGV[1], $ARGV[2]);
-    if(!$ext){
+    if (!$ext) {
         $ext = "def";
     }
-    if(-d $src){
+    if (-d $src) {
         $src_list = load_srcs_dir($src, $ext);
     }
-    else{
+    else {
         die "Not a directory [$src]\n";
     }
 }
-if($b_debug){
+if ($b_debug) {
     print "mydef_install: ARGV = @ARGV\n";
 }
 
 my $home = $ENV{HOME};
 my $home2;
-if($ENV{MYDEFLIB}=~/(.*)\/lib\/MyDef/){
+if ($ENV{MYDEFLIB}=~/(.*)\/lib\/MyDef/) {
     $home2 = $1;
 }
 my $install_dir;
-if($dst=~/^(\/.*)/){
+if ($dst=~/^(\/.*)/) {
     $install_dir=$1;
     $dst = ".";
 }
-elsif($ext eq "def"){
+elsif ($ext eq "def") {
     $install_dir=$ENV{MYDEFLIB};
     $install_dir=~s/:.*//;
-    if(!$install_dir){
+    if (!$install_dir) {
         print "Missing environment variable MYDEFLIB\n";
         print "    try put 'MYDEFLIB=\$HOME/lib/MyDef' in your .bashrc (and source it)\n";
         exit;
     }
 }
-elsif($ext eq "pm"){
+elsif ($ext eq "pm") {
     $install_dir=$ENV{PERL5LIB};
     $install_dir=~s/:.*//;
-    if(!$install_dir){
+    if (!$install_dir) {
         print "Missing environment variable PERL5LIB\n";
         print "    try put 'PERL5LIB=\$HOME/lib/perl5' in your .bashrc (and source it)\n";
         exit;
     }
 }
-elsif($ext eq "-"){
-    $install_dir=$ENV{PATH};
-    $install_dir=~s/:.*//;
-    if($install_dir ne "$home/bin" and $install_dir ne "$home2/bin"){
-        print "This will install script into your leading path: [$install_dir]\n";
-        print "  press 'y' to continute (abort otherwise)\n";
-        my $t =<STDIN>;
-        if($t!~/^\s*y\s*$/){
-            undef $install_dir;
-        }
+elsif ($ext eq "-") {
+    if ($ENV{MYDEFBIN}) {
+        $install_dir = $ENV{MYDEFBIN};
     }
-    if(!$install_dir){
-        print "Missing environment variable PATH\n";
-        print "    try put 'PATH=\$HOME/bin' in your .bashrc (and source it)\n";
-        exit;
+    else {
+        $install_dir=$ENV{PATH};
+        $install_dir=~s/:.*//;
+        if ($install_dir ne "$home/bin" and $install_dir ne "$home2/bin") {
+            print "This will install script into your leading path: [$install_dir]\n";
+            print "  press 'y' to continute (abort otherwise)\n";
+            my $t =<STDIN>;
+            if ($t!~/^\s*y\s*$/) {
+                undef $install_dir;
+            }
+        }
+        if (!$install_dir) {
+            print "Can't figure out installation dir\n";
+            print "    try set MYDEFBIN (and add it to your PATH)\n";
+            exit;
+        }
     }
 }
 
-if(!-d $install_dir){
+if (!-d $install_dir) {
     mkdir $install_dir or die "Can't mkdir $install_dir\n";
 }
-if($dst ne "."){
+if ($dst ne ".") {
     $install_dir.="/$dst";
 }
-if($b_debug){
+if ($b_debug) {
     print "install_dir: $install_dir\n";
 }
 
-if(@$src_list){
+if (@$src_list) {
     install_all($src_list, $install_dir, $ext);
 }
 
 # ---- subroutines --------------------------------------------
 sub load_srcs_dir {
     my ($dir, $ext) = @_;
-    if($dir ne "."){
+    if ($dir ne ".") {
         chdir $dir or die "Can't chdir $dir\n";
     }
 
@@ -129,28 +134,28 @@ sub load_srcs_dir {
 
     my @srcs;
     my @dirs;
-    foreach my $f (@files){
-        if(-d $f){
+    foreach my $f (@files) {
+        if (-d $f) {
             push @dirs, $f;
         }
-        elsif($ext eq "-"){
+        elsif ($ext eq "-") {
             push @srcs, $f;
         }
-        elsif($f=~/\.$ext$/){
+        elsif ($f=~/\.$ext$/) {
             push @srcs, $f;
         }
     }
-    foreach my $d (@dirs){
-        if(-f "$d/skip"){
+    foreach my $d (@dirs) {
+        if (-f "$d/skip") {
             next;
         }
         my $pat = "$d/*.$ext";
-        if($ext eq "-"){
+        if ($ext eq "-") {
             $pat = "$d/*";
         }
         my @files=glob($pat);
-        if(@files){
-            foreach my $f (@files){
+        if (@files) {
+            foreach my $f (@files) {
                 push @srcs, $f;
             }
         }
@@ -160,37 +165,37 @@ sub load_srcs_dir {
 
 sub install_all {
     my ($src_list, $install_dir, $ext) = @_;
-    if(!-d "$install_dir"){
+    if (!-d "$install_dir") {
         mkdir "$install_dir" or die "Can't mkdir $install_dir";
     }
     my @cmds;
-    if($ext eq "-"){
-        foreach my $src (@$src_list){
+    if ($ext eq "-") {
+        foreach my $src (@$src_list) {
             my $t=$src;
             $t=~s/^.*\///;
             my $dst = "$install_dir/$t";
-            if(!-e $dst or $b_force or (-M $src < -M $dst)){
+            if (!-e $dst or $b_force or (-M $src < -M $dst)) {
                 push @cmds, "install -m555 $src $dst";
             }
         }
     }
-    else{
-        foreach my $src (@$src_list){
-            if($src=~/(.*)\//){
-                if(!-d "$install_dir/$1"){
+    else {
+        foreach my $src (@$src_list) {
+            if ($src=~/(.*)\//) {
+                if (!-d "$install_dir/$1") {
                     mkdir "$install_dir/$1" or die "Can't mkdir $install_dir/$1";
                 }
             }
             my $dst="$install_dir/$src";
-            if(!-e $dst or $b_force or (-M $src < -M $dst)){
+            if (!-e $dst or $b_force or (-M $src < -M $dst)) {
                 push @cmds, "install -m644 $src $dst";
             }
         }
     }
 
-    if(@cmds){
+    if (@cmds) {
         print "install_all: $install_dir [$ext]\n";
-        foreach my $cmd (@cmds){
+        foreach my $cmd (@cmds) {
             print "  :| $cmd\n";
             system $cmd;
         }

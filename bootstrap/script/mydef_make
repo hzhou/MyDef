@@ -16,6 +16,7 @@ our %h_def;
 our @path;
 our %path;
 our %macros;
+
 my $script=$0;
 my $nosub=0;
 if(@ARGV and $ARGV[0] eq 'nosub'){
@@ -42,7 +43,7 @@ if(@ARGV and -d $ARGV[0]){
     chdir $d or die "can't chdir $d\n";
 }
 if(!-f "config"){
-    open Out, ">config" or die "Can't write config.\n";
+    open Out, ">config" or die "Can't write config: $!\n";
     if(@master_config){
         foreach my $l (@master_config){
             if($l=~/^include_path:\s*(\S+)/){
@@ -74,7 +75,7 @@ if(!-f "config"){
     close Out;
 
 }
-open In, "config" or die "Can't open config.\n";
+open In, "config" or die "Can't open config: $!\n";
 while(<In>){
     if(/module:\s+(\w+)/){
         $module=$1;
@@ -105,7 +106,7 @@ print "    output_dir: $config_outputdir\n";
 
 if(-f "copylist"){
     my $location;
-    open In, "copylist" or die "Can't open copylist.\n";
+    open In, "copylist" or die "Can't open copylist: $!\n";
     while(<In>){
         my $l=$_;
         if(/^(\S+):\s*(.*)/){
@@ -181,7 +182,7 @@ while(my $f=pop @files){
         $h_def{$f}=$deplist;
         my $got_page=0;
         my $inpage=0;
-        open In, "$f" or die "Can't open $f.\n";
+        open In, "$f" or die "Can't open $f: $!\n";
         while(<In>){
             if($inpage){
                 if(/^\S/){
@@ -246,7 +247,10 @@ while(my $f=pop @files){
                     push @page_list, $page;
                 }
                 elsif(/^page: ([\w\.-]+)/){
-                    if($1 ne "test"){
+                    if($1 eq "test"){
+                        print "skipping page: test\n";
+                    }
+                    else{
                         $inpage=1;
                         $got_page=1;
                         $page={};
@@ -351,7 +355,7 @@ while(my ($f, $l) = each %h_def){
         $j++;
     }
 }
-open Out, ">Makefile" or die "Can't write Makefile.\n";
+open Out, ">Makefile" or die "Can't write Makefile: $!\n";
 if($0=~/(bootstrap\/script)\/mydef_make/){
     print Out "MakePage=perl $1/mydef_page\n";
 }
@@ -409,6 +413,7 @@ if(@make_folders){
     print Out "all: all_targets ", join(' ', @make_folders), "\n\n";
 }
 
+print Out ".NOTPARALLEL:\n\n";
 if(%h_copylist){
     while( my ($f, $l) = each %h_copylist){
         my $sep="/";
@@ -456,7 +461,7 @@ while(my ($p, $h)=each %h_page){
 }
 if(-f "install_def.sh"){
     print Out "install:\n";
-    open In, "install_def.sh" or die "Can't open install_def.sh.\n";
+    open In, "install_def.sh" or die "Can't open install_def.sh: $!\n";
     while(<In>){
         if(/^(mydef_install.*)/){
             print Out "\t\@$1\n";
@@ -575,7 +580,7 @@ while(my ($dir, $list) = each %folder){
                 }
                 print "    module: $t_module\n";
                 if(@target_list){
-                    open Out, ">$dir/Makefile" or die "Can't write $dir/Makefile.\n";
+                    open Out, ">$dir/Makefile" or die "Can't write $dir/Makefile: $!\n";
                     if(!$CC){
                         if($t_module eq "win32"){
                             $CC = "x86_64-w64-mingw32-gcc";
@@ -605,7 +610,7 @@ while(my ($dir, $list) = each %folder){
                         my $obj_list = join(' ', @objs);
                         my $lib_list;
                         if(-f "$dir/$name.c"){
-                            open In, "$dir/$name.c" or die "Can't open $dir/$name.c.\n";
+                            open In, "$dir/$name.c" or die "Can't open $dir/$name.c: $!\n";
                             while(<In>){
                                 if(/^\/\*\s*link:\s*(.*?)\s*\*\/$/){
                                     $lib_list = $1;

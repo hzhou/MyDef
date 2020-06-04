@@ -6,6 +6,7 @@ our $out;
 our $debug;
 
 
+
 sub get_interface {
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
 }
@@ -166,9 +167,6 @@ sub dumpout {
         else{
             push @tlist, $k;
         }
-    }
-    if($MyDef::page->{namespace}){
-        push @tlist, "using namespace $MyDef::page->{namespace};";
     }
 
     @MyDef::output_c::include_list=@tlist;

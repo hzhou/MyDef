@@ -29,7 +29,7 @@ if($config{def_file}){
     my $guessed_module = "general";
     guess_module:
     my $under_page;
-    open In, "$config{def_file}" or die "Can't open $config{def_file}.\n";
+    open In, "$config{def_file}" or die "Can't open $config{def_file}: $!\n";
     while(<In>){
         if(/^page:\s*(\w+)/){
             $under_page = $1;
@@ -149,25 +149,40 @@ elsif($type=~/^c(pp|xx|c|u)?$/){
     }
 
     $cc = $default_cc;
+    my $t;
     if($page->{cc}){
-        $cc = $page->{cc};
+        $t = $page->{cc};
     }
     elsif($MyDef::var->{cc}){
-        $cc = $MyDef::var->{cc};
+        $t = $MyDef::var->{cc};
     }
+    if($t){
+        $t=~s/\$cc/$cc/;
+        $cc = $t;
+    }
+    my $t;
     if($page->{CC}){
-        $cc = $page->{CC};
+        $t = $page->{CC};
     }
     elsif($MyDef::var->{CC}){
-        $cc = $MyDef::var->{CC};
+        $t = $MyDef::var->{CC};
+    }
+    if($t){
+        $t=~s/\$CC/$cc/;
+        $cc = $t;
     }
 
     my $cflags;
+    my $t;
     if($page->{CFLAGS}){
-        $cflags = $page->{CFLAGS};
+        $t = $page->{CFLAGS};
     }
     elsif($MyDef::var->{CFLAGS}){
-        $cflags = $MyDef::var->{CFLAGS};
+        $t = $MyDef::var->{CFLAGS};
+    }
+    if($t){
+        $t=~s/\$CFLAGS/$cflags/;
+        $cflags = $t;
     }
     if($cflags){
         $cc .= " $cflags";
@@ -192,11 +207,16 @@ elsif($type=~/^c(pp|xx|c|u)?$/){
             $exe = "./$exe";
         }
         my $exe = "$exe";
+        my $t;
         if($page->{exe}){
-            $exe = $page->{exe};
+            $t = $page->{exe};
         }
         elsif($MyDef::var->{exe}){
-            $exe = $MyDef::var->{exe};
+            $t = $MyDef::var->{exe};
+        }
+        if($t){
+            $t=~s/\$exe/$exe/;
+            $exe = $t;
         }
         if($exe ne "none"){
             if($exe=~/CD\s+(.*)/){
@@ -217,11 +237,16 @@ elsif($type eq "java"){
 
     $cmd="javac $file";
     my $exe = "CD java $name";
+    my $t;
     if($page->{exe}){
-        $exe = $page->{exe};
+        $t = $page->{exe};
     }
     elsif($MyDef::var->{exe}){
-        $exe = $MyDef::var->{exe};
+        $t = $MyDef::var->{exe};
+    }
+    if($t){
+        $t=~s/\$exe/$exe/;
+        $exe = $t;
     }
     if($exe ne "none"){
         if($exe=~/CD\s+(.*)/){
@@ -244,11 +269,16 @@ elsif($type eq "f"){
         $exe = "./$exe";
     }
     my $exe = "$exe";
+    my $t;
     if($page->{exe}){
-        $exe = $page->{exe};
+        $t = $page->{exe};
     }
     elsif($MyDef::var->{exe}){
-        $exe = $MyDef::var->{exe};
+        $t = $MyDef::var->{exe};
+    }
+    if($t){
+        $t=~s/\$exe/$exe/;
+        $exe = $t;
     }
     if($exe ne "none"){
         if($exe=~/CD\s+(.*)/){
@@ -271,11 +301,16 @@ elsif($type eq "f90"){
         $exe = "./$exe";
     }
     my $exe = "$exe";
+    my $t;
     if($page->{exe}){
-        $exe = $page->{exe};
+        $t = $page->{exe};
     }
     elsif($MyDef::var->{exe}){
-        $exe = $MyDef::var->{exe};
+        $t = $MyDef::var->{exe};
+    }
+    if($t){
+        $t=~s/\$exe/$exe/;
+        $exe = $t;
     }
     if($exe ne "none"){
         if($exe=~/CD\s+(.*)/){
@@ -298,11 +333,16 @@ elsif($type eq "rs"){
         $exe = "./$exe";
     }
     my $exe = "$exe";
+    my $t;
     if($page->{exe}){
-        $exe = $page->{exe};
+        $t = $page->{exe};
     }
     elsif($MyDef::var->{exe}){
-        $exe = $MyDef::var->{exe};
+        $t = $MyDef::var->{exe};
+    }
+    if($t){
+        $t=~s/\$exe/$exe/;
+        $exe = $t;
     }
     if($exe ne "none"){
         if($exe=~/CD\s+(.*)/){
@@ -325,11 +365,16 @@ elsif($type eq "hs"){
         $exe = "./$exe";
     }
     my $exe = "$exe";
+    my $t;
     if($page->{exe}){
-        $exe = $page->{exe};
+        $t = $page->{exe};
     }
     elsif($MyDef::var->{exe}){
-        $exe = $MyDef::var->{exe};
+        $t = $MyDef::var->{exe};
+    }
+    if($t){
+        $t=~s/\$exe/$exe/;
+        $exe = $t;
     }
     if($exe ne "none"){
         if($exe=~/CD\s+(.*)/){
@@ -352,11 +397,16 @@ elsif($type eq "asm"){
         $exe = "./$exe";
     }
     my $exe = "$exe";
+    my $t;
     if($page->{exe}){
-        $exe = $page->{exe};
+        $t = $page->{exe};
     }
     elsif($MyDef::var->{exe}){
-        $exe = $MyDef::var->{exe};
+        $t = $MyDef::var->{exe};
+    }
+    if($t){
+        $t=~s/\$exe/$exe/;
+        $exe = $t;
     }
     if($exe ne "none"){
         if($exe=~/CD\s+(.*)/){
@@ -379,11 +429,16 @@ elsif($type eq "s"){
         $exe = "./$exe";
     }
     my $exe = "$exe";
+    my $t;
     if($page->{exe}){
-        $exe = $page->{exe};
+        $t = $page->{exe};
     }
     elsif($MyDef::var->{exe}){
-        $exe = $MyDef::var->{exe};
+        $t = $MyDef::var->{exe};
+    }
+    if($t){
+        $t=~s/\$exe/$exe/;
+        $exe = $t;
     }
     if($exe ne "none"){
         if($exe=~/CD\s+(.*)/){
@@ -406,11 +461,16 @@ elsif($type eq "pas"){
         $exe = "./$exe";
     }
     my $exe = "$exe";
+    my $t;
     if($page->{exe}){
-        $exe = $page->{exe};
+        $t = $page->{exe};
     }
     elsif($MyDef::var->{exe}){
-        $exe = $MyDef::var->{exe};
+        $t = $MyDef::var->{exe};
+    }
+    if($t){
+        $t=~s/\$exe/$exe/;
+        $exe = $t;
     }
     if($exe ne "none"){
         if($exe=~/CD\s+(.*)/){
@@ -453,6 +513,9 @@ elsif($type eq "lua"){
 elsif($type eq "lisp"){
     $cmd = "clisp $file";
 }
+elsif($type eq "groovy"){
+    $cmd = "groovy $file";
+}
 elsif($type eq "tex"){
     $cmd = "run_tex $file";
 }
@@ -462,13 +525,17 @@ elsif($type eq "latex"){
 elsif($type eq "awk"){
     $cmd = "awk -f $file";
 }
+elsif($type eq "plt"){
+    $cmd = "gnuplot $file";
+}
+
 
 if($config{expect} and $config{expect_type} ne "output"){
     my $expect = $config{expect};
     my ($n_ok, $n_nok);
 
     my $i = 0;
-    open In, "$file" or die "Can't open $file.\n";
+    open In, "$file" or die "Can't open $file: $!\n";
     while(<In>){
         print $_;
         if(/^\s*$/){
@@ -506,7 +573,7 @@ elsif($cmd){
         print "$cmd\n";
 
         my $i = 0;
-        open In, "$cmd |" or die "Can't open $cmd |.\n";
+        open In, "$cmd |" or die "Can't open $cmd |: $!\n";
         while(<In>){
             print $_;
             if(/^\s*$/){

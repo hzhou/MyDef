@@ -65,6 +65,7 @@ our %tuple_hash;
 our %all_types;
 our %re_hash;
 our $re_index=0;
+
 $cur_scope={var_list=>[], var_hash=>{}, name=>"default"};
 %basic_types=(
     "int"=>1,
@@ -145,16 +146,6 @@ $cur_scope={var_list=>[], var_hash=>{}, name=>"default"};
     uint32_t=>"stdint",
     uint64_t=>"stdint",
     "double complex"=>"complex",
-);
-
-%text_include=(
-    "printf|perror"=>"stdio",
-    "malloc"=>"stdlib",
-    "str(len|dup|cpy)|memcpy"=>"string",
-    "\\bopen\\("=>"fcntl",
-    "sin|cos|sqrt|pow"=>"math",
-    "fstat"=>"sys/stat",
-    "assert"=>"assert",
 );
 %var_fmts = (
     float=>'%g',
@@ -1073,7 +1064,16 @@ sub parsecode {
             elsif($func eq "uselib"){
                 my @flist=split /,\s*/, $param;
                 foreach my $f (@flist){
-                    if($f=~/^\w+$/){
+                    if($f=~/^(\w+_SOURCE|POSIX)$/){
+                        my ($t) = ($1);
+                        if($t eq "POSIX"){
+                            unshift @include_list, "#define _POSIX_C_SOURCE 200809L";
+                        }
+                        else{
+                            unshift @include_list, "#define $t";
+                        }
+                    }
+                    elsif($f=~/^\w+$/){
                         add_object("lib$f");
                         if($lib_include{$f}){
                             add_include($lib_include{$f});
@@ -1811,11 +1811,12 @@ sub parsecode {
 
     if(!$l or $l=~/^\s*$/){
     }
-    elsif($l=~/^\s*#/){
+    elsif($l=~/^#/){
+        $l='<-|'.$l;
     }
     elsif($l=~/^\s*(for|while|if|else if)\b/){
     }
-    elsif($l=~/[:\(\{;,]\s*$/){
+    elsif($l=~/[:\(\{\\;,]\s*$/){
     }
     elsif($l=~/^\s*[)\]}].*$/){
     }
@@ -1874,6 +1875,9 @@ sub dumpout {
                     $func->{skip_declare} = 1;
                 }
             }
+            if($func->{decl_append}){
+                $func->{declare} .=$func->{decl_append};
+            }
             if($name=~/^(\w+)::/){
                 my ($C) = ($1);
                 $func->{skip_declare} = 1;
@@ -1893,6 +1897,7 @@ sub dumpout {
             }
         }
     }
+
     my $ofile=$page->{outdir}."/extern.o";
     my $otime=-M $ofile;
     my $need_update=0;
@@ -1960,6 +1965,15 @@ sub dumpout {
     if(@t){
         unshift @$out, @t;
     }
+    if(!$page->{has_stub_meta_exit}){
+        push @$out, "DUMP_STUB meta_exit";
+    }
+    if(!$page->{has_stub_global_exit}){
+        push @$out, "DUMP_STUB global_exit";
+    }
+    if(!$page->{has_stub_frame_exit}){
+        push @$out, "DUMP_STUB frame_exit";
+    }
     my @dump_init;
 
     $dump->{block_init}=\@dump_init;
@@ -1979,7 +1993,13 @@ sub dumpout {
             }
         }
     }
+    my @ns_parts;
+    if($MyDef::page->{namespace_wrap}){
+        @ns_parts = split /::/, $MyDef::page->{namespace_wrap};
+    }
+
     my @dump_h;
+    my $mark_dump_h;
     my ($t_hfile, $t_dump, $t_template, $t_guard);
     $t_hfile = $page->{dump_h};
     if($t_hfile){
@@ -1997,7 +2017,7 @@ sub dumpout {
     }
     if(@include_list){
         foreach my $k (@include_list){
-            if($k=~/^(using namespace|#\w+)/){
+            if($k=~/^#define/){
                 push @$dump_out, "$k\n";
             }
             else{
@@ -2017,6 +2037,9 @@ sub dumpout {
             push @$dump_out, "#define $k $defines{$k}\n";
         }
         push @$dump_out, "\n";
+    }
+    if($t_hfile){
+        $mark_dump_h = @dump_h;
     }
     if(@enum_list){
         foreach my $name (@enum_list){
@@ -2168,24 +2191,43 @@ sub dumpout {
         if($t_hfile!~/\//){
             $t_hfile = $page->{_outdir}."/".$t_hfile;
         }
-        open Out, ">$t_hfile" or die "Can't write $t_hfile.\n";
+        open Out, ">$t_hfile" or die "Can't write $t_hfile: $!\n";
         print "  --> [$t_hfile]\n";
         if($t_template){
-            open In, "$t_template" or die "Can't open $t_template.\n";
+            open In, "$t_template" or die "Can't open $t_template: $!\n";
             while(<In>){
-                print Out $_;
+                if(/^BLOCK\b/){
+                    foreach my $l (@dump_h){
+                        print Out $l;
+                    }
+                }
+                elsif(/^BLOCK_1/){
+                    for (my $i = 0; $i<$mark_dump_h; $i++) {
+                        print Out $dump_h[$i];
+                    }
+                }
+                elsif(/^BLOCK_2/){
+                    for (my $i = $mark_dump_h; $i<@dump_h; $i++) {
+                        print Out $dump_h[$i];
+                    }
+                }
+                else{
+                    print Out $_;
+                }
             }
             close In;
         }
-        if($t_guard){
-            print Out "#ifndef $t_guard\n";
-            print Out "#define $t_guard\n\n";
-        }
-        foreach my $l (@dump_h){
-            print Out $l;
-        }
-        if($t_guard){
-            print Out "#endif /* $t_guard */\n";
+        else{
+            if($t_guard){
+                print Out "#ifndef $t_guard\n";
+                print Out "#define $t_guard\n\n";
+            }
+            foreach my $l (@dump_h){
+                print Out $l;
+            }
+            if($t_guard){
+                print Out "#endif /* $t_guard */\n";
+            }
         }
         close Out;
         $dump_out = $t_dump;
@@ -4075,12 +4117,21 @@ sub check_expression {
             $token=$1;
             $type="atom-identifier";
             if(@types>0 && $types[-1] =~/^op/ && ($stack[-1] eq "." or $stack[-1] eq "->")){
-                if(@types>1 && $types[-2] !~/^atom/){
-                    #error;
+                if(@stack>1){
+                    if(@types>1 && $types[-2] !~/^atom/){
+                        #error;
+                    }
+                    $token=join("", splice(@stack, -2)).$token;
+                    splice(@types, -2);
                 }
-                $token=join("", splice(@stack, -2)).$token;
+                else{
+                    my $curfile=MyDef::compileutil::curfile_curline();
+                    print "[$curfile]\x1b[33m Is this C99 struct named initialization? Missing ','...\n\x1b[0m";
+                    $token = $stack[0].$token;
+                    pop @stack;
+                    pop @types;
+                }
                 $type="atom-exp";
-                splice(@types, -2);
             }
         }
         elsif($l=~/\G\$(\w+)/gc){
@@ -4209,6 +4260,9 @@ sub check_expression {
                         }
                         elsif($identifier=~/^(malloc|free)$/){
                             add_include("stdlib");
+                        }
+                        elsif($identifier=~/^(assert)$/){
+                            add_include("assert");
                         }
                         else{
                             if($function_autolist{$identifier}){
@@ -4596,6 +4650,19 @@ sub debug_dump {
         if($v=~/^(%.*):(.*)/){
             push @a2, $2;
             push @a1, "$2=$1";
+        }
+        elsif($v=~/^(\d+):(%.*):(.*)/){
+            for (my $i = 0; $i<$1; $i++) {
+                my ($h, $t);
+                if($i==0){
+                    $h = "$3=[";
+                }
+                if($i==$1-1){
+                    $t = "]";
+                }
+                push @a1, "$h$2$t";
+                push @a2, "$3\[$i\]";
+            }
         }
         elsif($v=~/^(\w+):(.*)/){
             my ($color,$v)=($1,$2);
