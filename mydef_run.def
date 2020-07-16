@@ -162,6 +162,7 @@ subcode: run_page
         $call do_script, latex, run_tex
         $call do_script, awk, awk -f
         $call do_script, plt, gnuplot
+        $call do_script, gv, dot -Tpdf -o $page->{_pagename}.pdf
 
         # --------------------
         # support custom_run.def 

@@ -54,6 +54,10 @@ fncode: import_data($file)
         $else
             $def->{_defname}="default"
 
+        $if $file=~/(.*)\//
+            $def->{_srcdir}=$1
+            unshift @path, $1
+
 #------------------------------
 fncode: import_file($f, $def, $file_type)
     $call @debug_import
