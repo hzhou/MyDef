@@ -70,6 +70,7 @@ subcode:: codeitem_pre_end
 #---------------------------------------- 
 subcode: get_parent(what)
     $(if:parent)
+        # hack used in jump_to_main_code and add_default_page_main_code
         my $parent=$(parent)
     $(else)
         my $parent

@@ -31,6 +31,13 @@ subcode: start_default_page
     $curindent = 0
     $lastindent = 0
 
+    subcode: add_default_page_main_code
+        $source=[]
+        # default page contains only main code
+        $(set:parent=$page)
+        $call add_subcode, $source, "sub","main"
+        $call start_code_indent, code, 0, $_t
+
 subcode: add_default_page(page)
     my $pagename = $def->{_defname}
     $def->{pages}->{$pagename} = $(page)
