@@ -123,6 +123,7 @@ subcode: call_sub_frame(type)
         my $i=0
         $while $i<@plist
             &call parseblock_with_macro
+                $call call_sub_list_setup_macro
                 # instead of call_sub_normal_setup_macro
                 $for $j=0:$n_pre
                     $macro->{$codeparams->[$j]}=$pre_plist[$j];
@@ -240,8 +241,8 @@ subcode: parseblock_with_macro
 
 subcode: call_sub_list_setup_macro
     # this enables nested subcode and macros
-    $call @sub_macro
-    $call @sub_codes
+    $call sub_macro
+    $call sub_codes
 
     subcode: sub_macro
         $if $codelib->{macros}
