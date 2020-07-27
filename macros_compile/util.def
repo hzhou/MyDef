@@ -109,7 +109,14 @@ subcode: dump_deflist
         print "DUMP DEFLIST $i:\n"
         my $h=$deflist->[$i]
         $foreach $k in keys(%$h)
-            print "    $k: $h->{$k}\n"
+            $if $k eq "codes"
+                $call dump_codes_list
+            $else
+                print "    $k: $h->{$k}\n"
+
+    subcode: dump_codes_list
+        my @tlist = sort keys %{$h->{$k}}
+        print "    $k: @tlist\n"
 
 #----------------------------------------------- 
 subcode: _autoload
