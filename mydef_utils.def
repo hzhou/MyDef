@@ -25,6 +25,8 @@ fncode: get_tlist($t)
                 push @tlist, get_range_n($1, $last_tlist_count)
             $elif $t=~/^(\w+)$/ ->$b
                 push @tlist, get_range($a, $b)
+            $elif $t=~/^(\w+)(%.*x)$/ ->$b, $fmt
+                push @tlist, get_range($a, $b, $fmt)
             $elif $t=~/^(\w+)\s*\/\s*(.+)$/ ->$b, $exclude
                 # exclusion, eg. Lagrange Polynomial
                 my @temp_list = get_range($a, $b)
@@ -40,9 +42,13 @@ fncode: get_tlist($t)
     $last_tlist_count=@tlist
     return @tlist
 
-fncode: get_range($a, $b)
+fncode: get_range($a, $b, $fmt)
     my @tlist
-    $if $a=~/^\d+$/ and $b=~/^\d+$/
+    $if $fmt=~/^%\d*x$/ and $a=~/^[0-9a-f]+$/ and $b=~/^[0-9a-f]+$/
+        ($a, $b) = (hex($a), hex($b))
+        &call ab_range
+            push @tlist, sprintf($fmt, $i)
+    $elif $a=~/^\d+$/ and $b=~/^\d+$/
         &call ab_range
             push @tlist, $i
     $elif $a=~/^[a-zA-Z]$/ and $b=~/^[a-zA-Z]$/
