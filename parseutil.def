@@ -252,7 +252,11 @@ fncode: get_lines($file)
     $else
         my $filename=find_file($file)
         $if $filename
-            $call get_file_lines, $filename
+            my @lines
+            &call open_r, $filename
+                $if /^# cut ----+\s*$/
+                    last
+                $else
+                    push @lines, $_
             return \@lines;
         return undef
-
