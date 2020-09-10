@@ -6,22 +6,27 @@
 #      $(for:...) do add macro level
 
 # Global custom macro space -- simply use prefix to create namespace 
-subcode:: preproc_elifs
-    $elif $preproc=~/^set:\s*(.*)/
-        # immediate macros
-        set_macro($deflist->[-1], $1)
-    $elif $preproc=~/^set(-?\d+|def|macro|page):\s*(.*)/ -> $i, $t
+fncode: get_macro_at_level($i)
+    $if !$i
+        return $deflist->[-1]
+    $else
         # $(set-1:name=value) : one level up
         # $(set1:name=value)  : macro
-        $if $debug eq "macro"
-            $print set[$i]: $t
         $global %named_macros=(def=>0,macro=>1,page=>2)
         $if $i=~/^-/
             # -1 means 1 level up, which is -2
             $i-=1
         $elif $i!~/^\d/
             $i=$named_macros{$i}
-        set_macro($deflist->[$i], $t)
+        return $deflist->[$i]
+
+subcode:: preproc_elifs
+    $elif $preproc=~/^set(-?\d+|def|macro|page)?:\s*(.*)/ -> $i, $t
+        set_macro(get_macro_at_level($i), $t)
+    $elif $preproc=~/^eval(-?\d+|def|macro|page)?:\s*(\S+)=(.*)/ ->$i, $name, $t
+        expand_eval(\$t)
+        $t = eval($t)
+        set_macro(get_macro_at_level($i), "$name=$t")
     $elif $preproc=~/^unset:\s*(.*)/
         my @t = split /,\s*/, $1
         $if $debug eq "macro"
@@ -60,11 +65,6 @@ subcode:: preproc_elifs
         my @plist=split /,\s*/, $1
         $foreach $p in @plist
             set_macro($deflist->[-2], $p)
-    $elif $preproc=~/^eval:\s*(\S+)=(.*)/
-        my ($t1,$t2)=($1,$2)
-        expand_eval(\$t2)
-        $t2 = eval($t2)
-        set_macro($deflist->[-1], "$t1=$t2")
     $elif $preproc=~/^split:\s*(\w+)$/
         $call split_macro, proper, $1
     $elif $preproc=~/^split:([^:]+):\s*(\w+)/
@@ -87,7 +87,6 @@ fncode: set_macro($m, $p)
     $if $debug eq "macro"
         print "set_macro $m: [$p]\n";
     $if $p=~/^(\w+)([\+\-\*\/\.]?)=(.+)/ -> $t1, $op, $t2
-        # $print set_macro op: $t1 $op $t2
         my $t = get_macro_word($t1, 1)
         $if $t2=~/\$\(.*\)/
             expand_macro(\$t2)
