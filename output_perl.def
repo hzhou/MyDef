@@ -340,15 +340,34 @@ subcode: add_function(name, warn)
 subcode: list_functions
     $global $fn_block=[], @fn_decls
     &call replace_output, $fn_block
-        $if $page->{autolist}
-            &call each_subcode, fn
-                # $name, $code
-                $call parse_function
-        $else
-            # $while my $name = pop @functions
-            $foreach $name in @functions
-                my $code = $functions{$name}
-                $call parse_function
+        $call autolist_functions
+
+        # $while my $name = pop @functions
+        $foreach $name in @functions
+            my $code = $functions{$name}
+            $call parse_function
+
+    subcode: autolist_functions
+        &call each_subcode, fn
+            # $name, $code
+            $if !$functions{$name}
+                $if $page->{autolist}
+                    $call add_, $name, $code
+                $else
+                    &call check_autolist
+                        $call add_, $name, $code
+        subcode: add_(name, code)
+            push @functions, $(name)
+            $functions{$(name)} = $(code)
+
+        subcode: check_autolist
+            my $autolist
+            $foreach $l in @{$code->{source}}
+                $if $l=~/autolist:\s(.*)/
+                    $autolist=$1
+                    last
+            $if $autolist
+                BLOCK
 
     subcode: parse_function
         push @fn_decls, "sub $name;"

@@ -1,0 +1,11 @@
+page: test
+    module: perl
+
+    $print ---- \@lines ----\n
+    $call get_file_lines, inc/inc.def
+    $print @lines
+
+    $print ---- \@A ----\n
+    $call get_file_lines, inc/inc.def, @A
+    $foreach $l in @A
+        $print $l-
