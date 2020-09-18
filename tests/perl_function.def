@@ -27,7 +27,6 @@ sub test {
 
 sub test_2 {
     my ($t) = @_;
-    autolist: 1;
     print "backup function: test_2\n";
 }
 */

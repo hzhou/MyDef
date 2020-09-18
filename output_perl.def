@@ -365,6 +365,7 @@ subcode: list_functions
             $foreach $l in @{$code->{source}}
                 $if $l=~/autolist:\s(.*)/
                     $autolist=$1
+                    $l="NOOP"
                     last
             $if $autolist
                 BLOCK
