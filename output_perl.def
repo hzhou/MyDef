@@ -374,15 +374,37 @@ subcode: list_functions
         push @fn_decls, "sub $name;"
         push @$out, "sub $name {"
         push @$out, "INDENT"
+        
         my $params=$code->{params}
         $if $params and @$params
-            my $pline=join(", ", @$params)
+            my (@plist, @mlist)
+            $foreach $p in @{$code->{params}}
+                $if $p=~/^\w+$/
+                    # to make subcode/fncode compatible
+                    push @plist, '$'.$p
+                    push @mlist, $p
+                $else
+                    push @plist, $p
+
+            my $pline=join(", ", @plist)
             push @$out, "my ($pline) = \@_;"
+
+            $if @mlist
+                $call set_macro
+
         $code->{scope}="list_sub"
         MyDef::compileutil::list_sub($code)
         push @$out, "DEDENT"
         push @$out, "}"
         push @$out, "NEWLINE"
+
+        subcode: set_macro
+            my $macro = $code->{macros}
+            $if !$macro
+                $macro = {}
+                $code->{macros} = $macro
+            $foreach $p in @mlist
+                $macro->{$p} = '$'.$p
     
 #---- for extensions ----
 fncode: inject_function($name, $params, $source)
