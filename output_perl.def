@@ -515,15 +515,22 @@ subcode: parsecode_print
     $if $n_escape
         push @fmt_list, "\\x1b[0m"
 
-    my $p
-    $if $printf_args
-        $p = "printf"
-    $else
-        $p = "print"
-
     my $print_target = MyDef::compileutil::get_macro_word("print_to", 1)
-    $if $print_target
-        $p.=" $print_target"
+    my $p
+
+    $if $print_target=~/^\@/
+        $if $printf_args
+            $p = "push $print_target, sprintf"
+        $else
+            $p = "push $print_target,"
+    $else
+        $if $printf_args
+            $p = "printf"
+        $else
+            $p = "print"
+
+        $if $print_target
+            $p.=" $print_target"
 
     $if $printf_args
         push @$out, "$p \"".join('',@fmt_list)."\", $printf_args;"

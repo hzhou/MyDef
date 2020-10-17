@@ -281,6 +281,7 @@ subcode: grab_expect_block
             $config{expect} = \@expect
             last
         $else
+            s/\\x(..)/chr(hex($1))/ge
             $call @expect_normalize
             push @expect, $_
 
