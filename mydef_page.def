@@ -24,6 +24,7 @@ page: mydef_page
         $if $config{"debug-import"}
             $MyDef::parseutil::debug={import=>1}
         MyDef::import_data($def_file)
+        $call @load_arg_macros
 
         $if $config{find}
             $call find_subcode
@@ -58,6 +59,11 @@ page: mydef_page
 
         $if !$def_file
             die "Please supply data definition file.";
+
+    subcode: load_arg_macros
+        $foreach $a in @ARGV
+            $if $a=~/-M(\w+)=(.*)/
+                $MyDef::def->{macros}->{$1} =$2
 
     # ---------------------------------------- 
     subcode: compile_pages
