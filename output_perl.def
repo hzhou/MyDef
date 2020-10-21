@@ -5,6 +5,8 @@ include: macros_output/for.def
 include: macros_output/scope.def
 include: macros_output/sumcode.def
 
+include: macros_output/perl_like.def
+
 page: output_perl, output_main
     output_dir: lib/MyDef
     ext: pl
@@ -62,11 +64,7 @@ subcode: parsecode_function
     $elif $func =~ /^use$/
         $call dbl_push_list, uses, $param
         return 0
-    $elif $func eq "list"
-        my @flist = MyDef::utils::proper_split($param)
-        $foreach $name in @flist
-            $call add_function, $name, warn
-        return 0
+    $call parse_func_list
     $elif $func eq "sub"
         $if $param=~/^(\w+)\((.*)\)/
             &call return_newblock, sub
@@ -270,6 +268,7 @@ subcode: dumpout
         $if !$pagetype or $pagetype eq "pl"
             push @$f, "#!$perl\n"
         $call dump_accessories
+
     # ---------------
     subcode: dump_accessories
         my @tmp_out
@@ -301,17 +300,7 @@ subcode: dumpout
                 push @tmp_out, "our $v;"
             push @tmp_out, "NEWLINE?"
 
-        #-- to be processed by dumpout -- reverse order due to unshift
-        $if @$fn_block
-            $dump->{fn_block}=$fn_block
-            $(if:0)
-                # subs before main
-                push @tmp_out, "INCLUDE_BLOCK fn_block"
-            $(else)
-                # subs after main
-                push @$out, "NEWLINE?"
-                push @$out, "# ---- subroutines ----"."-"x40
-                push @$out, "INCLUDE_BLOCK fn_block"
+        $call dump_fn_block
 
         push @tmp_out, "DUMP_STUB global_init"
 
@@ -321,91 +310,43 @@ subcode: dumpout
             push @$out, "1;"
 
 #----------------------------------------------- 
-subcode: survey_functions
-    $global %fn_hash
-    %fn_hash=()
-    &call each_subcode, fn
-        $fn_hash{$name}=$code
-    $call dbl_list, functions
-
-subcode: add_function(name, warn)
-    $if $fn_hash{$(name)}
-        $if !$functions{$(name)}
-            push @functions, $(name)
-            $functions{$(name)} = $MyDef::def->{codes}->{$(name)}
-    $(if:warn=warn)
-        $else
-            $call warn, add_function: [$(name)] not found
-
-subcode: list_functions
-    $global $fn_block=[], @fn_decls
-    &call replace_output, $fn_block
-        $call autolist_functions
-
-        # $while my $name = pop @functions
-        $foreach $name in @functions
-            my $code = $functions{$name}
-            $call parse_function
-
-    subcode: autolist_functions
-        &call each_subcode, fn
-            # $name, $code
-            $if !$functions{$name}
-                $if $page->{autolist}
-                    $call add_, $name, $code
-                $else
-                    &call check_autolist
-                        $call add_, $name, $code
-        subcode: add_(name, code)
-            push @functions, $(name)
-            $functions{$(name)} = $(code)
-
-        subcode: check_autolist
-            my $autolist
-            $foreach $l in @{$code->{source}}
-                $if $l=~/autolist:\s(.*)/
-                    $autolist=$1
-                    $l="NOOP"
-                    last
-            $if $autolist
-                BLOCK
-
-    subcode: parse_function
-        push @fn_decls, "sub $name;"
-        push @$out, "sub $name {"
-        push @$out, "INDENT"
-        
-        my $params=$code->{params}
-        $if $params and @$params
-            my (@plist, @mlist)
-            $foreach $p in @{$code->{params}}
-                $if $p=~/^\w+$/
-                    # to make subcode/fncode compatible
-                    push @plist, '$'.$p
-                    push @mlist, $p
-                $else
-                    push @plist, $p
-
-            my $pline=join(", ", @plist)
-            push @$out, "my ($pline) = \@_;"
-
-            $if @mlist
-                $call set_macro
-
-        $code->{scope}="list_sub"
-        MyDef::compileutil::list_sub($code)
-        push @$out, "DEDENT"
-        push @$out, "}"
-        push @$out, "NEWLINE"
-
-        subcode: set_macro
-            my $macro = $code->{macros}
-            $if !$macro
-                $macro = {}
-                $code->{macros} = $macro
-            $foreach $p in @mlist
-                $macro->{$p} = '$'.$p
+# output a sub from $code
+fncode: parse_function($name, $code)
+    push @fn_decls, "sub $name;"
+    push @$out, "sub $name {"
+    push @$out, "INDENT"
     
+    my $params=$code->{params}
+    $if $params and @$params
+        my (@plist, @mlist)
+        $foreach $p in @{$code->{params}}
+            $if $p=~/^\w+$/
+                # to make subcode/fncode compatible
+                push @plist, '$'.$p
+                push @mlist, $p
+            $else
+                push @plist, $p
+
+        my $pline=join(", ", @plist)
+        push @$out, "my ($pline) = \@_;"
+
+        $if @mlist
+            $call set_macro
+
+    $code->{scope}="list_sub"
+    MyDef::compileutil::list_sub($code)
+    push @$out, "DEDENT"
+    push @$out, "}"
+    push @$out, "NEWLINE"
+
+    subcode: set_macro
+        my $macro = $code->{macros}
+        $if !$macro
+            $macro = {}
+            $code->{macros} = $macro
+        $foreach $p in @mlist
+            $macro->{$p} = '$'.$p
+
 #---- for extensions ----
 fncode: inject_function($name, $params, $source)
     my $t_code={'type'=>"fn", name=>$name, params=>$params, 'source'=>$source}
