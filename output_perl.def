@@ -37,9 +37,8 @@ subcode: parsecode
     $if $l!~/;\s*$/
         $call parsecode_scope
         $call parsecode_case_support, if, elsif, perl_style
-        $if $l=~/^\s*\$(\w+)\s*(.*)$/
-            my $func=$1;
-            my $param=$2;
+        $if $l=~/^\s*\$(\w+)(\s*$|\s+\S.*)$/ -> $func, $param
+            $param=~s/^\s+//
             $call parsecode_function
         $elif $l=~/^NOOP POST_MAIN/
             $call list_functions
@@ -55,6 +54,9 @@ fncode: check_fcall($l)
     $while $l=~/\b(\w+)\(/g
         $call add_function, $1, nowarn
 
+fncode: add_use($m)
+    $call dbl_push_list, uses, $m
+
 subcode: parsecode_function
     # TODO: think about $loopvar 
     $if $func =~ /^global$/
@@ -62,7 +64,7 @@ subcode: parsecode_function
     $elif $func =~ /^my$/ and $param !~/^\s*[=+\-*\/]/
         $call var_declare, my
     $elif $func =~ /^use$/
-        $call dbl_push_list, uses, $param
+        add_use($param)
         return 0
     $call parse_func_list
     $elif $func eq "sub"
@@ -137,14 +139,29 @@ subcode: check_regex_capture(t)
     $if $(t)=~/(.*\S\/\w*)\s*->\s*([^\/]+?)\s*$/
         $(t) = $1
         my @tlist=MyDef::utils::proper_split($2)
-        my (@t1, @t2)
+
         my $i=1
+        my (@t1, @t2, @t3, @t4)
         $foreach $v in @tlist
+            my $non_local
+            $if $v=~/(.*)\*$/
+                $v = $1
+                $non_local=1
+
             $if $v ne "-"
-                push @t1, $v
-                push @t2, '$'.$i
+                $if $non_local
+                    push @t3, $v
+                    push @t4, '$'.$i
+                $else
+                    push @t1, $v
+                    push @t2, '$'.$i
             $i++
-        $regex_capture = "my (".join(', ', @t1).") = (".join(', ', @t2).");"
+        $if @t1
+            $regex_capture = "my (".join(', ', @t1).") = (".join(', ', @t2).");"
+        $if @t3
+            $if $regex_capture
+                $regex_capture.=' '
+            $regex_capture .= "(".join(', ', @t3).") = (".join(', ', @t4).");"
 
 #---------------------------------------- 
 subcode:: parsecode_func_other
@@ -390,8 +407,30 @@ subcode: check_termination
             push @$blk, $t
 #---------------------------------------- 
 subcode:: parsecode_func_other
-    $elif $func eq "print"
+    $elif $func eq "dump"
+        $call parsecode_dump
+    $elif $func =~/^(print|die|warn)$/
         $call parsecode_print
+
+subcode: parsecode_dump
+    my $hash_var
+    $if $param =~/^%\{(\S+)\}$/
+        $hash_var = $1
+    $elif $param =~/^%(\$\S+)$/
+        $hash_var = $1
+    $elif $param=~/^%(\w+)$/
+        $hash_var = "\\$param"
+
+    $if $hash_var
+        add_use("Data::Dumper")
+        push @$out, "print Dumper($hash_var);"
+    $else
+        my @tlist
+        $foreach $t in split /,\s*/, $param
+            push @tlist, "'$t = '"
+            push @tlist, $t
+        push @$out, "print ". join(', ', @tlist) .";"
+    return
 
 subcode: parsecode_print
     my $str=$param
@@ -456,27 +495,33 @@ subcode: parsecode_print
     $if $n_escape
         push @fmt_list, "\\x1b[0m"
 
-    my $print_target = MyDef::compileutil::get_macro_word("print_to", 1)
-    my $p
-
-    $if $print_target=~/^\@/
+    $if $func =~/^(die|warn)$/
         $if $printf_args
-            $p = "push $print_target, sprintf"
+            push @$out, "$func sprintf \"".join('',@fmt_list)."\", $printf_args;"
         $else
-            $p = "push $print_target,"
+            push @$out, "$func \"".join('',@fmt_list)."\";"
     $else
+        my $print_target = MyDef::compileutil::get_macro_word("print_to", 1)
+
+        my $p
+        $if $print_target=~/^\@/
+            $if $printf_args
+                $p = "push $print_target, sprintf"
+            $else
+                $p = "push $print_target,"
+        $else
+            $if $printf_args
+                $p = "printf"
+            $else
+                $p = "print"
+
+            $if $print_target
+                $p.=" $print_target"
+
         $if $printf_args
-            $p = "printf"
+            push @$out, "$p \"".join('',@fmt_list)."\", $printf_args;"
         $else
-            $p = "print"
-
-        $if $print_target
-            $p.=" $print_target"
-
-    $if $printf_args
-        push @$out, "$p \"".join('',@fmt_list)."\", $printf_args;"
-    $else
-        push @$out, "$p \"".join('',@fmt_list).'";'
+            push @$out, "$p \"".join('',@fmt_list).'";'
 
     return
 

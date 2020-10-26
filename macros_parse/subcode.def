@@ -178,6 +178,15 @@ fncode: merge_codes($codeitem)
 
 fncode: clean_up_source($src)
     $if $src and @$src
+        # remove starting empty lines
+        $foreach $l in @$src
+            $if $l=~/^SOURCE:/
+                next
+            $elif $l=~/^\s*$/
+                $l = "NOOP"
+            $else
+                last
+        # remove trailing empty lines
         my $i=$#$src
         $while $i>=0 and $src->[$i]=~/^(SOURCE: .*|\s*|NEWLINE\?)$/
             pop @$src
