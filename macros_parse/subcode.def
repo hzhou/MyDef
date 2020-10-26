@@ -182,7 +182,7 @@ fncode: clean_up_source($src)
         $foreach $l in @$src
             $if $l=~/^SOURCE:/
                 next
-            $elif $l=~/^\s*$/
+            $elif $l=~/^(\s*|NEWLINE\?)$/
                 $l = "NOOP"
             $else
                 last
