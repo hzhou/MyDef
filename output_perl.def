@@ -533,8 +533,10 @@ subcode: var_declare(scope)
         my ($name, $var)
         $call @check_array_dims
         $(if:scope=global)
-            $if $v=~/^(\S+)\s*=/
-                $call dbl_push_key, globals, $1, $v
+            $if $v=~/^([\$\@\%]\w+)\s*(:)?=\s*(.*)/ -> $name, $op, $val
+                $call dbl_push_key, globals, $name, "$name = $val"
+                $if $op
+                    push @$out, "$name = $val;"
             $else
                 $call dbl_push, globals, $v
             $if $var
