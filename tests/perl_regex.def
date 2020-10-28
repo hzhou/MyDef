@@ -15,11 +15,13 @@ page: test
         $print Hello [$name]
 
     my $s = "Hello world!"
-    $if $s=~/Hello (\w+)/ -> $name
-        $print Hello [$name]
+    $if $s=~/Hello (\w+)(.*)/ -> $name, $period
+        $print Hello [$name] - $period
 
 
     $global $period
     $if /Hello (\w+)(.*)/ -> $name, $period*
         $print Hello [$name]
+
+    $print Got period - [$period]
 

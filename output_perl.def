@@ -160,7 +160,7 @@ subcode: check_regex_capture(t)
             $regex_capture = "my (".join(', ', @t1).") = (".join(', ', @t2).");"
         $if @t3
             $if $regex_capture
-                $regex_capture.=' '
+                $regex_capture.="\n"
             $regex_capture .= "(".join(', ', @t3).") = (".join(', ', @t4).");"
 
 #---------------------------------------- 
@@ -185,7 +185,8 @@ subcode: if_perl_style
     push @src, "$case ($cond) {";
     push @src, "INDENT";
     $if $regex_capture
-        push @src, $regex_capture
+        $foreach $l in split /\n/, $regex_capture
+            push @src, $l
     push @src, "BLOCK";
     push @src, "DEDENT";
     push @src, "}";
