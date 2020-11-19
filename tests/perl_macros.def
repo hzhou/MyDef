@@ -17,9 +17,9 @@ page: test
         $print [x10,:pat] $(x10,:pat)
         $print [join:::and list] $(join:$1$2:,:x-z and 1-3)
         $print [join:::mul list] $(join:$1$2:,:x,y mul 1,2,3)
-    $(elif:1)
-        $call test_eval
     $(elif:0)
+        $call test_eval
+    $(elif:1)
         print "page macro a: $(a)\n"
         $(if:word:a)
             $warn macro a  is a word : [$(a)]

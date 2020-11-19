@@ -46,10 +46,12 @@ macros:
 subcode: open_r(name)
     $(if:name~")
         $(set:name=$(name:strip))
+
     $(if:In~\$)
         $(set:_my_in=my $(In))
     $(else)
         $(set:_my_in=$(In))
+
     open $(_my_in), "$(name)" or die "Can't open $(name): $!\n"
     $while <$(In)>
         BLOCK
@@ -59,13 +61,15 @@ subcode: open_w(name)
     $(if:name~")
         $(set:name=$(name:strip))
     $(if:name!~[>|])
-        $(set:name=>$(name))
+        $(set:_name=>$(name))
+    $(else)
+        $(set:_name=$(name))
 
     $(if:Out~\$)
         $(set:_my_out=my $(Out))
     $(else)
         $(set:_my_out=$(Out))
-    open $(_my_out), "$(name)" or die "Can't write $(name): $!\n"
+    open $(_my_out), "$(_name)" or die "Can't write $(name): $!\n"
     BLOCK
     close $(Out)
 

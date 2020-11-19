@@ -43,9 +43,6 @@ subcode: output_main
             $call dump_line, parsecode
 
         #-------------------
-        $if $l=~/^\$warn (.*)/
-            $call warn, $1
-            return
         $call parsecode_debug
         $call parsecode_eval
         $call parsecode

@@ -336,17 +336,23 @@ fncode: parse_function($name, $code)
     
     my $params=$code->{params}
     $if $params and @$params
-        my (@plist, @mlist)
+        my (@plist, @mlist, @default_list)
         $foreach $p in @{$code->{params}}
             $if $p=~/^\w+$/
                 # to make subcode/fncode compatible
                 push @plist, '$'.$p
                 push @mlist, $p
+            $elif $p=~/^(.+?)=(.*)/
+                push @plist, $1
+                push @default_list, $p
             $else
                 push @plist, $p
 
         my $pline=join(", ", @plist)
         push @$out, "my ($pline) = \@_;"
+
+        $if @default_list
+            $call check_set_default
 
         $if @mlist
             $call set_macro
@@ -364,6 +370,11 @@ fncode: parse_function($name, $code)
             $code->{macros} = $macro
         $foreach $p in @mlist
             $macro->{$p} = '$'.$p
+
+    subcode: check_set_default
+        $for $a in @default_list
+            $if $a=~/(\S+)=(.*)/ and $2 ne '0'
+                push @$out, "$1 = $2 if !$1;"
 
 #---- for extensions ----
 fncode: inject_function($name, $params, $source)
@@ -430,6 +441,8 @@ subcode: parsecode_dump
         $foreach $t in split /,\s*/, $param
             push @tlist, "'$t = '"
             push @tlist, $t
+            push @tlist, "', '"
+        $tlist[-1] = '"\n"'
         push @$out, "print ". join(', ', @tlist) .";"
     return
 
