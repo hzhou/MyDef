@@ -188,16 +188,21 @@ subcode:: import_file_init
     my $cur_file=$f
     my $cur_line=0
     my $line_skipped=0
+    my @last_multiline_comments # in case it's function doc
 
 subcode: get_multiline_comment
     # multiline_comments, Note: we are more strict than the C comments. 
     $if $line=~/^\s*\/\*/
+        @last_multiline_comments = ($line)
         $if $line !~ /\*\/\s*$/
             &call parse_loop
+                push @last_multiline_comments, $line
                 $if $line=~/\*\/\s*$/
                     last
         $line_skipped=1
         next
+    $elif @last_multiline_comments and $line!~/^fncode:/
+        undef @last_multiline_comments
 
 subcode: get_indentation
     $if $line=~/^\s*$/

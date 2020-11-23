@@ -41,6 +41,7 @@ subcode: subcode_start
         $call @line_extra
         $call add_subcode, $source, $type,$name,$attr,$t
         $t_code = $_t
+        $call @check_doc
         # $call @debug
     $else
         $t_code= {} # sink hole
@@ -59,6 +60,19 @@ subcode: subcode_start
         $if $t=~/^(\.\w+)(.*)/
             $name .= $1
             $t = $2
+
+    subcode: check_doc
+        $if @last_multiline_comments
+            $if $last_multiline_comments[0]=~/^\/\*\s*(.*?)\s*\*\//
+                /* single line comment */
+                $last_multiline_comments[0] = $1
+            $elif $last_multiline_comments[0]=~/^\/\*\s*$/ && $last_multiline_comments[-1]=~/^\*\//
+                shift @last_multiline_comments
+                pop @last_multiline_comments
+            $else
+                undef @last_multiline_comments
+        $if @last_multiline_comments
+            $t_code->{_doc} = \@last_multiline_comments
 
     subcode: debug
         $print $type code $name, parent: -
