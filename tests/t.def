@@ -1,7 +1,0 @@
-page: t
-    module: perl
-
-    $if 1
-        $print Hello
-
-
