@@ -260,6 +260,8 @@ subcode: run_page
     subcode: append_arg
         $if $page->{arg}
             $cmd .= " $page->{arg}"
+        $elif $page->{args}
+            $cmd .= " $page->{args}"
 
     subcode: set_config(var, key)
         my $t
