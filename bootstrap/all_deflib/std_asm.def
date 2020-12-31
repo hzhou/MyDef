@@ -1,0 +1,32 @@
+subcode: basic_frame
+    SECTION .data
+    DUMP_STUB _globals
+
+    SECTION .text
+    global _start
+
+    _start:
+        $call main2
+        $call exit, 0
+
+subcode: syscall(code)
+    mov eax, $(code)
+    int 80h
+
+subcode: write(@msg)
+    $(block:_globals)
+        $(setmacro:_s_idx+=1)
+        $(set:s=s_$(_s_idx))
+        $(s) db '$(msg)', 0Ah
+    $(eval:n=$(msg:strlen)+1)
+
+    $(set:fd=1)
+
+    mov edx, $(n)
+    mov ecx, $(s)
+    mov ebx, $(fd)
+    $call syscall, 4
+
+subcode: exit(ret)
+    mov ebx, $(ret)
+    $call syscall, 1

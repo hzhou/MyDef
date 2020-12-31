@@ -1,0 +1,3 @@
+subcode: basic_frame
+    $function main
+        $call main

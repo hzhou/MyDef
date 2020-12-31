@@ -2,15 +2,24 @@
 fncode: parse_template($def, $template_file)
     $call check_path
 
-    $global $template_idx=0
-    $template_idx++
-    my $name="_T$template_idx"
+    $global $template_idx=0, %template_file_hash
+    $if $template_file_hash{$template_file}
+        return $template_file_hash{$template_file}
+    $else
+        $template_idx++
+        my $name="_T$template_idx"
+        $template_file_hash{$template_file} = $name
 
-    my $cur_source=[]
-    $(set:parent=$def)
-    $call add_subcode, $cur_source, "template", $name
-    $call read_source
-    return $name
+        my $cur_source=[]
+        $(set:parent=$def)
+        $call add_subcode, $cur_source, "template", $name
+        $call read_source
+        $foreach $l in @$cur_source
+            $if $l=~/^(\s*)(\$template)\s+(.+)/
+                my $sp = $1
+                my $t_name = parse_template($def, $3)
+                $l = "$sp\$call $t_name\n"
+        return $name
 
     #-------------------------------------- 
     subcode: read_source

@@ -14,7 +14,7 @@ subcode: default_page_include
 
 #----------------------------------------
 subcode: add_include(t)
-    $if $(t) eq "$def->{name}.def"
+    $if $(t) eq "$def->{_defname}.def"
         $print include main self [$(t)]?
     $else
         $call dbl_push, includes, $(t)

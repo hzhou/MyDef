@@ -1,0 +1,20 @@
+module: perl
+page: test
+    package: test
+
+fncode: test($t)
+    $print test: $t
+
+
+/* expect test.pm:
+use strict;
+package test;
+
+# ---- subroutines --------------------------------------------
+sub test {
+    my ($t) = @_;
+    print "test: $t\n";
+}
+
+1;
+*/

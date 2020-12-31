@@ -48,3 +48,7 @@ subcode: set_macro_join
                 expand_macro(\$t)
                 push @out_list, $t
 
+    subcode: strip_quote(v)
+        $if $(v)=~/^["'](.*)["']$/
+            $(v)=$1
+

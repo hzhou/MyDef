@@ -36,10 +36,9 @@ subcode: dumpout
                 next;
 
         my $l=shift @$out;
-        $l=~s/^\\x([0-9a-f]+)\b/chr(hex($1))/ie # use leading \x23 to passthru # comments
-        # $call @debug_dumpout, 20
-        # $if $custom and $custom->($f, \$l)
-            # custom dump -- used in output_www.def -- no longer true
+        $if $l=~/^\s*\\x[0-9a-f]+\b/
+            $l=~s/\\x([0-9a-f]+)\b/chr(hex($1))/ie # use leading \x23 to passthru # comments
+        # $call @debug_dumpout, 50
         $case $l =~/^INCLUDE_FILE (\S+)/
             # used to insert long docs with the functions
             &call open_r, $1
@@ -56,11 +55,11 @@ subcode: dumpout
         $elif $l =~ /^INSERT_STUB\[(.*)\]\s+([\w\-]+)/ -> $sep, $name
             my $source=$MyDef::compileutil::named_blocks{$name}
             $if $source
-                my $t = join ($sep, @$source)
                 my $i=$#$f
                 $while $i>=0 && $f->[$i]!~/\{STUB\}/
                     $i--
                 $if $i>=0
+                    my $t = join ($sep, @$source)
                     $f->[$i]=~s/\{STUB\}/$t/g
         $elif $l=~/^(INDENT|DEDENT|PUSHDENT|POPDENT)\b(.*)/
             $if $1 eq "INDENT"
@@ -97,8 +96,16 @@ subcode: dumpout
 
     subcode: print_line
         $if $l=~/^\s*(NEWLINE\b.*)?$/
-            push @$f, "\n"
-        $elif $l=~/^<-\|(.*)/ # C preprocessing
+            $if $1 eq "NEWLINE?"
+                # prevent multiple empty lines
+                $if $f->[-1] ne "\n"
+                    push @$f, "\n"
+            $elif $1
+                push @$f, "\n"
+            $else
+                # likely from template
+                push @$f, $l
+        $elif $l=~/^<-\|(.*)/ # e.g. C preprocessing
             push @$f, "$1\n"
         $else
             chomp $l

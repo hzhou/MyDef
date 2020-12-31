@@ -64,6 +64,8 @@ fncode: close_scope($blk, $pre, $post)
 
                 $if $var->{exit}
                     push @exit_calls, "$var->{exit}, $v"
+            $if @$var_list
+                push @$pre, "\n"
 
             $if @exit_calls
                 $if !$post

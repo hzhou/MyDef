@@ -2,10 +2,9 @@ subcode: parsecode_case_support(if, elif, style)
     $global $case_if="$(if)", $case_elif="$(elif)"
 
     $global @case_stack
-    $global $case_state, $case_wrap
+    $global $case_state
     $call debug_case_l
 
-    my $check_unwrap
     $if $l=~/^\x24(if|elif|elsif|elseif|case)\s+(.*)$/
         my $cond=$2
         my $case=$case_if
@@ -13,7 +12,10 @@ subcode: parsecode_case_support(if, elif, style)
         $(if:parse_condition)
             $cond=parse_condition($cond)
         &call return_newblock, if
-            $call case_$(style)
+            $if $case eq $case_if
+                $call if_$(style)
+            $else
+                $call elif_$(style)
             $call case_push, "if"
     $elif $l=~/^\$else/
         $if !$case_state and $l!~/NoWarn/i
@@ -24,7 +26,6 @@ subcode: parsecode_case_support(if, elif, style)
     $elif $l!~/^SUBBLOCK/
         # ***************
         undef $case_state
-        $call @case_unwrap
         $if $l eq "CASEPOP"
             $call case_pop
             return 0
@@ -32,7 +33,6 @@ subcode: parsecode_case_support(if, elif, style)
     # -------------------------------- 
     subcode: check_case_if
         $if $1 eq "if"
-            $call @case_unwrap
         $elif $1 eq "case"
             $if !$case_state
                 $case=$case_if
@@ -44,10 +44,9 @@ subcode: parsecode_case_support(if, elif, style)
 #---------------------------------------- 
 subcode: case_push(state)
     push @src, "PARSE:CASEPOP"
-    push @case_stack, {state=>$(state), wrap=>$case_wrap}
+    push @case_stack, {state=>$(state)}
 
     undef $case_state
-    undef $case_wrap
     $call debug_case_push
 
 subcode: case_pop
@@ -55,46 +54,44 @@ subcode: case_pop
     my $t_case=pop @case_stack
     $if $t_case
         $case_state=$t_case->{state}
-        $case_wrap=$t_case->{wrap}
 
 #---- called from $list function ---
 subcode: case_reset
     $global @case_stack
-    $global $case_state, $case_wrap
+    $global $case_state
     @case_stack=()
     undef $case_state
     $call debug_case_reset
-    $call case_unwrap
-
-#----
-subcode: case_unwrap
-    $if $case_wrap
-        $call @debug_case_unwrap
-        push @$out, @$case_wrap
-        undef $case_wrap
 
 #----------------------------------------------- 
 #----- c style ----------------------
 #-- $call parsecode_case_support, if, else if, c_style
-subcode:0 case_c_style
-    $call push_single_block, "$case($cond){", "}"
+subcode:0 if_c_style
+    $call push_single_block, "if ($cond) {", "}"
+
+subcode:0 elif_c_style
+    $call push_single_block, "else if ($cond) {", "}"
 
 subcode:0 else_c_style
-    $call push_single_block, "else{", "}"
+    $call push_single_block, "else {", "}"
 
 #---- sh style ----------------
 #-- $call parsecode_case_support, if, elif, sh_style
-subcode:0 case_sh_style
-    push @src, "$case $cond; then"
-    $call push_indented_block
-    $if $case eq "if"
-        $if !$case_wrap
-            $case_wrap=[]
-        push @$case_wrap, "fi"
+subcode:0 if_sh_style
+    $call push_single_block, "if $cond; then", "fi"
+
+subcode:0 elif_sh_style
+    $call else_merge, fi
+    $call push_single_block, "elif $cond; then", "fi"
 
 subcode:0 else_sh_style
-    push @src, "else"
-    $call push_indented_block
+    $call else_merge, fi
+    $call push_single_block, "else", "fi"
+
+subcode:0 else_merge(fi)
+    $if $out->[-1] ne "$(fi)"
+        $call warn, "case: else missing $(fi) - [$out->[-1]]"
+    pop @$out
 
 # -------------------------------------------
 subcode: debug_case_push
@@ -104,16 +101,11 @@ subcode: debug_case_push
 subcode: debug_case_pop
     $if $debug eq "case"
         my $level=@case_stack
-        print "    Exit case [$level][wrap:$case_wrap]\n"
+        print "    Exit case [$level]\n"
 subcode: debug_case_l
     $if $debug eq "case"
         my $level=@case_stack
         print "        $level:[$case_state]$l\n"
-
-subcode: debug_case_unwrap
-    $if $debug eq "case"
-        my $level=@case_stack
-        print "   $level:[case_unwrap]$l\n"
 
 subcode: debug_case_reset
     $if $debug eq "case"

@@ -23,7 +23,7 @@
 :syntax match xHighlight /^.*\(#:\)\@=/
 :highlight xHighlight ctermfg=9
 
-:syntax region xComment start=/\/\*/ end=/\*\//
+:syntax region xComment start=/\(\/\|\\x2f\)\*/ end=/\*\//
 
 :syntax region dString start=/"/ skip=/\\"/ end=/"/  oneline contains=xMacro
 :syntax region sString start=/'/ skip=/\\'/ end=/'/  oneline

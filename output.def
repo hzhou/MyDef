@@ -43,9 +43,6 @@ subcode: output_main
             $call dump_line, parsecode
 
         #-------------------
-        $if $l=~/^\$warn (.*)/
-            $call warn, $1
-            return
         $call parsecode_debug
         $call parsecode_eval
         $call parsecode
@@ -80,15 +77,19 @@ subcode: inherit(M)
     $sub modeswitch($mode, $in)
         $call @on_modeswitch
 
-    $sub init_page
-        my ($page)=@_
-        # overwrite default .c extension
+    $sub init_page($t_page)
+        my $page=$t_page
+        # ---- Set output file extension
+        $(if:ext)
+            MyDef::set_page_extension("$(ext)")
+        $(else)
+            MyDef::set_page_extension(undef)
+
         $call @on_init_pre
-        $if !$page->{type}
-            $page->{type}="$(ext)"
-        $(super:init_page)(@_)
+
+        my $init_mode = $(super:init_page)(@_)
         $call @on_init
-        return $page->{init_mode}
+        return $init_mode
 
     $sub parsecode($l)
         $call parsecode_debug
@@ -137,19 +138,25 @@ subcode: parsecode_common
         # $function(param1) param2 ----
         my ($func, $param1, $param2)=($1, $2, $3)
         $case $func eq "plugin"
+            # $call $param2, ...
             $call add_plugin, $param1, $param2
             return
-        $call parsecode_func_param
+        $call @parsecode_func_param
     $elif $l=~/^\s*\$(\w+)\s*(.*)$/
         # $function param  ----
         my ($func, $param)=($1, $2)
         $if $param !~ /^=/
             $case $func eq "plugin"
                 $foreach $p in split /,\s*/, $param
-                    $call add_plugin, $p, $p
+                    $if $p=~/^&(.+)/
+                        # &call $1, ...
+                        $call add_plugin, $1, $p
+                    $else
+                        # $call $p, ...
+                        $call add_plugin, $p, $p
                 return
             $call parsecode_check_plugin # run
-            $call parsecode_func
+            $call @parsecode_func
     $elif $l=~/^CALLBACK\s+(\w+)\s*(.*)/
         # $function param  ----
         #     callback
@@ -207,7 +214,11 @@ subcode: add_plugin(p1, p2)
 subcode: parsecode_check_plugin
     $(set:C=$plugin_statement{$func})
     $case $(C)
-        MyDef::compileutil::call_sub($(C)." $param")
+        my $c= $(C)
+        $if $c=~/^&(.+)/
+            return "PARSE:\&call $1, $param"
+        $else
+            MyDef::compileutil::call_sub("$c, $param")
         # $call parsecode_run_eval, $(C)
         return
 

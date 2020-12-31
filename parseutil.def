@@ -49,10 +49,14 @@ fncode: import_data($file)
     # -----------------------------
     subcode: find_file
         $if $file=~/([^\/]+)\.def/
-            $def->{name}=$1
-            $def->{file}=find_file($file)
+            $def->{_defname}=$1
+            $def->{_deffile}=find_file($file)
         $else
-            $def->{name}="default"
+            $def->{_defname}="default"
+
+        $if $file=~/(.*)\//
+            $def->{_srcdir}=$1
+            unshift @path, $1
 
 #------------------------------
 fncode: import_file($f, $def, $file_type)
@@ -86,6 +90,8 @@ fncode: import_file($f, $def, $file_type)
             $call start_code_indent, macro, $curindent+1, $macros
         $elif $line=~/^template:/ && $(top_scope)
             $call grab_template
+        $elif $line=~/^output_dir:\s*(.+)/
+            $MyDef::var->{output_dir}=$1
         $call @parse_switch_include
         $elif $curindent==0 and $line=~/^page:\s*(.*)/ -> $t
             $call start_page
@@ -124,7 +130,7 @@ subcode: start_page
 
     # ------------------------
     subcode: parse_page_line
-        $if $t=~/([\w\-\$\.]+),\s*(\w.*)/
+        $if $t=~/([\w\-\$\.]+),\s*(\w.*|-)/
             $pagename=$1;
             $frame=$2;
             $if $frame=~/^from\s+(\S+)/
@@ -134,8 +140,6 @@ subcode: start_page
 
     subcode: new_page
         my $page={_pagename=>$pagename}
-        $if $pagename=~/(.+)\.(.+)/
-            $page->{type}=''
         $if $frame
             $page->{_frame}=$frame
 
@@ -153,6 +157,9 @@ subcode: start_page
                     last
                 $call add_macro
             $else
+                $if $line=~/^$/
+                    # skip the first empty line
+                    $cur_line++
                 last
         $cur_line--
 
@@ -181,21 +188,26 @@ subcode:: import_file_init
     my $cur_file=$f
     my $cur_line=0
     my $line_skipped=0
+    my @last_multiline_comments # in case it's function doc
 
 subcode: get_multiline_comment
     # multiline_comments, Note: we are more strict than the C comments. 
     $if $line=~/^\s*\/\*/
+        @last_multiline_comments = ($line)
         $if $line !~ /\*\/\s*$/
             &call parse_loop
+                push @last_multiline_comments, $line
                 $if $line=~/\*\/\s*$/
                     last
         $line_skipped=1
         next
+    $elif @last_multiline_comments and $line!~/^fncode:/
+        undef @last_multiline_comments
 
 subcode: get_indentation
     $if $line=~/^\s*$/
         # sometime empty lines are significant, passes on, where compileutil will filter
-        $line=""
+        $line="NEWLINE?"
     $elif $line=~/^(\s*)(.*)/
         # get current indentation and stripping starting spaces
         # ref: deflib/perl/indentations.def
@@ -204,7 +216,7 @@ subcode: get_indentation
         $if $line=~/^#(?!(define|undef|include|line|error|pragma|if|ifdef|ifndef|elif|else|endif)\b)/
             # Leading # with exclusions
             $if $line=~/^#\\n/
-                $line="NEWLINE"
+                $line="NEWLINE?"
             $elif $indent != $curindent
                 $line="NOOP"
             $else
@@ -245,7 +257,11 @@ fncode: get_lines($file)
     $else
         my $filename=find_file($file)
         $if $filename
-            $call get_file_lines, $filename
+            my @lines
+            &call open_r, $filename
+                $if /^# cut ----+\s*$/
+                    last
+                $else
+                    push @lines, $_
             return \@lines;
         return undef
-

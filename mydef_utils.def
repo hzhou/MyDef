@@ -2,9 +2,8 @@ include: macros_util/parse_regex.def
 
 page: utils
     output_dir: lib/MyDef
+    type: pm
     package: MyDef::utils
-
-    1;
 
 /*
 fncode: get_tlist($t)
@@ -22,10 +21,12 @@ fncode: get_tlist($t)
     my @tlist
     $foreach $v in @vlist
         $if $v=~/^(\w+)(?:\.\.|-)(.*)$/ -> $a,$t
-            $if !$t
+            $if $t eq ""
                 push @tlist, get_range_n($1, $last_tlist_count)
             $elif $t=~/^(\w+)$/ ->$b
                 push @tlist, get_range($a, $b)
+            $elif $t=~/^(\w+)(%.*x)$/ ->$b, $fmt
+                push @tlist, get_range($a, $b, $fmt)
             $elif $t=~/^(\w+)\s*\/\s*(.+)$/ ->$b, $exclude
                 # exclusion, eg. Lagrange Polynomial
                 my @temp_list = get_range($a, $b)
@@ -41,9 +42,13 @@ fncode: get_tlist($t)
     $last_tlist_count=@tlist
     return @tlist
 
-fncode: get_range($a, $b)
+fncode: get_range($a, $b, $fmt)
     my @tlist
-    $if $a=~/^\d+$/ and $b=~/^\d+$/
+    $if $fmt=~/^%\d*x$/ and $a=~/^[0-9a-f]+$/ and $b=~/^[0-9a-f]+$/
+        ($a, $b) = (hex($a), hex($b))
+        &call ab_range
+            push @tlist, sprintf($fmt, $i)
+    $elif $a=~/^\d+$/ and $b=~/^\d+$/
         &call ab_range
             push @tlist, $i
     $elif $a=~/^[a-zA-Z]$/ and $b=~/^[a-zA-Z]$/
@@ -297,6 +302,34 @@ fncode: uniq_name($name, $hash)
         $while $hash->{"$name$i"}
             $i++
         return "$name$i"
+
+#---------------------------------------- 
+fncode: longline_split($l, $style)
+    my @out
+    my $n = 80
+    $if $l=~/^(\s*)(.+)/ -> $sp, $t
+        $n -= length($sp)
+        $l=~s/\s+$//
+        $call basic_split
+    return @out
+
+    subcode: basic_split
+        $while length($l)>$n
+            my $j=$n
+            $while $j>0 && substr($l, $j, 1) ne ' '
+                $j--
+            $if $j==0
+                $j = $n
+                $while $j<length($l) && substr($l, $j, 1) ne ' '
+                    $j++
+                $if $j==length($l)
+                    last
+            $if $j>0
+                push @out, $sp.substr($l, 0, $j)
+                $l = substr($l, $j)
+                $l=~s/^\s+//
+        push @out, $sp.$l
+
 
 #---------------------------------------- 
 fncode: string_symbol_name($s)

@@ -17,8 +17,6 @@ page: MyDef
     MyDef::parseutil::add_path($var->{include_path})
     MyDef::parseutil::add_path($ENV{MYDEFLIB})
 
-    1;
-
 fncode: get_version
     return "$(version)"
 #---------------------------------------- 
@@ -46,8 +44,6 @@ fncode: import_data($file)
 
 fncode: createpage($pagename)
     $page=$def->{pages}->{$pagename};
-    $if $page->{output_path} and !$page->{output_dir}
-        $page->{output_dir}=$page->{output_path}
 
     my $plines=MyDef::compileutil::compile()
     MyDef::compileutil::output($plines)
@@ -94,8 +90,13 @@ fncode: set_page_extension($default_ext)
     my $ext=$default_ext
     $if exists $var->{filetype}
         $ext=$var->{filetype}
+
     $if exists $page->{type}
         $ext=$page->{type};
+    $elif $page->{_pagename}=~/(.+)\.(.+)/
+        $page->{_pagename}=$1
+        $ext=$2
+
     $if $ext eq "none"
         $ext=""
 
@@ -110,6 +111,3 @@ fncode: import_config($file)
             $var->{$1}=$2;
     close In;
     
-    $if $var->{output_path} and !$var->{output_dir}
-        $var->{output_dir}=$var->{output_path}
-

@@ -5,24 +5,30 @@ page: mydef_install
     output_dir: script
 
     $call parse_args
+    $if $b_debug
+        $print mydef_install: ARGV = @ARGV
     # mydef_install deflib . def      --> *.def -> ${MYDEFLIB}
     # mydef_install MyDef/lib . pm    --> *.pm  -> ${PERL5LIB}
     # mydef_install MyDef/script . -  --> *     -> ${PATH}
     # mydef_install - out/{a,b,c}     --> *     -> ${PATH}
 
     $call check_install_dir
-
     $if $dst ne "."
         $install_dir.="/$dst"
+    $if $b_debug
+        $print install_dir: $install_dir
 
     $if @$src_list
         install_all($src_list, $install_dir, $ext)
 
 subcode: parse_args
     $call @check_arg_version, $ARGV[0]
-    $global $b_force
+    $global $b_force, $b_debug
     $if $ARGV[0] eq "-f"
         $b_force = 1
+        shift @ARGV
+    $if $ARGV[0] eq "-debug"
+        $b_debug = 1
         shift @ARGV
 
     my ($dst, $ext) 
@@ -44,6 +50,10 @@ subcode: parse_args
             $elif -d $a
                 my $tlist = load_srcs_dir($a,"-")
                 push @$src_list, @$tlist
+            $else
+                warn "[$a] not found\n"
+                $if $a=~/\{.*\}/
+                    warn "    note: {*} expansion may not work in your shell, try bash.\n"
 
     subcode: install_src_dst_type
         $if !$ext
@@ -139,18 +149,12 @@ subcode: check_install_dir
             $print "    try put 'PERL5LIB=\$HOME/lib/perl5' in your .bashrc (and source it)\n"
             exit
     $elif $ext eq "-"
-        $install_dir=$ENV{PATH}
-        $install_dir=~s/:.*//
-        $if $install_dir ne "$home/bin" and $install_dir ne "$home2/bin"
-            $print "This will install script into your leading path: [$install_dir]"
-            $print "  press 'y' to continute (abort otherwise)"
-            my $t =<STDIN>
-            $if $t!~/^\s*y\s*$/
-                undef $install_dir
-        $if  !$install_dir
-            $print "Missing environment variable PATH\n"
-            $print "    try put 'PATH=\$HOME/bin' in your .bashrc (and source it)\n"
-            exit
+        $if $ENV{MYDEFBIN}
+            $install_dir = $ENV{MYDEFBIN}
+        $else
+            $install_dir=$ENV{PATH}
+            $install_dir=~s/:.*//
+            $call check_mydefbin
 
     $if  !-d $install_dir
         mkdir $install_dir or die "Can't mkdir $install_dir\n";
@@ -160,3 +164,14 @@ subcode: check_install_dir
         $if $ENV{MYDEFLIB}=~/(.*)\/lib\/MyDef/
             $home2 = $1
 
+    subcode: check_mydefbin
+        $if $install_dir ne "$home/bin" and $install_dir ne "$home2/bin"
+            $print "This will install script into your leading path: [$install_dir]"
+            $print "  press 'y' to continute (abort otherwise)"
+            my $t =<STDIN>
+            $if $t!~/^\s*y\s*$/
+                undef $install_dir
+        $if  !$install_dir
+            $print "Can't figure out installation dir\n"
+            $print "    try set MYDEFBIN (and add it to your PATH)\n"
+            exit

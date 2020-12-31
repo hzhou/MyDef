@@ -1,0 +1,33 @@
+page: run_tex
+    my $f_tex = $ARGV[0]
+    $if $f_tex =~ /^(.*)\/(.*)/
+        chdir $1 or die "can't chdir $1\n"
+        $f_tex = $2
+
+    $if !-e $f_tex
+        die "Missing latex file [$f_tex]\n"
+
+    my $P = "pdflatex"
+    $if $f_tex=~/\.tex$/
+        $P = "pdftex"
+
+    $use IPC::Open3
+
+    my $stage
+    $print "$P $f_tex ..."
+    my $pid = open3(\*P_IN, \*P_OUT, \*P_ERR, "$P $f_tex") or die "open3 failed $!"
+    my $sp = "    "
+    $while <P_OUT>
+        $if /^! /
+            $stage="Err"
+            $if /! LaTeX Error:/
+                print P_IN "x\n"
+        $if /\(Press Enter to retry, or Control-D to exit\)/
+            last
+
+        # selectively show error messages
+        $if $stage eq "Err"
+            print "$sp$_"
+        $elif /^(\w+) written on/
+            print "$sp$_"
+

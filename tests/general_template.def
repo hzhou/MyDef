@@ -1,0 +1,25 @@
+page: test, from inc/template.txt
+    NEWLINE?
+    Hello
+    $call T
+    # *************************
+    # $template inc/template.txt
+
+template: T
+    ---- 1
+template: T
+    ---- 2
+
+subcode: A
+    test $call in template
+    $(block:_A)
+        test DUMP_STUB in template
+
+/* expect test.txt:
+test $call in template
+test DUMP_STUB in template
+INCLUDE another template_inc.txt
+TEMPLATE
+Hello
+---- 1
+*/

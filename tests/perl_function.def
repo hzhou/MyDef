@@ -5,3 +5,28 @@ page: test
 
 fncode: test($t)
     print "test: $t\n"
+
+fncode: test_2(t)
+    autolist: 1
+    $print "backup function: test_2 - $(t)\n"
+
+/* expect test.pl:
+#!/usr/bin/perl
+use strict;
+
+our $a;
+
+$a=10;
+test($a);
+
+# ---- subroutines --------------------------------------------
+sub test {
+    my ($t) = @_;
+    print "test: $t\n";
+}
+
+sub test_2 {
+    my ($t) = @_;
+    print "backup function: test_2 - $t\n";
+}
+*/

@@ -36,7 +36,7 @@ INSTALL
 
 2. Now install it:
 
-        sh bootstrap.sh
+        sh bootstrap.sh all
 
 3. If you haven't, read the documentation: http://huizhou.gitbooks.io/programming-with-mydef
 
@@ -51,13 +51,19 @@ INSTALL
         $ mydef_run t.def
 
     Explanation: 
-        page outputs a file in that name with the default extension -- in this case t.pl
-        $print is special since it is used so often. It is customized in MyDef to provide many convenience (and a uniform syntax across languages)
-        In this case, it is translated into `print("Hello World!\n");`
-        mydef_run is a convenience for short script. 
-        Formally, `mydef_page` compiles .def into .pl (or whatever language of the module), and the normal toolchain of the language follows. 
-        `mydef_page` is what should be used in a Makefile.
+
+    `page` outputs a file in that name with the default extension -- in this case `t.pl`.
+    `$print` is special since it is used so often. It is customized in MyDef to provide many convenience (and a uniform syntax across languages)
+    In this case, it is translated into `print("Hello World!\n");`
+    `mydef_run` is a convenience for short script. 
+    Formally, `mydef_page` compiles `.def` into `.pl` (or whatever language of the module), and the normal toolchain of the language follows. 
+    `mydef_page` is what should be used in a `Makefile`.
         
+    Try more:
+
+    Who writes Perl nowadays? (I do!) If Python is your language, try replace the module with `module: python` and run it.
+    You may also try `c`, `cpp`, `java`, `fortran`, `sh`, `js`, `php`, `lua`, `go`, `rust`, `tcl`, `pascal`, etc. (assuming you have necessary language toolchain in place).
+    MyDef is a meta-layer that can easily work with any programming languages. You may download specific `output` module or write your own to extend your favorite languages.
 
 5. If you use vim, there is simple mydef syntax.
 

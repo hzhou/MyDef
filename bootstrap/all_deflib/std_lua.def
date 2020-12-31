@@ -1,0 +1,23 @@
+subcode: open_r(file)
+    In, Err = io.open($(file))
+    $if In
+        $while true
+            line = In:read()
+            $if line == nil
+                break
+            BLOCK
+        In:close()
+    $else
+        $print "open_r Error: ", Err
+
+subcode: open_w(file)
+    Out, Err = io.open($(file), "w")
+    $if Out
+        BLOCK
+        Out:close()
+    $else
+        $print "open_w Error: ", Err
+
+    subcode: write(@msg)
+        Out:write($(msg))
+

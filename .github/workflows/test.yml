@@ -1,0 +1,25 @@
+name: test
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: bootstrap
+      run:  sh bootstrap.sh all
+    - name: test
+      env:
+        PATH: $HOME/bin:$PATH
+        PERL5LIB: $HOME/lib/perl5
+        MYDEFLIB: $HOME/lib/MyDef
+        MYDEFSRC: $PWD  
+      run: |
+        export PATH=$HOME/bin:/usr/bin:/bin
+        export PERL5LIB=$HOME/lib/perl5
+        export MYDEFLIB=$HOME/lib/MyDef
+        export MYDEFSRC=$PWD
+        cd tests; mydef_test

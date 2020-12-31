@@ -50,30 +50,50 @@ page: mydef_run
             $call @check_arg_version, $a
 
     subcode: guess_module
+        my $guessed_module = "general"
+        # if we are certain (e.g. module: xxx, include: xxx/), set $config{module}
+        # if we are guessing, set $guessed_module
         guess_module:
         my $under_page
         &call open_r, $config{def_file}
             $if /^page:\s*(\w+)/
                 $under_page = $1
+            # ----
             $if /module:\s*(\w+)/
                 $if !$config{module} or $pagename eq $under_page
                     $config{module}=$1
                 # last
             $elif /^run:\s*(\S+\.def)/
                 $config{def_file}=$1
+                close In
                 goto guess_module
             $elif /^run:\s*(\w+)/
                 $pagename = $1
             $elif /^prerun:\s*(.+)/
                 system $1
+            $elif /^filter:\s*(.+)/
+                system "$1 $config{def_file} /tmp/t.def"
+                $config{def_file} = "/tmp/t.def"
+                close In
+                goto guess_module
             $elif /^\/\*\s*expect (\S+):\s*$/
                 $config{expect_type}=$1
                 $call grab_expect_block
+            $elif /^include:\s*(perl|c)\//
+                $config{module}=$1
+            $elif !$config{module}
+                $call @looklike_perl
+
         $if !$config{module}
             $config{module}=$MyDef::var->{module}
         $if !$config{module}
-            $config{module}="general"
+            $config{module}=$guessed_module
 
+        subcode: looklike_perl
+            $case /^\s*(my|our|\$global)\s*\(?[\$\@\%]\w+/
+                $guessed_module="perl"
+
+    # ------------------
     subcode: guess_os
         my $ostype
         # $ENV{OSTYPE} dissappears in perl
@@ -101,10 +121,8 @@ subcode: run_page
     $call @set_config_exe_type
 
     # $print mydef_run: [$name] [$type]
-    my $cmd
-    $if $page->{run}
-        $cmd=$page->{run}
-    $call @construct_cmd_from_type
+    $call @construct_cmd
+
     # --------------------------------
     $if $config{expect} and $config{expect_type} ne "output"
         $call cmp_expect, $file
@@ -119,8 +137,11 @@ subcode: run_page
         die "do not know how to run it\n"
 
     # ---- construc $cmd based on $type ------
-    subcode: construct_cmd_from_type
-        $elif $type=~/^c(pp)?$/
+    subcode: construct_cmd
+        my $cmd
+        $if $page->{run}
+            $cmd=$page->{run}
+        $elif $type=~/^c(pp|xx|c|u)?$/
             $call run_c
         $call do_compile, java, javac $file, CD java $name
         $call do_compile, f, gfortran -g -o$exe $file $page->{lib_list}, $exe
@@ -140,10 +161,13 @@ subcode: run_page
         $call do_script, tcl, tclsh
         $call do_script, lua, lua
         $call do_script, lisp, clisp
+        $call do_script, groovy, groovy
         # $call do_script, tex, pdflatex  # -interaction=batchmode
         $call do_script, tex, run_tex
         $call do_script, latex, run_tex
         $call do_script, awk, awk -f
+        $call do_script, plt, gnuplot
+        $call do_script, gv, dot -Tpdf -o $page->{_pagename}.pdf
 
         # --------------------
         # support custom_run.def 
@@ -171,25 +195,37 @@ subcode: run_page
 
         # --------------------
         subcode: run_c
-            $(if:CC)
-                my $cc="$(CC)"
-            $(else)
-                my $cc = "gcc -std=c99 -O2"
-                # my $cc = "x86_64-w64-mingw32-gcc -O2 -Wl,--subsystem,windows"
-            $if $file=~/\.cpp$/
-                $cc = "g++ -std=c++11 -O2"
+            my $cc
+            my $default_cc
+            $if $file=~/\.(cpp|cxx|cc)$/
+                $default_cc = "g++ -std=c++11 -g -O2"
+            $elif $file=~/\.(cu)$/
+                $default_cc = "nvcc"
+            $else
+                $default_cc = "gcc -std=c99 -g -O2"
 
+            $(if:CC)
+                $cc="$(CC)"
+            $(else)
+                $cc = $default_cc
+                # $cc = "x86_64-w64-mingw32-gcc -O2 -Wl,--subsystem,windows"
             $call set_config, $cc, cc
             $call set_config, $cc, CC
+
             # ---------------------
-            $cmd="$cc -o$exe $file $page->{lib_list}"
+            my $cflags
+            $call set_config, $cflags, CFLAGS
+            $if $cflags
+                $cc .= " $cflags"
+            # ---------------------
+            $cmd="$cc -o $exe $file $page->{lib_list}"
 
             $if $config{dump_rule}
                 $if $exe=~/([^\/]+)$/
                     $exe = "script/$1"
                 $if $name=~/([^\/]+)$/
                     $name = "$1"
-                $cmd = '$'."{CC} -o\$@ \$< $page->{lib_list}"
+                $cmd = '$'."{CC} -o \$@ \$< $page->{lib_list}"
                 print "\nCC=$cc\n\n"
                 print "$exe: $name\n"
                 print "\t$cmd\n"
@@ -213,21 +249,30 @@ subcode: run_page
         my $exe = "$(exe)"
         $call set_config, $exe, exe
         $if $exe ne "none"
-            $if $file_dir and $exe=~/CD\s+(.*)/
-                my $t = $1
-                $t=~s/$file_dir\///g
-                $exe = "cd $file_dir && $t"
+            $if $exe=~/CD\s+(.*)/ -> $t
+                $if $file_dir
+                    $t=~s/$file_dir\///g
+                    $exe = "cd $file_dir && $t"
+                $else
+                    $exe = $t
             $cmd .= " && $exe"
 
     subcode: append_arg
         $if $page->{arg}
             $cmd .= " $page->{arg}"
+        $elif $page->{args}
+            $cmd .= " $page->{args}"
 
     subcode: set_config(var, key)
+        my $t
         $if $page->{$(key)}
-            $(var) = $page->{$(key)}
+            $t = $page->{$(key)}
         $elif $MyDef::var->{$(key)}
-            $(var) = $MyDef::var->{$(key)}
+            $t = $MyDef::var->{$(key)}
+        # ---
+        $if $t
+            $t=~s/\$$(key)/$(var)/
+            $(var) = $t
 
     # --------------------------
     subcode: run_cmd_expect
@@ -243,6 +288,7 @@ subcode: grab_expect_block
             $config{expect} = \@expect
             last
         $else
+            s/\\x(..)/chr(hex($1))/ge
             $call @expect_normalize
             push @expect, $_
 

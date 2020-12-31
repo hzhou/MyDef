@@ -1,8 +1,16 @@
+#- Provide MyDef::ext module to be used in perlcode
+#- Example:
+#-    perlcode: codeprint
+#-        require MyDef::ext
+#-        my $codelist = MyDef::ext::grab_codelist()
+#-        ...
+
+include: macros_ext/grab_file.def
+
 page: ext
     output_dir: lib/MyDef
     package: MyDef::ext
-
-    1;
+    type: pm
 
 fncode: grab_codelist(%opt)
     my $codelist = $MyDef::compileutil::named_blocks{"last_grab"}
@@ -18,7 +26,12 @@ fncode: grab_codelist(%opt)
         $foreach $t in @$codelist
             $if $do_macro
                 MyDef::compileutil::expand_macro(\$t)
-            $if $t!~/^SOURCE:/
+
+            $if $t=~/^SOURCE:/
+                # skip
+            $elif $t=~/^NEWLINE/
+                push @t, "\n"
+            $else
                 $if $with_indent
                     push @t, $t
                 $else

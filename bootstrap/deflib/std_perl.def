@@ -42,7 +42,7 @@ subcode: dump_hash(h)
 subcode: open_r(name)
     $(if:name~")
         $(set:name=$(name:strip))
-    open In, "$(name)" or die "Can't open $(name).\n"
+    open In, "$(name)" or die "Can't open $(name): $!\n"
     $while <In>
         BLOCK
     close In
@@ -51,9 +51,9 @@ subcode: open_w(name)
     $(if:name~")
         $(set:name=$(name:strip))
     $(if:name~[>|])
-        open Out, "$(name)" or die "Can't write $(name).\n"
+        open Out, "$(name)" or die "Can't write $(name): $!\n"
     $(else)
-        open Out, ">$(name)" or die "Can't write $(name).\n"
+        open Out, ">$(name)" or die "Can't write $(name): $!\n"
     BLOCK
     close Out
 
@@ -77,13 +77,15 @@ subcode: get_file_in_t(name)
         $t=<In>
         close In
 
-subcode: get_file_lines(name)
+subcode: get_file_lines(name, @lines)
     $(if:name~")
         $(set:name=$(name:strip))
-    my @lines
+    $(if:!lines)
+        $(set:lines=@lines)
+    my $(lines)
     &call block
         open In, "$(name)" or die "Can't open $(name).\n"
-        @lines=<In>
+        $(lines)=<In>
         close In
 
 #---------------------------------------- 
@@ -103,18 +105,6 @@ perlcode: print_block
         $foreach $t in @$codelist
             $t=~s/"/\\\"/g
             push @$out, "print Out \"$t\\n\";"
-
-# -- COMMON PATTERNS ---------------
-subcode: topdown_loop(name, top)
-    my %$(name)_hash
-    my @$(name)_list
-    $global @topdown_list
-    @topdown_list = ($(top))
-
-    $while my $$(name)=pop @topdown_list
-        $if !$$(name)_hash{$$(name)}
-            $$(name)_hash{$$(name)}=1
-            BLOCK
 
 # -- dbl_list ----------------
 subcode: dbl_list(name)
@@ -142,6 +132,9 @@ subcode: dbl_push_list(name, list)
 # $call match_count, $n, $s=~/'/g
 subcode: match_count(n, @re)
     $(n) = () = $(re)
+
+macros:
+    RE_PAREN: (\((?:[^()]++|(?-1))*+\))
 
 #-- Parser -------------------
 # for simple parsing; for more complicated cases, ref perl/parse.def
@@ -175,3 +168,16 @@ subcode: init_debug_console
         $|=1
         select $ofh
     }
+
+# -- PATTERNS (less-used) ---------------
+subcode: topdown_loop(name, top)
+    my %$(name)_hash
+    my @$(name)_list
+    $global @topdown_list
+    @topdown_list = ($(top))
+
+    $while my $$(name)=pop @topdown_list
+        $if !$$(name)_hash{$$(name)}
+            $$(name)_hash{$$(name)}=1
+            BLOCK
+

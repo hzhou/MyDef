@@ -10,10 +10,11 @@ subcode: macros_start
     $call get_parent, macros
 
 subcode: process_macros
+    my $macros = $codeitem
     $if $line=~/^(\w+):([:!=])?\s*(.*)/
         my ($k,$dblcolon, $v)=($1, $2, $3)
         expand_macro(\$v, $macros);
-        $v=~s/\s+$//
+        # $v=~s/\s+$//
         $if $macros->{$k}!~/^$/
             $if $dblcolon eq ':'
                 # :: append
@@ -30,6 +31,7 @@ subcode: process_macros
         $else
             $macros->{$k}=$v
     $elif $line=~/^(.*):\s*(.*)/ -> $t1, $t2
+        # a, b: 1, 2 --> a=1, b=2
         my @klist=split /,\s*/, $t1
         my @vlist=MyDef::utils::get_tlist($t2)
         $foreach $k, $v in @klist, @vlist

@@ -21,7 +21,7 @@ fncode: parseblock($code)
 
         $if $cur_mode eq "template"
             # -- only $call is honored
-            $if $l=~/^(\s*)(\$call|DUMP_STUB)\s+(.+)/
+            $if $l=~/^(\s*)(\$call|\$template|DUMP_STUB)\s+(.+)/
                 $call template_special
             $else
                 push @$out, $l
@@ -62,6 +62,11 @@ subcode: compile_line
     # -------------
     $if $l=~/^BLOCK(\d*)\s*$/
         $call call_back
+        goto Done_Parse
+    $elif $l=~/^SINK_STUB\s*(.+)/
+        $global %sink_blocks
+        $foreach $a in split /,\s*/, $1
+            $sink_blocks{$a} = 1
         goto Done_Parse
     # -----------------
     $call @check_bypass
@@ -171,12 +176,7 @@ subcode: parse_line
     my $msg=$f_parse->($l);
     $if $msg
         $if ref($msg) eq "ARRAY"
-            $(if:1)
-                $call warn, return [ARRAY] deprecated. Use NEWBLOCK and &replace_output instead.
-            $(else)
-                # output is held until post processing
-                #     eg. output_apple.pm $method
-                $callback_output=$msg;
+            $call warn, return [ARRAY] deprecated. Use NEWBLOCK and &replace_output instead.
         $elif $msg=~/^NEWBLOCK(.*)/
             # check the new output for blocks
             #     eg. output.def single_block()

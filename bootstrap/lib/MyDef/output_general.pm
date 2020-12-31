@@ -1,13 +1,17 @@
 use strict;
 package MyDef::output_general;
+
 our $debug=0;
 our $out;
 our $mode;
 our $page;
+our %plugin_statement;
+our %plugin_condition;
 
 sub get_interface {
     return (\&init_page, \&parsecode, \&set_output, \&modeswitch, \&dumpout);
 }
+
 sub init_page {
     my ($t_page)=@_;
     $page=$t_page;
@@ -15,13 +19,16 @@ sub init_page {
     my $init_mode="sub";
     return $init_mode;
 }
+
 sub set_output {
     my ($newout)=@_;
     $out = $newout;
 }
+
 sub modeswitch {
     my ($mode, $in)=@_;
 }
+
 sub parsecode {
     my ($l)=@_;
     if($debug eq "parse"){
@@ -29,6 +36,7 @@ sub parsecode {
         my $normal="\033[0m";
         print "$yellow parsecode: [$l]$normal\n";
     }
+
     if($l=~/^\$warn (.*)/){
         my $curfile=MyDef::compileutil::curfile_curline();
         print "[$curfile]\x1b[33m $1\n\x1b[0m";
@@ -56,13 +64,73 @@ sub parsecode {
         }
         return;
     }
+    if($l=~/^DUMP_STUB\s/){
+        push @$out, $l;
+    }
+    elsif($l=~/^\s*\$(\w+)\((.*?)\)\s+(.*?)\s*$/){
+        my ($func, $param1, $param2)=($1, $2, $3);
+        if($func eq "plugin"){
+            if($param2=~/_condition$/){
+                $plugin_condition{$param1}=$param2;
+            }
+            else{
+                $plugin_statement{$param1}=$param2;
+            }
+            return;
+        }
+    }
+    elsif($l=~/^\s*\$(\w+)\s*(.*)$/){
+        my ($func, $param)=($1, $2);
+        if($param !~ /^=/){
+            if($func eq "plugin"){
+                foreach my $p (split /,\s*/, $param){
+                    if($p=~/^&(.+)/){
+                        if($p=~/_condition$/){
+                            $plugin_condition{$1}=$p;
+                        }
+                        else{
+                            $plugin_statement{$1}=$p;
+                        }
+                    }
+                    else{
+                        if($p=~/_condition$/){
+                            $plugin_condition{$p}=$p;
+                        }
+                        else{
+                            $plugin_statement{$p}=$p;
+                        }
+                    }
+                }
+                return;
+            }
+            elsif($plugin_statement{$func}){
+                my $c= $plugin_statement{$func};
+                if($c=~/^&(.+)/){
+                    return "PARSE:\&call $1, $param";
+                }
+                else{
+                    MyDef::compileutil::call_sub("$c, $param");
+                }
+                return;
+            }
+        }
+    }
+    elsif($l=~/^CALLBACK\s+(\w+)\s*(.*)/){
+        my ($func, $param)=($1, $2);
+        my $codelist=$MyDef::compileutil::named_blocks{"last_grab"};
+        return;
+    }
+
+
     push @$out, $l;
 }
+
 sub dumpout {
     my ($f, $out)=@_;
     my $dump={out=>$out,f=>$f};
     MyDef::dumpout::dumpout($dump);
 }
+
 sub single_block {
     my ($t1, $t2, $scope)=@_;
     my @src;
@@ -79,4 +147,7 @@ sub single_block {
         return "NEWBLOCK";
     }
 }
+
+1;
+
 1;

@@ -1,0 +1,16 @@
+page: test
+    module: general
+
+    $call A, Hello world!
+    $call A
+
+subcode: A(@arg)
+    $(if:arg)
+        A with arg: $(arg)
+    $(else)
+        A without arg
+
+/* expect test.txt:
+A with arg: Hello world!
+A without arg
+*/

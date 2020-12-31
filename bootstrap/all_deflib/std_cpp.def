@@ -1,0 +1,93 @@
+include: std_c.def
+
+macros:
+    style: c++11
+
+## frame
+subcode: basic_frame
+    # using namespace std;
+    $call @global
+    # $list _basic_main
+    $function main
+        $call main
+
+#---- stl containers ---------------
+subcode:: _autoload
+    $register_prefix(vn) std::vector<int>
+    $register_prefix(vs) std::vector<std::string>
+
+    $register_prefix(rvn) std::vector<int> &
+    $register_prefix(rvs) std::vector<std::string> &
+
+subcode: vector_push(v, @list)
+    $(for:t in $(list))
+        $(v).push_back($(t))
+
+#---- stl query ----
+subcode: map_has(m, key)
+    $(allow_recurse:10)
+    auto it=$(m).find($(key));
+    $if it!=$(m).end()
+        $(set:value=it->second)
+        BLOCK
+
+subcode: set_has(m, key)
+    $(allow_recurse:10)
+    auto it=$(m).find($(key));
+    $if it!=$(m).end()
+        BLOCK
+
+#---- stl iteration ----
+# TODO: plugin interface for &call
+subcode: stl_iter(v)
+    $for auto it=$(v).begin();it!=$(v).end();++it
+        $(set:it=*it)
+        BLOCK
+
+subcode: map_iter(m)
+    &call stl_iter, $(m)
+        $(set:key=it->first)
+        $(set:value=it->second)
+        BLOCK
+
+#---- stl initilization ----
+subcode: vector_append(vec, val)     
+    $(vec).push_back($(val))         
+
+subcode: set_insert(set, val)
+    $(set).insert($(val))
+
+subcode: map_add(map, k, v)
+    $get_type(type) $(map)
+    $(map).insert(std::pair$(type:regex:(<.*>))($(k), $(v)));
+
+#---- std algorithm ----
+subcode: stl_sort(v, type)
+    $include <algorithm>
+    $(if:style=c++11)
+        $(set:T=begin($(v)), end($(v)))
+    $(else)
+        $(set:T=$(v).begin(), $(v).end())
+    std::sort($(T), [&]($(type) a, $(type) b){
+        BLOCK
+    } );
+
+subcode: std_sort(L, N, type)
+    $include <algorithm>
+    std::sort($(L), $(L)+$(N), [&]($(type) a, $(type) b){
+        BLOCK
+    } );
+
+subcode: stl_Sort(v)
+    $include <algorithm>
+    $(if:style=c++11)
+        $(set:T=begin($(v)), end($(v)))
+    $(else)
+        $(set:T=$(v).begin(), $(v).end())
+    std::sort($(T));
+
+subcode: std_Sort(L, N)
+    $include <algorithm>
+    std::sort($(L), $(L)+$(N));
+
+#---- C++ 11 styles -----

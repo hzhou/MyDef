@@ -1,0 +1,8 @@
+page: t.out
+    module: general
+
+    The output file should be t.out, not t.out.txt
+
+/* expect t.out:
+The output file should be t.out, not t.out.txt
+*/

@@ -18,7 +18,7 @@ fncode: output($plines)
     my $page=$MyDef::page
     my $pagename=$page->{_pagename}
     my $pageext=$page->{_pageext}
-    my $outdir=$page->{outdir}
+    my $outdir=$page->{_outdir}
 
     my $outname=$outdir."/".$pagename;
     $if $pageext
@@ -51,7 +51,7 @@ fncode: compile
                 $outdir=$outdir."/".$page->{output_dir};
         $outdir=~s/^\s+//;
         # create output dir
-        $if ! -d $outdir
+        $if ! -d "$outdir/"
             my @tdir_list=split /\//, $outdir;
             my $tdir;
             my $slash=0;
@@ -65,7 +65,7 @@ fncode: compile
                 $if ! -d $tdir
                     mkdir $tdir or die "Can't create output directory: $tdir\n";
         #---------------------
-        $page->{outdir}=$outdir
+        $page->{_outdir}=$outdir
 
     # -----------------
     subcode: do_compile
@@ -103,8 +103,13 @@ fncode: compile
         #---- main
         # ref: callsub.def - fncode call_sub
         $main_called = 0
-        $if $page->{_frame}
+
+        $if !$page->{_frame} and $codelist->{basic_frame}
+            $page->{_frame} = "basic_frame"
+
+        $if $page->{_frame} and $page->{_frame} ne "-"
             call_sub($page->{_frame})
+
         # if frame didn't call main --
         $if !$main_called
             call_sub("main")

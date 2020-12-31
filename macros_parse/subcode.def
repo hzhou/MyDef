@@ -13,7 +13,12 @@ subcode: set_source_pos_1
 subcode: source_indent
     push @$source, "SOURCE_INDENT";
 subcode: source_dedent
-    push @$source, "SOURCE_DEDENT";
+    $if $source->[-1] eq "NEWLINE?"
+        pop @$source
+        push @$source, "SOURCE_DEDENT";
+        push @$source, "NEWLINE?"
+    $else
+        push @$source, "SOURCE_DEDENT";
 
 #----------------------------
 # ref: grab_template, subcode_start
@@ -30,20 +35,44 @@ subcode: subcode_start
 
     my $t_code
     expand_macro(\$line, $macros)
-    $if $line=~/^(\w+)code:([:@\d]?)\s*(\w+)(.*)/ -> $type, $attr, $name, $t
+    # allows names such as Namespace::function_name
+    $if $line=~/^(\w+)code:([:@\d]?)\s*([\w:]+)(.*)/ -> $type, $attr, $name, $t
+        $call @hack_name_with_colons
         $call @line_extra
         $call add_subcode, $source, $type,$name,$attr,$t
         $t_code = $_t
+        $call @check_doc
         # $call @debug
     $else
         $t_code= {} # sink hole
 
     # ------------
+    subcode: hack_name_with_colons
+        # C++
+        # $name may contain ':' to allow CLASS::method 
+        $if $name=~/^((?:\w+::)*\w*)(:(?:$|\w.*))/
+            $name = $1
+            $t = "$2$t"
+
     subcode: line_extra
+        # Java -- FIXME: merge with class::method
         # fncode: class.method
         $if $t=~/^(\.\w+)(.*)/
             $name .= $1
             $t = $2
+
+    subcode: check_doc
+        $if @last_multiline_comments
+            $if $last_multiline_comments[0]=~/^\/\*\s*(.*?)\s*\*\//
+                /* single line comment */
+                $last_multiline_comments[0] = $1
+            $elif $last_multiline_comments[0]=~/^\/\*\s*$/ && $last_multiline_comments[-1]=~/^\*\//
+                shift @last_multiline_comments
+                pop @last_multiline_comments
+            $else
+                undef @last_multiline_comments
+        $if @last_multiline_comments
+            $t_code->{_doc} = \@last_multiline_comments
 
     subcode: debug
         $print $type code $name, parent: -
@@ -163,8 +192,17 @@ fncode: merge_codes($codeitem)
 
 fncode: clean_up_source($src)
     $if $src and @$src
+        # remove starting empty lines
+        $foreach $l in @$src
+            $if $l=~/^SOURCE:/
+                next
+            $elif $l=~/^(\s*|NEWLINE\?)$/
+                $l = "NOOP"
+            $else
+                last
+        # remove trailing empty lines
         my $i=$#$src
-        $while $i>=0 and $src->[$i]=~/^(SOURCE: .*|\s*)$/
+        $while $i>=0 and $src->[$i]=~/^(SOURCE: .*|\s*|NEWLINE\?)$/
             pop @$src
             $i--
 
@@ -191,9 +229,3 @@ subcode: jump_to_main_code
     $call add_subcode, $source, "sub","main"
     $call set_source_pos
 
-subcode: add_default_page_main_code
-    $source=[]
-    # default page contains only main code
-    $(set:parent=$page)
-    $call add_subcode, $source, "sub","main"
-    $call start_code_indent, code, 0, $_t

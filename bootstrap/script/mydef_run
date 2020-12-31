@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 use strict;
+
+
 use MyDef;
 my (%config, $pagename);
 my $page;
@@ -24,9 +26,10 @@ foreach my $a (@ARGV){
     }
 }
 if($config{def_file}){
+    my $guessed_module = "general";
     guess_module:
     my $under_page;
-    open In, "$config{def_file}" or die "Can't open $config{def_file}.\n";
+    open In, "$config{def_file}" or die "Can't open $config{def_file}: $!\n";
     while(<In>){
         if(/^page:\s*(\w+)/){
             $under_page = $1;
@@ -38,6 +41,7 @@ if($config{def_file}){
         }
         elsif(/^run:\s*(\S+\.def)/){
             $config{def_file}=$1;
+            close In;
             goto guess_module;
         }
         elsif(/^run:\s*(\w+)/){
@@ -65,13 +69,22 @@ if($config{def_file}){
                 }
             }
         }
+        elsif(/^include:\s*(perl|c)\//){
+            $config{module}=$1;
+        }
+        elsif(!$config{module}){
+            if(/^\s*(my|our|\$global)\s*\(?[\$\@\%]\w+/){
+                $guessed_module="perl";
+            }
+        }
     }
     close In;
+
     if(!$config{module}){
         $config{module}=$MyDef::var->{module};
     }
     if(!$config{module}){
-        $config{module}="general";
+        $config{module}=$guessed_module;
     }
     MyDef::init(%config);
     MyDef::import_data($config{def_file});
@@ -95,7 +108,9 @@ elsif($config{_file}){
 else{
     die "Usage: $0 input_defile.def\n";
 }
+
 my $file=$page->{outname};
+
 my $file_dir;
 if($file=~/(.*)\/(.+)/){
     $file_dir=$1;
@@ -104,6 +119,7 @@ my ($name, $type);
 if($file=~/^(.*)\.(\w+)$/){
     ($name, $type)=($1, $2);
 }
+
 my $exe = "$name";
 if($page->{exe_type}){
     $exe .= "." . $page->{exe_type};
@@ -114,28 +130,65 @@ elsif($MyDef::var->{exe_type}){
 elsif($config{module} eq "win32"){
     $exe .= ".exe";
 }
+
 my $cmd;
 if($page->{run}){
     $cmd=$page->{run};
 }
-elsif($type=~/^c(pp)?$/){
-    my $cc = "gcc -std=c99 -O2";
-    if($file=~/\.cpp$/){
-        $cc = "g++ -std=c++11 -O2";
+elsif($type=~/^c(pp|xx|c|u)?$/){
+    my $cc;
+    my $default_cc;
+    if($file=~/\.(cpp|cxx|cc)$/){
+        $default_cc = "g++ -std=c++11 -g -O2";
     }
+    elsif($file=~/\.(cu)$/){
+        $default_cc = "nvcc";
+    }
+    else{
+        $default_cc = "gcc -std=c99 -g -O2";
+    }
+
+    $cc = $default_cc;
+    my $t;
     if($page->{cc}){
-        $cc = $page->{cc};
+        $t = $page->{cc};
     }
     elsif($MyDef::var->{cc}){
-        $cc = $MyDef::var->{cc};
+        $t = $MyDef::var->{cc};
     }
+    if($t){
+        $t=~s/\$cc/$cc/;
+        $cc = $t;
+    }
+    my $t;
     if($page->{CC}){
-        $cc = $page->{CC};
+        $t = $page->{CC};
     }
     elsif($MyDef::var->{CC}){
-        $cc = $MyDef::var->{CC};
+        $t = $MyDef::var->{CC};
     }
-    $cmd="$cc -o$exe $file $page->{lib_list}";
+    if($t){
+        $t=~s/\$CC/$cc/;
+        $cc = $t;
+    }
+
+    my $cflags;
+    my $t;
+    if($page->{CFLAGS}){
+        $t = $page->{CFLAGS};
+    }
+    elsif($MyDef::var->{CFLAGS}){
+        $t = $MyDef::var->{CFLAGS};
+    }
+    if($t){
+        $t=~s/\$CFLAGS/$cflags/;
+        $cflags = $t;
+    }
+    if($cflags){
+        $cc .= " $cflags";
+    }
+    $cmd="$cc -o $exe $file $page->{lib_list}";
+
     if($config{dump_rule}){
         if($exe=~/([^\/]+)$/){
             $exe = "script/$1";
@@ -143,7 +196,7 @@ elsif($type=~/^c(pp)?$/){
         if($name=~/([^\/]+)$/){
             $name = "$1";
         }
-        $cmd = '$'."{CC} -o\$@ \$< $page->{lib_list}";
+        $cmd = '$'."{CC} -o \$@ \$< $page->{lib_list}";
         print "\nCC=$cc\n\n";
         print "$exe: $name\n";
         print "\t$cmd\n";
@@ -154,183 +207,281 @@ elsif($type=~/^c(pp)?$/){
             $exe = "./$exe";
         }
         my $exe = "$exe";
+        my $t;
         if($page->{exe}){
-            $exe = $page->{exe};
+            $t = $page->{exe};
         }
         elsif($MyDef::var->{exe}){
-            $exe = $MyDef::var->{exe};
+            $t = $MyDef::var->{exe};
+        }
+        if($t){
+            $t=~s/\$exe/$exe/;
+            $exe = $t;
         }
         if($exe ne "none"){
-            if($file_dir and $exe=~/CD\s+(.*)/){
-                my $t = $1;
-                $t=~s/$file_dir\///g;
-                $exe = "cd $file_dir && $t";
+            if($exe=~/CD\s+(.*)/){
+                my ($t) = ($1);
+                if($file_dir){
+                    $t=~s/$file_dir\///g;
+                    $exe = "cd $file_dir && $t";
+                }
+                else{
+                    $exe = $t;
+                }
             }
             $cmd .= " && $exe";
         }
     }
 }
 elsif($type eq "java"){
+
     $cmd="javac $file";
     my $exe = "CD java $name";
+    my $t;
     if($page->{exe}){
-        $exe = $page->{exe};
+        $t = $page->{exe};
     }
     elsif($MyDef::var->{exe}){
-        $exe = $MyDef::var->{exe};
+        $t = $MyDef::var->{exe};
+    }
+    if($t){
+        $t=~s/\$exe/$exe/;
+        $exe = $t;
     }
     if($exe ne "none"){
-        if($file_dir and $exe=~/CD\s+(.*)/){
-            my $t = $1;
-            $t=~s/$file_dir\///g;
-            $exe = "cd $file_dir && $t";
+        if($exe=~/CD\s+(.*)/){
+            my ($t) = ($1);
+            if($file_dir){
+                $t=~s/$file_dir\///g;
+                $exe = "cd $file_dir && $t";
+            }
+            else{
+                $exe = $t;
+            }
         }
         $cmd .= " && $exe";
     }
 }
 elsif($type eq "f"){
+
     $cmd="gfortran -g -o$exe $file $page->{lib_list}";
     if($exe!~/\//){
         $exe = "./$exe";
     }
     my $exe = "$exe";
+    my $t;
     if($page->{exe}){
-        $exe = $page->{exe};
+        $t = $page->{exe};
     }
     elsif($MyDef::var->{exe}){
-        $exe = $MyDef::var->{exe};
+        $t = $MyDef::var->{exe};
+    }
+    if($t){
+        $t=~s/\$exe/$exe/;
+        $exe = $t;
     }
     if($exe ne "none"){
-        if($file_dir and $exe=~/CD\s+(.*)/){
-            my $t = $1;
-            $t=~s/$file_dir\///g;
-            $exe = "cd $file_dir && $t";
+        if($exe=~/CD\s+(.*)/){
+            my ($t) = ($1);
+            if($file_dir){
+                $t=~s/$file_dir\///g;
+                $exe = "cd $file_dir && $t";
+            }
+            else{
+                $exe = $t;
+            }
         }
         $cmd .= " && $exe";
     }
 }
 elsif($type eq "f90"){
+
     $cmd="gfortran -g -o$exe $file $page->{lib_list}";
     if($exe!~/\//){
         $exe = "./$exe";
     }
     my $exe = "$exe";
+    my $t;
     if($page->{exe}){
-        $exe = $page->{exe};
+        $t = $page->{exe};
     }
     elsif($MyDef::var->{exe}){
-        $exe = $MyDef::var->{exe};
+        $t = $MyDef::var->{exe};
+    }
+    if($t){
+        $t=~s/\$exe/$exe/;
+        $exe = $t;
     }
     if($exe ne "none"){
-        if($file_dir and $exe=~/CD\s+(.*)/){
-            my $t = $1;
-            $t=~s/$file_dir\///g;
-            $exe = "cd $file_dir && $t";
+        if($exe=~/CD\s+(.*)/){
+            my ($t) = ($1);
+            if($file_dir){
+                $t=~s/$file_dir\///g;
+                $exe = "cd $file_dir && $t";
+            }
+            else{
+                $exe = $t;
+            }
         }
         $cmd .= " && $exe";
     }
 }
 elsif($type eq "rs"){
+
     $cmd="rustc -o$exe $file";
     if($exe!~/\//){
         $exe = "./$exe";
     }
     my $exe = "$exe";
+    my $t;
     if($page->{exe}){
-        $exe = $page->{exe};
+        $t = $page->{exe};
     }
     elsif($MyDef::var->{exe}){
-        $exe = $MyDef::var->{exe};
+        $t = $MyDef::var->{exe};
+    }
+    if($t){
+        $t=~s/\$exe/$exe/;
+        $exe = $t;
     }
     if($exe ne "none"){
-        if($file_dir and $exe=~/CD\s+(.*)/){
-            my $t = $1;
-            $t=~s/$file_dir\///g;
-            $exe = "cd $file_dir && $t";
+        if($exe=~/CD\s+(.*)/){
+            my ($t) = ($1);
+            if($file_dir){
+                $t=~s/$file_dir\///g;
+                $exe = "cd $file_dir && $t";
+            }
+            else{
+                $exe = $t;
+            }
         }
         $cmd .= " && $exe";
     }
 }
 elsif($type eq "hs"){
+
     $cmd="ghc -o$exe $file";
     if($exe!~/\//){
         $exe = "./$exe";
     }
     my $exe = "$exe";
+    my $t;
     if($page->{exe}){
-        $exe = $page->{exe};
+        $t = $page->{exe};
     }
     elsif($MyDef::var->{exe}){
-        $exe = $MyDef::var->{exe};
+        $t = $MyDef::var->{exe};
+    }
+    if($t){
+        $t=~s/\$exe/$exe/;
+        $exe = $t;
     }
     if($exe ne "none"){
-        if($file_dir and $exe=~/CD\s+(.*)/){
-            my $t = $1;
-            $t=~s/$file_dir\///g;
-            $exe = "cd $file_dir && $t";
+        if($exe=~/CD\s+(.*)/){
+            my ($t) = ($1);
+            if($file_dir){
+                $t=~s/$file_dir\///g;
+                $exe = "cd $file_dir && $t";
+            }
+            else{
+                $exe = $t;
+            }
         }
         $cmd .= " && $exe";
     }
 }
 elsif($type eq "asm"){
+
     $cmd="nasm -f elf $file && ld -m elf_i386 $name.o -o$exe";
     if($exe!~/\//){
         $exe = "./$exe";
     }
     my $exe = "$exe";
+    my $t;
     if($page->{exe}){
-        $exe = $page->{exe};
+        $t = $page->{exe};
     }
     elsif($MyDef::var->{exe}){
-        $exe = $MyDef::var->{exe};
+        $t = $MyDef::var->{exe};
+    }
+    if($t){
+        $t=~s/\$exe/$exe/;
+        $exe = $t;
     }
     if($exe ne "none"){
-        if($file_dir and $exe=~/CD\s+(.*)/){
-            my $t = $1;
-            $t=~s/$file_dir\///g;
-            $exe = "cd $file_dir && $t";
+        if($exe=~/CD\s+(.*)/){
+            my ($t) = ($1);
+            if($file_dir){
+                $t=~s/$file_dir\///g;
+                $exe = "cd $file_dir && $t";
+            }
+            else{
+                $exe = $t;
+            }
         }
         $cmd .= " && $exe";
     }
 }
 elsif($type eq "s"){
+
     $cmd="gcc -masm=intel -o$exe $file";
     if($exe!~/\//){
         $exe = "./$exe";
     }
     my $exe = "$exe";
+    my $t;
     if($page->{exe}){
-        $exe = $page->{exe};
+        $t = $page->{exe};
     }
     elsif($MyDef::var->{exe}){
-        $exe = $MyDef::var->{exe};
+        $t = $MyDef::var->{exe};
+    }
+    if($t){
+        $t=~s/\$exe/$exe/;
+        $exe = $t;
     }
     if($exe ne "none"){
-        if($file_dir and $exe=~/CD\s+(.*)/){
-            my $t = $1;
-            $t=~s/$file_dir\///g;
-            $exe = "cd $file_dir && $t";
+        if($exe=~/CD\s+(.*)/){
+            my ($t) = ($1);
+            if($file_dir){
+                $t=~s/$file_dir\///g;
+                $exe = "cd $file_dir && $t";
+            }
+            else{
+                $exe = $t;
+            }
         }
         $cmd .= " && $exe";
     }
 }
 elsif($type eq "pas"){
+
     $cmd="fpc $file";
     if($exe!~/\//){
         $exe = "./$exe";
     }
     my $exe = "$exe";
+    my $t;
     if($page->{exe}){
-        $exe = $page->{exe};
+        $t = $page->{exe};
     }
     elsif($MyDef::var->{exe}){
-        $exe = $MyDef::var->{exe};
+        $t = $MyDef::var->{exe};
+    }
+    if($t){
+        $t=~s/\$exe/$exe/;
+        $exe = $t;
     }
     if($exe ne "none"){
-        if($file_dir and $exe=~/CD\s+(.*)/){
-            my $t = $1;
-            $t=~s/$file_dir\///g;
-            $exe = "cd $file_dir && $t";
+        if($exe=~/CD\s+(.*)/){
+            my ($t) = ($1);
+            if($file_dir){
+                $t=~s/$file_dir\///g;
+                $exe = "cd $file_dir && $t";
+            }
+            else{
+                $exe = $t;
+            }
         }
         $cmd .= " && $exe";
     }
@@ -362,6 +513,9 @@ elsif($type eq "lua"){
 elsif($type eq "lisp"){
     $cmd = "clisp $file";
 }
+elsif($type eq "groovy"){
+    $cmd = "groovy $file";
+}
 elsif($type eq "tex"){
     $cmd = "run_tex $file";
 }
@@ -371,11 +525,17 @@ elsif($type eq "latex"){
 elsif($type eq "awk"){
     $cmd = "awk -f $file";
 }
+elsif($type eq "plt"){
+    $cmd = "gnuplot $file";
+}
+
+
 if($config{expect} and $config{expect_type} ne "output"){
     my $expect = $config{expect};
     my ($n_ok, $n_nok);
+
     my $i = 0;
-    open In, "$file" or die "Can't open $file.\n";
+    open In, "$file" or die "Can't open $file: $!\n";
     while(<In>){
         print $_;
         if(/^\s*$/){
@@ -411,8 +571,9 @@ elsif($cmd){
         my $expect = $config{expect};
         my ($n_ok, $n_nok);
         print "$cmd\n";
+
         my $i = 0;
-        open In, "$cmd |" or die "Can't open $cmd |.\n";
+        open In, "$cmd |" or die "Can't open $cmd |: $!\n";
         while(<In>){
             print $_;
             if(/^\s*$/){
@@ -448,3 +609,5 @@ elsif($cmd){
 else{
     die "do not know how to run it\n";
 }
+
+

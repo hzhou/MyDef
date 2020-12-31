@@ -1,7 +1,9 @@
 use strict;
 package MyDef::utils;
+
 our $last_tlist_count;
 
+# ---- subroutines --------------------------------------------
 sub get_tlist {
     my ($t) = @_;
     my @vlist = split /,\s*/, $t;
@@ -33,6 +35,7 @@ sub get_tlist {
             push @tlist, $v;
         }
     }
+
     $last_tlist_count=@tlist;
     return @tlist;
 }
@@ -42,12 +45,12 @@ sub get_range {
     my @tlist;
     if($a=~/^\d+$/ and $b=~/^\d+$/){
         if($a<=$b){
-            for(my $i=$a;$i<=$b;$i++){
+            for (my $i=$a;$i<=$b;$i++) {
                 push @tlist, $i;
             }
         }
         else{
-            for(my $i=$a;$i>=$b;$i--){
+            for (my $i=$a;$i>=$b;$i--) {
                 push @tlist, $i;
             }
         }
@@ -55,12 +58,12 @@ sub get_range {
     elsif($a=~/^[a-zA-Z]$/ and $b=~/^[a-zA-Z]$/){
         ($a, $b) = (ord($a), ord($b));
         if($a<=$b){
-            for(my $i=$a;$i<=$b;$i++){
+            for (my $i=$a;$i<=$b;$i++) {
                 push @tlist, chr($i);
             }
         }
         else{
-            for(my $i=$a;$i>=$b;$i--){
+            for (my $i=$a;$i>=$b;$i--) {
                 push @tlist, chr($i);
             }
         }
@@ -72,12 +75,12 @@ sub get_range {
             $b-=1;
         }
         if($a<=$b){
-            for(my $i=$a;$i<=$b;$i++){
+            for (my $i=$a;$i<=$b;$i++) {
                 push @tlist, sprintf("0x%x", 1<<$i);
             }
         }
         else{
-            for(my $i=$a;$i>=$b;$i--){
+            for (my $i=$a;$i>=$b;$i--) {
                 push @tlist, sprintf("0x%x", 1<<$i);
             }
         }
@@ -85,6 +88,7 @@ sub get_range {
     else{
         push @tlist, "$a-$b";
     }
+
     return @tlist;
 }
 
@@ -118,11 +122,13 @@ sub for_list_expand {
     else{
         @vlist = ($list);
     }
+
     my @tlist;
     foreach my $v (@vlist){
         my @t = MyDef::utils::get_tlist($v);
         push @tlist, \@t;
     }
+
     my @plist;
     if(!$mult){
         my $replace;
@@ -148,7 +154,7 @@ sub for_list_expand {
     }
     elsif($mult eq "and"){
         my $n = @{$tlist[0]};
-        for(my $i=0; $i<$n; $i++){
+        for (my $i = 0; $i<$n; $i++) {
             my $l = $pat;
             my $j=1;
             foreach my $tlist (@tlist){
@@ -161,13 +167,13 @@ sub for_list_expand {
     elsif($mult eq "mul"){
         my $m = @tlist;
         my @idx;
-        for(my $i=0; $i<$m; $i++){
+        for (my $i = 0; $i<$m; $i++) {
             $idx[$i]=0;
         }
         iter_mul:
         while(1){
             my $l = $pat;
-            for(my $i=0; $i<$m; $i++){
+            for (my $i = 0; $i<$m; $i++) {
                 my $j=$i+1;
                 my $t = $tlist[$i]->[$idx[$i]];
                 $l=~s/\$$j/$t/g;
@@ -187,6 +193,7 @@ sub for_list_expand {
             last iter_mul;
         }
     }
+
     return \@plist;
 }
 
@@ -259,7 +266,7 @@ sub proper_split {
                     $match='{';
                 }
                 my $pos=-1;
-                for(my $i=0; $i<@closure_stack; $i++){
+                for (my $i = 0; $i<@closure_stack; $i++) {
                     if($match==$closure_stack[$i]){
                         $pos=$i;
                     }
@@ -281,6 +288,7 @@ sub proper_split {
             die "parse_loop: nothing matches! [$param]\n";
         }
     }
+
     if($t){
         $t=~s/\s+$//;
     }
@@ -343,6 +351,7 @@ sub expand_macro {
             }
         }
     }
+
     while(@paren_stack){
         my $t = join('', @$segs);
         my $open = pop @paren_stack;
@@ -370,11 +379,44 @@ sub uniq_name {
     }
 }
 
+sub longline_split {
+    my ($l, $style) = @_;
+    my @out;
+    my $n = 80;
+    if($l=~/^(\s*)(.+)/){
+        my ($sp, $t) = ($1, $2);
+        $n -= length($sp);
+        $l=~s/\s+$//;
+        while(length($l)>$n){
+            my $j=$n;
+            while($j>0 && substr($l, $j, 1) ne ' '){
+                $j--;
+            }
+            if($j==0){
+                $j = $n;
+                while($j<length($l) && substr($l, $j, 1) ne ' '){
+                    $j++;
+                }
+                if($j==length($l)){
+                    last;
+                }
+            }
+            if($j>0){
+                push @out, $sp.substr($l, 0, $j);
+                $l = substr($l, $j);
+                $l=~s/^\s+//;
+            }
+        }
+        push @out, $sp.$l;
+    }
+    return @out;
+}
+
 sub string_symbol_name {
     my ($s) = @_;
     my $n=length($s);
     my $name="";
-    for(my $i=0; $i<$n; $i++){
+    for (my $i = 0; $i<$n; $i++) {
         my $c = substr($s, $i, 1);
         if($c=~/\w/){
             $name.=$c;
@@ -467,6 +509,7 @@ sub string_symbol_name {
             die "string_symbol_name: [$c] not defined\n";
         }
     }
+
     return $name;
 }
 
@@ -798,6 +841,7 @@ sub debug_regex {
         $level=0;
     }
     print '  ' x $level;
+
     if($r->{type} eq "class"){
         if($r->{list}){
             print "[ ", join(" ", @{$r->{list}}), " ]\n";
