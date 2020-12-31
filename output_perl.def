@@ -20,7 +20,7 @@ subcode:: _autoload
 
 subcode: init_page
     $if $page->{package} and !$page->{type}
-        MyDef::set_page_extension("pm")
+        MyDef::set_page_extension("pm", 1)
     $elif !$page->{package} and $page->{type} eq "pm"
         $page->{package}=$page->{_pagename}
 

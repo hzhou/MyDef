@@ -86,8 +86,8 @@ fncode: is_sub($subname)
     $else
         return 0;
 
-fncode: set_page_extension($default_ext)
-    $if !defined $page->{_pageext}
+fncode: set_page_extension($default_ext, $force)
+    $if !defined $page->{_pageext} or $force
         my $ext=$default_ext
         $if exists $var->{filetype}
             $ext=$var->{filetype}
