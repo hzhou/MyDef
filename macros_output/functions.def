@@ -320,8 +320,9 @@ fncode: open_function($fname, $param, $return_type)
 
     #---- reserve fn_init and fn_finish for user def use.----
     #-    e.g. $(block:fn_init) 
-    $func->{init} = []
-    $func->{finish} = []
+    $if !$func->{init}
+        $func->{init} = []
+        $func->{finish} = []
     $(setblk)("fn_init", $func->{init})
     $(setblk)("fn_finish", $func->{finish})
 
