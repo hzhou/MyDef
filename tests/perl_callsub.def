@@ -1,3 +1,4 @@
+module: perl
 page: test
     $print test \$map P1 ...
     $map P1, 1,2,3,4
