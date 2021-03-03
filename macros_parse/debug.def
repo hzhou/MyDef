@@ -7,6 +7,10 @@ subcode:: post_parsing
             $if $k eq "def"
                 debug_def($def)
                 exit
+            $elif $k=~/^code:\s*(\w+)::(\w+)/
+                my $codes = $def->{pages}->{$1}->{codes}
+                debug_code($codes->{$2})
+                exit
             $elif $k=~/^code:\s*(\w+)/
                 debug_code($def->{codes}->{$1})
                 exit

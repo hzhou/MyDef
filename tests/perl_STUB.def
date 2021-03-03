@@ -1,56 +1,39 @@
 page: test
     module: perl
 
-    &call test, basic DUMP_STUB
+    &call test, DUMP_STUB
         DUMP_STUB init
-        $global $a = 1
-        $print \x24a = $a (should be 2 not 1)
-        $a++
-        DUMP_STUB init
-        $print \x24a = $a (2nd DUMP_STUB is empty)
+        $call test_1
         $(block:init)
-            $a = 2
+        $a = "Changed in \x24(block:init)"
 
-    &call test, INSERT_STUB[, ]: --> \x7bSTUB\x7d <-- 
-        $print --> {STUB} <--\n
-        INSERT_STUB[, ] _dummy_
-        $(block:_dummy_)
-            $(mode:bypass)
-            a
-            b
-            c
-            $(mode:sub)
-        $print what mode is it now?
-
-    &call test, \x24(block:STUB): --> \x7bSTUB\x7d <-- 
-        $print --> {STUB} <--\n
-        $(block:STUB)
-            a
-            b
-            c
-        $print what mode is it now?
-
-    &call test, \x24(block:STUB:-): --> \x7bSTUB\x7d <-- 
-        $print --> {STUB} <--\n
-        $(block:STUB:-)
-            a
-            b
-            c
-
-    &call test, \x24(stub:make_string)!
-        $print $(stub:make_string)!
-
-    &call test, \x24(stub:; :make_string)!
-        $print $(stub:; :make_string)!
-
-    &call test, \x24if \x24(stub:make_cond)
-        $if $(stub:make_cond)
+    # Essentially $(stub:...) are inline macros
+    &call test, stub:...
+        $print Another stub: $(stub:make_string)!
+    &call test, stub:...
+        $if $(stub: && :make_cond)
             $print STUB in \$if works!
 
+    $call test_verbose
+    $print Done.   All is well
+
     subcode: test(stubtype)
-        $print TEST: $(stubtype)\n      -
+        $print [$(stubtype)]\n    -
         BLOCK
 
+    subcode: test_verbose
+        &call test, INSERT_STUB
+            $print direct stub --> {STUB} <--.
+            INSERT_STUB[ ] _dummy_
+            $(block:_dummy_)
+                $(mode:bypass)
+                a
+                b
+                c
+
+subcode: test_1
+    $global $a = 1
+    $print a = $a
 
     bypasscode: make_string
         a
@@ -59,3 +42,5 @@ page: test
         
 bypasscode: make_cond
     1
+    2
+    3

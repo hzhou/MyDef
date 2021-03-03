@@ -11,16 +11,19 @@ fncode: fmt_string($str, $add_newline)
     # print "fmt_string: [$str]\n"
     $str=~s/\s*$//
     my @pre_list
-    $if $str=~/^\s*\"(.*)\"\s*,\s*(.*)$/
+    my $need_escape
+    $if $str=~/^\s*"((?:[^"\\]|\\.)*)"$/
+        # stripping double quote
+        $str=$1
+    $elif $str=~/^\s*\"((?:[^"\\]|\\.)*)\"\s*,\s*(.*)$/
         # looks like a printf
         $str=$1
         @pre_list=MyDef::utils::proper_split($2)
         $(if:hascode:check_expression)
             $foreach $a in @pre_list
                 $a=check_expression($a)
-    $elif $str=~/^\s*\"(.*)\"\s*$/
-        # stripping double quote
-        $str=$1
+    $else
+        $need_escape = 1
 
     $if $add_newline and $str=~/(.*)-$/
         $add_newline=0
@@ -87,6 +90,7 @@ fncode: fmt_string($str, $add_newline)
         my $flag_hyphen=0
         &call parse_loop, $str
             &call if_lex, %
+                # -- explicit % format --
                 &call if_lex, %
                     push @fmt_list, '%%'
                 &call if_lex, [-+ #]*[0-9]*(\.\d+)?[hlLzjt]*[$(printf_formats)]
@@ -98,6 +102,7 @@ fncode: fmt_string($str, $add_newline)
                 $else
                     push @fmt_list, '%%'
             &call if_lex, \$
+                # -- explicit $ variable --
                 &call if_lex, (red|green|yellow|blue|magenta|cyan)
                     #---------------------------------------- 
                     #- $print $green ---------
@@ -138,5 +143,8 @@ fncode: fmt_string($str, $add_newline)
                         push @fmt_list, "\\x1b[$colors{$c}m"
                 $else
                     push @fmt_list, '}'
-            &call if_lex, [^%\$\}]+
-                push @fmt_list, $&
+            &call if_lex, ([^%\$\}]+)
+                my $t = $1
+                $if $need_escape
+                    $t =~ s/"/\\"/g
+                push @fmt_list, $t

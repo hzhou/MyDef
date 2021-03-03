@@ -6,9 +6,9 @@ page: test
 fncode: test($t)
     print "test: $t\n"
 
-fncode: test_2($t)
+fncode: test_2(t)
     autolist: 1
-    $print "backup function: test_2\n"
+    $print "backup function: test_2 - $(t)\n"
 
 /* expect test.pl:
 #!/usr/bin/perl
@@ -27,6 +27,6 @@ sub test {
 
 sub test_2 {
     my ($t) = @_;
-    print "backup function: test_2\n";
+    print "backup function: test_2 - $t\n";
 }
 */

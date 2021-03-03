@@ -235,6 +235,7 @@ subcode: parse_line
     subcode: check_callback_output
         my $old_out
         $if $callback_output->[0]=~/^OUTPUT:\s*(\S+)/
+            # ref: $function -- lambda function
             my $output = get_named_block($1)
             $old_out = set_output($output)
             shift @$callback_output

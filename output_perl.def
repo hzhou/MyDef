@@ -5,6 +5,8 @@ include: macros_output/for.def
 include: macros_output/scope.def
 include: macros_output/sumcode.def
 
+include: macros_output/perl_like.def
+
 page: output_perl, output_main
     output_dir: lib/MyDef
     ext: pl
@@ -18,7 +20,7 @@ subcode:: _autoload
 
 subcode: init_page
     $if $page->{package} and !$page->{type}
-        MyDef::set_page_extension("pm")
+        MyDef::set_page_extension("pm", 1)
     $elif !$page->{package} and $page->{type} eq "pm"
         $page->{package}=$page->{_pagename}
 
@@ -35,9 +37,8 @@ subcode: parsecode
     $if $l!~/;\s*$/
         $call parsecode_scope
         $call parsecode_case_support, if, elsif, perl_style
-        $if $l=~/^\s*\$(\w+)\s*(.*)$/
-            my $func=$1;
-            my $param=$2;
+        $if $l=~/^\s*\$(\w+)(\s*$|\s+\S.*)$/ -> $func, $param
+            $param=~s/^\s+//
             $call parsecode_function
         $elif $l=~/^NOOP POST_MAIN/
             $call list_functions
@@ -53,6 +54,9 @@ fncode: check_fcall($l)
     $while $l=~/\b(\w+)\(/g
         $call add_function, $1, nowarn
 
+fncode: add_use($m)
+    $call dbl_push_list, uses, $m
+
 subcode: parsecode_function
     # TODO: think about $loopvar 
     $if $func =~ /^global$/
@@ -60,13 +64,9 @@ subcode: parsecode_function
     $elif $func =~ /^my$/ and $param !~/^\s*[=+\-*\/]/
         $call var_declare, my
     $elif $func =~ /^use$/
-        $call dbl_push_list, uses, $param
+        add_use($param)
         return 0
-    $elif $func eq "list"
-        my @flist = MyDef::utils::proper_split($param)
-        $foreach $name in @flist
-            $call add_function, $name, warn
-        return 0
+    $call parse_func_list
     $elif $func eq "sub"
         $if $param=~/^(\w+)\((.*)\)/
             &call return_newblock, sub
@@ -139,14 +139,29 @@ subcode: check_regex_capture(t)
     $if $(t)=~/(.*\S\/\w*)\s*->\s*([^\/]+?)\s*$/
         $(t) = $1
         my @tlist=MyDef::utils::proper_split($2)
-        my (@t1, @t2)
+
         my $i=1
+        my (@t1, @t2, @t3, @t4)
         $foreach $v in @tlist
+            my $non_local
+            $if $v=~/(.*)\*$/
+                $v = $1
+                $non_local=1
+
             $if $v ne "-"
-                push @t1, $v
-                push @t2, '$'.$i
+                $if $non_local
+                    push @t3, $v
+                    push @t4, '$'.$i
+                $else
+                    push @t1, $v
+                    push @t2, '$'.$i
             $i++
-        $regex_capture = "my (".join(', ', @t1).") = (".join(', ', @t2).");"
+        $if @t1
+            $regex_capture = "my (".join(', ', @t1).") = (".join(', ', @t2).");"
+        $if @t3
+            $if $regex_capture
+                $regex_capture.="\n"
+            $regex_capture .= "(".join(', ', @t3).") = (".join(', ', @t4).");"
 
 #---------------------------------------- 
 subcode:: parsecode_func_other
@@ -170,7 +185,8 @@ subcode: if_perl_style
     push @src, "$case ($cond) {";
     push @src, "INDENT";
     $if $regex_capture
-        push @src, $regex_capture
+        $foreach $l in split /\n/, $regex_capture
+            push @src, $l
     push @src, "BLOCK";
     push @src, "DEDENT";
     push @src, "}";
@@ -270,6 +286,7 @@ subcode: dumpout
         $if !$pagetype or $pagetype eq "pl"
             push @$f, "#!$perl\n"
         $call dump_accessories
+
     # ---------------
     subcode: dump_accessories
         my @tmp_out
@@ -301,17 +318,7 @@ subcode: dumpout
                 push @tmp_out, "our $v;"
             push @tmp_out, "NEWLINE?"
 
-        #-- to be processed by dumpout -- reverse order due to unshift
-        $if @$fn_block
-            $dump->{fn_block}=$fn_block
-            $(if:0)
-                # subs before main
-                push @tmp_out, "INCLUDE_BLOCK fn_block"
-            $(else)
-                # subs after main
-                push @$out, "NEWLINE?"
-                push @$out, "# ---- subroutines ----"."-"x40
-                push @$out, "INCLUDE_BLOCK fn_block"
+        $call dump_fn_block
 
         push @tmp_out, "DUMP_STUB global_init"
 
@@ -321,69 +328,54 @@ subcode: dumpout
             push @$out, "1;"
 
 #----------------------------------------------- 
-subcode: survey_functions
-    $global %fn_hash
-    %fn_hash=()
-    &call each_subcode, fn
-        $fn_hash{$name}=$code
-    $call dbl_list, functions
-
-subcode: add_function(name, warn)
-    $if $fn_hash{$(name)}
-        $if !$functions{$(name)}
-            push @functions, $(name)
-            $functions{$(name)} = $MyDef::def->{codes}->{$(name)}
-    $(if:warn=warn)
-        $else
-            $call warn, add_function: [$(name)] not found
-
-subcode: list_functions
-    $global $fn_block=[], @fn_decls
-    &call replace_output, $fn_block
-        $call autolist_functions
-
-        # $while my $name = pop @functions
-        $foreach $name in @functions
-            my $code = $functions{$name}
-            $call parse_function
-
-    subcode: autolist_functions
-        &call each_subcode, fn
-            # $name, $code
-            $if !$functions{$name}
-                $if $page->{autolist}
-                    $call add_, $name, $code
-                $else
-                    &call check_autolist
-                        $call add_, $name, $code
-        subcode: add_(name, code)
-            push @functions, $(name)
-            $functions{$(name)} = $(code)
-
-        subcode: check_autolist
-            my $autolist
-            $foreach $l in @{$code->{source}}
-                $if $l=~/autolist:\s(.*)/
-                    $autolist=$1
-                    $l="NOOP"
-                    last
-            $if $autolist
-                BLOCK
-
-    subcode: parse_function
-        push @fn_decls, "sub $name;"
-        push @$out, "sub $name {"
-        push @$out, "INDENT"
-        my $params=$code->{params}
-        $if $params and @$params
-            my $pline=join(", ", @$params)
-            push @$out, "my ($pline) = \@_;"
-        $code->{scope}="list_sub"
-        MyDef::compileutil::list_sub($code)
-        push @$out, "DEDENT"
-        push @$out, "}"
-        push @$out, "NEWLINE"
+# output a sub from $code
+fncode: parse_function($name, $code)
+    push @fn_decls, "sub $name;"
+    push @$out, "sub $name {"
+    push @$out, "INDENT"
     
+    my $params=$code->{params}
+    $if $params and @$params
+        my (@plist, @mlist, @default_list)
+        $foreach $p in @{$code->{params}}
+            $if $p=~/^\w+$/
+                # to make subcode/fncode compatible
+                push @plist, '$'.$p
+                push @mlist, $p
+            $elif $p=~/^(.+?)=(.*)/
+                push @plist, $1
+                push @default_list, $p
+            $else
+                push @plist, $p
+
+        my $pline=join(", ", @plist)
+        push @$out, "my ($pline) = \@_;"
+
+        $if @default_list
+            $call check_set_default
+
+        $if @mlist
+            $call set_macro
+
+    $code->{scope}="list_sub"
+    MyDef::compileutil::list_sub($code)
+    push @$out, "DEDENT"
+    push @$out, "}"
+    push @$out, "NEWLINE"
+
+    subcode: set_macro
+        my $macro = $code->{macros}
+        $if !$macro
+            $macro = {}
+            $code->{macros} = $macro
+        $foreach $p in @mlist
+            $macro->{$p} = '$'.$p
+
+    subcode: check_set_default
+        $for $a in @default_list
+            $if $a=~/(\S+)=(.*)/ and $2 ne '0'
+                push @$out, "$1 = $2 if !$1;"
+
 #---- for extensions ----
 fncode: inject_function($name, $params, $source)
     my $t_code={'type'=>"fn", name=>$name, params=>$params, 'source'=>$source}
@@ -427,8 +419,32 @@ subcode: check_termination
             push @$blk, $t
 #---------------------------------------- 
 subcode:: parsecode_func_other
-    $elif $func eq "print"
+    $elif $func eq "dump"
+        $call parsecode_dump
+    $elif $func =~/^(print|die|warn)$/
         $call parsecode_print
+
+subcode: parsecode_dump
+    my $hash_var
+    $if $param =~/^%\{(\S+)\}$/
+        $hash_var = $1
+    $elif $param =~/^%(\$\S+)$/
+        $hash_var = $1
+    $elif $param=~/^%(\w+)$/
+        $hash_var = "\\$param"
+
+    $if $hash_var
+        add_use("Data::Dumper")
+        push @$out, "print Dumper($hash_var);"
+    $else
+        my @tlist
+        $foreach $t in split /,\s*/, $param
+            push @tlist, "'$t = '"
+            push @tlist, $t
+            push @tlist, "', '"
+        $tlist[-1] = '"\n"'
+        push @$out, "print ". join(', ', @tlist) .";"
+    return
 
 subcode: parsecode_print
     my $str=$param
@@ -493,20 +509,33 @@ subcode: parsecode_print
     $if $n_escape
         push @fmt_list, "\\x1b[0m"
 
-    my $p
-    $if $printf_args
-        $p = "printf"
+    $if $func =~/^(die|warn)$/
+        $if $printf_args
+            push @$out, "$func sprintf \"".join('',@fmt_list)."\", $printf_args;"
+        $else
+            push @$out, "$func \"".join('',@fmt_list)."\";"
     $else
-        $p = "print"
+        my $print_target = MyDef::compileutil::get_macro_word("print_to", 1)
 
-    my $print_target = MyDef::compileutil::get_macro_word("print_to", 1)
-    $if $print_target
-        $p.=" $print_target"
+        my $p
+        $if $print_target=~/^\@/
+            $if $printf_args
+                $p = "push $print_target, sprintf"
+            $else
+                $p = "push $print_target,"
+        $else
+            $if $printf_args
+                $p = "printf"
+            $else
+                $p = "print"
 
-    $if $printf_args
-        push @$out, "$p \"".join('',@fmt_list)."\", $printf_args;"
-    $else
-        push @$out, "$p \"".join('',@fmt_list).'";'
+            $if $print_target
+                $p.=" $print_target"
+
+        $if $printf_args
+            push @$out, "$p \"".join('',@fmt_list)."\", $printf_args;"
+        $else
+            push @$out, "$p \"".join('',@fmt_list).'";'
 
     return
 
@@ -518,8 +547,10 @@ subcode: var_declare(scope)
         my ($name, $var)
         $call @check_array_dims
         $(if:scope=global)
-            $if $v=~/^(\S+)\s*=/
-                $call dbl_push_key, globals, $1, $v
+            $if $v=~/^([\$\@\%]\w+)\s*(:)?=\s*(.*)/ -> $name, $op, $val
+                $call dbl_push_key, globals, $name, "$name = $val"
+                $if $op
+                    push @$out, "$name = $val;"
             $else
                 $call dbl_push, globals, $v
             $if $var

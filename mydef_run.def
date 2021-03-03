@@ -71,6 +71,11 @@ page: mydef_run
                 $pagename = $1
             $elif /^prerun:\s*(.+)/
                 system $1
+            $elif /^filter:\s*(.+)/
+                system "$1 $config{def_file} /tmp/t.def"
+                $config{def_file} = "/tmp/t.def"
+                close In
+                goto guess_module
             $elif /^\/\*\s*expect (\S+):\s*$/
                 $config{expect_type}=$1
                 $call grab_expect_block
@@ -255,6 +260,8 @@ subcode: run_page
     subcode: append_arg
         $if $page->{arg}
             $cmd .= " $page->{arg}"
+        $elif $page->{args}
+            $cmd .= " $page->{args}"
 
     subcode: set_config(var, key)
         my $t
@@ -281,6 +288,7 @@ subcode: grab_expect_block
             $config{expect} = \@expect
             last
         $else
+            s/\\x(..)/chr(hex($1))/ge
             $call @expect_normalize
             push @expect, $_
 

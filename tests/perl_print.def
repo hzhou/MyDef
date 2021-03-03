@@ -1,7 +1,23 @@
 page: test
+    module: perl
     $print plain string "with quotes" in it
     $print plain string $green{with color} in it
-    $(set:print_to=STDERR)
-    $print "print_to=STDERR with concatenation ". localtime() ." (should work as long as quoted overall)"
-    $print "format %04d (now working)", 88
+    $print "format: %4d°C = %4.1f°F", 100, 100*9/5+32
+    $(set:print_to=STDOUT)
+    $print "print_to=STDOUT with concatenation ". 2**10 ." (should work as long as quoted overall)"
 
+    my @out
+    $(set:print_to=@out)
+    $print "out 1"
+    $print "out %d", 2
+    $foreach $l in @out
+        print $l
+
+/* expect output:
+plain string "with quotes" in it
+plain string \x1b[32mwith color\x1b[0m in it
+format:  100°C = 212.0°F
+print_to=STDOUT with concatenation 1024 (should work as long as quoted overall)
+out 1
+out 2
+*/

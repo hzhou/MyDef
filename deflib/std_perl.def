@@ -39,28 +39,41 @@ subcode: dump_hash(h)
         print "    $k: ", $$(h){$k}
 
 # -- IO -------------------------
+macros:
+    In: In
+    Out: Out
+
 subcode: open_r(name)
     $(if:name~")
         $(set:name=$(name:strip))
-    open In, "$(name)" or die "Can't open $(name): $!\n"
-    $while <In>
+    $(if:In~\$)
+        $(set:_my_in=my $(In))
+    $(else)
+        $(set:_my_in=$(In))
+    open $(_my_in), "$(name)" or die "Can't open $(name): $!\n"
+    $while <$(In)>
         BLOCK
-    close In
+    close $(In)
 
 subcode: open_w(name)
     $(if:name~")
         $(set:name=$(name:strip))
-    $(if:name~[>|])
-        open Out, "$(name)" or die "Can't write $(name): $!\n"
+    $(if:name!~[>|])
+        $(set:_name=>$(name))
     $(else)
-        open Out, ">$(name)" or die "Can't write $(name): $!\n"
+        $(set:_name=$(name))
+    $(if:Out~\$)
+        $(set:_my_out=my $(Out))
+    $(else)
+        $(set:_my_out=$(Out))
+    open $(_my_out), "$(_name)" or die "Can't write $(name): $!\n"
     BLOCK
-    close Out
+    close $(Out)
 
 subcode: open_W(name)
     &call open_w, $(name)
         $print "  --> [$(name)]"
-        $(set:print_to=Out)
+        $(set:print_to=$(Out))
         BLOCK
 
 subcode: assert(cond)

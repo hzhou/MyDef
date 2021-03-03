@@ -21,7 +21,7 @@ fncode: get_tlist($t)
     my @tlist
     $foreach $v in @vlist
         $if $v=~/^(\w+)(?:\.\.|-)(.*)$/ -> $a,$t
-            $if !$t
+            $if $t eq ""
                 push @tlist, get_range_n($1, $last_tlist_count)
             $elif $t=~/^(\w+)$/ ->$b
                 push @tlist, get_range($a, $b)

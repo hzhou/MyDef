@@ -1,0 +1,70 @@
+# subcodes that used in output_perl that are reusable, e.g. output_python
+subcode: parse_func_list
+    $elif $func eq "list"
+        my @flist = MyDef::utils::proper_split($param)
+        $foreach $name in @flist
+            $call add_function, $name, warn
+        return 0
+
+subcode: survey_functions
+    $global %fn_hash
+    %fn_hash=()
+    &call each_subcode, fn
+        $fn_hash{$name}=$code
+    $call dbl_list, functions
+
+subcode: add_function(name, warn)
+    $if $fn_hash{$(name)}
+        $if !$functions{$(name)}
+            push @functions, $(name)
+            $functions{$(name)} = $MyDef::def->{codes}->{$(name)}
+    $(if:warn=warn)
+        $else
+            $call warn, add_function: [$(name)] not found
+
+subcode: dump_fn_block
+    #-- to be processed by dumpout -- reverse order due to unshift
+    $if @$fn_block
+        $dump->{fn_block}=$fn_block
+        $(if:0)
+            # subs before main
+            push @tmp_out, "INCLUDE_BLOCK fn_block"
+        $(else)
+            # subs after main
+            push @$out, "NEWLINE?"
+            push @$out, "# ---- subroutines ----"."-"x40
+            push @$out, "INCLUDE_BLOCK fn_block"
+
+# called if $l=~/^NOOP POST_MAIN/
+subcode: list_functions
+    $global $fn_block=[], @fn_decls
+    &call replace_output, $fn_block
+        $call autolist_functions
+
+        # $while my $name = pop @functions
+        $foreach $name in @functions
+            my $code = $functions{$name}
+            parse_function($name, $code)
+
+    subcode: autolist_functions
+        &call each_subcode, fn
+            # $name, $code
+            $if !$functions{$name}
+                $if $page->{autolist}
+                    $call add_, $name, $code
+                $else
+                    &call check_autolist
+                        $call add_, $name, $code
+        subcode: add_(name, code)
+            push @functions, $(name)
+            $functions{$(name)} = $(code)
+
+        subcode: check_autolist
+            my $autolist
+            $foreach $l in @{$code->{source}}
+                $if $l=~/autolist:\s(.*)/
+                    $autolist=$1
+                    $l="NOOP"
+                    last
+            $if $autolist
+                BLOCK

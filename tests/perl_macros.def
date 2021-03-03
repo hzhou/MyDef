@@ -3,23 +3,18 @@ page: test
     a: a
     b: 1
 
-    $(if:0)
-        $print [for in a-c,1-5] -
-        $(for:a in a-c,1-5)
-            $print "$(a)-"
-        $print
-
-        $print [a][a:uc] $(a)$(a:uc)
-
+    $(if:1)
+        $call test_for_in_list
+    $(elif:1)
         $print [join:(..):sep:list] $(join:($1-1):*:x,y,z)
         $print [join:pat:sep:list] $(join:*:-:a-z)
         $print [nest:n:pat:inner] $(nest:5:sqrt(*):10)
         $print [x10,:pat] $(x10,:pat)
         $print [join:::and list] $(join:$1$2:,:x-z and 1-3)
         $print [join:::mul list] $(join:$1$2:,:x,y mul 1,2,3)
-    $(elif:1)
-        $call test_eval
     $(elif:0)
+        $call test_eval
+    $(elif:1)
         print "page macro a: $(a)\n"
         $(if:word:a)
             $warn macro a  is a word : [$(a)]
@@ -31,6 +26,23 @@ page: test
         $call test_macro_split
     $(else)
         $call test_named_macros
+
+subcode: test_for_in_list
+    $print [for in a-c,1-5] -
+    $(for:a in a-c,1-5)
+        $print "$(a)-"
+    $print
+
+    $print [for in eclusion] -
+    $(for:a in 1-3)
+        $(set:b=$(join:$1:,:1-3/$(a)))
+        $print $(b) - -
+    $print
+
+    $print [join rotate] -
+    $(for:a in 0-2)
+        $(export:t$(a)=$(join:rot$(a):,:1-3))
+    $print ($(t0)) ($(t1)) ($(t2))
 
 subcode: test_named_macros
     # DEBUG macro
