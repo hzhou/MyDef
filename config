@@ -1,2 +1,2 @@
-output_dir: MyDef
+output_dir: out
 module: perl

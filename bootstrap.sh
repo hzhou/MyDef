@@ -17,7 +17,7 @@ fi
 BOOT=mydef_boot
 export PATH=$BOOT/bin:$PATH
 export PERL5LIB=$BOOT/lib/perl5
-export MYDEFLIB=$BOOT/lib/MyDef
+export MYDEFLIB=$BOOT/lib/MyDef:deflib
 
 printf "\n${C}#---- Compile from fresh MyDef source ----${NC}\n"
 perl $BOOT/bin/mydef_make
