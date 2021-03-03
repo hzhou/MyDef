@@ -43,10 +43,10 @@ else
     export MYDEFLIB=$save_MYDEFLIB
 fi
 
-MY_INSTALL="perl MyDef/script/mydef_install"
-$MY_INSTALL deflib       . def
-$MY_INSTALL MyDef/lib    . pm
-$MY_INSTALL MyDef/script . -
+MY_INSTALL="perl out/script/mydef_install"
+$MY_INSTALL deflib     . def
+$MY_INSTALL out/lib    . pm
+$MY_INSTALL out/script . -
 
 if [ "$NEWINSTALL" = 1 ]; then
     printf "\n${C}#---- MyDef INSTALLED ----${NC}\n"
