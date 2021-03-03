@@ -1,0 +1,3 @@
+[submodule "mydef_boot"]
+	path = mydef_boot
+	url = https://github.com/hzhou/mydef_boot
