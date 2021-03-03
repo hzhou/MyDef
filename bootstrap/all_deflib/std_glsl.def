@@ -1,8 +1,0 @@
-subcode: vertex_shader
-    $list _main
-
-subcode: fragment_shader
-    $list _main
-
-fncode: _main(main)
-    $call main2
