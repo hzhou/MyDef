@@ -1,0 +1,28 @@
+page: test
+    module: perl
+    $(for:0-7)
+        $call A$1, a, b
+
+subcode: A0
+    $print Error: extra : []
+
+subcode: A1(p1)
+    $print Error: extra : [$(p1)]
+
+subcode: A2(p1, p2)
+    $print exact: [$(p1) - $(p2)]
+
+subcode: A3(@a)
+    $print Slurp - $(a)
+
+subcode: A4(@p1, @p2)
+    $print $(p1) - $(p2)
+
+subcode: A5(a, @p1, @p2)
+    $print [$(a)] - $(p1) - $(p2)
+
+subcode: A6(a, b, @p1, @p2)
+    $print [$(a) - $(b)] - $(p1) - $(p2)
+
+subcode: A7(a, b, c, @p1, @p2)
+    $print Error: missing : [$(a) - $(b) - $(c)] - $(p1) - $(p2)
