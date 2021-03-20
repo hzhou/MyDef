@@ -10,7 +10,9 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: bootstrap
-      run:  sh bootstrap.sh all
+      run: |
+          git submodule update --init
+          sh bootstrap.sh all
     - name: test
       env:
         PATH: $HOME/bin:$PATH
