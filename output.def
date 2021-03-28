@@ -142,9 +142,8 @@ subcode: parsecode_common
             $call add_plugin, $param1, $param2
             return
         $call @parsecode_func_param
-    $elif $l=~/^\s*\$(\w+)\s*(.*)$/
+    $elif $l=~/^\s*\$(\w+)\s*(.*)$/ -> $func, $param
         # $function param  ----
-        my ($func, $param)=($1, $2)
         $if $param !~ /^=/
             $case $func eq "plugin"
                 $foreach $p in split /,\s*/, $param
