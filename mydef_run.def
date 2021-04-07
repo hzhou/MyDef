@@ -141,6 +141,9 @@ subcode: run_page
         my $cmd
         $if $page->{cmd}
             $cmd=$page->{cmd}
+        $elif $page->{CC}
+            $cmd = "$page->{CC} -o $exe $file $page->{lib_list}"
+            $call append_exe, $exe
         $elif $type=~/^c(pp|xx|c|u)?$/
             $call run_c
         $call do_compile, java, javac $file, CD java $name
@@ -192,6 +195,8 @@ subcode: run_page
                     $cmd = "$($(ext)_RUN))"
                 $(else)
                     $cmd = "$(cmd) $file"
+                $if $page->{run}
+                    $cmd = $page->{run} . ' ' . $cmd
 
         # --------------------
         subcode: run_c
