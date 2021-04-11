@@ -152,9 +152,13 @@ subcode: check_install_dir
         $if $ENV{MYDEFBIN}
             $install_dir = $ENV{MYDEFBIN}
         $else
-            $install_dir=$ENV{PATH}
-            $install_dir=~s/:.*//
-            $call check_mydefbin
+            my $homebin = "$home/bin"
+            $if $ENV{PATH} =~ /$homebin/
+                $install_dir = $homebin
+            $else
+                $install_dir=$ENV{PATH}
+                $install_dir=~s/:.*//
+                $call check_mydefbin
 
     $if  !-d $install_dir
         mkdir $install_dir or die "Can't mkdir $install_dir\n";
