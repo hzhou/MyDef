@@ -14,6 +14,9 @@ else
     save_MYDEFLIB=$MYDEFLIB
 fi
 
+# make sure we have mydef_boot
+git submodule update --init
+
 BOOT=mydef_boot
 export PATH=$BOOT/bin:$PATH
 export PERL5LIB=$BOOT/lib/perl5
