@@ -5,21 +5,6 @@
 #      $(if:...) do not add additional macro level
 #      $(for:...) do add macro level
 
-# Global custom macro space -- simply use prefix to create namespace 
-fncode: get_macro_at_level($i)
-    $if !$i
-        return $deflist->[-1]
-    $else
-        # $(set-1:name=value) : one level up
-        # $(set1:name=value)  : macro
-        $global %named_macros=(def=>0,macro=>1,page=>2)
-        $if $i=~/^-/
-            # -1 means 1 level up, which is -2
-            $i-=1
-        $elif $i!~/^\d/
-            $i=$named_macros{$i}
-        return $deflist->[$i]
-
 subcode:: preproc_elifs
     $elif $preproc=~/^set(-?\d+|def|macro|page)?:\s*(.*)/ -> $i, $t
         set_macro(get_macro_at_level($i), $t)
@@ -81,6 +66,22 @@ subcode:: preproc_elifs
         $deflist->[-1]->{p_n}=$n
         $for $i=1:$n+1
             $deflist->[-1]->{"p_$i"}=$tlist[$i-1]
+
+#---------------------------------------- 
+# Global custom macro space -- simply use prefix to create namespace 
+fncode: get_macro_at_level($i)
+    $if !$i
+        return $deflist->[-1]
+    $else
+        # $(set-1:name=value) : one level up
+        # $(set1:name=value)  : macro
+        $global %named_macros=(def=>0,macro=>1,page=>2)
+        $if $i=~/^-/
+            # -1 means 1 level up, which is -2
+            $i-=1
+        $elif $i!~/^\d/
+            $i=$named_macros{$i}
+        return $deflist->[$i]
 
 #---------------------------------------- 
 fncode: set_macro($m, $p)

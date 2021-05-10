@@ -156,6 +156,7 @@ subcode: run_page
         $call do_compile, pas, fpc $file, $exe
         # $call do_compile, prolog, gplc $name    ? no idea how to make it work
         $call do_script, sh, sh
+        $call do_script, bash, bash
         $call do_script, pl, perl
         $call do_script, php, php
         $call do_script, py, python
