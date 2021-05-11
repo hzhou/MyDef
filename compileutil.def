@@ -23,7 +23,8 @@ fncode: output($plines)
     my $outname=$outdir."/".$pagename;
     $if $pageext
         $outname.=".$pageext";
-    print "  --> [$outname]\n";
+    $if !${MyDef::var}->{silent}
+        print "  --> [$outname]\n";
     my $n=@$plines
     $if $n==0
         $print "Strange, no output!"
@@ -81,7 +82,8 @@ fncode: compile
         $if $mode
             modepush($mode)
         init_output();
-        print STDERR "PAGE: $pagename\n";
+        $if !${MyDef::var}->{silent}
+            print "PAGE: $pagename\n";
 
         #---- save var
         my %varsave;

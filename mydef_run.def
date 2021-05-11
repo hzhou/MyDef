@@ -41,6 +41,8 @@ page: mydef_run
                 $config{module}=$1
             $elif $a=~/-rule$/
                 $config{dump_rule}=1
+            $elif $a=~/-silent$/
+                $config{silent}=1
             $elif $a=~/(.*)\.def/
                 # compile && run_page
                 $config{def_file}=$a
@@ -131,7 +133,8 @@ subcode: run_page
         $if $config{expect_type} eq "output"
             $call run_cmd_expect
         $else
-            $print $cmd
+            $if !$config{silent}
+                $print $cmd
             exec $cmd 
     $else
         die "do not know how to run it\n"
@@ -304,7 +307,8 @@ subcode: cmp_expect(type)
     my $expect = $config{expect}
     my ($n_ok, $n_nok)
     $(if:type=cmd)
-        $print $cmd
+        $if !$config{silent}
+            $print $cmd
         $(set:output="$cmd |")
     $(else)
         $(set:output=$(type))
