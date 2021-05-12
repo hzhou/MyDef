@@ -147,6 +147,7 @@ subcode: match_count(n, @re)
     $(n) = () = $(re)
 
 macros:
+    # uses possessive quantifier
     RE_PAREN: (\((?:[^()]++|(?-1))*+\))
 
 #-- Parser -------------------
