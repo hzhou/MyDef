@@ -34,7 +34,8 @@ fncode: get_tlist($t)
                     $if $t ne $exclude
                         push @tlist, $t
             $else
-                warn "get_tlist error: [$t]\n"
+                # warn "get_tlist error: [$t]\n"
+                push @tlist, $v
         $else
             push @tlist, $v
 
