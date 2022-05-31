@@ -8,8 +8,7 @@ page: mydef_run
     type:
 
     use MyDef
-    my (%config, $pagename)
-    my $page
+    my (%config, @pagelist)
     $call parse_arg
     $if $config{def_file}
         $call guess_module
@@ -17,22 +16,21 @@ page: mydef_run
         MyDef::init(%config)
         # reads in def file
         MyDef::import_data($config{def_file})
-        $if !$pagename
-            $pagename=$MyDef::def->{pagelist}->[0]
-        $if $pagename
+        $foreach my $pagename in @{$MyDef::def->{pagelist}}
             MyDef::createpage($pagename)
-            $page=$MyDef::page
-            $if $page->{skiprun}
-                # $call run_page
-                exit 0
-        $else
+            $if !$MyDef::page->{skiprun}
+                push @pagelist, $MyDef::page
+        $if !@pagelist
             die "No page found\n"
     $elif $config{_file}
-        $page={outname=>$config{_file}}
+        my $page={outname=>$config{_file}}
+        $call parse_option_from_comment
+        push @pagelist, $page
     $else
         die "Usage: $0 input_defile.def\n"
 
-    $call run_page
+    $foreach $page in @pagelist
+        $call run_page
 
     # -------------------------
     subcode: parse_arg
@@ -58,19 +56,17 @@ page: mydef_run
         guess_module:
         my $under_page
         &call open_r, $config{def_file}
-            $if /^page:\s*(\w+)/
+            $if /^page:\s*([\w\.]+)/
                 $under_page = $1
             # ----
             $if /module:\s*(\w+)/
-                $if !$config{module} or $pagename eq $under_page
+                $if !$config{module}
                     $config{module}=$1
                 # last
             $elif /^run:\s*(\S+\.def)/
                 $config{def_file}=$1
                 close In
                 goto guess_module
-            $elif /^run:\s*(\w+)/
-                $pagename = $1
             $elif /^prerun:\s*(.+)/
                 system $1
             $elif /^filter:\s*(.+)/
@@ -169,6 +165,7 @@ subcode: run_page
         $call do_script, lua, lua
         $call do_script, lisp, clisp
         $call do_script, groovy, groovy
+        $call do_script, expect, expect -f
         # $call do_script, tex, pdflatex  # -interaction=batchmode
         $call do_script, tex, run_tex
         $call do_script, latex, run_tex
@@ -290,6 +287,13 @@ subcode: run_page
         $call cmp_expect, cmd
 
     # ------------------------
+
+#---------------------------------------- 
+# If running a source code directly, try grap options from the comment
+subcode: parse_option_from_comment
+    &call open_r, $config{_file}
+        $if /^\/\*\s*(cc|exe|cmd|run|arg|lib_list):\s*(.+)\s*\*\//i
+            $page->{$1} = $2
 
 #---------------------------------------- 
 subcode: grab_expect_block
