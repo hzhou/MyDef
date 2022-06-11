@@ -17,9 +17,10 @@ page: mydef_run
         # reads in def file
         MyDef::import_data($config{def_file})
         $foreach my $pagename in @{$MyDef::def->{pagelist}}
+            my $page = $MyDef::def->{pages}->{$pagename}
             MyDef::createpage($pagename)
-            $if !$MyDef::page->{skiprun}
-                push @pagelist, $MyDef::page
+            $if !$page->{skiprun}
+                push @pagelist, $page
         $if !@pagelist
             die "No page found\n"
     $elif $config{_file}
@@ -131,9 +132,9 @@ subcode: run_page
         $else
             $if !$config{silent}
                 $print $cmd
-            exec $cmd 
+            system $cmd 
     $else
-        die "do not know how to run it\n"
+        warn "do not know how to run it\n"
 
     # ---- construc $cmd based on $type ------
     subcode: construct_cmd

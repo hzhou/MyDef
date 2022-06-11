@@ -37,13 +37,15 @@ fncode: init(%config)
                 $var->{module}=$1
                 $module=$1
         
-    $call check_module
+    check_module($module)
 
 fncode: import_data($file)
     $def= MyDef::parseutil::import_data($file)
 
 fncode: createpage($pagename)
     $page=$def->{pages}->{$pagename};
+    $if $page->{module}
+        check_module($page->{module})
 
     my $plines=MyDef::compileutil::compile()
     MyDef::compileutil::output($plines)
@@ -52,7 +54,7 @@ fncode: pipe_page($module)
     #-- reads from STDIN
     #-- dump to STDOUT
     $var->{module}=$module
-    $call check_module
+    check_module($module)
     $def = MyDef::parseutil::import_data("-pipe")
     my $pagename = $def->{pagelist}->[0]
     $if $pagename
@@ -62,9 +64,18 @@ fncode: pipe_page($module)
             print $l
 
 #----
-subcode: check_module
+fncode: check_module($use_module)
+    $global $module
+    $if $use_module
+        $if $use_module eq $module
+            # nothing to do
+            return
+        $else
+            $module = $use_module
+
     $if !$module
         die "Module type not defined in config!\n"
+
     $map require_module, $(module_list)
     $else
         die "Undefined module type $module\n";
