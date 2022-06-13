@@ -12,6 +12,16 @@ subcode:: preproc_elifs
         expand_eval(\$t)
         $t = eval($t)
         set_macro(get_macro_at_level($i), "$name=$t")
+    $elif $preproc=~/^setpoint:\s*(\S+)=\s*(.*)/ -> $name, $t
+        $if $t=~/\$(\(\w|\.)|[\x80-\xff]/
+            $t = MyDef::utils::expand_macro($t, \&get_macro)
+        my ($x, $y) = parse_point($t)
+        my $m = get_macro_at_level(0)
+        $m->{"${name}x"} = $x
+        $m->{"${name}y"} = $y
+        my $fmt = get_macro("setpoint_format", 1)
+        $if $fmt
+            $m->{$name} = sprintf($fmt, $x, $y)
     $elif $preproc=~/^unset:\s*(.*)/
         my @t = split /,\s*/, $1
         $if $debug eq "macro"
@@ -364,3 +374,39 @@ subcode:: special_macro_expansions
             return sprintf("%4d-%02d-%02d %02d:%02d", $year+1900, $mon+1, $mday, $hour, $min)
         $else
             return ""
+
+#---------------------------------------------
+fncode: parse_point($t)
+    my ($x, $y)
+    $call parse
+    return ($x, $y)
+    subcode: parse
+        my @parts = split /\s*(\.(?:xy|[xy]|rot\b))\s*/, $t
+        # $print 0: [$parts[0]], 1: [$parts[1]], 2: [$parts[2]]...
+        ($x, $y) = parse_point_x_y(shift @parts)
+        $while my $op = shift @parts
+            $if $op eq ".xy"
+                my ($tx, $ty) = parse_point_x_y(shift @parts)
+                $x += $tx
+                $y += $ty
+            $elif $op eq ".x"
+                $x += eval(shift @parts)
+            $elif $op eq ".y"
+                $y += eval(shift @parts)
+            $elif $op eq ".rot"
+                my $a = eval(shift @parts) * 3.14159265 / 180.0
+                my $C=cos($a)
+                my $S=sin($a)
+                ($x, $y) = ($x*$C-$y*$S, $x*$S+$y*$C)
+            $else
+                die "parse_point error [$t]\n"
+
+fncode: parse_point_x_y($t)
+    $if $t=~/^\s*(\w+)\s*$/
+        return (get_macro_word("$1x"), get_macro_word("$1y"))
+    $elif $t=~/^\s*(\-?\d+):(.+)/
+        my $a = $1 * 3.14159265 / 180
+        my $b = eval($2)
+        return ($b * cos($a), $b * sin($a))
+    $else
+        return eval($t)
