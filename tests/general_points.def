@@ -1,0 +1,20 @@
+page: test
+    module: general
+    type: txt
+    setpoint_format: (%.2f, %.2f)
+
+    $(setpoint:A=1, 1)
+    $(setpoint:B=A .xy 0.5, -0.5)
+    $(setpoint:C=(0, 1) .rot 45)
+    $(A)
+    $(B)
+    $(C)
+    $(setpoint:A=-60:1)
+    $(A)
+
+/* expect test.txt:
+(1.00, 1.00)
+(1.50, 0.50)
+(-0.71, 0.71)
+(0.50, -0.87)
+*/
