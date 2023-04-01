@@ -1,0 +1,1 @@
+INCLUDE another template_inc.txt

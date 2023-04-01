@@ -1,0 +1,34 @@
+page: test
+    module: general
+
+    # Normal comment starts with #
+    #Comment line without # space
+    /* Multi-line comments are always filtered before anything else
+  (can even break the indentation) */
+
+    # Escape with hexcode
+    \x23! /bin/sh # trailing comments always get filtered
+
+    \x2f* multi-line comments need escape */
+
+    # C preprocs are recognized, e.g. #define #ifdef ...
+    #ifdef A
+
+    $call A
+
+template: A
+    Template # with trailing comment
+    # Comments can be passed in literally in template
+    \x2f* Unfortunately multiline comments still need escape */
+
+/* expect test.txt:
+#! /bin/sh
+
+/* multi-line comments need escape */
+
+#ifdef A
+
+Template # with trailing comment
+# Comments can be passed in literally in template
+/* Unfortunately multiline comments still need escape */
+*/

@@ -22,7 +22,11 @@ page: mydef_run
             $if ($run_page && $run_page eq $pagename) || (!$run_page && !$page->{skiprun})
                 push @pagelist, $page
         $if !@pagelist
-            die "No page found\n"
+            $print "No page found."
+            print "Expect page: $run_page\n" if $run_page
+            print "Available pages: ", join(", ", @{$MyDef::def->{pagelist}}), "\n"
+            die
+
     $elif $config{_file}
         my $page={outname=>$config{_file}}
         $call parse_option_from_comment
@@ -68,7 +72,7 @@ page: mydef_run
                 $config{def_file}=$1
                 close In
                 goto guess_module
-            $elif /^run:\s*(\w+)/
+            $elif /^run:\s*([\w\.]+)/
                 $run_page = $1
             $elif /^prerun:\s*(.+)/
                 system $1

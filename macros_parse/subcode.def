@@ -98,14 +98,19 @@ fncode: new_code($type,$name,$attr,$t)
     return $t_code
 
     subcode: parse_tail
-        # (params)
-        $if $t=~/^\s*\(\s*(.*)\)(.*)/
-            $t=$2
-            my @params=split /,\s*/, $1;
-            $t_code->{params}=\@params
-        # : tail
-        $if $t=~/^\s*:\s*(.+)/
+        $(set:tail=\s*:\s*(.+))
+        $(set:params=\s*\(\s*(.*)\))
+        $if $t=~/^$(tail)/
             $t_code->{tail} = $1
+        $elif $t=~/^$(params)$(tail)/
+            $t_code->{tail} = $2
+            $call set_params, $1
+        $elif $t=~/^$(params)/
+            $call set_params, $1
+
+        subcode: set_params(t)
+            my @params=split /,\s*/, $(t)
+            $t_code->{params}=\@params
 
 subcode: parse_subcode_order(attr)
     # 1-8 merge -- consider only use 1,5,8, default :: is 5

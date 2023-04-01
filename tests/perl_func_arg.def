@@ -1,0 +1,16 @@
+page: test
+    $global $a
+    $a=10
+    test($a)
+    test_arg("Something")
+    test_arg()
+
+fncode: test($t)
+    print "test: $t\n"
+
+fncode: test_2(t)
+    autolist: 1
+    $print "backup function: test_2 - $(t)\n"
+
+fncode: test_arg($a="default")
+    $print test_arg: [$a]

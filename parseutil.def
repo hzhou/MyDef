@@ -70,7 +70,7 @@ fncode: import_file($f, $def, $file_type)
     $call @import_file_init
     &call parse_loop
         $call get_multiline_comment
-        $call get_indentation  # and skip comments, trim leading and tailing spaces
+        $call get_indentation, filter
         $call @check_indent
         $call parse_switch
     $call @import_file_finish
@@ -114,6 +114,24 @@ fncode: import_file($f, $def, $file_type)
             my $line = $plines->[$cur_line]
             $cur_line++
             BLOCK
+
+    subcode: grab_template
+        my @grab
+        $if $line =~ /^template:\s*(\w+)/
+            $call add_subcode, \@grab, "template", $1
+        $else
+            warn "parseutil: template missing name\n"
+
+        my $grab_indent=$curindent
+        &call parse_loop
+            $call get_indentation, template
+            $if $line eq ""
+                push @grab, $line
+            $elif $curindent>$grab_indent
+                push @grab, '    'x($curindent-$grab_indent-1) . $line
+            $else
+                last
+        $cur_line--
 
 #---------------------------------------- 
 subcode: start_page
@@ -204,7 +222,7 @@ subcode: get_multiline_comment
     $elif @last_multiline_comments and $line!~/^fncode:/
         undef @last_multiline_comments
 
-subcode: get_indentation
+subcode: get_indentation(filter)
     $if $line=~/^\s*$/
         # sometime empty lines are significant, passes on, where compileutil will filter
         $line="NEWLINE?"
@@ -213,6 +231,11 @@ subcode: get_indentation
         # ref: deflib/perl/indentations.def
         my $indent=get_indent($1)
         $line=$2
+        $(if:filter=filter)
+            $call filter_comment
+        $curindent=$indent
+
+    subcode: filter_comment
         $if $line=~/^#(?!(define|undef|include|line|error|pragma|if|ifdef|ifndef|elif|else|endif)\b)/
             # Leading # with exclusions
             $if $line=~/^#\\n/
@@ -227,25 +250,6 @@ subcode: get_indentation
             $line=~s/\s+$//
             # Tail # need spaces before and after!
             $line=~s/\s+#\s.*$//
-        $curindent=$indent
-
-subcode: grab_template
-    my @grab
-    $if $line =~ /^template:\s*(\w+)/
-        $call add_subcode, \@grab, "template", $1
-    $else
-        warn "parseutil: template missing name\n"
-
-    my $grab_indent=$curindent
-    &call parse_loop
-        $call get_indentation
-        $if $line eq ""
-            push @grab, $line
-        $elif $curindent>$grab_indent
-            push @grab, '    'x($curindent-$grab_indent-1) . $line
-        $else
-            last
-    $cur_line--
 
 #---- utils ------------------------------------ 
 fncode: get_lines($file)
