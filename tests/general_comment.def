@@ -8,6 +8,7 @@ page: test
 
     # Escape with hexcode
     \x23! /bin/sh # trailing comments always get filtered
+    $(shebang_bash)
 
     \x2f* multi-line comments need escape */
 
@@ -16,6 +17,9 @@ page: test
 
     $call A
 
+macros:
+    shebang_bash: #! /bin/bash # trailing comment require #space
+
 template: A
     Template # with trailing comment
     # Comments can be passed in literally in template
@@ -23,6 +27,7 @@ template: A
 
 /* expect test.txt:
 #! /bin/sh
+#! /bin/bash
 
 /* multi-line comments need escape */
 

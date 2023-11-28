@@ -1,6 +1,10 @@
 page: test
     module: general
 
+    $(A)
+    $(B:param)
+    $(set:c=hello)
+    $(C)
     $call test_basic
     $call set_macro
     $call export
@@ -57,8 +61,14 @@ macros:
     a: 1, 2, 3
     a:: 4, 5
     b: param: $1
+    A: A=$(a)
+    B: B=$(b:$1) # only simple macros can nest
+    C: C=$(c)    # only static macros can nest
 
 /* expect test.txt:
+A=1, 2, 3, 4, 5
+B=$(b:param)
+C=$(c)
 a: [1, 2, 3, 4, 5]
 param: b
 a: [set]
