@@ -269,6 +269,13 @@ subcode:: parsecode_special
 #-- all list function calls this
 #--     as well as: $function, $wndproc, ...
 fncode: function_block($funcname, $paramline, $return_type)
+    $if $paramline=~/(.*?)\@(\w+)$/ -> $param, $extra
+        my $t = MyDef::compileutil::get_macro_word($extra, 1)
+        $if !$t
+            $param=~s/,\s*//
+            $paramline = $param
+        $else
+            $paramline = $param . $t
     my $func=open_function($funcname, $paramline, $return_type);
 
     my @block
