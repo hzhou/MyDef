@@ -208,25 +208,22 @@ subcode: run_page
 
         # --------------------
         subcode: run_c
-            my $cc
             my $default_cc
-            $if $file=~/\.(cpp|cxx|cc)$/
-                $default_cc = "g++ -std=c++11 -g -O2"
-            $elif $file=~/\.(cu)$/
-                $default_cc = "nvcc"
-            $else
-                $default_cc = "gcc -std=c99 -g -O2"
-
             $(if:CC)
-                $cc="$(CC)"
+                $default_cc="$(CC)"
             $(else)
-                $cc = $default_cc
                 # $cc = "x86_64-w64-mingw32-gcc -O2 -Wl,--subsystem,windows"
-            $call set_config, $cc, cc
-            $call set_config, $cc, CC
+                $if $file=~/\.(cpp|cxx|cc)$/
+                    $default_cc = "g++ -std=c++11 -g -O2"
+                $elif $file=~/\.(cu)$/
+                    $default_cc = "nvcc"
+                $else
+                    $default_cc = "gcc -std=c99 -g -O2"
+
+            $call set_config, $cc, cc, $default_cc
+            $call set_config, $cc, CC, $default_cc
 
             # ---------------------
-            my $cflags
             $call set_config, $cflags, CFLAGS
             $if $cflags
                 $cc .= " $cflags"
@@ -259,10 +256,10 @@ subcode: run_page
         $(if:exe=$exe)
             $if $exe!~/\//
                 $exe = "./$(exe)"
-        my $exe = "$(exe)"
-        $call set_config, $exe, exe
-        $if $page->{run}
-            $exe = $page->{run} . ' ' . $exe
+        $call set_config, $exe, exe, "$(exe)"
+        $call set_config, $run, run
+        $if $run
+            $exe = $run . ' ' . $exe
         $if $exe ne "none"
             $if $exe=~/CD\s+(.*)/ -> $t
                 $if $file_dir
@@ -278,13 +275,17 @@ subcode: run_page
         $elif $page->{args}
             $cmd .= " $page->{args}"
 
-    subcode: set_config(var, key)
+    subcode: set_config(var, key, @default)
         my $t
         $if $page->{$(key)}
             $t = $page->{$(key)}
         $elif $MyDef::var->{$(key)}
             $t = $MyDef::var->{$(key)}
         # ---
+        $(if:default)
+            my $(var) = $(default)
+        $(else)
+            my $(var)
         $if $t
             $t=~s/\$$(key)/$(var)/
             $(var) = $t
