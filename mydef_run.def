@@ -8,7 +8,7 @@ page: mydef_run
     type:
 
     use MyDef
-    my (%config, $run_page, @pagelist)
+    my (%config, $run_page, @pagelist, $num_pages)
     $call parse_arg
     $if $config{def_file}
         $call guess_module
@@ -19,13 +19,16 @@ page: mydef_run
         $foreach my $pagename in @{$MyDef::def->{pagelist}}
             my $page = $MyDef::def->{pages}->{$pagename}
             MyDef::createpage($pagename)
+            $num_pages++
             $if ($run_page && $run_page eq $pagename) || (!$run_page && !$page->{skiprun})
                 push @pagelist, $page
         $if !@pagelist
-            $print "No page found."
-            print "Expect page: $run_page\n" if $run_page
-            print "Available pages: ", join(", ", @{$MyDef::def->{pagelist}}), "\n"
-            die
+            $if !$num_pages
+                $print "No page found."
+                print "Expect page: $run_page\n" if $run_page
+            $else
+                print "Created $num_pages pages.\n"
+            exit(0)
 
     $elif $config{_file}
         my $page={outname=>$config{_file}}

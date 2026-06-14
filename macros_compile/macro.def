@@ -329,6 +329,7 @@ fncode: get_macro($s, $nowarn)
                 $foreach $pp in @plist
                     $t=~s/\$$i/$pp/g
                     $i++
+                $t=~s/\$&/$p/
                 return $t
     $elif $s=~/^([mg])([\|&]+):(.*)/
         my ($m, $sep, $t)=($1, $2, $3)
