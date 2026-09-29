@@ -190,7 +190,7 @@ subcode:: sections
     $call subsection, started_summary, Summary of Concepts
     $p
         Here is a summary of the core concepts introduced in this chapter:
-    $table
+    $table ref
         $tr
             $th "Concept"
             $th "Definition"

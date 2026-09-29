@@ -81,6 +81,9 @@ subcode: css_manual
     CSS: a[href] {color: #005090}
     CSS: a {text-decoration: none; outline-style:none;}
     CSS: pre {border-radius: 0.3em; background-color: #f2efe4}
+    CSS: table.ref {border-collapse: collapse; margin: 10px 20px;}
+    CSS: table.ref th, table.ref td {border: 1px solid #ccc; padding: 4px 10px;}
+    CSS: table.ref th {background-color: #f2efe4;}
 
 subcode: css_code
     CSS: pre {margin: 4px 10px; padding-left: 20px;}

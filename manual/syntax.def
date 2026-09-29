@@ -2,7 +2,7 @@ subcode:: sections
     $call section, syntax, Basic $(code:MyDef) syntax
     $p
         Before diving into details, here is a quick reference of the core concepts in $(code:MyDef):
-    $table
+    $table ref
         $tr
             $th "Concept"
             $th "Definition"
@@ -464,7 +464,7 @@ subcode:: sections
                 Code for the remaining cases
     $p
         Here is a reference of all supported condition forms:
-    $table
+    $table ref
         $tr
             $th "Condition"
             $th "True when"

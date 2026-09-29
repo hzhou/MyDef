@@ -12,6 +12,9 @@
             a[href] {color: #005090}
             a {text-decoration: none; outline-style: none}
             pre {border-radius: 0.3em; background-color: #f2efe4; margin: 4px 10px; padding-left: 20px}
+            table.ref {border-collapse: collapse; margin: 10px 20px}
+            table.ref th, table.ref td {border: 1px solid #ccc; padding: 4px 10px}
+            table.ref th {background-color: #f2efe4}
             pre strong {color: #444; font-weight: 700}
             .mydef-comment {color: #888; font-style: italic}
             .mydef-label {color: #22f}
@@ -578,7 +581,7 @@ $ make
         <p>
             Here is a summary of the core concepts introduced in this chapter:
         </p>
-        <table>
+        <table class="ref">
             <tr>
                 <th>Concept</th>
                 <th>Definition</th>
@@ -645,7 +648,7 @@ $ make
         <p>
             Before diving into details, here is a quick reference of the core concepts in <code>MyDef</code>:
         </p>
-        <table>
+        <table class="ref">
             <tr>
                 <th>Concept</th>
                 <th>Definition</th>
@@ -1220,7 +1223,7 @@ $(else)
         <p>
             Here is a reference of all supported condition forms:
         </p>
-        <table>
+        <table class="ref">
             <tr>
                 <th>Condition</th>
                 <th>True when</th>
