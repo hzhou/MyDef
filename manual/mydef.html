@@ -973,7 +973,7 @@ lines after
             </li>
         </ul>
         <p>
-            Both use the same subcode definition. A subcode with <code>BLOCK</code> can be invoked either way: <code>$call</code> ignores the <code>BLOCK</code> placeholder, while <code>&call</code> fills it. Consider:
+            Both use the same subcode definition. A subcode with <code>BLOCK</code> can be invoked either way: <code>$call</code> skips the <code>BLOCK</code> placeholder, while <code>&call</code> fills it. Note that using <code>$call</code> on a subcode containing <code>BLOCK</code> will produce a warning: <code>BLOCK called out of context!</code>. The warning is harmless -- the <code>BLOCK</code> line is simply omitted from the output. Consider:
             <pre><code>
 <span class="mydef-label">subcode</span>: <span class="mydef-label">section</span>(title)
     --- <span class="mydef-macro">$(title)</span> ---
