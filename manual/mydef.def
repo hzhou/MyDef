@@ -3,6 +3,7 @@ include: html/code.def
 
 include: intro.def
 include: install.def
+include: getting_started.def
 include: syntax.def
 include: output_general.def
 include: output_perl.def

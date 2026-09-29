@@ -565,7 +565,7 @@ subcode:: sections
                     $(set:ending=.)
                 $(greeting) $(name)
 
-subcode: sections
+subcode:: sections
     $call subsection, macro_special, Special macro syntax
     $p
         $(code:MyDef) implements a small set of special macro syntax for convenience:

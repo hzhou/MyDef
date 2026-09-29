@@ -1,0 +1,223 @@
+subcode:: sections
+    $call section, started, Getting Started
+    $p
+        This chapter walks through creating your first $(code:MyDef) project step by step. By the end, you will understand the basic workflow and core concepts. We assume you have already installed $(code:MyDef) following the instructions in the Installations chapter.
+
+    $call subsection, started_general, Hello World with $(code:output_general)
+    $p
+        Let's start with the simplest possible example. Create a file called $(code:hello.def) with the following content:
+        &call codeprint, mydef, hello.def
+            page: hello
+                Hello, World!
+    $p
+        This defines a single $(code:page) named $(code:hello). The indented line beneath it is the page's content. Now compile it:
+        &call codeprint, sh
+            $ mydef_page hello.def
+            PAGE: hello
+              --> [./hello.txt]
+    $p
+        $(code:mydef_page) read the $(code:.def) file, processed the page, and wrote the output to $(code:hello.txt). Since we did not specify a module, $(code:output_general) was used by default, which produces $(code:.txt) files. The output file contains exactly what we wrote:
+        &call codeprint
+            Hello, World!
+    $p
+        That is the core of $(code:MyDef): you write $(code:.def) files and compile them into output files. With $(code:output_general), the output is plain text with macros expanded and subcodes inlined. Other output modules add language-specific features on top.
+
+    $call subsection, started_perl, Hello World with $(code:output_perl)
+    $p
+        Now let's try generating a Perl script. Create $(code:hello_perl.def):
+        &call codeprint, mydef, hello_perl.def
+            page: hello_perl
+                module: perl
+                $print Hello, World!
+    $p
+        The $(code:module: perl) attribute tells $(code:MyDef) to use $(code:output_perl). The $(code:$print) syntax is a convenience provided by $(code:output_perl) -- it generates a $(code:print) statement with automatic quoting and newline.
+    $p
+        Instead of compiling and running separately, we can use $(code:mydef_run) to do both in one step:
+        &call codeprint, sh
+            $ mydef_run hello_perl.def
+            PAGE: hello_perl
+              --> [./hello_perl.pl]
+            perl ./hello_perl.pl
+            Hello, World!
+    $p
+        Let's look at the generated $(code:hello_perl.pl):
+        &call codeprint, perl
+            &num;!/usr/bin/perl
+            use strict;
+
+            print "Hello, World!\n";
+    $p
+        $(code:output_perl) automatically added the $(code:#!) shebang line, $(code:use strict;), quotation marks, $(code:\n), and the semicolon. You wrote one line; $(code:MyDef) produced correct, complete Perl.
+
+    $call subsection, started_subcode, First Subcode
+    $p
+        A $(code:subcode) is a reusable block of code. It is the primary abstraction in $(code:MyDef). Here is an example:
+        &call codeprint, mydef
+            page: greet
+                module: perl
+                $call greet, Alice
+                $call greet, Bob
+                $call greet, Carol
+
+            subcode: greet(name)
+                $print Hello, $(name)!
+    $p
+        $(code:subcode: greet(name)) defines a block with one parameter. $(code:$call greet, Alice) inlines that block with $(code:&dollar;(name)) replaced by $(code:Alice). Running this produces:
+        &call codeprint, sh
+            $ mydef_run greet.def
+            PAGE: greet
+              --> [./greet.pl]
+            perl ./greet.pl
+            Hello, Alice!
+            Hello, Bob!
+            Hello, Carol!
+    $p
+        The generated Perl looks like this:
+        &call codeprint, perl
+            &num;!/usr/bin/perl
+            use strict;
+
+            print "Hello, Alice!\n";
+            print "Hello, Bob!\n";
+            print "Hello, Carol!\n";
+    $p
+        The subcode was expanded three times, each time with a different parameter value. This is pure text substitution -- there is no function call overhead at runtime.
+    $p
+        When you need to call a subcode many times with different single parameters, $(code:$map) provides a shorthand:
+        &call codeprint, mydef
+            $map greet, Alice, Bob, Carol
+    $p
+        This produces the same output as the three separate $(code:$call) lines above.
+
+    $call subsection, started_block, First Block Call
+    $p
+        Many code patterns have an opening part and a closing part with varying content in between. $(code:MyDef) handles this with $(code:&call) (block call) and the $(code:BLOCK) keyword. Here is an example:
+        &call codeprint, mydef
+            page: wrap
+                module: perl
+                &call open_w, output.txt
+                    $(set:print_to=Out)
+                    $print Line 1
+                    $print Line 2
+    $p
+        $(code:open_w) is a subcode from $(code:MyDef)'s standard library. It opens a file for writing. The indented block beneath $(code:&call) replaces the $(code:BLOCK) keyword inside the subcode definition.
+    $p
+        To understand the mechanism, here is a simplified version of what $(code:open_w) looks like:
+        &call codeprint, mydef
+            subcode: open_w(file)
+                open Out, ">$(file)" or die "Can't open $(file)\n"
+                BLOCK
+                close Out
+    $p
+        When you write $(code:&call open_w, output.txt), $(code:MyDef) expands it as:
+        &call codeprint, perl
+            open Out, ">output.txt" or die "Can't open output.txt\n";
+            print Out "Line 1\n";
+            print Out "Line 2\n";
+            close Out;
+    $p
+        The key difference between $(code:$call) and $(code:&call):
+    $ul
+        $li
+            $(code:$call) -- inline expansion. No indented block follows.
+        $li
+            $(code:&call) -- block expansion. An indented block follows and replaces $(code:BLOCK) inside the subcode.
+
+    $call subsection, started_macro, First Macro
+    $p
+        Macros are compile-time text substitutions. They are defined in a $(code:macros:) block and referenced with $(code:&dollar;(name)) syntax:
+        &call codeprint, mydef
+            macros:
+                greeting: Hello
+                audience: World
+
+            page: macro_demo
+                module: perl
+                $print $(greeting), $(audience)!
+    $p
+        This generates:
+        &call codeprint, perl
+            print "Hello, World!\n";
+    $p
+        Macros are expanded before any language processing. They work the same regardless of the output module.
+    $p
+        For macros that are only needed locally, use $(code:&dollar;(set:...)) instead of a $(code:macros:) block:
+        &call codeprint, mydef
+            subcode: matrix_multiply
+                $(set:N=4)
+                $(set:m=mat[$1][$2])
+                $for i=0:$(N)
+                    $for j=0:$(N)
+                        $(m:C,i) += $(m:A,i) * $(m:B,j)
+    $p
+        $(code:&dollar;(set:...)) macros expire at the end of their enclosing scope, keeping the namespace clean.
+
+    $call subsection, started_workflow, Project Workflow
+    $p
+        For a single-file program, $(code:mydef_run) is all you need. For larger projects with multiple output files, the typical workflow uses $(code:mydef_make) to generate a $(code:Makefile).
+    $p
+        Start by creating a project directory with a $(code:config) file:
+        &call codeprint, sh
+            $ mkdir myproject
+            $ cd myproject
+    $p
+        Create a $(code:config) file specifying where output goes and which module to use:
+        &call codeprint, mydef, config
+            output_dir: out
+            module: perl
+    $p
+        Create your $(code:.def) source files, then run $(code:mydef_make):
+        &call codeprint, sh
+            $ mydef_make
+                output_dir: out
+            Create output folder out ...
+    $p
+        This scans all $(code:.def) files in the directory, determines their dependencies, and generates a $(code:Makefile). Now you can use the standard $(code:make) workflow:
+        &call codeprint, sh
+            $ make
+    $p
+        After editing $(code:.def) files, simply run $(code:make) again -- it will only recompile files whose dependencies have changed.
+    $p
+        The typical development cycle is:
+    $ul
+        $li
+            For quick experiments: edit $(code:.def), run $(code:mydef_run file.def)
+        $li
+            For projects: edit $(code:.def), run $(code:make) (after initial $(code:mydef_make))
+        $li
+            To install: run $(code:make install) (if an $(code:install_def.sh) is set up)
+
+    $call subsection, started_summary, Summary of Concepts
+    $p
+        Here is a summary of the core concepts introduced in this chapter:
+    $table
+        $tr
+            $th Concept
+            $th Definition
+            $th Usage
+        $tr
+            $td Page
+            $td $(code:page: name)
+            $td Compiled automatically into an output file
+        $tr
+            $td Subcode
+            $td $(code:subcode: name(params))
+            $td $(code:$call name, args)
+        $tr
+            $td Block call
+            $td Subcode with $(code:BLOCK) keyword
+            $td $(code:&call name, args) + indented block
+        $tr
+            $td Macro
+            $td $(code:macros:) block
+            $td $(code:&dollar;(name))
+        $tr
+            $td Dynamic macro
+            $td $(code:&dollar;(set:name=value))
+            $td $(code:&dollar;(name)), expires at end of scope
+        $tr
+            $td Module
+            $td $(code:module: perl) under page
+            $td Selects the output module
+    $p
+        With these basics, you can already start writing useful programs. The following chapters cover the full syntax and language-specific features in detail.
