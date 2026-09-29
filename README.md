@@ -48,7 +48,7 @@ Hello, Carol!
 
 - [Manual](https://htmlpreview.github.io/?https://github.com/hzhou/MyDef/blob/master/manual/mydef.html)
   (Getting Started, syntax reference, output module guides)
-- [Design](Design.md) (architecture and internals)
+- [Design](docs/Design.md) (architecture and internals)
 
 ## Features
 
