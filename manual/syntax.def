@@ -205,7 +205,7 @@ subcode:: sections
         &call codeprint, mydef
             subcode: tag(name)
                 <$(name)>
-                BLOCK
+                    BLOCK
                 </$(name)>
 
             page: t
@@ -215,7 +215,7 @@ subcode:: sections
                             Hello, World!
 
     $p
-        The output would be:
+        Note that $(code:BLOCK) is indented one level inside the opening and closing tags. This indentation is preserved in the output, so nested block calls produce properly indented results:
         &call codeprint
             <html>
                 <body>
@@ -224,6 +224,8 @@ subcode:: sections
                     </h1>
                 </body>
             </html>
+    $p
+        If $(code:BLOCK) were at the same indentation level as the tags, the output would be flat with no nesting indentation.
     $p
         $(code:&call) requires an indented block following the call, where code is expected to be inserted inside the subcode expansion, replacing the keyword $(code:BLOCK).
         $(code:BLOCK) is one of a few special $(code:MyDef) keywords in addition to the $(code:&dollar;(macro...)) syntax.
@@ -257,9 +259,9 @@ subcode:: sections
         Both use the same subcode definition. A subcode with $(code:BLOCK) can be invoked either way: $(code:$call) ignores the $(code:BLOCK) placeholder, while $(code:&call) fills it. Consider:
         &call codeprint, mydef
             subcode: section(title)
-                &num; --- $(title) ---
+                --- $(title) ---
                 BLOCK
-                &num; --- end $(title) ---
+                --- end $(title) ---
 
             page: t
                 &num; inline call -- BLOCK is skipped:
@@ -272,12 +274,12 @@ subcode:: sections
     $p
         The output would be:
         &call codeprint
-            &num; --- Empty ---
-            &num; --- end Empty ---
-            &num; --- Content ---
+            --- Empty ---
+            --- end Empty ---
+            --- Content ---
             Line 1
             Line 2
-            &num; --- end Content ---
+            --- end Content ---
 
 subcode:: sections
     $call subsection, map_call, Map call

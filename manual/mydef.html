@@ -909,7 +909,7 @@ lines after
             <pre><code>
 <span class="mydef-label">subcode</span>: <span class="mydef-label">tag</span>(name)
     &lt;<span class="mydef-macro">$(name)</span>>
-    <span class="mydef-keyword">BLOCK</span>
+        <span class="mydef-keyword">BLOCK</span>
     &lt;/<span class="mydef-macro">$(name)</span>>
 
 <span class="mydef-label">page</span>: <span class="mydef-label">t</span>
@@ -921,7 +921,7 @@ lines after
         </p>
 
         <p>
-            The output would be:
+            Note that <code>BLOCK</code> is indented one level inside the opening and closing tags. This indentation is preserved in the output, so nested block calls produce properly indented results:
             <pre><code>
 &lt;html>
     &lt;body>
@@ -931,6 +931,9 @@ lines after
     &lt;/body>
 &lt;/html>
             </code></pre>
+        </p>
+        <p>
+            If <code>BLOCK</code> were at the same indentation level as the tags, the output would be flat with no nesting indentation.
         </p>
         <p>
             <code>&call</code> requires an indented block following the call, where code is expected to be inserted inside the subcode expansion, replacing the keyword <code>BLOCK</code>.
@@ -973,9 +976,9 @@ lines after
             Both use the same subcode definition. A subcode with <code>BLOCK</code> can be invoked either way: <code>$call</code> ignores the <code>BLOCK</code> placeholder, while <code>&call</code> fills it. Consider:
             <pre><code>
 <span class="mydef-label">subcode</span>: <span class="mydef-label">section</span>(title)
-    <span class="mydef-comment"># --- <span class="mydef-macro">$(title)</span> ---</span>
+    --- <span class="mydef-macro">$(title)</span> ---
     <span class="mydef-keyword">BLOCK</span>
-    <span class="mydef-comment"># --- end <span class="mydef-macro">$(title)</span> ---</span>
+    --- end <span class="mydef-macro">$(title)</span> ---
 
 <span class="mydef-label">page</span>: <span class="mydef-label">t</span>
     <span class="mydef-comment"># inline call -- BLOCK is skipped:</span>
@@ -990,12 +993,12 @@ lines after
         <p>
             The output would be:
             <pre><code>
-# --- Empty ---
-# --- end Empty ---
-# --- Content ---
+--- Empty ---
+--- end Empty ---
+--- Content ---
 Line 1
 Line 2
-# --- end Content ---
+--- end Content ---
             </code></pre>
         </p>
         <a name="map_call"></a>
