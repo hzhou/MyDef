@@ -192,32 +192,42 @@ subcode:: sections
         Here is a summary of the core concepts introduced in this chapter:
     $table
         $tr
-            $th Concept
-            $th Definition
-            $th Usage
+            $th "Concept"
+            $th "Definition"
+            $th "Usage"
         $tr
-            $td Page
-            $td $(code:page: name)
-            $td Compiled automatically into an output file
+            $td "Page"
+            $td
+                $(code:page: name)
+            $td "Compiled automatically into an output file"
         $tr
-            $td Subcode
-            $td $(code:subcode: name(params))
-            $td $(code:$call name, args)
+            $td "Subcode"
+            $td
+                $(code:subcode: name(params))
+            $td
+                $(code:$call name, args)
         $tr
-            $td Block call
-            $td Subcode with $(code:BLOCK) keyword
-            $td $(code:&call name, args) + indented block
+            $td "Block call"
+            $td
+                Subcode with $(code:BLOCK) keyword
+            $td
+                $(code:&call name, args) + indented block
         $tr
-            $td Macro
-            $td $(code:macros:) block
-            $td $(code:&dollar;(name))
+            $td "Macro"
+            $td
+                $(code:macros:) block
+            $td
+                $(code:&dollar;(name))
         $tr
-            $td Dynamic macro
-            $td $(code:&dollar;(set:name=value))
-            $td $(code:&dollar;(name)), expires at end of scope
+            $td "Dynamic macro"
+            $td
+                $(code:&dollar;(set:name=value))
+            $td
+                $(code:&dollar;(name)), expires at end of scope
         $tr
-            $td Module
-            $td $(code:module: perl) under page
-            $td Selects the output module
+            $td "Module"
+            $td
+                $(code:module: perl) under page
+            $td "Selects the output module"
     $p
         With these basics, you can already start writing useful programs. The following chapters cover the full syntax and language-specific features in detail.

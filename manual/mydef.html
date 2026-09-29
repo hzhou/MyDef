@@ -580,60 +580,59 @@ $ make
         </p>
         <table>
             <tr>
-                <th class="Concept">
-                </th>
-                <th class="Definition">
-                </th>
-                <th class="Usage">
-                </th>
+                <th>Concept</th>
+                <th>Definition</th>
+                <th>Usage</th>
             </tr>
             <tr>
-                <td class="Page">
+                <td>Page</td>
+                <td>
+                    <code>page: name</code>
                 </td>
-                <td <code>page=" name</code>">
-                </td>
-                <td class="Compiled automatically into an output file">
-                </td>
+                <td>Compiled automatically into an output file</td>
             </tr>
             <tr>
-                <td class="Subcode">
+                <td>Subcode</td>
+                <td>
+                    <code>subcode: name(params)</code>
                 </td>
-                <td <code>subcode=" name(params)</code>">
-                </td>
-                <td class="<code>$call name</code>">
+                <td>
+                    <code>$call name</code>
                 </td>
             </tr>
             <tr>
-                <td class="Block call">
+                <td>Block call</td>
+                <td>
+                    Subcode with <code>BLOCK</code> keyword
                 </td>
-                <td class="Subcode with <code>BLOCK</code> keyword">
-                </td>
-                <td class="<code>&call name</code> + indented block">
-                </td>
-            </tr>
-            <tr>
-                <td class="Macro">
-                </td>
-                <td <code>macros="</code> block">
-                </td>
-                <td class="<code>&dollar;(name)</code>">
+                <td>
+                    <code>&call name</code> + indented block
                 </td>
             </tr>
             <tr>
-                <td class="Dynamic macro">
+                <td>Macro</td>
+                <td>
+                    <code>macros:</code> block
                 </td>
-                <td <code>&dollar;(set="name=value)</code>">
-                </td>
-                <td class="<code>&dollar;(name)</code>" class="expires at end of scope">
+                <td>
+                    <code>&dollar;(name)</code>
                 </td>
             </tr>
             <tr>
-                <td class="Module">
+                <td>Dynamic macro</td>
+                <td>
+                    <code>&dollar;(set:name=value)</code>
                 </td>
-                <td <code>module=" perl</code> under page">
+                <td>
+                    <code>&dollar;(name)</code>, expires at end of scope
                 </td>
-                <td class="Selects the output module">
+            </tr>
+            <tr>
+                <td>Module</td>
+                <td>
+                    <code>module: perl</code> under page
                 </td>
+                <td>Selects the output module</td>
             </tr>
         </table>
         <p>
@@ -648,74 +647,66 @@ $ make
         </p>
         <table>
             <tr>
-                <th class="Concept">
-                </th>
-                <th class="Definition">
-                </th>
-                <th class="Usage">
-                </th>
-                <th class="Scope">
-                </th>
+                <th>Concept</th>
+                <th>Definition</th>
+                <th>Usage</th>
+                <th>Scope</th>
             </tr>
             <tr>
-                <td class="Page">
+                <td>Page</td>
+                <td>
+                    <code>page: name</code>
                 </td>
-                <td <code>page=" name</code>">
-                </td>
-                <td class="compiled automatically into an output file">
-                </td>
-                <td class="file">
-                </td>
+                <td>compiled automatically into an output file</td>
+                <td>file</td>
             </tr>
             <tr>
-                <td class="Subcode">
+                <td>Subcode</td>
+                <td>
+                    <code>subcode: name(params)</code>
                 </td>
-                <td <code>subcode=" name(params)</code>">
+                <td>
+                    <code>$call name</code>
                 </td>
-                <td class="<code>$call name</code>">
-                </td>
-                <td class="global or page">
-                </td>
+                <td>global or page</td>
             </tr>
             <tr>
-                <td class="Block call">
+                <td>Block call</td>
+                <td>
+                    subcode with <code>BLOCK</code> keyword
                 </td>
-                <td class="subcode with <code>BLOCK</code> keyword">
+                <td>
+                    <code>&call name</code> + indented block
                 </td>
-                <td class="<code>&call name</code> + indented block">
-                </td>
-                <td class="nested">
-                </td>
+                <td>nested</td>
             </tr>
             <tr>
-                <td class="Macro">
+                <td>Macro</td>
+                <td>
+                    <code>macros:</code> block
                 </td>
-                <td <code>macros="</code> block">
+                <td>
+                    <code>&dollar;(name)</code>
                 </td>
-                <td class="<code>&dollar;(name)</code>">
-                </td>
-                <td class="global or page">
-                </td>
+                <td>global or page</td>
             </tr>
             <tr>
-                <td class="Dynamic macro">
+                <td>Dynamic macro</td>
+                <td>
+                    <code>&dollar;(set:name=value)</code>
                 </td>
-                <td <code>&dollar;(set="name=value)</code>">
+                <td>
+                    <code>&dollar;(name)</code>
                 </td>
-                <td class="<code>&dollar;(name)</code>">
-                </td>
-                <td class="current scope">
-                </td>
+                <td>current scope</td>
             </tr>
             <tr>
-                <td class="fncode">
+                <td>fncode</td>
+                <td>
+                    <code>fncode: name(params)</code>
                 </td>
-                <td <code>fncode=" name(params)</code>">
-                </td>
-                <td class="target language function call">
-                </td>
-                <td class="global">
-                </td>
+                <td>target language function call</td>
+                <td>global</td>
             </tr>
         </table>
 
@@ -1231,118 +1222,122 @@ $(else)
         </p>
         <table>
             <tr>
-                <th class="Condition">
-                </th>
-                <th class="True when">
-                </th>
+                <th>Condition</th>
+                <th>True when</th>
             </tr>
             <tr>
-                <td <code>&dollar;(if="A)</code>">
+                <td>
+                    <code>&dollar;(if:A)</code>
                 </td>
-                <td class="macro A is defined and non-empty">
-                </td>
+                <td>macro A is defined and non-empty</td>
             </tr>
             <tr>
-                <td <code>&dollar;(if="!A)</code>">
+                <td>
+                    <code>&dollar;(if:!A)</code>
                 </td>
-                <td class="macro A is not defined or empty">
-                </td>
+                <td>macro A is not defined or empty</td>
             </tr>
             <tr>
-                <td <code>&dollar;(if="A=val)</code>">
+                <td>
+                    <code>&dollar;(if:A=val)</code>
                 </td>
-                <td class="macro A equals "val" (string comparison)">
-                </td>
-            </tr>
-            <tr>
-                <td <code>&dollar;(if="A!=val)</code>">
-                </td>
-                <td class="macro A does not equal "val"">
+                <td>
+                    macro A equals "val" (string comparison)
                 </td>
             </tr>
             <tr>
-                <td <code>&dollar;(if="A>10)</code>">
+                <td>
+                    <code>&dollar;(if:A!=val)</code>
                 </td>
-                <td class="macro A is numerically greater than 10">
-                </td>
-            </tr>
-            <tr>
-                <td <code>&dollar;(if="A>=10)</code>">
-                </td>
-                <td class="macro A is numerically greater than or equal to 10">
+                <td>
+                    macro A does not equal "val"
                 </td>
             </tr>
             <tr>
-                <td <code>&dollar;(if="A&lt;10)</code>">
+                <td>
+                    <code>&dollar;(if:A>10)</code>
                 </td>
-                <td class="macro A is numerically less than 10">
+                <td>macro A is numerically greater than 10</td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;(if:A>=10)</code>
+                </td>
+                <td>macro A is numerically greater than or equal to 10</td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;(if:A&lt;10)</code>
+                </td>
+                <td>macro A is numerically less than 10</td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;(if:A&lt;=10)</code>
+                </td>
+                <td>macro A is numerically less than or equal to 10</td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;(if:A~pat)</code>
+                </td>
+                <td>macro A matches regex pattern (head match)</td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;(if:A!~pat)</code>
+                </td>
+                <td>macro A does not match regex pattern</td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;(if:A or B)</code>
+                </td>
+                <td>either A or B is true</td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;(if:A and B)</code>
+                </td>
+                <td>both A and B are true</td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;(if:0)</code> / <code>&dollar;(if:1)</code>
+                </td>
+                <td>always false / always true (for quickly disabling/enabling code)</td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;(if:hascode:name)</code>
+                </td>
+                <td>
+                    subcode "name" is defined
                 </td>
             </tr>
             <tr>
-                <td <code>&dollar;(if="A&lt;=10)</code>">
+                <td>
+                    <code>&dollar;(if:A in x,y,z)</code>
                 </td>
-                <td class="macro A is numerically less than or equal to 10">
-                </td>
+                <td>macro A equals one of the listed values</td>
             </tr>
             <tr>
-                <td <code>&dollar;(if="A~pat)</code>">
+                <td>
+                    <code>&dollar;(if:string:A)</code>
                 </td>
-                <td class="macro A matches regex pattern (head match)">
-                </td>
+                <td>macro A looks like a string literal</td>
             </tr>
             <tr>
-                <td <code>&dollar;(if="A!~pat)</code>">
+                <td>
+                    <code>&dollar;(if:number:A)</code>
                 </td>
-                <td class="macro A does not match regex pattern">
-                </td>
+                <td>macro A looks like a number</td>
             </tr>
             <tr>
-                <td <code>&dollar;(if="A or B)</code>">
+                <td>
+                    <code>&dollar;(if:word:A)</code>
                 </td>
-                <td class="either A or B is true">
-                </td>
-            </tr>
-            <tr>
-                <td <code>&dollar;(if="A and B)</code>">
-                </td>
-                <td class="both A and B are true">
-                </td>
-            </tr>
-            <tr>
-                <td <code>&dollar;(if="0)</code> / <code>&dollar;(if:1)</code>">
-                </td>
-                <td class="always false / always true (for quickly disabling/enabling code)">
-                </td>
-            </tr>
-            <tr>
-                <td <code>&dollar;(if="hascode:name)</code>">
-                </td>
-                <td class="subcode "name" is defined">
-                </td>
-            </tr>
-            <tr>
-                <td <code>&dollar;(if="A in x" class="y" class="z)</code>">
-                </td>
-                <td class="macro A equals one of the listed values">
-                </td>
-            </tr>
-            <tr>
-                <td <code>&dollar;(if="string:A)</code>">
-                </td>
-                <td class="macro A looks like a string literal">
-                </td>
-            </tr>
-            <tr>
-                <td <code>&dollar;(if="number:A)</code>">
-                </td>
-                <td class="macro A looks like a number">
-                </td>
-            </tr>
-            <tr>
-                <td <code>&dollar;(if="word:A)</code>">
-                </td>
-                <td class="macro A looks like a simple word">
-                </td>
+                <td>macro A looks like a simple word</td>
             </tr>
         </table>
         <p>

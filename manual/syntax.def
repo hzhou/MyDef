@@ -4,40 +4,50 @@ subcode:: sections
         Before diving into details, here is a quick reference of the core concepts in $(code:MyDef):
     $table
         $tr
-            $th Concept
-            $th Definition
-            $th Usage
-            $th Scope
+            $th "Concept"
+            $th "Definition"
+            $th "Usage"
+            $th "Scope"
         $tr
-            $td Page
-            $td $(code:page: name)
-            $td compiled automatically into an output file
-            $td file
+            $td "Page"
+            $td
+                $(code:page: name)
+            $td "compiled automatically into an output file"
+            $td "file"
         $tr
-            $td Subcode
-            $td $(code:subcode: name(params))
-            $td $(code:$call name, args)
-            $td global or page
+            $td "Subcode"
+            $td
+                $(code:subcode: name(params))
+            $td
+                $(code:$call name, args)
+            $td "global or page"
         $tr
-            $td Block call
-            $td subcode with $(code:BLOCK) keyword
-            $td $(code:&call name, args) + indented block
-            $td nested
+            $td "Block call"
+            $td
+                subcode with $(code:BLOCK) keyword
+            $td
+                $(code:&call name, args) + indented block
+            $td "nested"
         $tr
-            $td Macro
-            $td $(code:macros:) block
-            $td $(code:&dollar;(name))
-            $td global or page
+            $td "Macro"
+            $td
+                $(code:macros:) block
+            $td
+                $(code:&dollar;(name))
+            $td "global or page"
         $tr
-            $td Dynamic macro
-            $td $(code:&dollar;(set:name=value))
-            $td $(code:&dollar;(name))
-            $td current scope
+            $td "Dynamic macro"
+            $td
+                $(code:&dollar;(set:name=value))
+            $td
+                $(code:&dollar;(name))
+            $td "current scope"
         $tr
-            $td fncode
-            $td $(code:fncode: name(params))
-            $td target language function call
-            $td global
+            $td "fncode"
+            $td
+                $(code:fncode: name(params))
+            $td "target language function call"
+            $td "global"
 
     $call subsection, syntax_defile, Basic structure of $(code:.def) file
     $p
@@ -456,62 +466,83 @@ subcode:: sections
         Here is a reference of all supported condition forms:
     $table
         $tr
-            $th Condition
-            $th True when
+            $th "Condition"
+            $th "True when"
         $tr
-            $td $(code:&dollar;(if:A))
-            $td macro A is defined and non-empty
+            $td
+                $(code:&dollar;(if:A))
+            $td "macro A is defined and non-empty"
         $tr
-            $td $(code:&dollar;(if:!A))
-            $td macro A is not defined or empty
+            $td
+                $(code:&dollar;(if:!A))
+            $td "macro A is not defined or empty"
         $tr
-            $td $(code:&dollar;(if:A=val))
-            $td macro A equals "val" (string comparison)
+            $td
+                $(code:&dollar;(if:A=val))
+            $td
+                macro A equals "val" (string comparison)
         $tr
-            $td $(code:&dollar;(if:A!=val))
-            $td macro A does not equal "val"
+            $td
+                $(code:&dollar;(if:A!=val))
+            $td
+                macro A does not equal "val"
         $tr
-            $td $(code:&dollar;(if:A>10))
-            $td macro A is numerically greater than 10
+            $td
+                $(code:&dollar;(if:A>10))
+            $td "macro A is numerically greater than 10"
         $tr
-            $td $(code:&dollar;(if:A>=10))
-            $td macro A is numerically greater than or equal to 10
+            $td
+                $(code:&dollar;(if:A>=10))
+            $td "macro A is numerically greater than or equal to 10"
         $tr
-            $td $(code:&dollar;(if:A&lt;10))
-            $td macro A is numerically less than 10
+            $td
+                $(code:&dollar;(if:A&lt;10))
+            $td "macro A is numerically less than 10"
         $tr
-            $td $(code:&dollar;(if:A&lt;=10))
-            $td macro A is numerically less than or equal to 10
+            $td
+                $(code:&dollar;(if:A&lt;=10))
+            $td "macro A is numerically less than or equal to 10"
         $tr
-            $td $(code:&dollar;(if:A~pat))
-            $td macro A matches regex pattern (head match)
+            $td
+                $(code:&dollar;(if:A~pat))
+            $td "macro A matches regex pattern (head match)"
         $tr
-            $td $(code:&dollar;(if:A!~pat))
-            $td macro A does not match regex pattern
+            $td
+                $(code:&dollar;(if:A!~pat))
+            $td "macro A does not match regex pattern"
         $tr
-            $td $(code:&dollar;(if:A or B))
-            $td either A or B is true
+            $td
+                $(code:&dollar;(if:A or B))
+            $td "either A or B is true"
         $tr
-            $td $(code:&dollar;(if:A and B))
-            $td both A and B are true
+            $td
+                $(code:&dollar;(if:A and B))
+            $td "both A and B are true"
         $tr
-            $td $(code:&dollar;(if:0)) / $(code:&dollar;(if:1))
-            $td always false / always true (for quickly disabling/enabling code)
+            $td
+                $(code:&dollar;(if:0)) / $(code:&dollar;(if:1))
+            $td "always false / always true (for quickly disabling/enabling code)"
         $tr
-            $td $(code:&dollar;(if:hascode:name))
-            $td subcode "name" is defined
+            $td
+                $(code:&dollar;(if:hascode:name))
+            $td
+                subcode "name" is defined
         $tr
-            $td $(code:&dollar;(if:A in x,y,z))
-            $td macro A equals one of the listed values
+            $td
+                $(code:&dollar;(if:A in x,y,z))
+            $td "macro A equals one of the listed values"
         $tr
-            $td $(code:&dollar;(if:string:A))
-            $td macro A looks like a string literal
+            $td
+                $(code:&dollar;(if:string:A))
+            $td "macro A looks like a string literal"
         $tr
-            $td $(code:&dollar;(if:number:A))
-            $td macro A looks like a number
+            $td
+                $(code:&dollar;(if:number:A))
+            $td "macro A looks like a number"
         $tr
-            $td $(code:&dollar;(if:word:A))
-            $td macro A looks like a simple word
+            $td
+                $(code:&dollar;(if:word:A))
+            $td "macro A looks like a simple word"
     $p
         A few notes on the conditions:
     $ul
