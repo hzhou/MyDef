@@ -10,6 +10,7 @@ include: output_perl.def
 
 page: mydef, basic_frame
     module: www
+    output_dir: .
     title: MyDef Manual
 
     $call css_manual

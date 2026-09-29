@@ -1,5 +1,44 @@
 subcode:: sections
     $call section, syntax, Basic $(code:MyDef) syntax
+    $p
+        Before diving into details, here is a quick reference of the core concepts in $(code:MyDef):
+    $table
+        $tr
+            $th Concept
+            $th Definition
+            $th Usage
+            $th Scope
+        $tr
+            $td Page
+            $td $(code:page: name)
+            $td compiled automatically into an output file
+            $td file
+        $tr
+            $td Subcode
+            $td $(code:subcode: name(params))
+            $td $(code:$call name, args)
+            $td global or page
+        $tr
+            $td Block call
+            $td subcode with $(code:BLOCK) keyword
+            $td $(code:&call name, args) + indented block
+            $td nested
+        $tr
+            $td Macro
+            $td $(code:macros:) block
+            $td $(code:&dollar;(name))
+            $td global or page
+        $tr
+            $td Dynamic macro
+            $td $(code:&dollar;(set:name=value))
+            $td $(code:&dollar;(name))
+            $td current scope
+        $tr
+            $td fncode
+            $td $(code:fncode: name(params))
+            $td target language function call
+            $td global
+
     $call subsection, syntax_defile, Basic structure of $(code:.def) file
     $p
         The basic structure of $(code:.def) file is indentation based. An example $(code:.def) file may look like this:
@@ -21,6 +60,16 @@ subcode:: sections
             macros:
                 msg_a: this is message a
                 msg_b: this is message b
+    $p
+        Compiling this with $(code:mydef_page) produces a file $(code:test.txt) containing:
+        &call codeprint
+            Line 1
+            Line 2
+            line a - this is message a
+            line b - this is message b
+            lines after
+    $p
+        The $(code:$call A) was replaced by the body of $(code:subcode: A), and the macros $(code:&dollar;(msg_a)) and $(code:&dollar;(msg_b)) were expanded to their values. This is the essence of $(code:MyDef): subcodes are inlined and macros are expanded, producing the final output.
     $p
         At the top indentation level, only headings $(code:include:), $(code:page:), $(code:subcode:), and $(code:macros:) are recognized by $(code:parseutil.pm). However, any additional lines not under these headings do not cause $(code:MyDef) errors. They will be silently ignored. So a Knuth-style literate programming can be achieved with $(code:MyDef) by freely mixing documentation (at the top indentation level or under any unrecognized headings) and code (under these recognized headings).
     $p
@@ -156,6 +205,16 @@ subcode:: sections
                             Hello, World!
 
     $p
+        The output would be:
+        &call codeprint
+            <html>
+                <body>
+                    <h1>
+                        Hello, World!
+                    </h1>
+                </body>
+            </html>
+    $p
         $(code:&call) requires an indented block following the call, where code is expected to be inserted inside the subcode expansion, replacing the keyword $(code:BLOCK).
         $(code:BLOCK) is one of a few special $(code:MyDef) keywords in addition to the $(code:&dollar;(macro...)) syntax.
     $p
@@ -174,6 +233,41 @@ subcode:: sections
                 &call Parsing, text
                     &call parse_string
                         $print got string $1
+
+subcode:: sections
+    $call subsection, call_vs_blockcall, $(code:$call) vs $(code:&call)
+    $p
+        To summarize the difference between the two calling conventions:
+    $ul
+        $li
+            $(code:$call name, args) -- inline expansion. The subcode body is inserted directly. No indented block follows.
+        $li
+            $(code:&call name, args) -- block expansion. An indented block must follow. That block replaces the $(code:BLOCK) keyword inside the subcode body.
+    $p
+        Both use the same subcode definition. A subcode with $(code:BLOCK) can be invoked either way: $(code:$call) ignores the $(code:BLOCK) placeholder, while $(code:&call) fills it. Consider:
+        &call codeprint, mydef
+            subcode: section(title)
+                &num; --- $(title) ---
+                BLOCK
+                &num; --- end $(title) ---
+
+            page: t
+                &num; inline call -- BLOCK is skipped:
+                $call section, Empty
+
+                &num; block call -- BLOCK is filled:
+                &call section, Content
+                    Line 1
+                    Line 2
+    $p
+        The output would be:
+        &call codeprint
+            &num; --- Empty ---
+            &num; --- end Empty ---
+            &num; --- Content ---
+            Line 1
+            Line 2
+            &num; --- end Content ---
 
 subcode:: sections
     $call subsection, map_call, Map call
@@ -311,7 +405,14 @@ subcode:: sections
             feature B implementation
 
     $p
-        $(code:DUMP_STUB) is a keyword for placeholders that will be replaced at the end with a named block of code. The syntax $(code:&dollar;(block:...)) places the code into that named block.
+        The output would be:
+        &call codeprint
+            code initialization related to feature A
+            code initialization related to feature B
+            feature A implementation
+            feature B implementation
+    $p
+        $(code:DUMP_STUB) is a keyword for placeholders that will be replaced at the end with a named block of code. The syntax $(code:&dollar;(block:...)) places the code into that named block. The initialization code from both features was gathered into the $(code:main_init) block and inserted at the $(code:DUMP_STUB) position, before the feature implementations.
     $p
         $(code:&dollar;(block:...)) integrates with other relevant code more tightly and shares the same subcode scope. Sometimes this is more readable than the alternative of having a separate subcode.
 
@@ -339,110 +440,89 @@ subcode:: sections
 
 #---------------------------------------- 
 subcode:: sections
-    $call subsection, preproc_set, Preprocessing: $(code:&dollar;(if:...))
+    $call subsection, preproc_if, Preprocessing: $(code:&dollar;(if:...))
     $p
-        Basic switching logic is supported with preprocessing directive $(code:if:...), $(code:elif:...), and $(code:else):
+        Basic switching logic is supported with preprocessing directives $(code:&dollar;(if:...)), $(code:&dollar;(elif:...)), $(code:&dollar;(else)), and $(code:&dollar;(endif)):
         &call codeprint
             $(if:!A)
-                Code list when macro $(A) is not defined
+                Code when macro A is not defined
             $(elif:A=0)
-                Code list when $(A) equals to "0" (as text)
-            $(elif:A=othercase)
-                Code list when $(A) equals to "othercase"
+                Code when A equals "0" (string comparison)
             $(elif:A>10)
-                Code list when $(A) is numerically > 10
+                Code when A is numerically > 10
             $(else)
-                Code list for the remaining cases
+                Code for the remaining cases
     $p
-        The logic is similar to the switch statement in most programming languages.
+        Here is a reference of all supported condition forms:
+    $table
+        $tr
+            $th Condition
+            $th True when
+        $tr
+            $td $(code:&dollar;(if:A))
+            $td macro A is defined and non-empty
+        $tr
+            $td $(code:&dollar;(if:!A))
+            $td macro A is not defined or empty
+        $tr
+            $td $(code:&dollar;(if:A=val))
+            $td macro A equals "val" (string comparison)
+        $tr
+            $td $(code:&dollar;(if:A!=val))
+            $td macro A does not equal "val"
+        $tr
+            $td $(code:&dollar;(if:A>10))
+            $td macro A is numerically greater than 10
+        $tr
+            $td $(code:&dollar;(if:A>=10))
+            $td macro A is numerically greater than or equal to 10
+        $tr
+            $td $(code:&dollar;(if:A&lt;10))
+            $td macro A is numerically less than 10
+        $tr
+            $td $(code:&dollar;(if:A&lt;=10))
+            $td macro A is numerically less than or equal to 10
+        $tr
+            $td $(code:&dollar;(if:A~pat))
+            $td macro A matches regex pattern (head match)
+        $tr
+            $td $(code:&dollar;(if:A!~pat))
+            $td macro A does not match regex pattern
+        $tr
+            $td $(code:&dollar;(if:A or B))
+            $td either A or B is true
+        $tr
+            $td $(code:&dollar;(if:A and B))
+            $td both A and B are true
+        $tr
+            $td $(code:&dollar;(if:0)) / $(code:&dollar;(if:1))
+            $td always false / always true (for quickly disabling/enabling code)
+        $tr
+            $td $(code:&dollar;(if:hascode:name))
+            $td subcode "name" is defined
+        $tr
+            $td $(code:&dollar;(if:A in x,y,z))
+            $td macro A equals one of the listed values
+        $tr
+            $td $(code:&dollar;(if:string:A))
+            $td macro A looks like a string literal
+        $tr
+            $td $(code:&dollar;(if:number:A))
+            $td macro A looks like a number
+        $tr
+            $td $(code:&dollar;(if:word:A))
+            $td macro A looks like a simple word
     $p
-        We should explain how the condition is evaluated. Here we believe it is easier to provide a pointer to where this logic is implemented. You should have retained a copy of the $(code:MyDef) repository. If not, it is easy to clone it again from GitHub. The code logic for $(code:&dollar;(if:...)) conditionals is contained in the source file $(code:macros_compile/preproc.def); search for $(code:fncode: testcondition).
-    &call codeprint, mydef
-        fncode: testcondition($cond, $has_macro)
-            ...
-            $elif $cond=~/^\s*!(.*)/
-                return !testcondition($1)
-            $elif $cond=~/ or /
-                my @nlist=split / or /, $cond
-                $foreach $n in @nlist
-                    $if testcondition($n)
-                        return 1;
-                return 0;
-            $elif $cond=~/ and /
-                my @nlist=split / and /, $cond
-                $foreach $n in @nlist
-                    $if !testcondition($n)
-                        return 0
-                return 1;
-            $elsif $cond=~/^([01])$/
-                return $1
-            ...
+        A few notes on the conditions:
+    $ul
+        $li
+            The left side of comparison operators ($(code:=), $(code:&lt;), $(code:&gt;), etc.) is always treated as a macro name. The right side is a normal expression. For example, in $(code:&dollar;(if:A>&dollar;(B))), $(code:A) is a macro name while $(code:&dollar;(B)) is expanded.
+        $li
+            $(code:or) and $(code:and) can combine conditions, but they are not implemented as full expressions. Nested combinations of $(code:!), $(code:or), and $(code:and) may not work as expected.
+        $li
+            $(code:&dollar;(if:0)) and $(code:&dollar;(if:1)) are special cases -- useful for quickly disabling or enabling a block of code.
     $p
-        So $(code:&dollar;(if:!...)), $(code:&dollar;(if:... or ...)), and $(code:&dollar;(if:... and ...)) syntax are supported. However, it is not implemented as an expression, so nested use of combining $(code:!), $(code:or), and $(code:and) probably will break.
-    $p
-        The preprocessing switch is mainly used for testing macros, so it will not work as intended if an expression other than a simple macro name is passed on the left side of comparison operators (e.g. $(code:=), $(code:&lt;), $(code:&gt;), $(code:&lt;=), $(code:&gt;=)). The right side of the operator is treated as a normal expression. Therefore, for example, in $(code:&dollar;(if:A>$(a))), $(code:&dollar;(a)) has to be quoted as a macro while $(code:A) is assumed to be a macro without quoting.
-    $p
-        As discussed, $(code:&dollar;(if:0)) or $(code:&dollar;(if:1)) should not work as neither 0 or 1 is a macro name. However, it is often useful to use preprocessing to disable or enable a block of code. Therefore, both $(code:&dollar;(if:0)) and $(code:&dollar;(if:1)) are specially allowed. Any other direct numbers will not work.
-    $p
-        To be complete, here is additional syntax as supported in $(code:macros_compile/preproc.def):
-        &call codeprint, mydef
-            ...
-            $elsif $cond=~/^hascode:\s*(\w+)/
-                my $codelib = get_def_attr("codes", $1)
-                $if $codelib
-                    return 1
-            $elsif $cond=~/^(string|number|word):(.*)/
-                my $test=$1
-                my $t=get_def($2)
-                $if $test eq "string" and $t=~/^['"]/
-                    return 1
-                $elif $test eq "number" and $t=~/^\d+/
-                    return 1
-                $elif $test eq "word" and $t=~/^[a-zA-Z_]\w*$/
-                    return 1
-    $p
-        We can use these syntax like this:
-        &call codeprint, mydef
-            $(if:hascode:parse_cond)
-                $call parse_cond &num; call subcode when only it is defined.
-
-            $(if:string:P)
-                n = int($(P)); &num; when $(P) looks like a string literal
-
-            $(if:number:P)
-                s = $(P)+''; &num; when $(P) looks like a number
-
-            $(if:word:P)
-                code list &num; when $(P) looks like a simple word
-
-    $p
-        These special syntaxes are only useful for special cases. They are listed here also to show how to hack or extend $(code:MyDef) if necessary.
-    $p
-        There is also a simple regex condition, defined in $(code:fncode: testcondition). Just for convenience, here is the snippet:
-        &call codeprint, mydef
-            fncode: test_op($a, $test)
-                $if $test=~/^:(\d+)/
-                    &num; e.g. $(if:A:4=test),  matches when $(A) is test_something
-                    $test=$'
-                    $a=substr($a, 0, $1);
-
-                $if $test=~/^\s*(!?)~(.*)/
-                    &num; regex, e.g. $(if:A~pat)
-                    my ($not, $b) = ($1, $2)
-                    $if $b=~/(.*)\$$/
-                        &num; tail match
-                        if($a=~/$1$/){ return !$not;}
-                    $else
-                        &num; head match (default)
-                        if($a=~/^$b/){ return !$not;}
-                    return $not
-                $elif $test=~/^\s*in\s+(.*)/
-                    return test_in($a, $1)
-                $elif $test=~/^\s*([!=<>]+)(.*)/
-                    &num; e.g. $(if:A>=10)
-                    ...
-    $p
-        For up-to-date implementations, please directly reference source.
+        For the complete up-to-date implementation, see $(code:macros_compile/preproc.def), $(code:fncode: testcondition).
 
 subcode:: sections
     $call subsection, preproc_set, Preprocessing: $(code:&dollar;(for:...))

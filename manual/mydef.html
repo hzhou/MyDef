@@ -66,17 +66,18 @@
                 <li><a href="#dynamic_macro">4.3 Dynamic inline macros</a></li>
                 <li><a href="#subcode_param">4.4 Subcode with parameters</a></li>
                 <li><a href="#block_call">4.5 Block call</a></li>
-                <li><a href="#map_call">4.6 Map call</a></li>
-                <li><a href="#nest_call">4.7 Nest call</a></li>
-                <li><a href="#milt_subcode">4.8 Multiply defined subcode</a></li>
-                <li><a href="#syntax_autoload">4.9 <code>subcode: _autoload</code></a></li>
-                <li><a href="#syntax_dump_stub">4.10 <code>DUMP_STUB</code></a></li>
-                <li><a href="#macro_param">4.11 Inline macros with parameters</a></li>
-                <li><a href="#preproc_set">4.12 Preprocessing: <code>&dollar;(if:...)</code></a></li>
-                <li><a href="#preproc_set">4.13 Preprocessing: <code>&dollar;(for:...)</code></a></li>
-                <li><a href="#preproc_set">4.14 Preprocessing: <code>&dollar;(set:...)</code></a></li>
-                <li><a href="#preproc_scope">4.15 Preprocessing: scope rules</a></li>
-                <li><a href="#macro_special">4.16 Special macro syntax</a></li>
+                <li><a href="#call_vs_blockcall">4.6 <code>$call</code> vs <code>&call</code></a></li>
+                <li><a href="#map_call">4.7 Map call</a></li>
+                <li><a href="#nest_call">4.8 Nest call</a></li>
+                <li><a href="#milt_subcode">4.9 Multiply defined subcode</a></li>
+                <li><a href="#syntax_autoload">4.10 <code>subcode: _autoload</code></a></li>
+                <li><a href="#syntax_dump_stub">4.11 <code>DUMP_STUB</code></a></li>
+                <li><a href="#macro_param">4.12 Inline macros with parameters</a></li>
+                <li><a href="#preproc_if">4.13 Preprocessing: <code>&dollar;(if:...)</code></a></li>
+                <li><a href="#preproc_set">4.14 Preprocessing: <code>&dollar;(for:...)</code></a></li>
+                <li><a href="#preproc_set">4.15 Preprocessing: <code>&dollar;(set:...)</code></a></li>
+                <li><a href="#preproc_scope">4.16 Preprocessing: scope rules</a></li>
+                <li><a href="#macro_special">4.17 Special macro syntax</a></li>
                 </ul>
                 </li>
                 <li><a href="#invoke">5 Invoking <code>MyDef</code></a>
@@ -642,6 +643,82 @@ $ make
         <h2 class="chapter">
             4 Basic <code>MyDef</code> syntax
         </h2>
+        <p>
+            Before diving into details, here is a quick reference of the core concepts in <code>MyDef</code>:
+        </p>
+        <table>
+            <tr>
+                <th class="Concept">
+                </th>
+                <th class="Definition">
+                </th>
+                <th class="Usage">
+                </th>
+                <th class="Scope">
+                </th>
+            </tr>
+            <tr>
+                <td class="Page">
+                </td>
+                <td <code>page=" name</code>">
+                </td>
+                <td class="compiled automatically into an output file">
+                </td>
+                <td class="file">
+                </td>
+            </tr>
+            <tr>
+                <td class="Subcode">
+                </td>
+                <td <code>subcode=" name(params)</code>">
+                </td>
+                <td class="<code>$call name</code>">
+                </td>
+                <td class="global or page">
+                </td>
+            </tr>
+            <tr>
+                <td class="Block call">
+                </td>
+                <td class="subcode with <code>BLOCK</code> keyword">
+                </td>
+                <td class="<code>&call name</code> + indented block">
+                </td>
+                <td class="nested">
+                </td>
+            </tr>
+            <tr>
+                <td class="Macro">
+                </td>
+                <td <code>macros="</code> block">
+                </td>
+                <td class="<code>&dollar;(name)</code>">
+                </td>
+                <td class="global or page">
+                </td>
+            </tr>
+            <tr>
+                <td class="Dynamic macro">
+                </td>
+                <td <code>&dollar;(set="name=value)</code>">
+                </td>
+                <td class="<code>&dollar;(name)</code>">
+                </td>
+                <td class="current scope">
+                </td>
+            </tr>
+            <tr>
+                <td class="fncode">
+                </td>
+                <td <code>fncode=" name(params)</code>">
+                </td>
+                <td class="target language function call">
+                </td>
+                <td class="global">
+                </td>
+            </tr>
+        </table>
+
         <a name="syntax_defile"></a>
         <h3 class="section">
             4.1 Basic structure of <code>.def</code> file
@@ -667,6 +744,19 @@ $ make
     <span class="mydef-label2">msg_a</span>: this is message a
     <span class="mydef-label2">msg_b</span>: this is message b
             </code></pre>
+        </p>
+        <p>
+            Compiling this with <code>mydef_page</code> produces a file <code>test.txt</code> containing:
+            <pre><code>
+Line 1
+Line 2
+line a - this is message a
+line b - this is message b
+lines after
+            </code></pre>
+        </p>
+        <p>
+            The <code>$call A</code> was replaced by the body of <code>subcode: A</code>, and the macros <code>&dollar;(msg_a)</code> and <code>&dollar;(msg_b)</code> were expanded to their values. This is the essence of <code>MyDef</code>: subcodes are inlined and macros are expanded, producing the final output.
         </p>
         <p>
             At the top indentation level, only headings <code>include:</code>, <code>page:</code>, <code>subcode:</code>, and <code>macros:</code> are recognized by <code>parseutil.pm</code>. However, any additional lines not under these headings do not cause <code>MyDef</code> errors. They will be silently ignored. So a Knuth-style literate programming can be achieved with <code>MyDef</code> by freely mixing documentation (at the top indentation level or under any unrecognized headings) and code (under these recognized headings).
@@ -837,6 +927,18 @@ $ make
         </p>
 
         <p>
+            The output would be:
+            <pre><code>
+&lt;html>
+    &lt;body>
+        &lt;h1>
+            Hello, World!
+        &lt;/h1>
+    &lt;/body>
+&lt;/html>
+            </code></pre>
+        </p>
+        <p>
             <code>&call</code> requires an indented block following the call, where code is expected to be inserted inside the subcode expansion, replacing the keyword <code>BLOCK</code>.
             <code>BLOCK</code> is one of a few special <code>MyDef</code> keywords in addition to the <code>&dollar;(macro...)</code> syntax.
         </p>
@@ -858,9 +960,53 @@ $ make
             $print got string $1
             </code></pre>
         </p>
+        <a name="call_vs_blockcall"></a>
+        <h3 class="section">
+            4.6 <code>$call</code> vs <code>&call</code>
+        </h3>
+        <p>
+            To summarize the difference between the two calling conventions:
+        </p>
+        <ul>
+            <li>
+                <code>$call name</code> -- inline expansion. The subcode body is inserted directly. No indented block follows.
+            </li>
+            <li>
+                <code>&call name</code> -- block expansion. An indented block must follow. That block replaces the <code>BLOCK</code> keyword inside the subcode body.
+            </li>
+        </ul>
+        <p>
+            Both use the same subcode definition. A subcode with <code>BLOCK</code> can be invoked either way: <code>$call</code> ignores the <code>BLOCK</code> placeholder, while <code>&call</code> fills it. Consider:
+            <pre><code>
+<span class="mydef-label">subcode</span>: <span class="mydef-label">section</span>(title)
+    <span class="mydef-comment"># --- <span class="mydef-macro">$(title)</span> ---</span>
+    <span class="mydef-keyword">BLOCK</span>
+    <span class="mydef-comment"># --- end <span class="mydef-macro">$(title)</span> ---</span>
+
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-comment"># inline call -- BLOCK is skipped:</span>
+    <span class="mydef-keyword">$call</span> <strong>section,</strong> Empty
+
+    <span class="mydef-comment"># block call -- BLOCK is filled:</span>
+    <span class="mydef-keyword">&call</span> <strong>section,</strong> Content
+        Line 1
+        Line 2
+            </code></pre>
+        </p>
+        <p>
+            The output would be:
+            <pre><code>
+# --- Empty ---
+# --- end Empty ---
+# --- Content ---
+Line 1
+Line 2
+# --- end Content ---
+            </code></pre>
+        </p>
         <a name="map_call"></a>
         <h3 class="section">
-            4.6 Map call
+            4.7 Map call
         </h3>
         <p>
             For subcodes with a single parameter, sometimes it is desirable to call them multiple times with various parameters concisely. For this, we can use the <code>&dollar;map</code> call:
@@ -903,7 +1049,7 @@ $ make
         </p>
         <a name="nest_call"></a>
         <h3 class="section">
-            4.7 Nest call
+            4.8 Nest call
         </h3>
         <p>
             A similar but even more exotic syntax is the <code>&dollar;nest</code> call:
@@ -932,7 +1078,7 @@ $ make
         </p>
         <a name="milt_subcode"></a>
         <h3 class="section">
-            4.8 Multiply defined subcode
+            4.9 Multiply defined subcode
         </h3>
         <p>
             A common usage pattern is to use <code>subcode</code> as place holders, for example
@@ -989,7 +1135,7 @@ $ make
         </p>
         <a name="syntax_autoload"></a>
         <h3 class="section">
-            4.9 <code>subcode: _autoload</code>
+            4.10 <code>subcode: _autoload</code>
         </h3>
         <p>
             There is a special subcode called <code>_autoload</code>. If defined, it will be automatically called before loading the <code>page</code>'s main code.
@@ -999,7 +1145,7 @@ $ make
         </p>
         <a name="syntax_dump_stub"></a>
         <h3 class="section">
-            4.10 <code>DUMP_STUB</code>
+            4.11 <code>DUMP_STUB</code>
         </h3>
         <p>
             A very similar effect as multiply defined subcode is <code>DUMP_STUB</code>. It is used like this:
@@ -1022,14 +1168,23 @@ $ make
         </code></pre>
 
         <p>
-            <code>DUMP_STUB</code> is a keyword for placeholders that will be replaced at the end with a named block of code. The syntax <code>&dollar;(block:...)</code> places the code into that named block.
+            The output would be:
+            <pre><code>
+code initialization related to feature A
+code initialization related to feature B
+feature A implementation
+feature B implementation
+            </code></pre>
+        </p>
+        <p>
+            <code>DUMP_STUB</code> is a keyword for placeholders that will be replaced at the end with a named block of code. The syntax <code>&dollar;(block:...)</code> places the code into that named block. The initialization code from both features was gathered into the <code>main_init</code> block and inserted at the <code>DUMP_STUB</code> position, before the feature implementations.
         </p>
         <p>
             <code>&dollar;(block:...)</code> integrates with other relevant code more tightly and shares the same subcode scope. Sometimes this is more readable than the alternative of having a separate subcode.
         </p>
         <a name="macro_param"></a>
         <h3 class="section">
-            4.11 Inline macros with parameters
+            4.12 Inline macros with parameters
         </h3>
         <p>
             It is also possible to define and use inline macros with parameters. For example:
@@ -1054,132 +1209,162 @@ $ make
     This is <span class="mydef-macro">$(A:x)</span><span class="mydef-comment"> # x1</span>
             </code></pre>
         </p>
-        <a name="preproc_set"></a>
+        <a name="preproc_if"></a>
         <h3 class="section">
-            4.12 Preprocessing: <code>&dollar;(if:...)</code>
+            4.13 Preprocessing: <code>&dollar;(if:...)</code>
         </h3>
         <p>
-            Basic switching logic is supported with preprocessing directive <code>if:...</code>, <code>elif:...</code>, and <code>else</code>:
+            Basic switching logic is supported with preprocessing directives <code>&dollar;(if:...)</code>, <code>&dollar;(elif:...)</code>, <code>&dollar;(else)</code>, and <code>&dollar;(endif)</code>:
             <pre><code>
 $(if:!A)
-    Code list when macro $(A) is not defined
+    Code when macro A is not defined
 $(elif:A=0)
-    Code list when $(A) equals to "0" (as text)
-$(elif:A=othercase)
-    Code list when $(A) equals to "othercase"
+    Code when A equals "0" (string comparison)
 $(elif:A>10)
-    Code list when $(A) is numerically > 10
+    Code when A is numerically > 10
 $(else)
-    Code list for the remaining cases
+    Code for the remaining cases
             </code></pre>
         </p>
         <p>
-            The logic is similar to the switch statement in most programming languages.
+            Here is a reference of all supported condition forms:
         </p>
+        <table>
+            <tr>
+                <th class="Condition">
+                </th>
+                <th class="True when">
+                </th>
+            </tr>
+            <tr>
+                <td <code>&dollar;(if="A)</code>">
+                </td>
+                <td class="macro A is defined and non-empty">
+                </td>
+            </tr>
+            <tr>
+                <td <code>&dollar;(if="!A)</code>">
+                </td>
+                <td class="macro A is not defined or empty">
+                </td>
+            </tr>
+            <tr>
+                <td <code>&dollar;(if="A=val)</code>">
+                </td>
+                <td class="macro A equals "val" (string comparison)">
+                </td>
+            </tr>
+            <tr>
+                <td <code>&dollar;(if="A!=val)</code>">
+                </td>
+                <td class="macro A does not equal "val"">
+                </td>
+            </tr>
+            <tr>
+                <td <code>&dollar;(if="A>10)</code>">
+                </td>
+                <td class="macro A is numerically greater than 10">
+                </td>
+            </tr>
+            <tr>
+                <td <code>&dollar;(if="A>=10)</code>">
+                </td>
+                <td class="macro A is numerically greater than or equal to 10">
+                </td>
+            </tr>
+            <tr>
+                <td <code>&dollar;(if="A&lt;10)</code>">
+                </td>
+                <td class="macro A is numerically less than 10">
+                </td>
+            </tr>
+            <tr>
+                <td <code>&dollar;(if="A&lt;=10)</code>">
+                </td>
+                <td class="macro A is numerically less than or equal to 10">
+                </td>
+            </tr>
+            <tr>
+                <td <code>&dollar;(if="A~pat)</code>">
+                </td>
+                <td class="macro A matches regex pattern (head match)">
+                </td>
+            </tr>
+            <tr>
+                <td <code>&dollar;(if="A!~pat)</code>">
+                </td>
+                <td class="macro A does not match regex pattern">
+                </td>
+            </tr>
+            <tr>
+                <td <code>&dollar;(if="A or B)</code>">
+                </td>
+                <td class="either A or B is true">
+                </td>
+            </tr>
+            <tr>
+                <td <code>&dollar;(if="A and B)</code>">
+                </td>
+                <td class="both A and B are true">
+                </td>
+            </tr>
+            <tr>
+                <td <code>&dollar;(if="0)</code> / <code>&dollar;(if:1)</code>">
+                </td>
+                <td class="always false / always true (for quickly disabling/enabling code)">
+                </td>
+            </tr>
+            <tr>
+                <td <code>&dollar;(if="hascode:name)</code>">
+                </td>
+                <td class="subcode "name" is defined">
+                </td>
+            </tr>
+            <tr>
+                <td <code>&dollar;(if="A in x" class="y" class="z)</code>">
+                </td>
+                <td class="macro A equals one of the listed values">
+                </td>
+            </tr>
+            <tr>
+                <td <code>&dollar;(if="string:A)</code>">
+                </td>
+                <td class="macro A looks like a string literal">
+                </td>
+            </tr>
+            <tr>
+                <td <code>&dollar;(if="number:A)</code>">
+                </td>
+                <td class="macro A looks like a number">
+                </td>
+            </tr>
+            <tr>
+                <td <code>&dollar;(if="word:A)</code>">
+                </td>
+                <td class="macro A looks like a simple word">
+                </td>
+            </tr>
+        </table>
         <p>
-            We should explain how the condition is evaluated. Here we believe it is easier to provide a pointer to where this logic is implemented. You should have retained a copy of the <code>MyDef</code> repository. If not, it is easy to clone it again from GitHub. The code logic for <code>&dollar;(if:...)</code> conditionals is contained in the source file <code>macros_compile/preproc.def</code>; search for <code>fncode: testcondition</code>.
+            A few notes on the conditions:
         </p>
-        <pre><code>
-<span class="mydef-label">fncode</span>: <span class="mydef-label">testcondition</span>($cond, $has_macro)
-    ...
-    <span class="mydef-keyword">$elif</span> $cond=~/^\s*!(.*)/
-        <span class="mydef-label">return</span> !testcondition($1)
-    <span class="mydef-keyword">$elif</span> $cond=~/ or /
-        my @nlist=split / or /, $cond
-        $foreach $n in @nlist
-            <span class="mydef-keyword">$if</span> testcondition($n)
-                <span class="mydef-label">return</span> 1;
-        <span class="mydef-label">return</span> 0;
-    <span class="mydef-keyword">$elif</span> $cond=~/ and /
-        my @nlist=split / and /, $cond
-        $foreach $n in @nlist
-            <span class="mydef-keyword">$if</span> !testcondition($n)
-                <span class="mydef-label">return</span> 0
-        <span class="mydef-label">return</span> 1;
-    <span class="mydef-keyword">$elsif</span> $cond=~/^([01])$/
-        <span class="mydef-label">return</span> $1
-    ...
-        </code></pre>
+        <ul>
+            <li>
+                The left side of comparison operators (<code>=</code>, <code>&lt;</code>, <code>&gt;</code>, etc.) is always treated as a macro name. The right side is a normal expression. For example, in <code>&dollar;(if:A>&dollar;(B))</code>, <code>A</code> is a macro name while <code>&dollar;(B)</code> is expanded.
+            </li>
+            <li>
+                <code>or</code> and <code>and</code> can combine conditions, but they are not implemented as full expressions. Nested combinations of <code>!</code>, <code>or</code>, and <code>and</code> may not work as expected.
+            </li>
+            <li>
+                <code>&dollar;(if:0)</code> and <code>&dollar;(if:1)</code> are special cases -- useful for quickly disabling or enabling a block of code.
+            </li>
+        </ul>
         <p>
-            So <code>&dollar;(if:!...)</code>, <code>&dollar;(if:... or ...)</code>, and <code>&dollar;(if:... and ...)</code> syntax are supported. However, it is not implemented as an expression, so nested use of combining <code>!</code>, <code>or</code>, and <code>and</code> probably will break.
-        </p>
-        <p>
-            The preprocessing switch is mainly used for testing macros, so it will not work as intended if an expression other than a simple macro name is passed on the left side of comparison operators (e.g. <code>=</code>, <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code>). The right side of the operator is treated as a normal expression. Therefore, for example, in <code>&dollar;(if:A><a href="$2">$1</a>)</code>, <code>&dollar;(a)</code> has to be quoted as a macro while <code>A</code> is assumed to be a macro without quoting.
-        </p>
-        <p>
-            As discussed, <code>&dollar;(if:0)</code> or <code>&dollar;(if:1)</code> should not work as neither 0 or 1 is a macro name. However, it is often useful to use preprocessing to disable or enable a block of code. Therefore, both <code>&dollar;(if:0)</code> and <code>&dollar;(if:1)</code> are specially allowed. Any other direct numbers will not work.
-        </p>
-        <p>
-            To be complete, here is additional syntax as supported in <code>macros_compile/preproc.def</code>:
-            <pre><code>
-...
-<span class="mydef-keyword">$elsif</span> $cond=~/^hascode:\s*(\w+)/
-    my $codelib = get_def_attr(<span class="mydef-quote">"codes"</span>, $1)
-    <span class="mydef-keyword">$if</span> $codelib
-        <span class="mydef-label">return</span> 1
-<span class="mydef-keyword">$elsif</span> $cond=~/^(string|number|word):(.*)/
-    my $test=$1
-    my $t=get_def($2)
-    <span class="mydef-keyword">$if</span> $test eq <span class="mydef-quote">"string"</span> and $t=~/^['"]/
-        <span class="mydef-label">return</span> 1
-    <span class="mydef-keyword">$elif</span> $test eq <span class="mydef-quote">"number"</span> and $t=~/^\d+/
-        <span class="mydef-label">return</span> 1
-    <span class="mydef-keyword">$elif</span> $test eq <span class="mydef-quote">"word"</span> and $t=~/^[a-zA-Z_]\w*$/
-        <span class="mydef-label">return</span> 1
-            </code></pre>
-        </p>
-        <p>
-            We can use these syntax like this:
-            <pre><code>
-<span class="mydef-macro">$(if:hascode:parse_cond)</span>
-    $call parse_cond<span class="mydef-comment"> # call subcode when only it is defined.</span>
-
-<span class="mydef-macro">$(if:string:P)</span>
-    n = int(<span class="mydef-macro">$(P)</span>);<span class="mydef-comment"> # when <span class="mydef-macro">$(P)</span> looks like a string literal</span>
-
-<span class="mydef-macro">$(if:number:P)</span>
-    s = <span class="mydef-macro">$(P)</span>+'';<span class="mydef-comment"> # when <span class="mydef-macro">$(P)</span> looks like a number</span>
-
-<span class="mydef-macro">$(if:word:P)</span>
-    code list<span class="mydef-comment"> # when <span class="mydef-macro">$(P)</span> looks like a simple word</span>
-            </code></pre>
-        </p>
-
-        <p>
-            These special syntaxes are only useful for special cases. They are listed here also to show how to hack or extend <code>MyDef</code> if necessary.
-        </p>
-        <p>
-            There is also a simple regex condition, defined in <code>fncode: testcondition</code>. Just for convenience, here is the snippet:
-            <pre><code>
-<span class="mydef-label">fncode</span>: <span class="mydef-label">test_op</span>($a, $test)
-    <span class="mydef-keyword">$if</span> $test=~/^:(\d+)/
-        <span class="mydef-comment"># e.g. <span class="mydef-macro">$(if:A:4=test)</span>,  matches when <span class="mydef-macro">$(A)</span> is test_something</span>
-        $test=$'
-        $a=substr($a, 0, $1);
-
-    <span class="mydef-keyword">$if</span> $test=~/^\s*(!?)~(.*)/
-        <span class="mydef-comment"># regex, e.g. <span class="mydef-macro">$(if:A~pat)</span></span>
-        my ($not, $b) = ($1, $2)
-        <span class="mydef-keyword">$if</span> $b=~/(.*)\$$/
-            <span class="mydef-comment"># tail match</span>
-            if($a=~/$1$/){ return !$not;}
-        <span class="mydef-keyword">$else</span>
-            <span class="mydef-comment"># head match (default)</span>
-            if($a=~/^$b/){ return !$not;}
-        <span class="mydef-label">return</span> $not
-    <span class="mydef-keyword">$elif</span> $test=~/^\s*in\s+(.*)/
-        <span class="mydef-label">return</span> test_in($a, $1)
-    <span class="mydef-keyword">$elif</span> $test=~/^\s*([!=&lt;>]+)(.*)/
-        <span class="mydef-comment"># e.g. <span class="mydef-macro">$(if:A>=10)</span></span>
-        ...
-            </code></pre>
-        </p>
-        <p>
-            For up-to-date implementations, please directly reference source.
+            For the complete up-to-date implementation, see <code>macros_compile/preproc.def</code>, <code>fncode: testcondition</code>.
         </p>
         <a name="preproc_set"></a>
         <h3 class="section">
-            4.13 Preprocessing: <code>&dollar;(for:...)</code>
+            4.14 Preprocessing: <code>&dollar;(for:...)</code>
         </h3>
         <p>
             The <code>&dollar;for...</code> syntax provides quick way to multiplex code:
@@ -1239,7 +1424,7 @@ $(else)
         </p>
         <a name="preproc_set"></a>
         <h3 class="section">
-            4.14 Preprocessing: <code>&dollar;(set:...)</code>
+            4.15 Preprocessing: <code>&dollar;(set:...)</code>
         </h3>
         <p>
             We already learned that <code>&dollar;(set:...)</code> can be used to set local macros within the scope. What if we want to set macros to the parent scope? We can use code>$1</code>:
@@ -1316,7 +1501,7 @@ $print A = <span class="mydef-macro">$(A)</span>
         </p>
         <a name="preproc_scope"></a>
         <h3 class="section">
-            4.15 Preprocessing: scope rules
+            4.16 Preprocessing: scope rules
         </h3>
         <p>
             Both <code>&dollar;(for:...)</code> and <code>&dollar;(if:...)</code> contains nested blocks. It should be noted that <code>&dollar;(for:...)</code> will create additional child scopes, but <code>&dollar;(if:...)</code> (and <code>elif/else</code>) will not.
@@ -1336,7 +1521,7 @@ $print A = <span class="mydef-macro">$(A)</span>
         </p>
         <a name="macro_special"></a>
         <h3 class="section">
-            4.16 Special macro syntax
+            4.17 Special macro syntax
         </h3>
         <p>
             <code>MyDef</code> implements a small set of special macro syntax for convenience:
