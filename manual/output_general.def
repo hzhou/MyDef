@@ -6,7 +6,7 @@ subcode:: sections
     $p
         $(code:output_general) is the default output module. It essentially only uses the syntax we have covered so far; nothing more.
     $p
-        However, much of the power of $(code:MyDef) eventually will come from language or application specific output modules. So at some point, you would need to understand some of $(code:MyDef)'s internal working. $(code:output_general) module is the starting point for every output module.
+        However, much of the power of $(code:MyDef) eventually comes from language- or application-specific output modules. So at some point, you will need to understand some of $(code:MyDef)'s internal workings. The $(code:output_general) module is the starting point for every output module.
 
     $call subsection, general_code, $(code:output_general.def)
     

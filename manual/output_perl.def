@@ -3,7 +3,7 @@ subcode:: sections
     $p
         $(code:output_perl) source is kept within the base $(code:MyDef) repository because, well, $(code:MyDef) is coded in perl and would require $(code:output_perl) to compile. 
     $p
-        $(code:output_perl) is also one of the most mature module, due to the mandatory round trip testing. In addition, because Perl is a very high-level language and embraces user practical expressiveness, $(code:output_perl) is relatively simple. 
+        $(code:output_perl) is also one of the most mature modules, due to mandatory round-trip testing. In addition, because Perl is a very high-level language and embraces practical expressiveness, $(code:output_perl) is relatively simple.
     $p
         Perl is a general purpose programming language, therefore provides the usual $(code:variable), $(code:functions), $(code:scopes), $(code:if-else) switch, $(code:loops), etc. The custom syntax created with $(code:output_perl) can be a good example for output modules for other languages.
 
@@ -48,13 +48,13 @@ subcode:: sections
 
     $call subsection, perl_print, $(code:$print)
     $p
-        $(code:print) is the most fundamental and useful statement in a language, not because it is essential in the final program, but it is essential to provide feedback during code development. Programming is a process.
+        $(code:print) is the most fundamental and useful statement in a language -- not because it is essential in the final program, but because it is essential for providing feedback during code development. Programming is a process.
     $p
         Perl is one of the most straight forward languages. The "Hello world" program that listed in the first chapter of "Programming Perl" is:
     &call codeprint, perl
         print "Howdy, world!\n";
     $p
-        To most programmers, this is as basic as it can be. But nevertheless, in the coming years of experience, a few wishes do pop up: Is it necessary to type that quotation marks, and '$(code:\n)', and the semicolons? The annoyances pops up because we do forget or mistype them from time to time and then have the compiler bug us with the errors.
+        To most programmers, this is as basic as it can be. But nevertheless, over years of experience, a few wishes do pop up: Is it necessary to type those quotation marks, and '$(code:\n)', and the semicolons? The annoyance pops up because we do forget or mistype them from time to time and then have the compiler bug us with errors.
     $p
         Turns out, in most cases, no, it isn't necessary. So in $(code:output_perl), we introduced a hack:
         &call codeprint, mydef
@@ -85,9 +85,9 @@ subcode:: sections
             my $name = "world";
             $print Howdy, $green{$name}!
     $p
-        Supported color names include: $(code:red), $(code:green), $(code:yellow), $(code:blue), $(code:magenta), $(code:cyan). You will have trouble if you have variable named with these color names and want to print them. Hopefully that is rare, but if you do, remember the vanilla Perl's $(code:print) is still there.
+        Supported color names include: $(code:red), $(code:green), $(code:yellow), $(code:blue), $(code:magenta), $(code:cyan). You will have trouble if you have a variable named with one of these color names and want to print it. Hopefully that is rare, but if you do, remember that vanilla Perl's $(code:print) is still there.
     $p
-        Perl's variable interpolation in strings is great. But still sometime we want to print with format. For that, we need remember another function: $(code:printf). $(code:$print) supports that as well:
+        Perl's variable interpolation in strings is great. But sometimes we still want to print with a format. For that, we would need to remember another function: $(code:printf). $(code:$print) supports that as well:
         &call codeprint, mydef
             $print "Pi = %.2f", 3.1415926
     $p
@@ -96,17 +96,17 @@ subcode:: sections
             printf "Pi = %.2f\n", 3.1415926;
 
     $p
-        One more thing, sometime we want to print to a filehandle, such as $(code:STDERR). We still can use $(code:$print) for that. All we need is set a special macro:
+        One more thing: sometimes we want to print to a filehandle, such as $(code:STDERR). We can still use $(code:$print) for that. All we need is to set a special macro:
         &call codeprint, mydef
             $(set:print_to=STDERR)
             $print Error: did you just want an error?
 
     $p
-        That's it for $(code:$print)! If you want further detail, directly consult the source in $(code:output_perl.def) and search for $(code:subcode: parsecode_print). The implementation for all these flexibility is not complicated, thanks to Perl's built-in convenience. 
+        That's it for $(code:$print)! If you want further detail, directly consult the source in $(code:output_perl.def) and search for $(code:subcode: parsecode_print). The implementation for all this flexibility is not complicated, thanks to Perl's built-in convenience.
 
     $call subsection, perl_semi, Optional semicolons
     $p
-        In previous section, we see $(code:print) not only lets you omit typing quotation marks and '$(code:\n)', you also get to omit semicolons. In fact, with $(code:output_perl), you can optionally omit semicolons for almost every normal perl statements. Try this:
+        In the previous section, we saw that $(code:print) not only lets you omit typing quotation marks and '$(code:\n)', you also get to omit semicolons. In fact, with $(code:output_perl), you can optionally omit semicolons for almost every normal Perl statement. Try this:
         &call codeprint, mydef
             my $name = "Alice"
             if ($name eq "Alice"){
@@ -116,7 +116,7 @@ subcode:: sections
                 $print Nice to meet you, $name!
             }
     $p
-        Surely, $(code:MyDef) did not add '$(code:;)' to every line. It employs some simple heuristics. In fact, you can just check what it does at the source:
+        Surely, $(code:MyDef) did not add '$(code:;)' to every line. It employs some simple heuristics. In fact, you can just check what it does in the source:
         &call codeprint, mydef
             subcode: check_termination
                 $if $l=~/^\s*$/
@@ -133,7 +133,7 @@ subcode:: sections
 
     $call subsection, perl_if, $(code:$if), $(code:$elif), and $(code:$else)
     $p
-        These are syntactic sugar for $(code:if-elsif-else) statements. They allow us to write these control statements in the style of Python rather than C's curly brace style. Here is an example:
+        These are syntactic sugar for $(code:if-elsif-else) statements. They allow us to write control statements in the style of Python rather than C's curly-brace style. Here is an example:
         &call codeprint, mydef
             for(my $i=1; $i<100; $i++){
                 $if $i % 15 == 0
@@ -146,7 +146,7 @@ subcode:: sections
                     $print $i
             }
     $p
-        Obviously there is similar indentation based syntax for $(code:for)-loop, but since that is in the next section, we show the example as above to demonstrate that there is nothing wrong to mix vanilla perl code with the special syntax introduced by $(code:output_perl).
+        Obviously there is a similar indentation-based syntax for $(code:for)-loops, but since that is in the next section, we show the example above to demonstrate that there is nothing wrong with mixing vanilla Perl code with the special syntax introduced by $(code:output_perl).
     $p
         It is common to use $(code:if-elif-else) as poor man's $(code:switch). And for big switch block, it is often desirable to break it apart:
         &call codeprint, mydef
@@ -178,10 +178,10 @@ subcode:: sections
                 $case $l=~/^special: .*/
                     $print SPECIAL!
     $p
-        $(code:$case) become $(code:$if) if it is the first case, and become $(code:$elif) if it is the following cases. Due to the heuristics nature, $(code:$case) is a little fragile than $(code:$if) and $(code:$elif).
+        $(code:$case) becomes $(code:$if) if it is the first case, and becomes $(code:$elif) for subsequent cases. Due to its heuristic nature, $(code:$case) is a little more fragile than $(code:$if) and $(code:$elif).
 
     $p
-        One of the top bugs is mis-type $(code:==) with $(code:=) in $(code:if) conditions. So $(code:output_perl) checks that given the chance and gives you warnings:
+        One of the top bugs is mistyping $(code:==) as $(code:=) in $(code:if) conditions. So $(code:output_perl) checks for that when it can and gives you warnings:
         &call codeprint, mydef
             my $i=1
             $if $i = 15
@@ -205,7 +205,7 @@ subcode:: sections
                 $print $i
             }
     $p
-        $(code:MyDef) works purely at text level; it does not truly understand the language semantics as a compiler do. It only understands the text via heuristics -- which is more similar to how human mind works. As such, $(code:MyDef) special syntax does not always work. We start with vanilla Perl syntax example to emphasize that you always can draw back on the syntax if it become more trouble than help.
+        $(code:MyDef) works purely at the text level; it does not truly understand the language semantics as a compiler does. It only understands the text via heuristics -- which is more similar to how the human mind works. As such, $(code:MyDef) special syntax does not always work. We start with the vanilla Perl syntax example to emphasize that you can always fall back on the standard syntax if it becomes more trouble than help.
     $p
         That said, let's see what $(code:output_perl) offers:
     &call codeprint, mydef
@@ -245,7 +245,7 @@ subcode:: sections
         $for $i=10:0:-1
             $print $i
     $p
-        The current implementation in $(code:output_perl) prints $(code:10), $(code:9), ..., $(code:0). Yep, looped 11 times instead of 10 times. We find it easier to reason by taking the literal meaning of from $(code:10) down to $(code:0). Many may disagree. As said, tricky. But remember, to be clear, you always can and maybe should use the more verbose version:
+        The current implementation in $(code:output_perl) prints $(code:10), $(code:9), ..., $(code:0). Yep, it loops 11 times instead of 10. We find it easier to reason by taking the literal meaning of "from $(code:10) down to $(code:0)." Many may disagree. As said, tricky. But remember, for clarity you can and maybe should use the more verbose version:
 
     &call codeprint, mydef
         $for $i=10; $i>0; $i--
@@ -285,10 +285,10 @@ subcode:: sections
         }                       
         printf "3: %d\n", F(3); 
     $p
-        You may recall there is this critics about how Perl does not have function signatures. As far as syntax goes, this lets us define functions with signature.
+        You may recall the criticism that Perl does not have function signatures. As far as syntax goes, this lets us define functions with signatures.
 
     $p
-        The $(code:$sub) syntax works, but behaves as a normal statement -- just like $(code:if) or $(code:while). Semantically it is a bit unsatisfactory as $(code:$sub) merely defines the function rather than having run-time action as other control statement do. Ideally, we would like to have a declarative syntax for functions and move them outside of normal code blocks. In $(code:MyDef), we can use $(code:fncode:)
+        The $(code:$sub) syntax works, but behaves as a normal statement -- just like $(code:if) or $(code:while). Semantically it is a bit unsatisfactory, as $(code:$sub) merely defines the function rather than having runtime action as other control statements do. Ideally, we would like to have a declarative syntax for functions and move them outside of normal code blocks. In $(code:MyDef), we can use $(code:fncode:)
     &call codeprint, mydef
         page: t
             $print "3: %d", F(3)
@@ -296,7 +296,7 @@ subcode:: sections
         fncode: F($x)
             return $x * $x
     $p
-        If you are writing a $(code:.pm) module, All the $(code:fncode:) is included in the output. However, if you are writing $(code:.pl) script, which is the default, only those functions that are used will be included. $(code:output_perl) detects which function are being used with a very simple heuristics:
+        If you are writing a $(code:.pm) module, all $(code:fncode:) definitions are included in the output. However, if you are writing a $(code:.pl) script, which is the default, only those functions that are used will be included. $(code:output_perl) detects which functions are being used with very simple heuristics:
 
     &call codeprint, mydef
         fncode: check_fcall($l)
@@ -304,7 +304,7 @@ subcode:: sections
                 $call add_function, $1
 
     $p
-        In the case the heuristics doesn't work well and misses certain function that you do use, you always can add the function explicitly with $(code:$list):
+        In case the heuristics do not work well and miss a function that you do use, you can always add the function explicitly with $(code:$list):
     &call codeprint, mydef
         page: t
             $list F
@@ -315,7 +315,7 @@ subcode:: sections
 
     $call subsection, perl_global, $(code:$global) and $(code:$use)
     $p
-        There is this religion that we should avoid global variables. The practitioners of $(code:MyDef) do not believe in extreme stances. Globals are certainly convenient. If we do use globals, we definitely would like to define them close to where it is relevant rather than pile all of them at the top. The language semantics on the other hand, do make sense to have all globals piled at the top. To help, $(code:output_perl) provides $(code:$global) to make declaration (and initialization) of global variables declarative.
+        There is this religion that we should avoid global variables. The practitioners of $(code:MyDef) do not believe in extreme stances. Globals are certainly convenient. If we do use globals, we definitely would like to define them close to where they are relevant rather than pile all of them at the top. Language semantics, on the other hand, do make sense to have all globals piled at the top. To help, $(code:output_perl) provides $(code:$global) to make declaration (and initialization) of global variables declarative.
     &call codeprint, mydef
         page: t
             $print "3: %d", F(3)
@@ -344,7 +344,7 @@ subcode:: sections
     $p
         Finally, not all customization need to happen at the internal level. We can have customization coded in $(code:MyDef) macro syntax and have them included in the $(code:def) file. For each output module, there is one standard library that is always included automatically. For $(code:perl), that is $(code:std_perl.def). It is located at $(code:deflib/) in the repository and at $(code:$MYDEFLIB) in your installed destination.
     $p
-        It is easy enough for you to open that file and see for yourself what are in it. They are a collection convenience macros that some are frequently used while some are rarely used. Those rarely used probably will get pruned away at some point.
+        It is easy enough for you to open that file and see for yourself what is in it. It is a collection of convenience macros; some are frequently used while others are rarely used. Those rarely used will probably get pruned away at some point.
     $p
         The most used two subcodes are $(code:subcode: open_r) and $(code:subcode: open_w). $(code:subcode: open_r) allows short code for opening file and read it line by line:
     &call codeprint, mydef
