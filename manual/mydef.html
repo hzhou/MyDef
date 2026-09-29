@@ -81,6 +81,7 @@
                 <li><a href="#preproc_set">4.15 Preprocessing: <code>&dollar;(set:...)</code></a></li>
                 <li><a href="#preproc_scope">4.16 Preprocessing: scope rules</a></li>
                 <li><a href="#macro_special">4.17 Special macro syntax</a></li>
+                <li><a href="#syntax_fncode">4.18 <code>fncode:</code> -- function definitions</a></li>
                 </ul>
                 </li>
                 <li><a href="#invoke">5 Invoking <code>MyDef</code></a>
@@ -105,10 +106,11 @@
                 <li><a href="#perl_if">7.4 <code>$if</code>, <code>$elif</code>, and <code>$else</code></a></li>
                 <li><a href="#perl_for">7.5 <code>$for</code></a></li>
                 <li><a href="#perl_while">7.6 <code>$while</code></a></li>
-                <li><a href="#perl_foreach">7.7 <code>$foreach</code></a></li>
-                <li><a href="#perl_fn">7.8 <code>fncode</code> and function arrangement</a></li>
-                <li><a href="#perl_global">7.9 <code>$global</code> and <code>$use</code></a></li>
-                <li><a href="#perl_std">7.10 <code>std_perl.def</code></a></li>
+                <li><a href="#perl_capture">7.7 Regex capture with <code>-></code></a></li>
+                <li><a href="#perl_foreach">7.8 <code>$foreach</code></a></li>
+                <li><a href="#perl_fn">7.9 <code>fncode</code> and function arrangement</a></li>
+                <li><a href="#perl_global">7.10 <code>$global</code> and <code>$use</code></a></li>
+                <li><a href="#perl_std">7.11 <code>std_perl.def</code></a></li>
                 </ul>
                 </li>
                 <li><a href="#c">8 <code>output_c</code></a>
@@ -1543,6 +1545,38 @@ Perl one-liners: <span class="mydef-macro">$(eval:ucfirst(<span class="mydef-quo
         <p>
             For more up-to-date details, please reference the source.
         </p>
+        <a name="syntax_fncode"></a>
+        <h3 class="section">
+            4.18 <code>fncode:</code> -- function definitions
+        </h3>
+        <p>
+            While <code>subcode</code> is expanded inline at compile time, many languages have their own concept of functions that are called at runtime. <code>MyDef</code> supports this with <code>fncode:</code>:
+            <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: perl
+    $print <span class="mydef-quote">"3 squared is %d"</span>, square(3)
+
+<span class="mydef-label">fncode</span>: <span class="mydef-label">square</span>($x)
+    <span class="mydef-label">return</span> $x * $x
+            </code></pre>
+        </p>
+        <p>
+            <code>fncode:</code> is defined at the top indentation level, just like <code>subcode:</code>. The key differences are:
+        </p>
+        <ul>
+            <li>
+                <code>fncode:</code> generates a function in the target language (e.g. <code>sub</code> in Perl, a C function in C).
+            </li>
+            <li>
+                <code>fncode:</code> is called using the target language's normal function call syntax, not <code>$call</code>.
+            </li>
+            <li>
+                Parameters are declared in the <code>fncode:</code> line and automatically unpacked in the generated code.
+            </li>
+        </ul>
+        <p>
+            The exact behavior of <code>fncode:</code> depends on the output module. For example, <code>output_perl</code> generates <code>sub</code> definitions with automatic parameter unpacking from <code>@_</code>, and only includes functions that are actually used in <code>.pl</code> scripts. See the output module chapters for details.
+        </p>
         <a name="invoke"></a>
         <h2 class="chapter">
             5 Invoking <code>MyDef</code>
@@ -2119,7 +2153,17 @@ foreach my $l (@lines){
             </code></pre>
         </p>
         <p>
-            <code>$case</code> becomes <code>$if</code> if it is the first case, and becomes <code>$elif</code> for subsequent cases. Due to its heuristic nature, <code>$case</code> is a little more fragile than <code>$if</code> and <code>$elif</code>.
+            <code>$case</code> becomes <code>$if</code> if it is the first case, and becomes <code>$elif</code> for subsequent cases. For example, the <code>check_cases</code> subcode above generates:
+            <pre><code>
+if ($l=~/^\s*$/){
+}
+elsif ($l=~/^special: .*/){
+    print "SPECIAL!\n";
+}
+            </code></pre>
+        </p>
+        <p>
+            The first <code>$case</code> emitted <code>if</code>, and the second emitted <code>elsif</code>. This lets you freely reorder or add cases without worrying about which one must be <code>$if</code>. Due to its heuristic nature, <code>$case</code> is a little more fragile than <code>$if</code> and <code>$elif</code>.
         </p>
 
         <p>
@@ -2233,9 +2277,40 @@ for(my $i=0; $i&lt;10; $i++){
     last<span class="mydef-comment"> # maybe not</span>
         </code></pre>
 
+        <a name="perl_capture"></a>
+        <h3 class="section">
+            7.7 Regex capture with <code>-></code>
+        </h3>
+        <p>
+            When using <code>$if</code> or <code>$while</code> with a regex match, you can capture match groups directly into variables using the <code>-></code> syntax:
+            <pre><code>
+<span class="mydef-keyword">$if</span> $line=~/^(\w+):\s*(.*)/ -> $key, $value
+    $print key=$key, value=$value
+            </code></pre>
+        </p>
+        <p>
+            This generates:
+            <pre><code>
+if ($line=~/^(\w+):\s*(.*)/){
+    my ($key, $value) = ($1, $2);
+    print "key=$key, value=$value\n";
+}
+            </code></pre>
+        </p>
+        <p>
+            Without the <code>-></code> syntax, you would need to manually assign <code>$1</code>, <code>$2</code>, etc. inside the block. The capture syntax works with <code>$while</code> as well:
+            <pre><code>
+<span class="mydef-keyword">$while</span> $text=~/(\w+)/g -> $word
+    $print found: $word
+            </code></pre>
+        </p>
+        <p>
+            Each capture variable is declared with <code>my</code>, so it is scoped to the block.
+        </p>
+
         <a name="perl_foreach"></a>
         <h3 class="section">
-            7.7 <code>$foreach</code>
+            7.8 <code>$foreach</code>
         </h3>
         <p>
             <code>foreach</code> reads better with a keyword <code>in</code>:
@@ -2247,10 +2322,68 @@ $foreach $c in split //, <span class="mydef-quote">"Hello, world!"</span>
         <p>
             It supplies the <code>my</code> keyword and drops parentheses and braces.
         </p>
+        <p>
+            <code>$foreach</code> supports several iteration forms:
+        </p>
+        <table class="ref">
+            <tr>
+                <th>Form</th>
+                <th>Example</th>
+                <th>Perl equivalent</th>
+            </tr>
+            <tr>
+                <td>basic</td>
+                <td>
+                    <code>$foreach $x in @list</code>
+                </td>
+                <td>
+                    <code>foreach my $x (@list) {</code>
+                </td>
+            </tr>
+            <tr>
+                <td>implicit</td>
+                <td>
+                    <code>$foreach @list</code>
+                </td>
+                <td>
+                    <code>foreach (@list) {</code>
+                </td>
+            </tr>
+            <tr>
+                <td>hash</td>
+                <td>
+                    <code>$foreach $k</code>
+                </td>
+                <td>
+                    <code>while (my ($k, $v) = each %hash) {</code>
+                </td>
+            </tr>
+            <tr>
+                <td>indexed</td>
+                <td>
+                    <code>$foreach $_i</code>
+                </td>
+                <td>
+                    loop with <code>$_i</code> counter
+                </td>
+            </tr>
+            <tr>
+                <td>zip</td>
+                <td>
+                    <code>$foreach $_i</code>
+                </td>
+                <td>
+                    parallel iteration using index
+                </td>
+            </tr>
+        </table>
+        <p>
+            For the indexed form, the index variable must be one of <code>$_i</code>, <code>$_j</code>, or <code>$_k</code>. The zip form iterates over multiple arrays in parallel using index-based access.
+        </p>
 
         <a name="perl_fn"></a>
         <h3 class="section">
-            7.8 <code>fncode</code> and function arrangement
+            7.9 <code>fncode</code> and function arrangement
         </h3>
         <p>
             Curly braces are also used in defining Perl functions -- <code>sub</code>:
@@ -2309,7 +2442,7 @@ printf <span class="mydef-quote">"3: %d\n"</span>, F(3);
 
         <a name="perl_global"></a>
         <h3 class="section">
-            7.9 <code>$global</code> and <code>$use</code>
+            7.10 <code>$global</code> and <code>$use</code>
         </h3>
         <p>
             There is this religion that we should avoid global variables. The practitioners of <code>MyDef</code> do not believe in extreme stances. Globals are certainly convenient. If we do use globals, we definitely would like to define them close to where they are relevant rather than pile all of them at the top. Language semantics, on the other hand, do make sense to have all globals piled at the top. To help, <code>output_perl</code> provides <code>$global</code> to make declaration (and initialization) of global variables declarative.
@@ -2343,7 +2476,7 @@ printf "3: %d\n", F(3);
 
         <a name="perl_std"></a>
         <h3 class="section">
-            7.10 <code>std_perl.def</code>
+            7.11 <code>std_perl.def</code>
         </h3>
         <p>
             Finally, not all customization need to happen at the internal level. We can have customization coded in <code>MyDef</code> macro syntax and have them included in the <code>def</code> file. For each output module, there is one standard library that is always included automatically. For <code>perl</code>, that is <code>std_perl.def</code>. It is located at <code>deflib/</code> in the repository and at <code>$MYDEFLIB</code> in your installed destination.

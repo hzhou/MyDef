@@ -178,7 +178,15 @@ subcode:: sections
                 $case $l=~/^special: .*/
                     $print SPECIAL!
     $p
-        $(code:$case) becomes $(code:$if) if it is the first case, and becomes $(code:$elif) for subsequent cases. Due to its heuristic nature, $(code:$case) is a little more fragile than $(code:$if) and $(code:$elif).
+        $(code:$case) becomes $(code:$if) if it is the first case, and becomes $(code:$elif) for subsequent cases. For example, the $(code:check_cases) subcode above generates:
+        &call codeprint, perl
+            if ($l=~/^\s*$/){
+            }
+            elsif ($l=~/^special: .*/){
+                print "SPECIAL!\n";
+            }
+    $p
+        The first $(code:$case) emitted $(code:if), and the second emitted $(code:elsif). This lets you freely reorder or add cases without worrying about which one must be $(code:$if). Due to its heuristic nature, $(code:$case) is a little more fragile than $(code:$if) and $(code:$elif).
 
     $p
         One of the top bugs is mistyping $(code:==) as $(code:=) in $(code:if) conditions. So $(code:output_perl) checks for that when it can and gives you warnings:
@@ -259,6 +267,27 @@ subcode:: sections
             $print MyDef FOREVER!
             last &num; maybe not
 
+    $call subsection, perl_capture, Regex capture with $(code:->)
+    $p
+        When using $(code:$if) or $(code:$while) with a regex match, you can capture match groups directly into variables using the $(code:->) syntax:
+        &call codeprint, mydef
+            $if $line=~/^(\w+):\s*(.*)/ -> $key, $value
+                $print key=$key, value=$value
+    $p
+        This generates:
+        &call codeprint, perl
+            if ($line=~/^(\w+):\s*(.*)/){
+                my ($key, $value) = ($1, $2);
+                print "key=$key, value=$value\n";
+            }
+    $p
+        Without the $(code:->) syntax, you would need to manually assign $(code:$1), $(code:$2), etc. inside the block. The capture syntax works with $(code:$while) as well:
+        &call codeprint, mydef
+            $while $text=~/(\w+)/g -> $word
+                $print found: $word
+    $p
+        Each capture variable is declared with $(code:my), so it is scoped to the block.
+
     $call subsection, perl_foreach, $(code:$foreach)
     $p
         $(code:foreach) reads better with a keyword $(code:in):
@@ -267,6 +296,45 @@ subcode:: sections
             $print $c
     $p
         It supplies the $(code:my) keyword and drops parentheses and braces.
+    $p
+        $(code:$foreach) supports several iteration forms:
+    $table ref
+        $tr
+            $th "Form"
+            $th "Example"
+            $th "Perl equivalent"
+        $tr
+            $td "basic"
+            $td
+                $(code:$foreach $x in @list)
+            $td
+                $(code:foreach my $x (@list) {)
+        $tr
+            $td "implicit"
+            $td
+                $(code:$foreach @list)
+            $td
+                $(code:foreach (@list) {)
+        $tr
+            $td "hash"
+            $td
+                $(code:$foreach $k, $v in %hash)
+            $td
+                $(code:while (my ($k, $v) = each %hash) {)
+        $tr
+            $td "indexed"
+            $td
+                $(code:$foreach $_i, $x in @list)
+            $td
+                loop with $(code:$_i) counter
+        $tr
+            $td "zip"
+            $td
+                $(code:$foreach $_i, $a, $b in @x, @y)
+            $td
+                parallel iteration using index
+    $p
+        For the indexed form, the index variable must be one of $(code:$_i), $(code:$_j), or $(code:$_k). The zip form iterates over multiple arrays in parallel using index-based access.
 
     $call subsection, perl_fn, $(code:fncode) and function arrangement
     $p

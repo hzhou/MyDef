@@ -696,7 +696,31 @@ subcode:: sections
     $p
         For more up-to-date details, please reference the source.
 
-#---------------------------------------- 
+#----------------------------------------
+subcode:: sections
+    $call subsection, syntax_fncode, $(code:fncode:) -- function definitions
+    $p
+        While $(code:subcode) is expanded inline at compile time, many languages have their own concept of functions that are called at runtime. $(code:MyDef) supports this with $(code:fncode:):
+        &call codeprint, mydef
+            page: t
+                module: perl
+                $print "3 squared is %d", square(3)
+
+            fncode: square($x)
+                return $x * $x
+    $p
+        $(code:fncode:) is defined at the top indentation level, just like $(code:subcode:). The key differences are:
+    $ul
+        $li
+            $(code:fncode:) generates a function in the target language (e.g. $(code:sub) in Perl, a C function in C).
+        $li
+            $(code:fncode:) is called using the target language's normal function call syntax, not $(code:$call).
+        $li
+            Parameters are declared in the $(code:fncode:) line and automatically unpacked in the generated code.
+    $p
+        The exact behavior of $(code:fncode:) depends on the output module. For example, $(code:output_perl) generates $(code:sub) definitions with automatic parameter unpacking from $(code:@_), and only includes functions that are actually used in $(code:.pl) scripts. See the output module chapters for details.
+
+#----------------------------------------
 subcode:: sections
     $call section, invoke, Invoking $(code:MyDef)
 
