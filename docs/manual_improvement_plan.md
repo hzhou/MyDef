@@ -148,6 +148,23 @@ differ from output_general:
 Brief descriptions of what they add beyond output_general. Can be short
 since these are less mature. Link to their repositories.
 
+### 4.4 output_sh
+
+A short chapter; the module is thin (`module: sh` writes `<page>.sh`):
+
+- Lines pass through as plain shell; MyDef adds macros, subcodes, and
+  `$(for:...)` / `$(if:...)` at compile time
+- `$if` / `$elif` / `$else` become `if ...; then` / `elif` / `else` / `fi`
+- Nothing else is translated: `$for`, `$while`, and `$print` are emitted
+  literally, so write `for ... do ... done`, `while`, and `echo`
+- No shebang is added; write it as `\x23!/bin/sh`, since a line starting
+  with `#` is a MyDef comment
+- Collisions with shell syntax: `$(cmd)` is read as a macro (use backticks,
+  `$( cmd )`, or a `$:` line), and ` # ` ends the line even inside quotes;
+  point to the syntax chapter's collisions section
+- `std_sh.def` is empty, so there are no library subcodes yet
+- Link to the output_sh repository
+
 ## Phase 5: Add Reference Appendices
 
 ### 5.1 Page attribute reference
