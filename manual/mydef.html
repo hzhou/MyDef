@@ -4477,9 +4477,8 @@ public class Counter {
         $print mid: $n
     <span class="mydef-keyword">$else</span>
         echo small
-    for f in a b c; do
+    <span class="mydef-keyword">$for</span> f in a b c
         echo <span class="mydef-quote">"file $f"</span>
-    done
     greet() {
         echo <span class="mydef-quote">"Hello, $1"</span>
     }
@@ -4519,7 +4518,7 @@ greet() {
 greet world
         </code></pre>
         <p>
-            <code>$if</code>&#44; <code>$elif</code>&#44; and <code>$else</code> take the condition as written and supply <code>then</code> and <code>fi</code>. <code>$print</code> becomes <code>echo</code> with the rest of the line as written -- there is no format handling&#44; so quote the text when the shell needs it. Everything else is plain shell. In particular&#44; <code>$for</code> and <code>$while</code> are not translated -- they would appear in the script literally -- so write <code>for ... do ... done</code> and <code>while ... do ... done</code>.
+            <code>$if</code>&#44; <code>$elif</code>&#44; and <code>$else</code> take the condition as written and supply <code>then</code> and <code>fi</code>. <code>$for f in a b c</code> becomes <code>for f in a b c; do</code> ... <code>done</code>; <code>$foreach</code> is the same. That word-list form is the only one: other forms&#44; such as <code>$for i=0&#58;3</code>&#44; are not translated. <code>$print</code> becomes <code>echo</code> with the rest of the line as written -- there is no format handling&#44; so quote the text when the shell needs it. Everything else is plain shell&#44; including <code>while ... do ... done</code> (<code>$while</code> is not translated either).
         </p>
         <p>
             <code>output_sh</code> adds no shebang and does not make the file executable; <code>mydef_run</code> runs it with <code>sh</code>. A line starting with <code>&num;</code> is a <code>MyDef</code> comment, so write the shebang as <code>&dollar;: &num;!/bin/sh</code> (output literally) or with a hex escape&#44; <code>&#92;x23!/bin/sh</code>.

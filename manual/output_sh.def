@@ -20,9 +20,8 @@ subcode:: sections
                 $print mid: $n
             $else
                 echo small
-            for f in a b c; do
+            $for f in a b c
                 echo "file $f"
-            done
             greet() {
                 echo "Hello, $1"
             }
@@ -58,7 +57,7 @@ subcode:: sections
         }
         greet world
     $p
-        $(code:$if)&#44; $(code:$elif)&#44; and $(code:$else) take the condition as written and supply $(code:then) and $(code:fi). $(code:$print) becomes $(code:echo) with the rest of the line as written -- there is no format handling&#44; so quote the text when the shell needs it. Everything else is plain shell. In particular&#44; $(code:$for) and $(code:$while) are not translated -- they would appear in the script literally -- so write $(code:for ... do ... done) and $(code:while ... do ... done).
+        $(code:$if)&#44; $(code:$elif)&#44; and $(code:$else) take the condition as written and supply $(code:then) and $(code:fi). $(code:$for f in a b c) becomes $(code:for f in a b c; do) ... $(code:done); $(code:$foreach) is the same. That word-list form is the only one: other forms&#44; such as $(code:$for i=0&#58;3)&#44; are not translated. $(code:$print) becomes $(code:echo) with the rest of the line as written -- there is no format handling&#44; so quote the text when the shell needs it. Everything else is plain shell&#44; including $(code:while ... do ... done) ($(code:$while) is not translated either).
     $p
         $(code:output_sh) adds no shebang and does not make the file executable; $(code:mydef_run) runs it with $(code:sh). A line starting with $(code:&num;) is a $(code:MyDef) comment, so write the shebang as $(code:&dollar;: &num;!/bin/sh) (output literally) or with a hex escape&#44; $(code:&#92;x23!/bin/sh).
 
