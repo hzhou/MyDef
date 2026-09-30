@@ -46,6 +46,7 @@ Hello, Carol!
 
 ## Documentation
 
+- [Why MyDef](docs/Reasons.md) (clean code, design-first development, AI-assisted development)
 - [Manual](https://htmlpreview.github.io/?https://github.com/hzhou/MyDef/blob/master/manual/mydef.html)
   (Getting Started, syntax reference, output module guides)
 - [Design](docs/Design.md) (architecture and internals)
