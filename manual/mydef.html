@@ -115,6 +115,16 @@
                 </ul>
                 </li>
                 <li><a href="#c">8 <code>output_c</code></a>
+                <ul class="no-bullet id2">
+                <li><a href="#c_plain">8.1 It is OK to write vanilla C</a></li>
+                <li><a href="#c_frame">8.2 Scripts, programs, and libraries</a></li>
+                <li><a href="#c_print">8.3 <code>$print</code></a></li>
+                <li><a href="#c_for">8.4 <code>$for</code> and <code>$foreach</code></a></li>
+                <li><a href="#c_var">8.5 Variables and type inference</a></li>
+                <li><a href="#c_fn">8.6 <code>fncode</code> and prototypes</a></li>
+                <li><a href="#c_misc">8.7 Headers, macros, and structures</a></li>
+                <li><a href="#c_std">8.8 <code>std_c.def</code> and the C library</a></li>
+                </ul>
                 </li>
                 <li><a href="#www">9 <code>output_www</code></a>
                 </li>
@@ -1522,7 +1532,7 @@ $(else)
             4.15 Preprocessing: <code>&dollar;(set:...)</code>
         </h3>
         <p>
-            We already learned that <code>&dollar;(set:...)</code> can be used to set local macros within the scope. What if we want to set macros to the parent scope? We can use code>$1</code>:
+            We already learned that <code>&dollar;(set:...)</code> can be used to set local macros within the scope. What if we want to set macros to the parent scope? We can use <code>&dollar;(set-1&#58;...)</code>:
             <pre><code>
 <span class="mydef-keyword">$call</span> <strong>set_macros</strong>
 $print A = <span class="mydef-macro">$(A)</span>
@@ -1550,7 +1560,7 @@ $print A = <span class="mydef-macro">$(A)</span>
             We haven't introduced the <code>+=</code> operator yet. Intuitively, <code>+=</code> increments the macro definition numerically.
         </p>
         <p>
-            <code>+=</code> works for <code>&dollar;(set:...)</code> and code>$1</code> as well. However, it is difficult to track consistent macros across scopes, therefore, it makes most sense to only use these operators in <code>&dollar;(setmacro:...)</code>.
+            <code>+=</code> works for <code>&dollar;(set:...)</code> and <code>&dollar;(set-1&#58;...)</code> as well. However, it is difficult to track consistent macros across scopes, therefore, it makes most sense to only use these operators in <code>&dollar;(setmacro:...)</code>.
         </p>
         <p>
             In addition to <code>+=</code>, there are also <code>-=</code>, <code>*=</code>, and <code>/=</code>, which does their corresponding arithmetic updates. They are not as useful as <code>+=</code> though.
@@ -1572,7 +1582,7 @@ $print A = <span class="mydef-macro">$(A)</span>
             </code></pre>
         </p>
         <p>
-            Because the scoping rules, very rarely we need unset macros. When we need it, it is often only needed to shield certain macros from child scopes. For that, we have the $(code:&dollar;(unset:...).
+            Because the scoping rules, very rarely we need unset macros. When we need it, it is often only needed to shield certain macros from child scopes. For that, we have the <code>&dollar;(unset:...)</code>.
             <pre><code>
 <span class="mydef-macro">$(unset:A,B,C)</span>
 <span class="mydef-keyword">$call</span> <strong>subcode_that_checks_macros</strong>
@@ -2726,7 +2736,476 @@ $print <span class="mydef-quote">"Got %d lines"</span>, $#lines+1
             8 <code>output_c</code>
         </h2>
         <p>
-            [To be continued.]
+            <code>output_c</code> lives in its own repository, <a href="https://github.com/hzhou/output_c">github.com/hzhou/output_c</a>. Install it the same way as MyDef itself -- clone it, then run <code>mydef_make</code>, <code>make</code>, and <code>make install</code> inside it. It provides <code>module: c</code> (and <code>module: cpp</code> for C++).
+        </p>
+        <p>
+            C is a lower-level language than Perl. It has more syntax to type -- semicolons, braces, parentheses, format strings, and, above all, type declarations. Much of what <code>output_c</code> adds is aimed at that noise, so the code that remains says what the program does.
+        </p>
+
+        <a name="c_plain"></a>
+        <h3 class="section">
+            8.1 It is OK to write vanilla C
+        </h3>
+        <p>
+            A page with <code>module: c</code> compiles to a <code>.c</code> file. <code>basic_frame</code>, defined in <code>std_c.def</code>, supplies the <code>main</code> function and puts the page code inside it. (It is the default frame, so naming it is optional -- see the next section.)
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>, basic_frame
+    <span class="mydef-label2">module</span>: c
+
+    int a = 3;
+    if (a > 2) {
+        printf(<span class="mydef-quote">"a is big\n"</span>);
+    }
+        </code></pre>
+        <pre><code>
+$ mydef_run t.def
+PAGE: t
+    --> [./t.c]
+gcc -std=c99 -g -O2 -o ./t ./t.c  &amp;&amp; ./t
+a is big
+        </code></pre>
+        <p>
+            and <code>t.c</code> is what you would expect:
+        </p>
+        <pre><code>
+#include &lt;stdio.h>
+#include &lt;stdlib.h>
+
+int main(int argc, char** argv)
+{
+    int a = 3;
+    if (a > 2) {
+        printf("a is big\n");
+    }
+    return 0;
+}
+        </code></pre>
+        <p>
+            As with <code>output_perl</code>, semicolons are optional, and <code>$if</code>, <code>$elif</code>, <code>$else</code>, and <code>$while</code> let you drop the parentheses and braces:
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>, basic_frame
+    <span class="mydef-label2">module</span>: c
+
+    <span class="mydef-keyword">$local</span> int a = 3
+    <span class="mydef-keyword">$if</span> a > 2
+        printf(<span class="mydef-quote">"a is big\n"</span>)
+    <span class="mydef-keyword">$elif</span> a > 1
+        printf(<span class="mydef-quote">"a is medium\n"</span>)
+    <span class="mydef-keyword">$else</span>
+        printf(<span class="mydef-quote">"a is small\n"</span>)
+    <span class="mydef-keyword">$while</span> a > 0
+        a--
+        </code></pre>
+        <p>
+            <code>output_c</code> also warns about the classic <code>=</code> vs <code>==</code> mistake: <code>$if a = 0</code> produces the warning <code>Assignment in [a = 0]&#44; possible bug?</code>. For a <code>do ... while</code> loop there is <code>$dowhile cond</code>.
+        </p>
+
+        <a name="c_frame"></a>
+        <h3 class="section">
+            8.2 Scripts, programs, and libraries
+        </h3>
+        <p>
+            When a page does not name a frame, <code>MyDef</code> uses <code>basic_frame</code> if one is defined -- and <code>std_c.def</code> defines one. So every C page gets a <code>main</code> function by default, and <code>page: t</code> means the same as <code>page: t&#44; basic_frame</code>. The default serves the most common use: quick programs run with <code>mydef_run</code>.
+        </p>
+        <p>
+            For a one-off script, even the <code>page:</code> line is optional. A <code>.def</code> file without any <code>page:</code> becomes a page named after the file, and its top-level code becomes the body of <code>main</code>:
+        </p>
+        <pre><code>
+module: c
+
+$print Hello from a script
+<span class="mydef-keyword">$local</span> int n = 6
+$print n*7 = ${n*7}
+        </code></pre>
+        <pre><code>
+$ mydef_run script.def
+PAGE: script
+    --> [./script.c]
+gcc -std=c99 -g -O2 -o ./script ./script.c  &amp;&amp; ./script
+Hello from a script
+n*7 = 42
+        </code></pre>
+        <p>
+            That makes C about as quick to try out as a scripting language.
+        </p>
+        <p>
+            To write C code without <code>main</code> -- a library, or a file to be linked into another program -- give the page the frame <code>-</code>, which means "no frame". Since nothing calls the functions, tell <code>output_c</code> which ones to include, either one by one with <code>$list</code> or all at once with <code>autolist&#58; global</code>:
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">mylib</span>, -
+    <span class="mydef-label2">module</span>: c
+    <span class="mydef-label2">autolist</span>: global
+
+<span class="mydef-label">fncode</span>: <span class="mydef-label">add</span>(a, b: int): int
+    <span class="mydef-label">return</span> a + b
+
+<span class="mydef-label">fncode</span>: <span class="mydef-label">mean</span>(a, b: double): double
+    <span class="mydef-label">return</span> (a+b)/2
+        </code></pre>
+        <pre><code>
+int add(int a, int b);
+double mean(double a, double b);
+
+int add(int a, int b)
+{
+    return a + b;
+}
+
+double mean(double a, double b)
+{
+    return (a + b) / 2;
+}
+        </code></pre>
+        <p>
+            <code>autolist&#58; page</code> is similar but includes only the <code>fncode:</code> blocks defined inside the page, which is useful when one <code>.def</code> file holds several pages. Any page code outside functions goes to the top level of the file.
+        </p>
+
+        <a name="c_print"></a>
+        <h3 class="section">
+            8.3 <code>$print</code>
+        </h3>
+        <p>
+            <code>$print</code> is meant for debug printing -- the quick "what is in this variable now" line that we add and remove many times while developing. For that it offers two conveniences: variables are interpolated directly into the text, and the newline is added automatically.
+        </p>
+        <pre><code>
+<span class="mydef-keyword">$local</span> int n = 3
+<span class="mydef-keyword">$local</span> double x = 1.5
+<span class="mydef-keyword">$local</span> char *s_name = <span class="mydef-quote">"Bob"</span>
+$print n = $n, x = $x, name = $s_name
+        </code></pre>
+        <p>
+            The format for each variable is picked from its type:
+        </p>
+        <pre><code>
+printf("n = %d, x = %g, name = %s\n", n, x, s_name);
+        </code></pre>
+        <p>
+            A few more forms:
+        </p>
+        <pre><code>
+$print <span class="mydef-quote">"x = %.2f"</span>, x       <span class="mydef-comment"> # printf format, newline still added</span>
+$print Loading -           <span class="mydef-comment"> # trailing <span class="mydef-quote">"-"</span>: no newline</span>
+$print arr[2] = ${arr[2]}  <span class="mydef-comment"> # ${...} for an expression</span>
+$dump n, x                 <span class="mydef-comment"> # prints <span class="mydef-quote">"    :n=3, x=1.5"</span></span>
+        </code></pre>
+        <p>
+            The two styles can be mixed. In the quoted form, <code>%</code> formats take their arguments from the list after the string, and <code>$var</code> is filled in where it appears -- handy when one value needs a specific format and the rest do not:
+        </p>
+        <pre><code>
+$print <span class="mydef-quote">"x = %.2f, n = $n, name = $s_name"</span>, x
+$print <span class="mydef-quote">"[%5d] [$n] [%-6s]"</span>, n, s_name
+        </code></pre>
+        <pre><code>
+printf("x = %.2f, n = %d, name = %s\n", x, n, s_name);
+printf("[%5d] [%d] [%-6s]\n", n, n, s_name);
+        </code></pre>
+        <p>
+            Mixing requires the quotes. Without them, <code>$print</code> does not see where the text ends and the arguments begin: <code>$print x = %.2f&#44; n = $n&#44; x</code> produces broken C and a <code>Missing 1 fmt arguments</code> warning.
+        </p>
+        <p>
+            To print to another stream, set the <code>print_to</code> macro, e.g. <code>&dollar;(set:print_to=stderr)</code>.
+        </p>
+        <p>
+            <code>$print</code> relies on knowing the type of what it prints. When it cannot tell -- an expression such as <code>${2*n}</code>, a function call, or a variable whose declaration <code>MyDef</code> did not see -- it warns and falls back to <code>%d</code>:
+        </p>
+        <pre><code>
+[t.def:14] get_var_fmt: unhandled 2*n - , default to %d
+        </code></pre>
+        <p>
+            At that point <code>$print</code> is going out of its way. Don't fight it -- write a regular <code>printf</code> (or the printf form of <code>$print</code>) with an explicit format:
+        </p>
+        <pre><code>
+printf(<span class="mydef-quote">"twice = %d\n"</span>, 2*n)
+$print <span class="mydef-quote">"sqrt = %f"</span>, sqrt(r)
+        </code></pre>
+
+        <a name="c_for"></a>
+        <h3 class="section">
+            8.4 <code>$for</code> and <code>$foreach</code>
+        </h3>
+        <p>
+            <code>$for</code> takes a range <code>start:end:step</code>. The end is exclusive, and the loop variable is declared in the loop:
+        </p>
+        <pre><code>
+$for 10            <span class="mydef-comment"> # i = 0 ... 9</span>
+$for i=0:10        <span class="mydef-comment"> # i = 0 ... 9</span>
+$for j=0:10:3      <span class="mydef-comment"> # j = 0, 3, 6, 9</span>
+$for k=9:0:-1      <span class="mydef-comment"> # k = 9 ... 0</span>
+        </code></pre>
+        <p>
+            which become, for example, <code>for (int j = 0; j &lt; 10; j += 3)</code>. As in <code>output_perl</code>, a decreasing range includes both ends: <code>9&#58;0&#58;-1</code> counts from 9 down to 0. The convention is not obvious, so when in doubt write the full C form -- it works too:
+        </p>
+        <pre><code>
+<span class="mydef-keyword">$for</span> i=9; i>=0; i--
+    $print $i
+        </code></pre>
+        <p>
+            <code>$foreach</code> iterates over an array whose size <code>MyDef</code> knows, e.g. one created with <code>$allocate</code> (see below).
+        </p>
+
+        <a name="c_var"></a>
+        <h3 class="section">
+            8.5 Variables and type inference
+        </h3>
+        <p>
+            C wants every variable declared with a type, at the top of its scope. In real code, many of those declaration lines carry no information that the name does not already convey: <code>i</code> is an int loop counter, <code>s_name</code> is a string, <code>f_scale</code> is a float. <code>output_c</code> lets the names carry the types and writes the declarations for you, so the code stays short and readable.
+        </p>
+        <p>
+            <code>$local</code> declares variables at the top of the current function; <code>$global</code> declares them at the top of the file; <code>$my</code> declares them in the current block. A variable that is assigned without being declared is declared automatically.
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>, basic_frame
+    <span class="mydef-label2">module</span>: c
+
+    <span class="mydef-keyword">$local</span> i, n_count, f_scale, s_name, b_done
+    <span class="mydef-keyword">$global</span> g_total = 0
+    k = 10
+    ratio = 0.5
+        </code></pre>
+        <p>
+            generates:
+        </p>
+        <pre><code>
+...
+int g_total = 0;
+
+int main(int argc, char** argv)
+{
+    int i;
+    int n_count;
+    float f_scale;
+    char *s_name;
+    bool b_done;
+    int k;
+    float ratio;
+
+    k = 10;
+    ratio = 0.5;
+    return 0;
+}
+        </code></pre>
+        <p>
+            The type comes from the name first and, failing that, from the assigned value (<code>0.5</code> is a <code>float</code>, <code>"text"</code> a <code>char *</code>). The built-in naming rules include:
+        </p>
+        <table class="ref">
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+            </tr>
+            <tr>
+                <td>
+                    <code>i j k m n</code>
+                </td>
+                <td>int</td>
+            </tr>
+            <tr>
+                <td>
+                    <code>f d</code>
+                </td>
+                <td>float / double</td>
+            </tr>
+            <tr>
+                <td>
+                    <code>c</code> and <code>c_...</code>
+                </td>
+                <td>unsigned char</td>
+            </tr>
+            <tr>
+                <td>
+                    <code>s</code> and <code>s_...</code>
+                </td>
+                <td>char *</td>
+            </tr>
+            <tr>
+                <td>
+                    <code>b_... is_... has_...</code>
+                </td>
+                <td>bool</td>
+            </tr>
+            <tr>
+                <td>
+                    <code>n_... i_...</code>
+                </td>
+                <td>int</td>
+            </tr>
+            <tr>
+                <td>
+                    <code>f_... d_...</code>
+                </td>
+                <td>float / double</td>
+            </tr>
+            <tr>
+                <td>
+                    <code>n4_... u8_... i64_...</code>
+                </td>
+                <td>int32_t / uint64_t / int64_t</td>
+            </tr>
+            <tr>
+                <td>
+                    <code>size_... time_... file_...</code>
+                </td>
+                <td>size_t / time_t / FILE *</td>
+            </tr>
+            <tr>
+                <td>
+                    <code>p_...</code> + a prefix
+                </td>
+                <td>
+                    pointer to that type: <code>pn_list</code> is <code>int *</code>
+                </td>
+            </tr>
+        </table>
+        <p>
+            The full rules are in <code>types.def</code> in the <code>MyDef</code> and <code>output_c</code> sources.
+        </p>
+
+        <h4>
+            Project naming conventions
+        </h4>
+        <p>
+            The built-in rules are a starting point. The real value comes when a project settles on its own naming convention and registers it. <code>$register_name</code> gives the type of an exact name; <code>$register_prefix</code> gives the type of every name that starts with a prefix and an underscore:
+        </p>
+        <pre><code>
+<span class="mydef-label">subcode</span>: <span class="mydef-label">_autoload</span>
+    $register_name(node) struct Node
+    $register_prefix(pt) struct Point
+    $register_prefix(len) size_t
+
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>, basic_frame
+    <span class="mydef-label2">module</span>: c
+    $struct(Point) f_x, f_y
+    $struct(Node) n_value, p_next
+
+    <span class="mydef-keyword">$local</span> node, p_node, pt_start, pt_end, len_name
+        </code></pre>
+        <pre><code>
+struct Node node;
+struct Node *p_node;
+struct Point pt_start;
+struct Point pt_end;
+size_t len_name;
+        </code></pre>
+        <p>
+            <code>p_node</code> became a pointer to <code>node</code>'s type, following the <code>p_</code> rule. Once the convention is registered, code throughout the project stays free of declarations -- and the convention itself is enforced, because a name that breaks it gets the wrong type and the compiler complains.
+        </p>
+
+        <h4>
+            Explicit types
+        </h4>
+        <p>
+            Inference is heuristic. A name that matches no rule, and has no value to infer from, gets no type at all (the declaration comes out as just <code>foo;</code>). A variable assigned from a function call may also miss, since the function's return type may not be known yet. Whenever that happens, or whenever you prefer, declare the type explicitly -- any of these forms work:
+        </p>
+        <pre><code>
+<span class="mydef-keyword">$local</span> int count, char grade, double ratio = 0.5
+<span class="mydef-keyword">$local</span> foo: long
+<span class="mydef-keyword">$my</span> a: char[10]
+        </code></pre>
+        <pre><code>
+int count;
+char grade;
+double ratio = 0.5;
+long foo;
+char a[10];
+        </code></pre>
+        <p>
+            Note that a declaration written as plain C with a semicolon, such as <code>int a = 3;</code>, is passed through untouched, and <code>MyDef</code> does not record its type. Without the semicolon, <code>double x = 0.5</code> is recognized, and the declaration is moved to the top of the function.
+        </p>
+
+        <a name="c_fn"></a>
+        <h3 class="section">
+            8.6 <code>fncode</code> and prototypes
+        </h3>
+        <p>
+            <code>fncode:</code> defines a C function. Parameter types follow the same naming rules, or can be given explicitly; the return type is inferred from the <code>return</code> statement or given after a colon. Prototypes are generated at the top of the file, so functions can be defined in any order:
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>, basic_frame
+    <span class="mydef-label2">module</span>: c
+    n_area = rect_area(3, 4)
+    $print area = $n_area
+    greet(<span class="mydef-quote">"World"</span>)
+
+<span class="mydef-label">fncode</span>: <span class="mydef-label">rect_area</span>(n_w, n_h)
+    <span class="mydef-label">return</span> n_w * n_h
+
+<span class="mydef-label">fncode</span>: <span class="mydef-label">mean</span>(a, b: double): double
+    <span class="mydef-label">return</span> (a+b)/2
+
+<span class="mydef-label">fncode</span>: <span class="mydef-label">greet</span>(s_name)
+    $print Hello $s_name!
+        </code></pre>
+        <pre><code>
+int rect_area(int n_w, int n_h);
+void greet(char *s_name);
+...
+int rect_area(int n_w, int n_h)
+{
+    return n_w * n_h;
+}
+        </code></pre>
+        <p>
+            Parameters can be grouped with semicolons:
+        </p>
+        <pre><code>
+<span class="mydef-label">fncode</span>: <span class="mydef-label">A</span>(c, f; int a1, a2; b1, b2: float)
+        </code></pre>
+        <pre><code>
+void A(unsigned char c, float f, int a1, int a2, float b1, float b2)
+        </code></pre>
+        <p>
+            <code>c</code> and <code>f</code> get their inferred types, a leading type (<code>int a1</code>) or a trailing one (<code>b2&#58; float</code>) applies to the whole group.
+        </p>
+        <p>
+            As in <code>output_perl</code>, only functions that are actually called are included -- <code>mean</code> above is left out. The detection is a simple scan of the code lines for <code>name&#40;</code>. It misses a function that is used without a direct call -- one passed as a callback or stored in a function pointer, for example. Add such functions explicitly with <code>$list</code>:
+        </p>
+        <pre><code>
+$list rect_area, mean
+        </code></pre>
+
+        <a name="c_misc"></a>
+        <h3 class="section">
+            8.7 Headers, macros, and structures
+        </h3>
+        <p>
+            <code>$include</code> adds a header at the top of the file, with or without the <code>.h</code>: <code>$include math</code> becomes <code>&num;include &lt;math.h&gt;</code>. What inferred types need is added automatically -- <code>stdint.h</code> for <code>int32_t</code> and friends, and a <code>bool</code> typedef when a <code>bool</code> variable is used. Plain C preprocessor lines -- <code>&num;include</code>, <code>&num;define</code>, <code>&num;ifdef</code>, and the rest -- are recognized and passed through, even though <code>&num;</code> otherwise starts a <code>MyDef</code> comment.
+        </p>
+        <p>
+            <code>$struct(Name) fields</code> declares a structure, with field types following the naming rules:
+        </p>
+        <pre><code>
+$struct(point) f_x, f_y, s_label
+<span class="mydef-keyword">$local</span> struct point pt
+        </code></pre>
+        <pre><code>
+struct point {
+    float f_x;
+    float f_y;
+    char* s_label;
+};
+        </code></pre>
+        <p>
+            To link libraries, set <code>lib_list</code> on the page. It is passed to the compiler as is:
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>, basic_frame
+    <span class="mydef-label2">module</span>: c
+    <span class="mydef-label2">lib_list</span>: -lm
+    $include math
+    <span class="mydef-keyword">$local</span> double r = 2.0
+    $print <span class="mydef-quote">"sqrt = %f"</span>, sqrt(r)
+        </code></pre>
+
+        <a name="c_std"></a>
+        <h3 class="section">
+            8.8 <code>std_c.def</code> and the C library
+        </h3>
+        <p>
+            <code>std_c.def</code> is loaded automatically for <code>module: c</code>. Besides <code>basic_frame</code>, it has small helpers such as <code>$call assert&#44; cond</code>, <code>$call die&#44; msg</code>, and <code>$call warn&#44; msg</code>. <code>$allocate(n) pn_array</code> allocates an array with <code>calloc</code> (with an optional initial value, <code>$allocate(n&#44; 0) pn_array</code>), and records its size so <code>$foreach pn_array</code> can loop over it.
+        </p>
+        <p>
+            Larger pieces live in optional libraries under <code>c/</code>, pulled in with <code>include:</code> -- for example <code>include: c/string.def</code>, <code>c/hash.def</code>, <code>c/darray.def</code>, <code>c/regex.def</code>, <code>c/getopt.def</code>, and <code>c/thread.def</code>. The <code>tests/</code> folder of the <code>output_c</code> repository has working examples of most features.
         </p>
         <a name="www"></a>
         <h2 class="chapter">
