@@ -2634,7 +2634,7 @@ for(my $i=0; $i&lt;10; $i++){
     $print $i
         </code></pre>
         <p>
-            Just like the <code>$if</code> syntax, we now can write it in Python style and save the braces. Further, a range can be written with colons -- start&#44; end&#44; and step -- and <code>output_perl</code> supplies the <code>my</code>:
+            Just like the <code>$if</code> syntax, we now can write it in Python style and save the braces. Further, a range can be written with colons -- start&#44; end&#44; and step. The loop variable is always scoped to the loop&#44; so <code>output_perl</code> declares it with <code>my</code> itself; do not write <code>my</code> in this form:
         </p>
         <pre><code>
 <span class="mydef-keyword">$for</span> $i=0:10:1
