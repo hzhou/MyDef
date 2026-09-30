@@ -141,14 +141,23 @@ subcode:: sections
     $p
         Macros are expanded before any language processing. They work the same regardless of the output module.
     $p
-        For macros that are only needed locally, use $(code:&dollar;(set:...)) instead of a $(code:macros:) block:
+        For macros that are only needed locally, use $(code:&dollar;(set:...)) instead of a $(code:macros:) block. A macro can also take parameters, written $(code:$1)&#44; $(code:$2) in its value:
         &call codeprint, mydef
-            subcode: matrix_multiply
-                $(set:N=4)
-                $(set:m=mat[$1][$2])
+            page: diag
+                module: perl
+                $(set:N=3)
+                $(set:cell=$m[$1][$2])
+                my @m = ([1, 2, 3], [4, 5, 6], [7, 8, 9])
                 $for i=0:$(N)
-                    $for j=0:$(N)
-                        $(m:C,i) += $(m:A,i) * $(m:B,j)
+                    $print $(cell:$i,$i)
+        &call codeprint, sh
+            $ mydef_run diag.def
+            PAGE: diag
+              --> [./diag.pl]
+            perl ./diag.pl
+            1
+            5
+            9
     $p
         $(code:&dollar;(set:...)) macros expire at the end of their enclosing scope, keeping the namespace clean.
 

@@ -194,7 +194,14 @@ subcode:: sections
                 $print $(greet), $(names)!
 
             page: t
+                module: perl
                 $call A, Hello, Alice, Bob, and Carol
+        &call codeprint, sh
+            $ mydef_run t.def
+            PAGE: t
+              --> [./t.pl]
+            perl ./t.pl
+            Hello, Alice, Bob, and Carol!
     $p
         Prepending $(code:@) to the last parameter name in the $(code:subcode:) definition signals the $(code:MyDef) compiler to absorb all remaining text at $(code:&dollar;call) time. Obviously, $(code:@param) will only work for the last (or only) parameter. In addition, $(code:@param) also signals the $(code:MyDef) compiler that it is OK to have empty values for that parameter, so $(code:MyDef) will not raise an error even when the value is missing at $(code:&dollar;call) time. Use it with caution.
 
@@ -242,9 +249,18 @@ subcode:: sections
                     ...
 
             page: t
-                &call Parsing, text
+                module: perl
+                my $text = 'say "hi"'
+                &call Parsing, $text
                     &call parse_string
                         $print got string $1
+    $p
+        $(code:parse_string) is visible only inside the $(code:Parsing) block. The output is:
+        &call codeprint, perl
+            my $text = 'say "hi"';
+            if ($text=~/"([^"]*)"/) {
+                print "got string $1\n";
+            }
 
 subcode:: sections
     $call subsection, call_vs_blockcall, $(code:$call) vs $(code:&call)
@@ -513,6 +529,16 @@ subcode:: sections
                     $for k=0:$(N)
                         $(m:C,i,j) += $(m:A,i,k)*$(m:B,k,j)
     $p
+        With $(code:module: c) and $(code:N) set to 2&#44; this becomes:
+        &call codeprint, c
+            for (int i = 0; i<2; i++) {
+                for (int j = 0; j<2; j++) {
+                    for (int k = 0; k<2; k++) {
+                        C[i*2+j] += A[i*2+k] * B[k*2+j];
+                    }
+                }
+            }
+    $p
         Inline macro parameters are not explicitly declared; they are simply marked by $(code:$1-9) and replaced at expansion time with a comma-separated list of values.
     $p
         Only single digit following $ is significant. For example:
@@ -644,6 +670,16 @@ subcode:: sections
                     Hi $(a), I love you!
                 $(else)
                     Hi $(a)!
+    $p
+        produces:
+        &call codeprint
+            Hi, Alice
+            Hi, Bob
+            Hi, Carol
+
+            Hi Alice, I love you!
+            Hi Bob!
+            Hi Carol!
 
     $p
         There is a shortcut syntax for specifying a simple range-based list:
@@ -659,14 +695,21 @@ subcode:: sections
         Sometimes we may need to multiplex over multiple lists:
         &call codeprint, mydef
             $(for:a, i in x,y,z and 0,1,2)
-                &num; x = 0, y = 1, and z = 2
                 $(a) = $(i)
+        &call codeprint
+            x = 0
+            y = 1
+            z = 2
 
     $p
-        There is also a syntax to use $(code:&dollar(for:...)) anonymously:
+        There is also a syntax to use $(code:&dollar;(for:...)) anonymously:
         &call codeprint, mydef
             $(for:Alice, Bob, Carol)
                 Hi $1
+        &call codeprint
+            Hi Alice
+            Hi Bob
+            Hi Carol
     $p
         $(code:$1) is used to refer to the implicit macro for each case.
     $p
@@ -674,6 +717,10 @@ subcode:: sections
         &call codeprint, mydef
             $(for:x,y,z and i,j,k)
                 A_$1 = $2;
+        &call codeprint
+            A_x = i;
+            A_y = j;
+            A_z = k;
     $p
         Up to nine lists are allowed, but you probably want to limit to a much smaller number.
 
@@ -688,7 +735,7 @@ subcode:: sections
             subcode: set_macros
                 $(set-1:A=3.14)
     $p
-        Direct $(code:&dollar;(set:...)) won't work here as it will expire upon exit the subcode.
+        prints $(code:A = 3.14). Direct $(code:&dollar;(set:...)) won't work here as it will expire upon exit the subcode.
     $p
         We also can set macros at global level using $(code:&dollar;(setmacro:...)):
         &call codeprint, mydef
@@ -699,6 +746,9 @@ subcode:: sections
             page: t
                 $call section, Hello
                 $call section, Bye
+        &call codeprint
+            Section 1. Hello
+            Section 2. Bye
     $p
         We haven't introduced the $(code:+=) operator yet. Intuitively, $(code:+=) increments the macro definition numerically.
     $p
@@ -718,6 +768,10 @@ subcode:: sections
                 $call add_name, Alice
                 $call add_name, Bob
                 We have gathered: $(namelist).
+        &call codeprint
+            Hi Alice!
+            Hi Bob!
+            We have gathered: Alice,Bob.
     $p
         Because the scoping rules, very rarely we need unset macros. When we need it, it is often only needed to shield certain macros from child scopes. For that, we have the $(code:&dollar;(unset:...)).
         &call codeprint, mydef
@@ -749,7 +803,17 @@ subcode:: sections
                 $(else)
                     $(set:greeting=Hello,)
                     $(set:ending=.)
-                $(greeting) $(name)
+                $(greeting) $(name)$(ending)
+
+            page: t
+                module: general
+                $call greet, hot, Alice
+                $call greet, cold, Bob
+    $p
+        The macros set inside $(code:&dollar;(if:...)) are still in scope after it:
+        &call codeprint
+            It is such an honor to meet Alice!!!
+            Hello, Bob.
 
 subcode:: sections
     $call subsection, macro_special, Special macro syntax
@@ -862,6 +926,25 @@ subcode:: sections
 
             fncode: square($x)
                 return $x * $x
+        &call codeprint, sh
+            $ mydef_run t.def
+            PAGE: t
+              --> [./t.pl]
+            perl ./t.pl
+            3 squared is 9
+    $p
+        and $(code:t.pl) is:
+        &call codeprint, perl
+            &num;!/usr/bin/perl
+            use strict;
+
+            printf "3 squared is %d\n", square(3);
+
+            &num; ---- subroutines --------------------------------------------
+            sub square {
+                my ($x) = @_;
+                return $x * $x;
+            }
     $p
         $(code:fncode:) is defined at the top indentation level, just like $(code:subcode:). The key differences are:
     $ul

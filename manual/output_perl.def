@@ -45,6 +45,8 @@ subcode:: sections
             module: perl
             relax: 1
             ...
+    $p
+        and $(code:t.pl) then starts with just the $(code:&num;!) line.
 
     $call subsection, perl_print, $(code:$print)
     $p
@@ -102,6 +104,32 @@ subcode:: sections
             $print Error: did you just want an error?
 
     $p
+        Put together, the forms above:
+        &call codeprint, mydef
+            my $name = "world";
+            $print Howdy, world!
+            $print Howdy, world!\n
+            $print "Howdy, world!"
+            $print Howdy, -
+            $print world
+            $print Howdy, $green{$name}!
+            $print "Pi = %.2f", 3.1415926
+            $(set:print_to=STDERR)
+            $print Error: did you just want an error?
+    $p
+        become:
+        &call codeprint, perl
+            my $name = "world";
+            print "Howdy, world!\n";
+            print "Howdy, world!\n";
+            print "Howdy, world!\n";
+            print "Howdy, ";
+            print "world\n";
+            print "Howdy, \x1b[32m$name\x1b[0m!\n";
+            printf "Pi = %.2f\n", 3.1415926;
+            print STDERR "Error: did you just want an error?\n";
+
+    $p
         That's it for $(code:$print)! If you want further detail, directly consult the source in $(code:output_perl.def) and search for $(code:subcode: parsecode_print). The implementation for all this flexibility is not complicated, thanks to Perl's built-in convenience.
 
     $call subsection, perl_semi, Optional semicolons
@@ -114,6 +142,14 @@ subcode:: sections
             }
             else{
                 $print Nice to meet you, $name!
+            }
+        &call codeprint, perl
+            my $name = "Alice";
+            if ($name eq "Alice"){
+                print "Howdy, $name\n";
+            }
+            else{
+                print "Nice to meet you, $name!\n";
             }
     $p
         Surely, $(code:MyDef) did not add '$(code:;)' to every line. It employs some simple heuristics. In fact, you can just check what it does in the source:
@@ -144,6 +180,21 @@ subcode:: sections
                     $print buzz
                 $else
                     $print $i
+            }
+        &call codeprint, perl
+            for(my $i=1; $i<100; $i++){
+                if ($i % 15 == 0) {
+                    print "fizbuzz\n";
+                }
+                elsif ($i % 3 == 0) {
+                    print "fiz\n";
+                }
+                elsif ($i % 5 == 0) {
+                    print "buzz\n";
+                }
+                else {
+                    print "$i\n";
+                }
             }
     $p
         Obviously there is a similar indentation-based syntax for $(code:for)-loops, but since that is in the next section, we show the example above to demonstrate that there is nothing wrong with mixing vanilla Perl code with the special syntax introduced by $(code:output_perl).
@@ -220,12 +271,12 @@ subcode:: sections
         $for my $i=0; $i<10; $i++
             $print $i
     $p
-        Just like the $(code:$if) syntax, we now can write it in Python style and save the braces. Further:
+        Just like the $(code:$if) syntax, we now can write it in Python style and save the braces. Further, a range can be written with colons -- start&#44; end&#44; and step -- and $(code:output_perl) supplies the $(code:my):
     &call codeprint, mydef
-        $for my $i=0:10:1
+        $for $i=0:10:1
             $print $i
     $p
-        That works. In fact, we can drop the keyword $(code:my) and the increment by 1 is actually the default:
+        The increment by 1 is the default:
     &call codeprint, mydef
         $for $i=0:10
             $print $i
@@ -240,7 +291,11 @@ subcode:: sections
         $for 10
             $print $i
     $p
-        The output is exactly the same for all above examples. We did not change Perl, only the syntax.
+        All of these generate the same loop. We did not change Perl, only the syntax:
+    &call codeprint, perl
+        for (my $i = 0; $i<10; $i++) {
+            print "$i\n";
+        }
     $p
         Just to make sure, the step part works:
     &call codeprint, mydef
@@ -252,12 +307,18 @@ subcode:: sections
     &call codeprint, mydef
         $for $i=10:0:-1
             $print $i
+    &call codeprint, perl
+        for (my $i = 10; $i>=0; $i--) {
+            print "$i\n";
+        }
     $p
         The current implementation in $(code:output_perl) prints $(code:10), $(code:9), ..., $(code:0). Yep, it loops 11 times instead of 10. We find it easier to reason by taking the literal meaning of "from $(code:10) down to $(code:0)." Many may disagree. As said, tricky. But remember, for clarity you can and maybe should use the more verbose version:
 
     &call codeprint, mydef
-        $for $i=10; $i>0; $i--
+        $for my $i=10; $i>0; $i--
             $print $i
+    $p
+        This form is passed through as it is&#44; so it needs the $(code:my) under $(code:use strict).
 
     $call subsection, perl_while, $(code:$while)
     $p
@@ -266,6 +327,11 @@ subcode:: sections
         $while 1
             $print MyDef FOREVER!
             last &num; maybe not
+    &call codeprint, perl
+        while(1){
+            print "MyDef FOREVER!\n";
+            last;
+        }
 
     $call subsection, perl_capture, Regex capture with $(code:->)
     $p
@@ -285,6 +351,11 @@ subcode:: sections
         &call codeprint, mydef
             $while $text=~/(\w+)/g -> $word
                 $print found: $word
+        &call codeprint, perl
+            while ($text=~/(\w+)/g) {
+                my ($word) = ($1);
+                print "found: $word\n";
+            }
     $p
         Each capture variable is declared with $(code:my), so it is scoped to the block.
 
@@ -294,6 +365,10 @@ subcode:: sections
     &call codeprint, mydef
         $foreach $c in split //, "Hello, world!"
             $print $c
+    &call codeprint, perl
+        foreach my $c (split //, "Hello, world!") {
+            print "$c\n";
+        }
     $p
         It supplies the $(code:my) keyword and drops parentheses and braces.
     $p
@@ -346,12 +421,13 @@ subcode:: sections
         $print "3: %d", F(3)
     $p
         Let's check its Perl equivalent:
-    &call codeprint, mydef
-        sub F {                 
-            my ($x)=@_;         
-            return $x * $x;     
-        }                       
-        printf "3: %d\n", F(3); 
+    &call codeprint, perl
+        sub F {
+            my ($x)=@_;
+            return $x * $x;
+        }
+
+        printf "3: %d\n", F(3);
     $p
         You may recall the criticism that Perl does not have function signatures. As far as syntax goes, this lets us define functions with signatures.
 
@@ -359,10 +435,21 @@ subcode:: sections
         The $(code:$sub) syntax works, but behaves as a normal statement -- just like $(code:if) or $(code:while). Semantically it is a bit unsatisfactory, as $(code:$sub) merely defines the function rather than having runtime action as other control statements do. Ideally, we would like to have a declarative syntax for functions and move them outside of normal code blocks. In $(code:MyDef), we can use $(code:fncode:)
     &call codeprint, mydef
         page: t
+            module: perl
             $print "3: %d", F(3)
 
         fncode: F($x)
             return $x * $x
+    $p
+        The function goes after the main code:
+    &call codeprint, perl
+        printf "3: %d\n", F(3);
+
+        &num; ---- subroutines --------------------------------------------
+        sub F {
+            my ($x) = @_;
+            return $x * $x;
+        }
     $p
         If you are writing a $(code:.pm) module, all $(code:fncode:) definitions are included in the output. However, if you are writing a $(code:.pl) script, which is the default, only those functions that are used will be included. $(code:output_perl) detects which functions are being used with very simple heuristics:
 
@@ -375,6 +462,7 @@ subcode:: sections
         In case the heuristics do not work well and miss a function that you do use, you can always add the function explicitly with $(code:$list):
     &call codeprint, mydef
         page: t
+            module: perl
             $list F
             $print "3: %d", F(3)
 
@@ -439,3 +527,25 @@ subcode:: sections
     &call codeprint, mydef
         $call get_file_lines, t.txt
         $print "Got %d lines", $#lines+1
+    $p
+        Put together:
+    &call codeprint, mydef
+        page: io
+            module: perl
+            &call open_w, t.txt
+                $(set:print_to=Out)
+                $print Alice, Smith
+                $print Bob, Jones
+            &call open_r, t.txt
+                $if /(\w+), (\w+)/
+                    $print Hello $2 $1!
+            $call get_file_lines, t.txt
+            $print "Got %d lines", $#lines+1
+    &call codeprint, sh
+        $ mydef_run io.def
+        PAGE: io
+          --> [./io.pl]
+        perl ./io.pl
+        Hello Smith Alice!
+        Hello Jones Bob!
+        Got 2 lines

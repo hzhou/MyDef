@@ -219,9 +219,9 @@
             To illustrate command-line examples, a shell prompt '$ ' will be shown along with the command-line input, while the program output will be shown without the prompt, like this:
             <pre><code>
 $ mydef_run test.def
-PAGE: t
-    --> [./t.pl]
-perl ./t.pl
+PAGE: test
+    --> [./test.pl]
+perl ./test.pl
 Hello World!
             </code></pre>
         </p>
@@ -562,14 +562,24 @@ print "Hello, World!\n";
             Macros are expanded before any language processing. They work the same regardless of the output module.
         </p>
         <p>
-            For macros that are only needed locally, use <code>&dollar;(set:...)</code> instead of a <code>macros:</code> block:
+            For macros that are only needed locally, use <code>&dollar;(set:...)</code> instead of a <code>macros:</code> block. A macro can also take parameters, written <code>$1</code>&#44; <code>$2</code> in its value:
             <pre><code>
-<span class="mydef-label">subcode</span>: <span class="mydef-label">matrix_multiply</span>
-    <span class="mydef-macro">$(set:N=4)</span>
-    <span class="mydef-macro">$(set:m=mat[$1][$2])</span>
+<span class="mydef-label">page</span>: <span class="mydef-label">diag</span>
+    <span class="mydef-label2">module</span>: perl
+    <span class="mydef-macro">$(set:N=3)</span>
+    <span class="mydef-macro">$(set:cell=$m[$1][$2])</span>
+    my @m = ([1, 2, 3], [4, 5, 6], [7, 8, 9])
     <span class="mydef-keyword">$for</span> i=0:<span class="mydef-macro">$(N)</span>
-        <span class="mydef-keyword">$for</span> j=0:<span class="mydef-macro">$(N)</span>
-            <span class="mydef-macro">$(m:C,i)</span> += <span class="mydef-macro">$(m:A,i)</span> * <span class="mydef-macro">$(m:B,j)</span>
+        $print <span class="mydef-macro">$(cell:$i,$i)</span>
+            </code></pre>
+            <pre><code>
+$ mydef_run diag.def
+PAGE: diag
+    --> [./diag.pl]
+perl ./diag.pl
+1
+5
+9
             </code></pre>
         </p>
         <p>
@@ -947,7 +957,15 @@ lines after
     $print <span class="mydef-macro">$(greet)</span>, <span class="mydef-macro">$(names)</span>!
 
 <span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: perl
     <span class="mydef-keyword">$call</span> <strong>A,</strong> Hello, Alice, Bob, and Carol
+            </code></pre>
+            <pre><code>
+$ mydef_run t.def
+PAGE: t
+    --> [./t.pl]
+perl ./t.pl
+Hello, Alice, Bob, and Carol!
             </code></pre>
         </p>
         <p>
@@ -1005,9 +1023,20 @@ lines after
         ...
 
 <span class="mydef-label">page</span>: <span class="mydef-label">t</span>
-    <span class="mydef-keyword">&call</span> <strong>Parsing,</strong> text
+    <span class="mydef-label2">module</span>: perl
+    my $text = 'say <span class="mydef-quote">"hi"</span>'
+    <span class="mydef-keyword">&call</span> <strong>Parsing,</strong> $text
         <span class="mydef-keyword">&call</span> <strong>parse_string</strong>
             $print got string $1
+            </code></pre>
+        </p>
+        <p>
+            <code>parse_string</code> is visible only inside the <code>Parsing</code> block. The output is:
+            <pre><code>
+my $text = 'say "hi"';
+if ($text=~/"([^"]*)"/) {
+    print "got string $1\n";
+}
             </code></pre>
         </p>
         <a name="call_vs_blockcall"></a>
@@ -1338,6 +1367,18 @@ feature B implementation
             </code></pre>
         </p>
         <p>
+            With <code>module: c</code> and <code>N</code> set to 2&#44; this becomes:
+            <pre><code>
+for (int i = 0; i&lt;2; i++) {
+    for (int j = 0; j&lt;2; j++) {
+        for (int k = 0; k&lt;2; k++) {
+            C[i*2+j] += A[i*2+k] * B[k*2+j];
+        }
+    }
+}
+            </code></pre>
+        </p>
+        <p>
             Inline macro parameters are not explicitly declared; they are simply marked by <code>$1-9</code> and replaced at expansion time with a comma-separated list of values.
         </p>
         <p>
@@ -1525,6 +1566,18 @@ $(else)
         Hi <span class="mydef-macro">$(a)</span>!
             </code></pre>
         </p>
+        <p>
+            produces:
+            <pre><code>
+Hi, Alice
+Hi, Bob
+Hi, Carol
+
+Hi Alice, I love you!
+Hi Bob!
+Hi Carol!
+            </code></pre>
+        </p>
 
         <p>
             There is a shortcut syntax for specifying a simple range-based list:
@@ -1542,16 +1595,25 @@ $(else)
             Sometimes we may need to multiplex over multiple lists:
             <pre><code>
 <span class="mydef-macro">$(for:a, i in x,y,z and 0,1,2)</span>
-    <span class="mydef-comment"># x = 0, y = 1, and z = 2</span>
     <span class="mydef-macro">$(a)</span> = <span class="mydef-macro">$(i)</span>
+            </code></pre>
+            <pre><code>
+x = 0
+y = 1
+z = 2
             </code></pre>
         </p>
 
         <p>
-            There is also a syntax to use <code>&dollar(for:...)</code> anonymously:
+            There is also a syntax to use <code>&dollar;(for:...)</code> anonymously:
             <pre><code>
 <span class="mydef-macro">$(for:Alice, Bob, Carol)</span>
     Hi $1
+            </code></pre>
+            <pre><code>
+Hi Alice
+Hi Bob
+Hi Carol
             </code></pre>
         </p>
         <p>
@@ -1562,6 +1624,11 @@ $(else)
             <pre><code>
 <span class="mydef-macro">$(for:x,y,z and i,j,k)</span>
     A_$1 = $2;
+            </code></pre>
+            <pre><code>
+A_x = i;
+A_y = j;
+A_z = k;
             </code></pre>
         </p>
         <p>
@@ -1582,7 +1649,7 @@ $print A = <span class="mydef-macro">$(A)</span>
             </code></pre>
         </p>
         <p>
-            Direct <code>&dollar;(set:...)</code> won't work here as it will expire upon exit the subcode.
+            prints <code>A = 3.14</code>. Direct <code>&dollar;(set:...)</code> won't work here as it will expire upon exit the subcode.
         </p>
         <p>
             We also can set macros at global level using <code>&dollar;(setmacro:...)</code>:
@@ -1594,6 +1661,10 @@ $print A = <span class="mydef-macro">$(A)</span>
 <span class="mydef-label">page</span>: <span class="mydef-label">t</span>
     <span class="mydef-keyword">$call</span> <strong>section,</strong> Hello
     <span class="mydef-keyword">$call</span> <strong>section,</strong> Bye
+            </code></pre>
+            <pre><code>
+Section 1. Hello
+Section 2. Bye
             </code></pre>
         </p>
         <p>
@@ -1619,6 +1690,11 @@ $print A = <span class="mydef-macro">$(A)</span>
     <span class="mydef-keyword">$call</span> <strong>add_name,</strong> Alice
     <span class="mydef-keyword">$call</span> <strong>add_name,</strong> Bob
     We have gathered: <span class="mydef-macro">$(namelist)</span>.
+            </code></pre>
+            <pre><code>
+Hi Alice!
+Hi Bob!
+We have gathered: Alice,Bob.
             </code></pre>
         </p>
         <p>
@@ -1661,7 +1737,19 @@ $print A = <span class="mydef-macro">$(A)</span>
     <span class="mydef-macro">$(else)</span>
         <span class="mydef-macro">$(set:greeting=Hello,)</span>
         <span class="mydef-macro">$(set:ending=.)</span>
-    <span class="mydef-macro">$(greeting)</span> <span class="mydef-macro">$(name)</span>
+    <span class="mydef-macro">$(greeting)</span> <span class="mydef-macro">$(name)</span><span class="mydef-macro">$(ending)</span>
+
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: general
+    <span class="mydef-keyword">$call</span> <strong>greet,</strong> hot, Alice
+    <span class="mydef-keyword">$call</span> <strong>greet,</strong> cold, Bob
+            </code></pre>
+        </p>
+        <p>
+            The macros set inside <code>&dollar;(if:...)</code> are still in scope after it:
+            <pre><code>
+It is such an honor to meet Alice!!!
+Hello, Bob.
             </code></pre>
         </p>
         <a name="macro_special"></a>
@@ -1810,6 +1898,28 @@ y = "a#b"
 
 <span class="mydef-label">fncode</span>: <span class="mydef-label">square</span>($x)
     <span class="mydef-label">return</span> $x * $x
+            </code></pre>
+            <pre><code>
+$ mydef_run t.def
+PAGE: t
+    --> [./t.pl]
+perl ./t.pl
+3 squared is 9
+            </code></pre>
+        </p>
+        <p>
+            and <code>t.pl</code> is:
+            <pre><code>
+#!/usr/bin/perl
+use strict;
+
+printf "3 squared is %d\n", square(3);
+
+# ---- subroutines --------------------------------------------
+sub square {
+    my ($x) = @_;
+    return $x * $x;
+}
             </code></pre>
         </p>
         <p>
@@ -2231,6 +2341,9 @@ else{
     <span class="mydef-label2">relax</span>: 1
     ...
         </code></pre>
+        <p>
+            and <code>t.pl</code> then starts with just the <code>&num;!</code> line.
+        </p>
 
         <a name="perl_print"></a>
         <h3 class="section">
@@ -2315,6 +2428,36 @@ $print Error: did you just want an error?
         </p>
 
         <p>
+            Put together, the forms above:
+            <pre><code>
+my $name = <span class="mydef-quote">"world"</span>;
+$print Howdy, world!
+$print Howdy, world!\n
+$print <span class="mydef-quote">"Howdy, world!"</span>
+$print Howdy, -
+$print world
+$print Howdy, $green{$name}!
+$print <span class="mydef-quote">"Pi = %.2f"</span>, 3.1415926
+<span class="mydef-macro">$(set:print_to=STDERR)</span>
+$print Error: did you just want an error?
+            </code></pre>
+        </p>
+        <p>
+            become:
+            <pre><code>
+my $name = "world";
+print "Howdy, world!\n";
+print "Howdy, world!\n";
+print "Howdy, world!\n";
+print "Howdy, ";
+print "world\n";
+print "Howdy, \x1b[32m$name\x1b[0m!\n";
+printf "Pi = %.2f\n", 3.1415926;
+print STDERR "Error: did you just want an error?\n";
+            </code></pre>
+        </p>
+
+        <p>
             That's it for <code>$print</code>! If you want further detail, directly consult the source in <code>output_perl.def</code> and search for <code>subcode: parsecode_print</code>. The implementation for all this flexibility is not complicated, thanks to Perl's built-in convenience.
         </p>
 
@@ -2331,6 +2474,15 @@ if ($name eq <span class="mydef-quote">"Alice"</span>){
 }
 else{
     $print Nice to meet you, $name!
+}
+            </code></pre>
+            <pre><code>
+my $name = "Alice";
+if ($name eq "Alice"){
+    print "Howdy, $name\n";
+}
+else{
+    print "Nice to meet you, $name!\n";
 }
             </code></pre>
         </p>
@@ -2368,6 +2520,22 @@ for(my $i=1; $i&lt;100; $i++){
         $print buzz
     <span class="mydef-keyword">$else</span>
         $print $i
+}
+            </code></pre>
+            <pre><code>
+for(my $i=1; $i&lt;100; $i++){
+    if ($i % 15 == 0) {
+        print "fizbuzz\n";
+    }
+    elsif ($i % 3 == 0) {
+        print "fiz\n";
+    }
+    elsif ($i % 5 == 0) {
+        print "buzz\n";
+    }
+    else {
+        print "$i\n";
+    }
 }
             </code></pre>
         </p>
@@ -2466,14 +2634,14 @@ for(my $i=0; $i&lt;10; $i++){
     $print $i
         </code></pre>
         <p>
-            Just like the <code>$if</code> syntax, we now can write it in Python style and save the braces. Further:
+            Just like the <code>$if</code> syntax, we now can write it in Python style and save the braces. Further, a range can be written with colons -- start&#44; end&#44; and step -- and <code>output_perl</code> supplies the <code>my</code>:
         </p>
         <pre><code>
-<span class="mydef-keyword">$for</span> my $i=0:10:1
+<span class="mydef-keyword">$for</span> $i=0:10:1
     $print $i
         </code></pre>
         <p>
-            That works. In fact, we can drop the keyword <code>my</code> and the increment by 1 is actually the default:
+            The increment by 1 is the default:
         </p>
         <pre><code>
 <span class="mydef-keyword">$for</span> $i=0:10
@@ -2494,8 +2662,13 @@ for(my $i=0; $i&lt;10; $i++){
     $print $i
         </code></pre>
         <p>
-            The output is exactly the same for all above examples. We did not change Perl, only the syntax.
+            All of these generate the same loop. We did not change Perl, only the syntax:
         </p>
+        <pre><code>
+for (my $i = 0; $i&lt;10; $i++) {
+    print "$i\n";
+}
+        </code></pre>
         <p>
             Just to make sure, the step part works:
         </p>
@@ -2511,14 +2684,22 @@ for(my $i=0; $i&lt;10; $i++){
 <span class="mydef-keyword">$for</span> $i=10:0:-1
     $print $i
         </code></pre>
+        <pre><code>
+for (my $i = 10; $i>=0; $i--) {
+    print "$i\n";
+}
+        </code></pre>
         <p>
             The current implementation in <code>output_perl</code> prints <code>10</code>, <code>9</code>, ..., <code>0</code>. Yep, it loops 11 times instead of 10. We find it easier to reason by taking the literal meaning of "from <code>10</code> down to <code>0</code>." Many may disagree. As said, tricky. But remember, for clarity you can and maybe should use the more verbose version:
         </p>
 
         <pre><code>
-<span class="mydef-keyword">$for</span> $i=10; $i>0; $i--
+<span class="mydef-keyword">$for</span> my $i=10; $i>0; $i--
     $print $i
         </code></pre>
+        <p>
+            This form is passed through as it is&#44; so it needs the <code>my</code> under <code>use strict</code>.
+        </p>
 
         <a name="perl_while"></a>
         <h3 class="section">
@@ -2531,6 +2712,12 @@ for(my $i=0; $i&lt;10; $i++){
 <span class="mydef-keyword">$while</span> 1
     $print MyDef FOREVER!
     last<span class="mydef-comment"> # maybe not</span>
+        </code></pre>
+        <pre><code>
+while(1){
+    print "MyDef FOREVER!\n";
+    last;
+}
         </code></pre>
 
         <a name="perl_capture"></a>
@@ -2559,6 +2746,12 @@ if ($line=~/^(\w+):\s*(.*)/){
 <span class="mydef-keyword">$while</span> $text=~/(\w+)/g -> $word
     $print found: $word
             </code></pre>
+            <pre><code>
+while ($text=~/(\w+)/g) {
+    my ($word) = ($1);
+    print "found: $word\n";
+}
+            </code></pre>
         </p>
         <p>
             Each capture variable is declared with <code>my</code>, so it is scoped to the block.
@@ -2574,6 +2767,11 @@ if ($line=~/^(\w+):\s*(.*)/){
         <pre><code>
 $foreach $c in split //, <span class="mydef-quote">"Hello, world!"</span>
     $print $c
+        </code></pre>
+        <pre><code>
+foreach my $c (split //, "Hello, world!") {
+    print "$c\n";
+}
         </code></pre>
         <p>
             It supplies the <code>my</code> keyword and drops parentheses and braces.
@@ -2656,9 +2854,10 @@ $print <span class="mydef-quote">"3: %d"</span>, F(3)
         <pre><code>
 sub F {
     my ($x)=@_;
-    <span class="mydef-label">return</span> $x * $x;
+    return $x * $x;
 }
-printf <span class="mydef-quote">"3: %d\n"</span>, F(3);
+
+printf "3: %d\n", F(3);
         </code></pre>
         <p>
             You may recall the criticism that Perl does not have function signatures. As far as syntax goes, this lets us define functions with signatures.
@@ -2669,10 +2868,23 @@ printf <span class="mydef-quote">"3: %d\n"</span>, F(3);
         </p>
         <pre><code>
 <span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: perl
     $print <span class="mydef-quote">"3: %d"</span>, F(3)
 
 <span class="mydef-label">fncode</span>: <span class="mydef-label">F</span>($x)
     <span class="mydef-label">return</span> $x * $x
+        </code></pre>
+        <p>
+            The function goes after the main code:
+        </p>
+        <pre><code>
+printf "3: %d\n", F(3);
+
+# ---- subroutines --------------------------------------------
+sub F {
+    my ($x) = @_;
+    return $x * $x;
+}
         </code></pre>
         <p>
             If you are writing a <code>.pm</code> module, all <code>fncode:</code> definitions are included in the output. However, if you are writing a <code>.pl</code> script, which is the default, only those functions that are used will be included. <code>output_perl</code> detects which functions are being used with very simple heuristics:
@@ -2689,6 +2901,7 @@ printf <span class="mydef-quote">"3: %d\n"</span>, F(3);
         </p>
         <pre><code>
 <span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: perl
     $list F
     $print <span class="mydef-quote">"3: %d"</span>, F(3)
 
@@ -2774,6 +2987,31 @@ $print [$t]
         <pre><code>
 <span class="mydef-keyword">$call</span> <strong>get_file_lines,</strong> t.txt
 $print <span class="mydef-quote">"Got %d lines"</span>, $#lines+1
+        </code></pre>
+        <p>
+            Put together:
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">io</span>
+    <span class="mydef-label2">module</span>: perl
+    <span class="mydef-keyword">&call</span> <strong>open_w,</strong> t.txt
+        <span class="mydef-macro">$(set:print_to=Out)</span>
+        $print Alice, Smith
+        $print Bob, Jones
+    <span class="mydef-keyword">&call</span> <strong>open_r,</strong> t.txt
+        <span class="mydef-keyword">$if</span> /(\w+), (\w+)/
+            $print Hello $2 $1!
+    <span class="mydef-keyword">$call</span> <strong>get_file_lines,</strong> t.txt
+    $print <span class="mydef-quote">"Got %d lines"</span>, $#lines+1
+        </code></pre>
+        <pre><code>
+$ mydef_run io.def
+PAGE: io
+    --> [./io.pl]
+perl ./io.pl
+Hello Smith Alice!
+Hello Jones Bob!
+Got 2 lines
         </code></pre>
         <a name="c"></a>
         <h2 class="chapter">

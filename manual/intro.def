@@ -25,8 +25,8 @@ subcode:: sections
         To illustrate command-line examples, a shell prompt '$ ' will be shown along with the command-line input, while the program output will be shown without the prompt, like this:
         &call codeprint, sh
             $ mydef_run test.def
-            PAGE: t
-                --> [./t.pl]
-            perl ./t.pl
+            PAGE: test
+              --> [./test.pl]
+            perl ./test.pl
             Hello World!
 

@@ -10,15 +10,17 @@
 
 ## Status (2026-09-30)
 
-- Phases 1-4: done
-- Phase 5: not started
-- Phase 6: partly done as a side effect (see the notes under 6.1 and 6.2)
+All phases are done. Phase 5 and 6 became chapter 13, Reference, plus
+fixes across chapters 1-7.
 
 Done beyond the plan:
 
 - Syntax chapter: "Collisions with target-language syntax" section
 - Module fixes needed for working examples: output_www, output_python,
   output_java, output_c (one fix), and output_sh (`$print`, `$for`/`$foreach`)
+- Wrong statements fixed while checking examples: `$(endif)` (does not
+  exist), `run:` vs `cmd:`, the `arg:` output, `$for my $i=0:10:1` (not
+  supported: generates `my $my $i`), and `$for $i=10; $i>0; $i--` (needs `my`)
 
 ## Phase 1: Add a Tutorial Chapter (after Introduction, before Syntax) -- DONE
 
@@ -181,7 +183,7 @@ A short chapter; the module is thin (`module: sh` writes `<page>.sh`):
 - `std_sh.def` is empty, so there are no library subcodes yet
 - Link to the output_sh repository
 
-## Phase 5: Add Reference Appendices -- TODO
+## Phase 5: Add Reference Appendices -- DONE
 
 ### 5.1 Page attribute reference
 
@@ -210,19 +212,22 @@ Quick reference for all `$(...)` directives:
 One-paragraph summary of each tool with its most common flags:
 `mydef_page`, `mydef_run`, `mydef_make`, `mydef_test`, `mydef_install`
 
-The "Invoking MyDef" chapter already covers `config`, `mydef_page`,
-`mydef_make`, and `mydef_run`; still missing: `mydef_test`, `mydef_install`.
+Done as chapter 13 (Reference): 13.1 page attributes, 13.2 directives
+(including ones not listed above, e.g. `$(setpage:)`, `$(reset:)`,
+`$(split:)`, `$(subst:)`, `$(sym:)`, `$(def:date)`; there is no `$(endif)`),
+13.3 keywords (also `PUSHDENT`/`POPDENT`, `NEWLINE?`, `<-|`; `INCLUDE_BLOCK`
+and the other internal ones are left out), 13.4 tools.
 
-## Phase 6: Structural / Formatting Improvements -- PARTLY DONE
+## Phase 6: Structural / Formatting Improvements -- DONE
 
 ### 6.1 Cross-references
 
 Add forward/backward references between sections. E.g., when `subcode:`
 mentions parameters, link to the "Subcode with parameters" subsection.
 
-So far: references are mostly in words ("see its section on ..."); only the
-output_sh chapter has a real link, to the collisions section. Links work as
-`$(a:text,#anchor)`, where the anchor is the section name.
+Done: references written in words are now links, `$(a:text,#anchor)` with
+the section name as the anchor. The `$(for:...)` section had the same anchor
+as `$(set:...)`; it is now `preproc_for`.
 
 ### 6.2 Consistent example format
 
@@ -232,16 +237,20 @@ Standardize all examples to follow this pattern:
 2. Command to compile/run
 3. Generated output or program output
 
-So far: chapters 8-12 follow this pattern; chapters 1-7 are not checked yet.
+Done: chapters 1-7 were checked; complete examples now show their output
+or generated code. Short fragments whose result is given in the text, in a
+comment, or in a combined block after them were left as they are.
 
 ### 6.3 Index / glossary
 
 Add a glossary of MyDef-specific terms: page, subcode, fncode, macro,
 frame, module, block call, DUMP_STUB, named block.
 
+Done as 13.5.
+
 ## Priority Order
 
-Items 1-3, 5, and 6 are done.
+All items are done.
 
 1. Phase 1 (tutorial) -- highest impact for new users
 2. Phase 2.1-2.3 (concept table, `$call` vs `&call`, `$(if:)` table)
