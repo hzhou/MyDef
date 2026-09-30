@@ -10,6 +10,7 @@ include: output_perl.def
 include: output_c.def
 include: output_www.def
 include: output_python.def
+include: output_java.def
 
 page: mydef, basic_frame
     module: www
@@ -22,10 +23,6 @@ page: mydef, basic_frame
         $(title)
     $call TOC
     $call @sections
-    $call section, java, $(code:output_java)
-    $p
-        [To be continued.]
-
     $call end_section
 
 #---------------------------------------- 

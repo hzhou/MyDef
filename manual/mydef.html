@@ -147,6 +147,14 @@
                 </ul>
                 </li>
                 <li><a href="#java">11 <code>output_java</code></a>
+                <ul class="no-bullet id2">
+                <li><a href="#java_plain">11.1 It is OK to write vanilla Java</a></li>
+                <li><a href="#java_print">11.2 <code>$print</code></a></li>
+                <li><a href="#java_fn">11.3 Methods and <code>$import</code></a></li>
+                <li><a href="#java_class">11.4 Classes from <code>$struct</code></a></li>
+                <li><a href="#java_std">11.5 <code>std_java.def</code></a></li>
+                <li><a href="#java_gui">11.6 GUI programs with <code>java/gui.def</code></a></li>
+                </ul>
                 </li>
             </ul>
         </div>
@@ -3926,8 +3934,508 @@ banana: 1
             11 <code>output_java</code>
         </h2>
         <p>
-            [To be continued.]
+            <code>output_java</code> lives in its own repository, <a href="https://github.com/hzhou/output_java">github.com/hzhou/output_java</a>, and is installed the same way as <code>output_c</code> (<code>mydef_make</code>, <code>make</code>, <code>make install</code>). It provides <code>module: java</code>. To compile and run the result you need a JDK (<code>javac</code> and <code>java</code>); <code>mydef_run</code> calls both.
+        </p>
+        <p>
+            <code>output_java</code> is built on <code>output_c</code>: Java statements look like C statements, so it reuses the C module's expression handling, type inference, <code>$print</code>, and <code>$for</code>, and adds what Java needs on top -- a class around the code, <code>import</code> bookkeeping, and methods and fields in place of functions and globals.
         </p>
 
+        <a name="java_plain"></a>
+        <h3 class="section">
+            11.1 It is OK to write vanilla Java
+        </h3>
+        <p>
+            A page with <code>module: java</code> compiles to a <code>.java</code> file with one public class named after the page. The page code goes into its <code>public static void main(String[] args)</code>, from the default <code>basic_frame</code> in <code>std_java.def</code>.
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: java
+
+    n = 3
+    s_name = <span class="mydef-quote">"world"</span>
+    f_x = 1.5
+    if (n > 2) {
+        System.out.println(<span class="mydef-quote">"n is big"</span>);
+    }
+    <span class="mydef-keyword">$if</span> n > 2 &amp;&amp; s_name.length() > 3
+        $print Hello $s_name, n=$n, x=$f_x
+    <span class="mydef-keyword">$for</span> i=0:n
+        $print <span class="mydef-quote">"i = %d -"</span>, i
+    $print
+        </code></pre>
+        <pre><code>
+$ mydef_run t.def
+PAGE: t
+    --> [./t.java]
+javac ./t.java &amp;&amp; cd . &amp;&amp; java t
+n is big
+Hello world, n=3, x=1.5
+i = 0 i = 1 i = 2
+        </code></pre>
+        <p>
+            and <code>t.java</code> is:
+        </p>
+        <pre><code>
+public class t {
+
+    public static void main(String[] args)
+    {
+        int n;
+        String s_name;
+        double f_x;
+
+        n = 3;
+        s_name = "world";
+        f_x = 1.5;
+        if (n > 2) {
+            System.out.println("n is big");
+        }
+        if (n > 2 &amp;&amp; s_name.length() > 3) {
+            System.out.printf("Hello %s, n=%s, x=%s\n", s_name, n, f_x);
+        }
+        for (int i = 0; i&lt;n; i++) {
+            System.out.printf("i = %d ", i);
+        }
+        System.out.println();
+    }
+}
+        </code></pre>
+        <p>
+            Plain Java passes through. As in <code>output_c</code>, the semicolons are optional, <code>$if</code>/<code>$elif</code>/<code>$else</code>/<code>$while</code> supply the braces, and <code>$for i=0&#58;n</code> writes the counting loop. Local variables are declared at the top of the method, with types inferred the same way as in <code>output_c</code> (see its section on variables and type inference): from the value (<code>1.5</code> is a <code>double</code>&#44; a string literal is a <code>String</code>&#44; <code>new ArrayList&lt;String&gt;()</code> is an <code>ArrayList&lt;String&gt;</code>), or from the name. The Java name rules are:
+        </p>
+        <table class="ref">
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+            </tr>
+            <tr>
+                <td>
+                    <code>i</code>&#44; <code>j</code>&#44; <code>k</code>&#44; <code>m</code>&#44; <code>n</code>&#44; <code>count</code>&#44; <code>size</code>
+                </td>
+                <td>
+                    <code>int</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>s</code>&#44; <code>s_...</code>
+                </td>
+                <td>
+                    <code>String</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>f</code>&#44; <code>d</code>&#44; <code>f_...</code>
+                </td>
+                <td>
+                    <code>double</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>n_...</code>&#44; <code>i_...</code>&#44; <code>l</code>&#44; <code>n8_...</code>
+                </td>
+                <td>
+                    <code>int</code>&#44; <code>int</code>&#44; <code>long</code>&#44; <code>long</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>b_...</code>&#44; <code>is_...</code>&#44; <code>has_...</code>&#44; <code>do_...</code>
+                </td>
+                <td>
+                    <code>boolean</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>c</code>&#44; <code>c_...</code>&#44; <code>n1_...</code>
+                </td>
+                <td>
+                    <code>byte</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>buf</code>&#44; <code>buffer</code>
+                </td>
+                <td>
+                    <code>StringBuffer</code>
+                </td>
+            </tr>
+        </table>
+        <p>
+            Prefixes stack as in <code>output_c</code>: <code>t</code> marks a temporary and <code>p</code> an array, so <code>tf_dx</code> is a <code>double</code> and <code>pn_list</code> an <code>int[]</code>. A project adds its own names with <code>$register_name</code> and <code>$register_prefix</code>, and <code>$local Type name</code> declares a variable explicitly. <code>$foreach x in list</code> writes a for-each loop; without a type the loop variable is declared with <code>var</code>.
+        </p>
+
+        <a name="java_print"></a>
+        <h3 class="section">
+            11.2 <code>$print</code>
+        </h3>
+        <p>
+            <code>$print</code> is for debug printing. It fills in <code>$var</code> and <code>${expr}</code> and adds a newline, and a trailing <code>-</code> leaves the newline out. Since Java's <code>%s</code> formats any value -- numbers as <code>println</code> would print them&#44; objects with <code>toString()</code> -- <code>$print</code> uses <code>%s</code> for every variable and expression; there is no type to get wrong. Text without variables becomes <code>println</code>.
+        </p>
+        <pre><code>
+$print n=$n, root=${Math.sqrt(n)}
+$print no newline-
+$print
+$print <span class="mydef-quote">"x = %.2f, n = $n"</span>, x
+        </code></pre>
+        <pre><code>
+System.out.printf("n=%s, root=%s\n", n, Math.sqrt(n));
+System.out.printf("no newline");
+System.out.println();
+System.out.printf("x = %.2f, n = %s\n", x, n);
+        </code></pre>
+        <p>
+            As in <code>output_c</code>, quote the text and give the format arguments after it when a value needs a specific format. When <code>$print</code> gets in the way, write <code>System.out.println</code> or <code>printf</code> directly.
+        </p>
+
+        <a name="java_fn"></a>
+        <h3 class="section">
+            11.3 Methods and <code>$import</code>
+        </h3>
+        <p>
+            <code>fncode:</code> defines a method of the page class. As in <code>output_c</code>, a method is included only when the code calls it, parameter types follow the naming rules or are given explicitly, and the return type is inferred from the <code>return</code> statement or given after a colon. A <code>basic_frame</code> page is never instantiated, so its methods are <code>static</code> and <code>main</code> can call them. (A page class that has a constructor, or uses <code>$extends</code> or <code>$implements</code>, gets instance methods instead.)
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">fn</span>
+    <span class="mydef-label2">module</span>: java
+
+    $import java.util.ArrayList
+    words = new ArrayList&lt;String>()
+    words.add(<span class="mydef-quote">"apple"</span>)
+    words.add(<span class="mydef-quote">"pie"</span>)
+    $foreach w in words
+        $print ${greet(w)}: ${w.length()} letters
+    $print 3 + 4 = ${add(3, 4)}
+
+<span class="mydef-label">fncode</span>: <span class="mydef-label">add</span>(int a, int b)
+    <span class="mydef-label">return</span> a + b
+
+<span class="mydef-label">fncode</span>: <span class="mydef-label">greet</span>(s_name)
+    <span class="mydef-label">return</span> <span class="mydef-quote">"Hello "</span> + s_name
+
+<span class="mydef-label">fncode</span>: <span class="mydef-label">unused</span>
+    $print never
+        </code></pre>
+        <pre><code>
+$ mydef_run fn.def
+...
+Hello apple: 5 letters
+Hello pie: 3 letters
+3 + 4 = 7
+        </code></pre>
+        <pre><code>
+import java.util.ArrayList;
+
+public class fn {
+
+    public static void main(String[] args)
+    {
+        ArrayList&lt;String> words;
+
+        words = new ArrayList&lt;String>();
+        words.add("apple");
+        words.add("pie");
+        for(var w : words){
+            System.out.printf("%s: %s letters\n", greet(w), w.length());
+        }
+        System.out.printf("3 + 4 = %s\n", add(3, 4));
+    }
+
+    public static int add(int a, int b)
+    {
+        return a + b;
+    }
+
+    public static String greet(String s_name)
+    {
+        return "Hello " + s_name;
+    }
+}
+        </code></pre>
+        <p>
+            <code>$import</code> lines can appear anywhere; they are collected at the top of the file, with duplicates removed. <code>Random</code> and <code>ArrayList</code> are imported automatically when a variable is assigned <code>new Random()</code> or <code>new ArrayList&lt;...&gt;()</code>. <code>$extends Base</code> and <code>$implements Iface</code> add to the class line.
+        </p>
+        <p>
+            <code>$private</code> and <code>$public</code> declare fields of the page class, with an optional initial value that is assigned where the line appears: <code>$private n_count = 0</code>. (<code>$global</code> is not used in Java.) Like the methods, the fields are <code>static</code> on a <code>basic_frame</code> page.
+        </p>
+
+        <a name="java_class"></a>
+        <h3 class="section">
+            11.4 Classes from <code>$struct</code>
+        </h3>
+        <p>
+            <code>$struct(Name) fields</code> declares another class in the same file, with public fields. Its methods are written as <code>fncode: Name.method</code>; <code>Name.__init</code> is the constructor. The fields are in scope in the methods, as in Java. Define the methods inside the page so they are always included -- a call such as <code>p.move(1&#44; 1)</code> does not tell <code>MyDef</code> which class <code>p</code> is:
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">pt</span>
+    <span class="mydef-label2">module</span>: java
+
+    $register_prefix(pt) Point
+    $struct(Point) int x, int y
+
+    pt_a = new Point(3, 4)
+    pt_a.move(1, 1)
+    $print a = ${pt_a.show()}, |a|^2 = ${pt_a.norm2()}
+    $print dot = ${dot(pt_a, new Point(1, 2))}
+
+    <span class="mydef-label2">fncode</span>: Point.__init(int x0, int y0)
+        x = x0
+        y = y0
+
+    <span class="mydef-label2">fncode</span>: Point.move(int dx, int dy)
+        x += dx
+        y += dy
+
+    <span class="mydef-label2">fncode</span>: Point.norm2
+        <span class="mydef-label">return</span> x*x + y*y
+
+    <span class="mydef-label2">fncode</span>: Point.show
+        <span class="mydef-label">return</span> <span class="mydef-quote">"("</span> + x + <span class="mydef-quote">", "</span> + y + <span class="mydef-quote">")"</span>
+
+<span class="mydef-label">fncode</span>: <span class="mydef-label">dot</span>(pt_p, pt_q): int
+    <span class="mydef-label">return</span> pt_p.x * pt_q.x + pt_p.y * pt_q.y
+        </code></pre>
+        <pre><code>
+$ mydef_run pt.def
+...
+a = (4, 5), |a|^2 = 41
+dot = 14
+        </code></pre>
+        <pre><code>
+public class pt {
+
+    public static void main(String[] args)
+    {
+        Point pt_a;
+
+        pt_a = new Point(3, 4);
+        pt_a.move(1, 1);
+        System.out.printf("a = %s, |a|^2 = %s\n", pt_a.show(), pt_a.norm2());
+        System.out.printf("dot = %s\n", dot(pt_a, new Point(1, 2)));
+    }
+
+    public static int dot(Point pt_p, Point pt_q)
+    {
+        return pt_p.x * pt_q.x + pt_p.y * pt_q.y;
+    }
+}
+
+class Point {
+    public int x;
+    public int y;
+
+    public Point(int x0, int y0)
+    {
+        x = x0;
+        y = y0;
+    }
+    public void move(int dx, int dy)
+    {
+        x += dx;
+        y += dy;
+    }
+    public int norm2()
+    {
+        return x * x + y * y;
+    }
+    public String show()
+    {
+        return "(" + x + ", " + y + ")";
+    }
+};
+        </code></pre>
+        <p>
+            <code>$register_prefix(pt) Point</code> makes every <code>pt_...</code> name a <code>Point</code>, which gives <code>dot</code> its parameter types. Its return type is given as <code>: int</code>, since the type of <code>pt_p.x</code> is not inferred.
+        </p>
+
+        <a name="java_std"></a>
+        <h3 class="section">
+            11.5 <code>std_java.def</code>
+        </h3>
+        <p>
+            <code>std_java.def</code> is loaded automatically. Its file subcodes take the file name as a Java expression, so a literal name needs quotes, and they catch exceptions for you:
+        </p>
+        <pre><code>
+<span class="mydef-keyword">&call</span> <strong>open_w,</strong> <span class="mydef-quote">"words.txt"</span>
+    Out.println(<span class="mydef-quote">"apple pie"</span>)
+    Out.println(<span class="mydef-quote">"banana split"</span>)
+n = 0
+<span class="mydef-keyword">&call</span> <strong>open_r,</strong> <span class="mydef-quote">"words.txt"</span>
+    n++
+    $print $n: $s
+<span class="mydef-keyword">$call</span> <strong>init_random</strong>
+k = <span class="mydef-macro">$(irand:10)</span>
+$print atoi: ${<span class="mydef-macro">$(atoi:<span class="mydef-quote">"42"</span>)</span> + 1}
+        </code></pre>
+        <pre><code>
+$ mydef_run io.def
+...
+1: apple pie
+2: banana split
+atoi: 43
+        </code></pre>
+        <table class="ref">
+            <tr>
+                <th>Subcode</th>
+                <th>Does</th>
+            </tr>
+            <tr>
+                <td>
+                    <code>&call open_r&#44; fname</code>
+                </td>
+                <td>
+                    loops over the lines of a file&#44; each in <code>s</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&call open_w&#44; fname</code>
+                </td>
+                <td>
+                    opens a <code>PrintWriter</code> as <code>Out</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&call input&#44; fname</code>
+                </td>
+                <td>
+                    opens a <code>BufferedReader</code> as <code>In</code> (<code>-</code> for standard input); <code>$call get_s&#44; v</code> reads a line
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&call scanner&#44; fname</code>
+                </td>
+                <td>
+                    opens a <code>Scanner</code> (<code>-</code> for standard input); <code>get_int</code>&#44; <code>get_double</code>&#44; <code>get_word</code>&#44; and <code>get_s</code> read into a variable&#44; as in <code>$call get_int&#44; n</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&call try</code>
+                </td>
+                <td>
+                    wraps the block in <code>try</code> and ignores the exception
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>$call init_random</code>
+                </td>
+                <td>
+                    makes a <code>Random</code> field <code>rand</code>; <code>&dollar;(irand&#58;n)</code> and <code>&dollar;(rand)</code> then give an <code>int</code> below <code>n</code> and a <code>float</code> below 1
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;(atoi&#58;s)</code>&#44; <code>&dollar;(atof&#58;s)</code>&#44; <code>&dollar;(itoa&#58;n)</code>
+                </td>
+                <td>
+                    <code>Integer.parseInt</code>&#44; <code>Double.parseDouble</code>&#44; <code>Integer.toString</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>$call start_time</code> / <code>$call print_time&#44; msg</code>
+                </td>
+                <td>time a section of code</td>
+            </tr>
+        </table>
+        <p>
+            For example, this sums numbers from standard input:
+        </p>
+        <pre><code>
+<span class="mydef-keyword">&call</span> <strong>scanner,</strong> -
+    <span class="mydef-keyword">$call</span> <strong>get_int,</strong> n
+    sum = 0
+    <span class="mydef-keyword">$for</span> i=0:n
+        <span class="mydef-keyword">$call</span> <strong>get_int,</strong> k
+        sum += k
+    $print sum = $sum
+        </code></pre>
+        <pre><code>
+$ echo 3 10 20 30 | java sc
+sum = 60
+        </code></pre>
+
+        <a name="java_gui"></a>
+        <h3 class="section">
+            11.6 GUI programs with <code>java/gui.def</code>
+        </h3>
+        <p>
+            <code>include: java/gui.def</code> provides <code>gui_frame</code>, a frame for Swing programs. With it, the page code goes into the constructor of the page class, which opens a window; <code>main</code> only creates the object. The page's fields and methods are ordinary instance members, and the <code>title:</code> and <code>size:</code> page attributes set up the window:
+        </p>
+        <pre><code>
+<span class="mydef-preproc">include</span>: <span class="mydef-preproc">java/gui.def</span>
+
+<span class="mydef-label">page</span>: <span class="mydef-label">Counter</span>, gui_frame
+    <span class="mydef-label2">module</span>: java
+    <span class="mydef-label2">title</span>: Counter
+    <span class="mydef-label2">size</span>: 300, 80
+
+    <span class="mydef-keyword">$call</span> <strong>add_label,</strong> -, <span class="mydef-quote">"Count:"</span>
+    <span class="mydef-keyword">$call</span> <strong>add_text,</strong> txt_count, <span class="mydef-quote">"0"</span>, 8
+    <span class="mydef-keyword">$call</span> <strong>add_button,</strong> btn_count, <span class="mydef-quote">"Click"</span>
+
+    $private n_count = 0
+    <span class="mydef-keyword">&call</span> <strong>add_listener,</strong> btn_count
+        n_count++
+        txt_count.setText(<span class="mydef-macro">$(itoa:n_count)</span>)
+        </code></pre>
+        <pre><code>
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
+
+public class Counter {
+    private JFrame frame;
+    private JTextField txt_count;
+    private JButton btn_count;
+    private int n_count;
+
+    public Counter()
+    {
+
+        frame = new JFrame("Counter");
+        frame.addWindowListener(new WindowAdapter(){
+            public void windowClosing(WindowEvent evt){
+                System.exit(0);
+            }
+        });
+        frame.setLayout(new FlowLayout());
+        frame.add(new JLabel("Count:"));
+        txt_count = new JTextField("0", 8);
+        frame.add(txt_count);
+        btn_count = new JButton("Click");
+        frame.add(btn_count);
+
+        n_count = 0;
+        btn_count.addActionListener(new ActionListener(){
+            public void actionPerformed(ActionEvent evt){
+                n_count++;
+                txt_count.setText(Integer.toString(n_count));
+            }
+        });
+
+        frame.setSize(300, 80);
+        frame.setVisible(true);
+    }
+
+    public static void main(String[] args)
+    {
+        Counter app;
+
+        app = new Counter();
+    }
+}
+        </code></pre>
+        <p>
+            The field has to be declared outside the listener: <code>$private n_count = 0</code> inside it would reset the count on every click. The widgets are <code>add_label</code>&#44; <code>add_text</code>&#44; <code>add_button</code> (with <code>-</code> for an unnamed widget)&#44; <code>add_space</code>&#44; and <code>add_glue</code>; <code>&call add_listener&#44; widget</code> handles its action events. For drawing, <code>&call add_canvas&#44; canvas&#44; w&#44; h</code> gives the block a <code>Graphics2D g</code> to paint with, <code>&call animate&#44; millisec&#44; delay</code> runs its block on a timer, and <code>&call add_keypress</code> with <code>&call on_key&#44; VK_UP</code> handles keys. The <code>test/</code> directory of <code>output_java</code> has complete examples, such as a bouncing ball.
+        </p>
     </body>
 </html>

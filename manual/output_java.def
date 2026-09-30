@@ -1,0 +1,406 @@
+subcode:: sections
+    $call section, java, $(code:output_java)
+    $p
+        $(code:output_java) lives in its own repository, $(a:github.com/hzhou/output_java,https://github.com/hzhou/output_java), and is installed the same way as $(code:output_c) ($(code:mydef_make), $(code:make), $(code:make install)). It provides $(code:module: java). To compile and run the result you need a JDK ($(code:javac) and $(code:java)); $(code:mydef_run) calls both.
+    $p
+        $(code:output_java) is built on $(code:output_c): Java statements look like C statements, so it reuses the C module's expression handling, type inference, $(code:$print), and $(code:$for), and adds what Java needs on top -- a class around the code, $(code:import) bookkeeping, and methods and fields in place of functions and globals.
+
+    $call subsection, java_plain, It is OK to write vanilla Java
+    $p
+        A page with $(code:module: java) compiles to a $(code:.java) file with one public class named after the page. The page code goes into its $(code:public static void main(String[] args)), from the default $(code:basic_frame) in $(code:std_java.def).
+    &call codeprint, mydef
+        page: t
+            module: java
+
+            n = 3
+            s_name = "world"
+            f_x = 1.5
+            if (n > 2) {
+                System.out.println("n is big");
+            }
+            $if n > 2 && s_name.length() > 3
+                $print Hello $s_name, n=$n, x=$f_x
+            $for i=0:n
+                $print "i = %d -", i
+            $print
+    &call codeprint, sh
+        $ mydef_run t.def
+        PAGE: t
+          --> [./t.java]
+        javac ./t.java && cd . && java t
+        n is big
+        Hello world, n=3, x=1.5
+        i = 0 i = 1 i = 2
+    $p
+        and $(code:t.java) is:
+    &call codeprint, java
+        public class t {
+
+            public static void main(String[] args)
+            {
+                int n;
+                String s_name;
+                double f_x;
+
+                n = 3;
+                s_name = "world";
+                f_x = 1.5;
+                if (n > 2) {
+                    System.out.println("n is big");
+                }
+                if (n > 2 && s_name.length() > 3) {
+                    System.out.printf("Hello %s, n=%s, x=%s\n", s_name, n, f_x);
+                }
+                for (int i = 0; i<n; i++) {
+                    System.out.printf("i = %d ", i);
+                }
+                System.out.println();
+            }
+        }
+    $p
+        Plain Java passes through. As in $(code:output_c), the semicolons are optional, $(code:$if)/$(code:$elif)/$(code:$else)/$(code:$while) supply the braces, and $(code:$for i=0&#58;n) writes the counting loop. Local variables are declared at the top of the method, with types inferred the same way as in $(code:output_c) (see its section on variables and type inference): from the value ($(code:1.5) is a $(code:double)&#44; a string literal is a $(code:String)&#44; $(code:new ArrayList&lt;String&gt;()) is an $(code:ArrayList&lt;String&gt;)), or from the name. The Java name rules are:
+    $table ref
+        $tr
+            $th "Name"
+            $th "Type"
+        $tr
+            $td
+                $(code:i)&#44; $(code:j)&#44; $(code:k)&#44; $(code:m)&#44; $(code:n)&#44; $(code:count)&#44; $(code:size)
+            $td
+                $(code:int)
+        $tr
+            $td
+                $(code:s)&#44; $(code:s_...)
+            $td
+                $(code:String)
+        $tr
+            $td
+                $(code:f)&#44; $(code:d)&#44; $(code:f_...)
+            $td
+                $(code:double)
+        $tr
+            $td
+                $(code:n_...)&#44; $(code:i_...)&#44; $(code:l)&#44; $(code:n8_...)
+            $td
+                $(code:int)&#44; $(code:int)&#44; $(code:long)&#44; $(code:long)
+        $tr
+            $td
+                $(code:b_...)&#44; $(code:is_...)&#44; $(code:has_...)&#44; $(code:do_...)
+            $td
+                $(code:boolean)
+        $tr
+            $td
+                $(code:c)&#44; $(code:c_...)&#44; $(code:n1_...)
+            $td
+                $(code:byte)
+        $tr
+            $td
+                $(code:buf)&#44; $(code:buffer)
+            $td
+                $(code:StringBuffer)
+    $p
+        Prefixes stack as in $(code:output_c): $(code:t) marks a temporary and $(code:p) an array, so $(code:tf_dx) is a $(code:double) and $(code:pn_list) an $(code:int[]). A project adds its own names with $(code:$register_name) and $(code:$register_prefix), and $(code:$local Type name) declares a variable explicitly. $(code:$foreach x in list) writes a for-each loop; without a type the loop variable is declared with $(code:var).
+
+    $call subsection, java_print, $(code:$print)
+    $p
+        $(code:$print) is for debug printing. It fills in $(code:$var) and $(code:${expr}) and adds a newline, and a trailing $(code:-) leaves the newline out. Since Java's $(code:%s) formats any value -- numbers as $(code:println) would print them&#44; objects with $(code:toString()) -- $(code:$print) uses $(code:%s) for every variable and expression; there is no type to get wrong. Text without variables becomes $(code:println).
+    &call codeprint, mydef
+        $print n=$n, root=${Math.sqrt(n)}
+        $print no newline-
+        $print
+        $print "x = %.2f, n = $n", x
+    &call codeprint, java
+        System.out.printf("n=%s, root=%s\n", n, Math.sqrt(n));
+        System.out.printf("no newline");
+        System.out.println();
+        System.out.printf("x = %.2f, n = %s\n", x, n);
+    $p
+        As in $(code:output_c), quote the text and give the format arguments after it when a value needs a specific format. When $(code:$print) gets in the way, write $(code:System.out.println) or $(code:printf) directly.
+
+    $call subsection, java_fn, Methods and $(code:$import)
+    $p
+        $(code:fncode:) defines a method of the page class. As in $(code:output_c), a method is included only when the code calls it, parameter types follow the naming rules or are given explicitly, and the return type is inferred from the $(code:return) statement or given after a colon. A $(code:basic_frame) page is never instantiated, so its methods are $(code:static) and $(code:main) can call them. (A page class that has a constructor, or uses $(code:$extends) or $(code:$implements), gets instance methods instead.)
+    &call codeprint, mydef
+        page: fn
+            module: java
+
+            $import java.util.ArrayList
+            words = new ArrayList<String>()
+            words.add("apple")
+            words.add("pie")
+            $foreach w in words
+                $print ${greet(w)}: ${w.length()} letters
+            $print 3 + 4 = ${add(3, 4)}
+
+        fncode: add(int a, int b)
+            return a + b
+
+        fncode: greet(s_name)
+            return "Hello " + s_name
+
+        fncode: unused
+            $print never
+    &call codeprint, sh
+        $ mydef_run fn.def
+        ...
+        Hello apple: 5 letters
+        Hello pie: 3 letters
+        3 + 4 = 7
+    &call codeprint, java
+        import java.util.ArrayList;
+
+        public class fn {
+
+            public static void main(String[] args)
+            {
+                ArrayList<String> words;
+
+                words = new ArrayList<String>();
+                words.add("apple");
+                words.add("pie");
+                for(var w : words){
+                    System.out.printf("%s: %s letters\n", greet(w), w.length());
+                }
+                System.out.printf("3 + 4 = %s\n", add(3, 4));
+            }
+
+            public static int add(int a, int b)
+            {
+                return a + b;
+            }
+
+            public static String greet(String s_name)
+            {
+                return "Hello " + s_name;
+            }
+        }
+    $p
+        $(code:$import) lines can appear anywhere; they are collected at the top of the file, with duplicates removed. $(code:Random) and $(code:ArrayList) are imported automatically when a variable is assigned $(code:new Random()) or $(code:new ArrayList&lt;...&gt;()). $(code:$extends Base) and $(code:$implements Iface) add to the class line.
+    $p
+        $(code:$private) and $(code:$public) declare fields of the page class, with an optional initial value that is assigned where the line appears: $(code:$private n_count = 0). ($(code:$global) is not used in Java.) Like the methods, the fields are $(code:static) on a $(code:basic_frame) page.
+
+    $call subsection, java_class, Classes from $(code:$struct)
+    $p
+        $(code:$struct(Name) fields) declares another class in the same file, with public fields. Its methods are written as $(code:fncode: Name.method); $(code:Name.__init) is the constructor. The fields are in scope in the methods, as in Java. Define the methods inside the page so they are always included -- a call such as $(code:p.move(1&#44; 1)) does not tell $(code:MyDef) which class $(code:p) is:
+    &call codeprint, mydef
+        page: pt
+            module: java
+
+            $register_prefix(pt) Point
+            $struct(Point) int x, int y
+
+            pt_a = new Point(3, 4)
+            pt_a.move(1, 1)
+            $print a = ${pt_a.show()}, |a|^2 = ${pt_a.norm2()}
+            $print dot = ${dot(pt_a, new Point(1, 2))}
+
+            fncode: Point.__init(int x0, int y0)
+                x = x0
+                y = y0
+
+            fncode: Point.move(int dx, int dy)
+                x += dx
+                y += dy
+
+            fncode: Point.norm2
+                return x*x + y*y
+
+            fncode: Point.show
+                return "(" + x + ", " + y + ")"
+
+        fncode: dot(pt_p, pt_q): int
+            return pt_p.x * pt_q.x + pt_p.y * pt_q.y
+    &call codeprint, sh
+        $ mydef_run pt.def
+        ...
+        a = (4, 5), |a|^2 = 41
+        dot = 14
+    &call codeprint, java
+        public class pt {
+
+            public static void main(String[] args)
+            {
+                Point pt_a;
+
+                pt_a = new Point(3, 4);
+                pt_a.move(1, 1);
+                System.out.printf("a = %s, |a|^2 = %s\n", pt_a.show(), pt_a.norm2());
+                System.out.printf("dot = %s\n", dot(pt_a, new Point(1, 2)));
+            }
+
+            public static int dot(Point pt_p, Point pt_q)
+            {
+                return pt_p.x * pt_q.x + pt_p.y * pt_q.y;
+            }
+        }
+
+        class Point {
+            public int x;
+            public int y;
+
+            public Point(int x0, int y0)
+            {
+                x = x0;
+                y = y0;
+            }
+            public void move(int dx, int dy)
+            {
+                x += dx;
+                y += dy;
+            }
+            public int norm2()
+            {
+                return x * x + y * y;
+            }
+            public String show()
+            {
+                return "(" + x + ", " + y + ")";
+            }
+        };
+    $p
+        $(code:$register_prefix(pt) Point) makes every $(code:pt_...) name a $(code:Point), which gives $(code:dot) its parameter types. Its return type is given as $(code:: int), since the type of $(code:pt_p.x) is not inferred.
+
+    $call subsection, java_std, $(code:std_java.def)
+    $p
+        $(code:std_java.def) is loaded automatically. Its file subcodes take the file name as a Java expression, so a literal name needs quotes, and they catch exceptions for you:
+    &call codeprint, mydef
+        &call open_w, "words.txt"
+            Out.println("apple pie")
+            Out.println("banana split")
+        n = 0
+        &call open_r, "words.txt"
+            n++
+            $print $n: $s
+        $call init_random
+        k = $(irand:10)
+        $print atoi: ${$(atoi:"42") + 1}
+    &call codeprint, sh
+        $ mydef_run io.def
+        ...
+        1: apple pie
+        2: banana split
+        atoi: 43
+    $table ref
+        $tr
+            $th "Subcode"
+            $th "Does"
+        $tr
+            $td
+                $(code:&call open_r&#44; fname)
+            $td
+                loops over the lines of a file&#44; each in $(code:s)
+        $tr
+            $td
+                $(code:&call open_w&#44; fname)
+            $td
+                opens a $(code:PrintWriter) as $(code:Out)
+        $tr
+            $td
+                $(code:&call input&#44; fname)
+            $td
+                opens a $(code:BufferedReader) as $(code:In) ($(code:-) for standard input); $(code:$call get_s&#44; v) reads a line
+        $tr
+            $td
+                $(code:&call scanner&#44; fname)
+            $td
+                opens a $(code:Scanner) ($(code:-) for standard input); $(code:get_int)&#44; $(code:get_double)&#44; $(code:get_word)&#44; and $(code:get_s) read into a variable&#44; as in $(code:$call get_int&#44; n)
+        $tr
+            $td
+                $(code:&call try)
+            $td
+                wraps the block in $(code:try) and ignores the exception
+        $tr
+            $td
+                $(code:$call init_random)
+            $td
+                makes a $(code:Random) field $(code:rand); $(code:&dollar;(irand&#58;n)) and $(code:&dollar;(rand)) then give an $(code:int) below $(code:n) and a $(code:float) below 1
+        $tr
+            $td
+                $(code:&dollar;(atoi&#58;s))&#44; $(code:&dollar;(atof&#58;s))&#44; $(code:&dollar;(itoa&#58;n))
+            $td
+                $(code:Integer.parseInt)&#44; $(code:Double.parseDouble)&#44; $(code:Integer.toString)
+        $tr
+            $td
+                $(code:$call start_time) / $(code:$call print_time&#44; msg)
+            $td "time a section of code"
+    $p
+        For example, this sums numbers from standard input:
+    &call codeprint, mydef
+        &call scanner, -
+            $call get_int, n
+            sum = 0
+            $for i=0:n
+                $call get_int, k
+                sum += k
+            $print sum = $sum
+    &call codeprint, sh
+        $ echo 3 10 20 30 | java sc
+        sum = 60
+
+    $call subsection, java_gui, GUI programs with $(code:java/gui.def)
+    $p
+        $(code:include: java/gui.def) provides $(code:gui_frame), a frame for Swing programs. With it, the page code goes into the constructor of the page class, which opens a window; $(code:main) only creates the object. The page's fields and methods are ordinary instance members, and the $(code:title:) and $(code:size:) page attributes set up the window:
+    &call codeprint, mydef
+        include: java/gui.def
+
+        page: Counter, gui_frame
+            module: java
+            title: Counter
+            size: 300, 80
+
+            $call add_label, -, "Count:"
+            $call add_text, txt_count, "0", 8
+            $call add_button, btn_count, "Click"
+
+            $private n_count = 0
+            &call add_listener, btn_count
+                n_count++
+                txt_count.setText($(itoa:n_count))
+    &call codeprint, java
+        import java.awt.*;
+        import java.awt.event.*;
+        import javax.swing.*;
+
+        public class Counter {
+            private JFrame frame;
+            private JTextField txt_count;
+            private JButton btn_count;
+            private int n_count;
+
+            public Counter()
+            {
+
+                frame = new JFrame("Counter");
+                frame.addWindowListener(new WindowAdapter(){
+                    public void windowClosing(WindowEvent evt){
+                        System.exit(0);
+                    }
+                });
+                frame.setLayout(new FlowLayout());
+                frame.add(new JLabel("Count:"));
+                txt_count = new JTextField("0", 8);
+                frame.add(txt_count);
+                btn_count = new JButton("Click");
+                frame.add(btn_count);
+
+                n_count = 0;
+                btn_count.addActionListener(new ActionListener(){
+                    public void actionPerformed(ActionEvent evt){
+                        n_count++;
+                        txt_count.setText(Integer.toString(n_count));
+                    }
+                });
+
+                frame.setSize(300, 80);
+                frame.setVisible(true);
+            }
+
+            public static void main(String[] args)
+            {
+                Counter app;
+
+                app = new Counter();
+            }
+        }
+    $p
+        The field has to be declared outside the listener: $(code:$private n_count = 0) inside it would reset the count on every click. The widgets are $(code:add_label)&#44; $(code:add_text)&#44; $(code:add_button) (with $(code:-) for an unnamed widget)&#44; $(code:add_space)&#44; and $(code:add_glue); $(code:&call add_listener&#44; widget) handles its action events. For drawing, $(code:&call add_canvas&#44; canvas&#44; w&#44; h) gives the block a $(code:Graphics2D g) to paint with, $(code:&call animate&#44; millisec&#44; delay) runs its block on a timer, and $(code:&call add_keypress) with $(code:&call on_key&#44; VK_UP) handles keys. The $(code:test/) directory of $(code:output_java) has complete examples, such as a bouncing ball.
