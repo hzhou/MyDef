@@ -318,7 +318,19 @@ subcode:: sections
         $for my $i=10; $i>0; $i--
             $print $i
     $p
-        This form is passed through as it is&#44; so it needs the $(code:my) under $(code:use strict).
+        This C-style form is the fallback for loops that the other forms cannot express. It is written as arbitrary $(code:init; cond; step) and passed through as it is: $(code:MyDef) does not assume an iteration variable&#44; so you declare what the loop needs. A $(code:my) in $(code:init) scopes the variable to the loop&#44; as above. Often the reason for this form is that the variable should not be bound to the loop -- declare it before the loop to use its value afterwards:
+    &call codeprint, mydef
+        my $i
+        $for $i=0; $i<10 && $i*$i<30; $i++
+            NOOP
+        $print stopped at $i
+    &call codeprint, perl
+        my $i;
+        for ($i=0; $i<10 && $i*$i<30; $i++) {
+        }
+        print "stopped at $i\n";
+    $p
+        It prints $(code:stopped at 6).
 
     $call subsection, perl_while, $(code:$while)
     $p

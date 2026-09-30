@@ -2698,7 +2698,22 @@ for (my $i = 10; $i>=0; $i--) {
     $print $i
         </code></pre>
         <p>
-            This form is passed through as it is&#44; so it needs the <code>my</code> under <code>use strict</code>.
+            This C-style form is the fallback for loops that the other forms cannot express. It is written as arbitrary <code>init; cond; step</code> and passed through as it is: <code>MyDef</code> does not assume an iteration variable&#44; so you declare what the loop needs. A <code>my</code> in <code>init</code> scopes the variable to the loop&#44; as above. Often the reason for this form is that the variable should not be bound to the loop -- declare it before the loop to use its value afterwards:
+        </p>
+        <pre><code>
+my $i
+<span class="mydef-keyword">$for</span> $i=0; $i&lt;10 &amp;&amp; $i*$i&lt;30; $i++
+    NOOP
+$print stopped at $i
+        </code></pre>
+        <pre><code>
+my $i;
+for ($i=0; $i&lt;10 &amp;&amp; $i*$i&lt;30; $i++) {
+}
+print "stopped at $i\n";
+        </code></pre>
+        <p>
+            It prints <code>stopped at 6</code>.
         </p>
 
         <a name="perl_while"></a>
