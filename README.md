@@ -166,6 +166,7 @@ code:
 | Skill | For |
 |-------|-----|
 | [mydef](ai_skills/mydef/SKILL.md) | General MyDef syntax, directives, and tools |
+| [mydef-perl](ai_skills/mydef-perl/SKILL.md) | Perl with `module: perl` (built in) |
 | [mydef-c](ai_skills/mydef-c/SKILL.md) | C with `module: c` (output_c) |
 | [mydef-html](ai_skills/mydef-html/SKILL.md) | HTML, PHP, and JavaScript with output_www |
 | [mydef-python](ai_skills/mydef-python/SKILL.md) | Python with `module: python` (output_python) |

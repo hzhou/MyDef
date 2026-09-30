@@ -18,11 +18,12 @@ Use `mydef_run prog.def` to compile and run the generated script in one step.
 
 ## Installed modules
 Each `module:` value needs a `MyDef::output_<module>` Perl module in
-`$PERL5LIB/MyDef/`. Besides the built-in ones from MyDef itself (perl and
-general), these are installed from separate repos in `$HOME/projects/`:
+`$PERL5LIB/MyDef/`. MyDef itself provides `perl` and `general`; the others
+are installed from separate repos in `$HOME/projects/`:
 
 | Repo | Modules | Skill |
 |------|---------|-------|
+| MyDef (built in) | perl, general | mydef-perl |
 | output_www | www, php, js | mydef-html |
 | output_c | c, cpp | mydef-c |
 | output_python | python | mydef-python |
@@ -149,7 +150,7 @@ Special syntax like `$if`, `$for`, `$foreach`, `$while` generates the correct co
 ### Variables
 - `$local varname` — local variable declaration
 - `$global varname` — global variable declaration
-- `$my` — alias for local (Perl style)
+- `$my` — declaration in the current block
 
 ### Output
 - `$print message` — print with automatic newline
@@ -159,31 +160,10 @@ Special syntax like `$if`, `$for`, `$foreach`, `$while` generates the correct co
 - `fncode: funcname(params)` — define a function
 - `fncode: funcname(params) : returntype` — with return type (C)
 
-### Perl-specific
-- `$use Module` — use statement
-- `%hash` iteration with `$k`, `$v` in `$foreach`
-
-### C-specific
-- `$include "header.h"` — #include
-- `$list func1, func2` — forward declarations
-- `$param ...` — function parameters
-- `$call fcall, expr` — function call with error checking
+The details differ per module; see the module skills (mydef-perl, mydef-c,
+mydef-python, mydef-sh, mydef-html).
 
 ## Common Patterns
-
-### File I/O (Perl)
-Built-in subcodes for file operations:
-
-    &call open_r, filename
-        # $_ has each line
-        chomp
-        process($_)
-
-    &call open_w, filename
-        print Out "content\n"
-
-    &call open_W, filename
-        $print content
 
 ### Looping with $(for:...)
 Compile-time loop useful for repetitive patterns:
@@ -213,12 +193,7 @@ Use `#` for comments in MyDef (replaces `//` in C context).
 
 ## Standard Library
 
-Builtin macros like `open_r`, `open_w` are defined in module autoload libraries at `$MYDEFLIB`. For `module: perl`, the file is `$MYDEFLIB/std_perl.def`. When unsure how a builtin macro expands, check the corresponding std file.
-
-### Key builtins in std_perl.def
-
-- `&call open_r, <file>` — opens file with filehandle `In`, iterates with `$while <In>` setting `$_`
-- `&call open_w, <file>` — opens file with filehandle `Out` for writing (auto-prefixes `>`)
-- `&call open_W, <file>` — variant of open_w
-- When nesting `open_r` inside `open_w` (or vice versa), use a different filehandle to avoid conflicts (e.g. `In2`)
-- Prefer simple `system` calls (e.g. `system "cp $src $dst"`) over pure-Perl reimplementations when appropriate
+Builtin subcodes like `open_r` and `open_w` are defined in each module's
+autoloaded library in `$MYDEFLIB`: `std_perl.def` for `module: perl`,
+`std_c.def` for `module: c`, and so on. When unsure how a builtin expands,
+check the corresponding std file. The module skills list the main ones.
