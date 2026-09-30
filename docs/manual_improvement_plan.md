@@ -155,8 +155,8 @@ A short chapter; the module is thin (`module: sh` writes `<page>.sh`):
 - Lines pass through as plain shell; MyDef adds macros, subcodes, and
   `$(for:...)` / `$(if:...)` at compile time
 - `$if` / `$elif` / `$else` become `if ...; then` / `elif` / `else` / `fi`
-- Nothing else is translated: `$for`, `$while`, and `$print` are emitted
-  literally, so write `for ... do ... done`, `while`, and `echo`
+- `$print` becomes `echo` (no format handling); `$for` and `$while` are
+  emitted literally, so write `for ... do ... done` and `while`
 - No shebang is added; write it as `\x23!/bin/sh`, since a line starting
   with `#` is a MyDef comment
 - Collisions with shell syntax: `$(cmd)` is read as a macro (use backticks,

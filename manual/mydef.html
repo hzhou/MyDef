@@ -4474,7 +4474,7 @@ public class Counter {
     <span class="mydef-keyword">$if</span> [ $n -gt 5 ]
         echo big
     <span class="mydef-keyword">$elif</span> [ $n -gt 1 ]
-        echo <span class="mydef-quote">"mid: $n"</span>
+        $print mid: $n
     <span class="mydef-keyword">$else</span>
         echo small
     for f in a b c; do
@@ -4506,7 +4506,7 @@ n=3
 if [ $n -gt 5 ]; then
     echo big
 elif [ $n -gt 1 ]; then
-    echo "mid: $n"
+    echo mid: $n
 else
     echo small
 fi
@@ -4519,7 +4519,7 @@ greet() {
 greet world
         </code></pre>
         <p>
-            <code>$if</code>&#44; <code>$elif</code>&#44; and <code>$else</code> take the condition as written and supply <code>then</code> and <code>fi</code>. Everything else is plain shell. In particular&#44; <code>$for</code>&#44; <code>$while</code>&#44; and <code>$print</code> are not translated -- they would appear in the script literally -- so write <code>for ... do ... done</code>&#44; <code>while</code>&#44; and <code>echo</code>.
+            <code>$if</code>&#44; <code>$elif</code>&#44; and <code>$else</code> take the condition as written and supply <code>then</code> and <code>fi</code>. <code>$print</code> becomes <code>echo</code> with the rest of the line as written -- there is no format handling&#44; so quote the text when the shell needs it. Everything else is plain shell. In particular&#44; <code>$for</code> and <code>$while</code> are not translated -- they would appear in the script literally -- so write <code>for ... do ... done</code> and <code>while ... do ... done</code>.
         </p>
         <p>
             <code>output_sh</code> adds no shebang and does not make the file executable; <code>mydef_run</code> runs it with <code>sh</code>. A line starting with <code>&num;</code> is a <code>MyDef</code> comment, so write the shebang as <code>&dollar;: &num;!/bin/sh</code> (output literally) or with a hex escape&#44; <code>&#92;x23!/bin/sh</code>.

@@ -17,7 +17,7 @@ subcode:: sections
             $if [ $n -gt 5 ]
                 echo big
             $elif [ $n -gt 1 ]
-                echo "mid: $n"
+                $print mid: $n
             $else
                 echo small
             for f in a b c; do
@@ -46,7 +46,7 @@ subcode:: sections
         if [ $n -gt 5 ]; then
             echo big
         elif [ $n -gt 1 ]; then
-            echo "mid: $n"
+            echo mid: $n
         else
             echo small
         fi
@@ -58,7 +58,7 @@ subcode:: sections
         }
         greet world
     $p
-        $(code:$if)&#44; $(code:$elif)&#44; and $(code:$else) take the condition as written and supply $(code:then) and $(code:fi). Everything else is plain shell. In particular&#44; $(code:$for)&#44; $(code:$while)&#44; and $(code:$print) are not translated -- they would appear in the script literally -- so write $(code:for ... do ... done)&#44; $(code:while)&#44; and $(code:echo).
+        $(code:$if)&#44; $(code:$elif)&#44; and $(code:$else) take the condition as written and supply $(code:then) and $(code:fi). $(code:$print) becomes $(code:echo) with the rest of the line as written -- there is no format handling&#44; so quote the text when the shell needs it. Everything else is plain shell. In particular&#44; $(code:$for) and $(code:$while) are not translated -- they would appear in the script literally -- so write $(code:for ... do ... done) and $(code:while ... do ... done).
     $p
         $(code:output_sh) adds no shebang and does not make the file executable; $(code:mydef_run) runs it with $(code:sh). A line starting with $(code:&num;) is a $(code:MyDef) comment, so write the shebang as $(code:&dollar;: &num;!/bin/sh) (output literally) or with a hex escape&#44; $(code:&#92;x23!/bin/sh).
 
