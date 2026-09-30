@@ -81,7 +81,8 @@
                 <li><a href="#preproc_set">4.15 Preprocessing: <code>&dollar;(set:...)</code></a></li>
                 <li><a href="#preproc_scope">4.16 Preprocessing: scope rules</a></li>
                 <li><a href="#macro_special">4.17 Special macro syntax</a></li>
-                <li><a href="#syntax_fncode">4.18 <code>fncode:</code> -- function definitions</a></li>
+                <li><a href="#syntax_clash">4.18 Collisions with target-language syntax</a></li>
+                <li><a href="#syntax_fncode">4.19 <code>fncode:</code> -- function definitions</a></li>
                 </ul>
                 </li>
                 <li><a href="#invoke">5 Invoking <code>MyDef</code></a>
@@ -1636,9 +1637,119 @@ Perl one-liners: <span class="mydef-macro">$(eval:ucfirst(<span class="mydef-quo
         <p>
             For more up-to-date details, please reference the source.
         </p>
+        <a name="syntax_clash"></a>
+        <h3 class="section">
+            4.18 Collisions with target-language syntax
+        </h3>
+        <p>
+            <code>MyDef</code> adds very little syntax of its own, but it processes the text before the target language ever sees it. A few <code>MyDef</code> constructs -- comments, macros, and parameter lists -- can therefore collide with ordinary text in the output language. When the output looks wrong, check the generated file and watch for warnings such as <code>Macro ... not defined</code> from <code>mydef_page</code>.
+        </p>
+
+        <h4>
+            Comments: <code>&num;</code> and <code>/*</code>
+        </h4>
+        <p>
+            A line starting with <code>&num;</code> is a <code>MyDef</code> comment and is dropped. C preprocessor lines (<code>&num;include</code>, <code>&num;define</code>, <code>&num;if</code>, <code>&num;ifdef</code>, <code>&num;else</code>, <code>&num;endif</code>, <code>&num;pragma</code> etc.) are recognized and kept. Other lines -- a shebang, or a comment in Perl, Python, or shell -- are removed.
+        </p>
+        <p>
+            A <code>&num;</code> with whitespace on both sides starts a trailing comment and the rest of the line is removed, even inside a string. A <code>&num;</code> that is not surrounded by whitespace is safe:
+            <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: general
+    x = <span class="mydef-quote">"a<span class="mydef-comment"> # b"</span></span>
+    y = <span class="mydef-quote">"a#b"</span>
+            </code></pre>
+        </p>
+        <p>
+            produces:
+            <pre><code>
+x = "a
+y = "a#b"
+            </code></pre>
+        </p>
+        <p>
+            Similarly, a line starting with <code>/*</code> begins a multi-line comment that is removed through the closing <code>*/</code>.
+        </p>
+        <p>
+            Workarounds:
+        </p>
+        <ul>
+            <li>
+                Start the line with a hex escape. A leading <code>&#92;xNN</code> is decoded when the output is written, so <code>&#92;x23!/bin/sh</code> outputs <code>&num;!/bin/sh</code> and <code>&#92;x2f* ... */</code> outputs a C comment. Only a leading escape is decoded.
+            </li>
+            <li>
+                Define a macro for the character, e.g. <code>H: &num;</code> under <code>macros:</code>, and write <code>"a &dollar;(H) b"</code>. Macros are expanded after comments are filtered.
+            </li>
+            <li>
+                Use the target language's own escape, e.g. <code>"a &#92;x23 b"</code> in a Python or Perl string.
+            </li>
+        </ul>
+
+        <h4>
+            Macros: <code>&dollar;&#40;</code> and <code>&dollar;.</code>
+        </h4>
+        <p>
+            <code>&dollar;&#40;</code> followed by a word character is a macro reference. An undefined macro expands to nothing, with a warning. This collides with shell command substitution <code>&dollar;(date)</code>, Makefile variables <code>&dollar;(CC)</code>, and jQuery <code>&dollar;(document)</code>. In addition, <code>&dollar;.</code> is a shorthand for the macro <code>&dollar;(this)</code>, which collides with Perl's <code>&dollar;.</code> and jQuery's <code>&dollar;.ajax</code>.
+        </p>
+        <p>
+            Forms that do not start with a word character are safe: <code>&dollar;( date )</code>, <code>&dollar;((1+2))</code>, <code>&dollar;("&num;id")</code>, as are ordinary variables such as <code>&dollar;x</code> and <code>&dollar;{x}</code>.
+        </p>
+        <p>
+            Workarounds:
+        </p>
+        <ul>
+            <li>
+                Start the line with <code>&dollar;:</code> -- the rest of the line is output literally without macro expansion. (Comment filtering still applies.)
+            </li>
+            <li>
+                Define a macro for the character, e.g. <code>D: &dollar;</code>, and write <code>&dollar;(D)(date)</code>.
+            </li>
+            <li>
+                Start the line with <code>&#92;x24</code>, e.g. <code>&#92;x24(CC) -o prog</code>.
+            </li>
+        </ul>
+        <pre><code>
+<span class="mydef-label">macros</span>:
+    <span class="mydef-label2">D</span>: $
+
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: general
+    d=<span class="mydef-macro">$(date)</span>           <span class="mydef-comment"> # macro <span class="mydef-quote">"date"</span> -- expands to nothing</span>
+    d=<span class="mydef-macro">$(D)</span>(date)        <span class="mydef-comment"> # d=<span class="mydef-macro">$(date)</span></span>
+    $: CMD = <span class="mydef-macro">$(CC)</span> -c   <span class="mydef-comment"> # CMD = <span class="mydef-macro">$(CC)</span> -c</span>
+        </code></pre>
+
+        <h4>
+            Commas in parameters
+        </h4>
+        <p>
+            Parameters of <code>&dollar;(name:...)</code>, <code>&dollar;call</code>, and <code>&dollar;map</code> are separated by commas. If a macro uses fewer parameters than given, the extra ones are silently dropped:
+            <pre><code>
+<span class="mydef-label">macros</span>:
+    <span class="mydef-label2">code</span>: &lt;code>$1&lt;/code>
+
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: general
+    <span class="mydef-macro">$(code:a, b)</span>        <span class="mydef-comment"> # &lt;code>a&lt;/code> -- <span class="mydef-quote">", b"</span> is lost</span>
+    <span class="mydef-macro">$(code:f(a, b)</span>)     <span class="mydef-comment"> # &lt;code>f(a, b)&lt;/code></span>
+            </code></pre>
+        </p>
+        <p>
+            Commas inside parentheses, brackets, or quotes are protected, so <code>f(a&#44; b)</code>, <code>[1&#44; 2]</code>, and <code>"1&#44; 2"</code> each stay a single parameter. A macro holding a comma does not help, because it is expanded before the parameters are split. Otherwise, rephrase or use an escape of the target language, such as <code>&amp;&num;44;</code> in HTML.
+        </p>
+
+        <h4>
+            Page attributes and keywords
+        </h4>
+        <p>
+            Lines of the form <code>word: value</code> at the very start of a page are read as page attributes (such as <code>module:</code> and <code>output_dir:</code>) and do not appear in the output. If the output itself starts with such a line (YAML, for instance), put <code>&dollar;:</code> in front of it.
+        </p>
+        <p>
+            A few words are <code>MyDef</code> keywords when they appear alone on a line: <code>BLOCK</code>, <code>NEWLINE</code>, <code>NOOP</code>, and <code>DUMP_STUB name</code>. Lines starting with <code>&dollar;call</code>, <code>&call</code>, <code>&dollar;map</code>, and similar are always <code>MyDef</code> calls. Output modules add their own keywords (e.g. <code>&dollar;if</code> and <code>&dollar;print</code>).
+        </p>
         <a name="syntax_fncode"></a>
         <h3 class="section">
-            4.18 <code>fncode:</code> -- function definitions
+            4.19 <code>fncode:</code> -- function definitions
         </h3>
         <p>
             While <code>subcode</code> is expanded inline at compile time, many languages have their own concept of functions that are called at runtime. <code>MyDef</code> supports this with <code>fncode:</code>:

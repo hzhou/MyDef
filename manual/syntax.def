@@ -771,6 +771,87 @@ subcode:: sections
 
 #----------------------------------------
 subcode:: sections
+    $call subsection, syntax_clash, Collisions with target-language syntax
+    $p
+        $(code:MyDef) adds very little syntax of its own, but it processes the text before the target language ever sees it. A few $(code:MyDef) constructs -- comments, macros, and parameter lists -- can therefore collide with ordinary text in the output language. When the output looks wrong, check the generated file and watch for warnings such as $(code:Macro ... not defined) from $(code:mydef_page).
+
+    $h4
+        Comments: $(code:&num;) and $(code:/*)
+    $p
+        A line starting with $(code:&num;) is a $(code:MyDef) comment and is dropped. C preprocessor lines ($(code:&num;include), $(code:&num;define), $(code:&num;if), $(code:&num;ifdef), $(code:&num;else), $(code:&num;endif), $(code:&num;pragma) etc.) are recognized and kept. Other lines -- a shebang, or a comment in Perl, Python, or shell -- are removed.
+    $p
+        A $(code:&num;) with whitespace on both sides starts a trailing comment and the rest of the line is removed, even inside a string. A $(code:&num;) that is not surrounded by whitespace is safe:
+        &call codeprint, mydef
+            page: t
+                module: general
+                x = "a &num; b"
+                y = "a&num;b"
+    $p
+        produces:
+        &call codeprint
+            x = "a
+            y = "a&num;b"
+    $p
+        Similarly, a line starting with $(code:/*) begins a multi-line comment that is removed through the closing $(code:*/).
+    $p
+        Workarounds:
+    $ul
+        $li
+            Start the line with a hex escape. A leading $(code:&#92;xNN) is decoded when the output is written, so $(code:&#92;x23!/bin/sh) outputs $(code:&num;!/bin/sh) and $(code:&#92;x2f* ... */) outputs a C comment. Only a leading escape is decoded.
+        $li
+            Define a macro for the character, e.g. $(code:H: &num;) under $(code:macros:), and write $(code:"a &dollar;(H) b"). Macros are expanded after comments are filtered.
+        $li
+            Use the target language's own escape, e.g. $(code:"a &#92;x23 b") in a Python or Perl string.
+
+    $h4
+        Macros: $(code:&dollar;&#40;) and $(code:&dollar;.)
+    $p
+        $(code:&dollar;&#40;) followed by a word character is a macro reference. An undefined macro expands to nothing, with a warning. This collides with shell command substitution $(code:&dollar;(date)), Makefile variables $(code:&dollar;(CC)), and jQuery $(code:&dollar;(document)). In addition, $(code:&dollar;.) is a shorthand for the macro $(code:&dollar;(this)), which collides with Perl's $(code:&dollar;.) and jQuery's $(code:&dollar;.ajax).
+    $p
+        Forms that do not start with a word character are safe: $(code:&dollar;( date )), $(code:&dollar;((1+2))), $(code:&dollar;("&num;id")), as are ordinary variables such as $(code:&dollar;x) and $(code:&dollar;{x}).
+    $p
+        Workarounds:
+    $ul
+        $li
+            Start the line with $(code:&dollar;: ) -- the rest of the line is output literally without macro expansion. (Comment filtering still applies.)
+        $li
+            Define a macro for the character, e.g. $(code:D: &dollar;), and write $(code:&dollar;(D)(date)).
+        $li
+            Start the line with $(code:&#92;x24), e.g. $(code:&#92;x24(CC) -o prog).
+    &call codeprint, mydef
+        macros:
+            D: $
+
+        page: t
+            module: general
+            d=$(date)            &num; macro "date" -- expands to nothing
+            d=$(D)(date)         &num; d=$(date)
+            $: CMD = $(CC) -c    &num; CMD = $(CC) -c
+
+    $h4
+        Commas in parameters
+    $p
+        Parameters of $(code:&dollar;(name:...)), $(code:&dollar;call), and $(code:&dollar;map) are separated by commas. If a macro uses fewer parameters than given, the extra ones are silently dropped:
+        &call codeprint, mydef
+            macros:
+                code: <code>$1</code>
+
+            page: t
+                module: general
+                $(code:a, b)         &num; <code>a</code> -- ", b" is lost
+                $(code:f(a, b))      &num; <code>f(a, b)</code>
+    $p
+        Commas inside parentheses, brackets, or quotes are protected, so $(code:f(a&#44; b)), $(code:[1&#44; 2]), and $(code:"1&#44; 2") each stay a single parameter. A macro holding a comma does not help, because it is expanded before the parameters are split. Otherwise, rephrase or use an escape of the target language, such as $(code:&amp;&num;44;) in HTML.
+
+    $h4
+        Page attributes and keywords
+    $p
+        Lines of the form $(code:word: value) at the very start of a page are read as page attributes (such as $(code:module:) and $(code:output_dir:)) and do not appear in the output. If the output itself starts with such a line (YAML, for instance), put $(code:&dollar;: ) in front of it.
+    $p
+        A few words are $(code:MyDef) keywords when they appear alone on a line: $(code:BLOCK), $(code:NEWLINE), $(code:NOOP), and $(code:DUMP_STUB name). Lines starting with $(code:&dollar;call), $(code:&call), $(code:&dollar;map), and similar are always $(code:MyDef) calls. Output modules add their own keywords (e.g. $(code:&dollar;if) and $(code:&dollar;print)).
+
+#----------------------------------------
+subcode:: sections
     $call subsection, syntax_fncode, $(code:fncode:) -- function definitions
     $p
         While $(code:subcode) is expanded inline at compile time, many languages have their own concept of functions that are called at runtime. $(code:MyDef) supports this with $(code:fncode:):
