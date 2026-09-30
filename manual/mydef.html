@@ -127,6 +127,14 @@
                 </ul>
                 </li>
                 <li><a href="#www">9 <code>output_www</code></a>
+                <ul class="no-bullet id2">
+                <li><a href="#www_page">9.1 A first page</a></li>
+                <li><a href="#www_tags">9.2 Tags</a></li>
+                <li><a href="#www_css">9.3 CSS</a></li>
+                <li><a href="#www_js">9.4 JavaScript</a></li>
+                <li><a href="#www_php">9.5 PHP</a></li>
+                <li><a href="#www_std">9.6 <code>std_html.def</code> and other libraries</a></li>
+                </ul>
                 </li>
                 <li><a href="#python">10 <code>output_python</code></a>
                 </li>
@@ -3212,7 +3220,327 @@ struct point {
             9 <code>output_www</code>
         </h2>
         <p>
-            [To be continued.]
+            <code>output_www</code> lives in its own repository, <a href="https://github.com/hzhou/output_www">github.com/hzhou/output_www</a>, and is installed the same way as <code>output_c</code> (<code>mydef_make</code>, <code>make</code>, <code>make install</code>). It provides three modules: <code>module: www</code> for HTML pages, <code>module: js</code> for JavaScript, and <code>module: php</code> for PHP. This manual itself is written with <code>output_www</code> -- see <code>manual/mydef.def</code> in the <code>MyDef</code> repository.
+        </p>
+        <p>
+            HTML is a markup language. Most of its noise is closing tags, and indentation already shows the nesting, so the main thing <code>output_www</code> adds is tags written as indented blocks.
+        </p>
+
+        <a name="www_page"></a>
+        <h3 class="section">
+            9.1 A first page
+        </h3>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">hello</span>
+    <span class="mydef-label2">module</span>: www
+    <span class="mydef-label2">title</span>: Hello
+
+    $h1
+        Hello, World!
+    $p
+        My first MyDef page.
+        </code></pre>
+        <p>
+            <code>mydef_page hello.def</code> writes <code>hello.html</code>:
+        </p>
+        <pre><code>
+&lt;!doctype html>
+&lt;html>
+    &lt;head>
+        &lt;meta charset="utf-8">
+        &lt;title>Hello&lt;/title>
+    &lt;/head>
+    &lt;body>
+        &lt;h1>
+            Hello, World!
+        &lt;/h1>
+        &lt;p>
+            My first MyDef page.
+        &lt;/p>
+    &lt;/body>
+&lt;/html>
+        </code></pre>
+        <p>
+            As with <code>output_c</code>, the page gets a default frame: <code>basic_frame</code> from <code>std_www.def</code> writes the <code>&lt;html&gt;</code>, <code>&lt;head&gt;</code>, and <code>&lt;body&gt;</code> skeleton and puts the page code in the body. <code>title:</code> sets the page title. Plain text and raw HTML lines are passed through as they are.
+        </p>
+
+        <a name="www_tags"></a>
+        <h3 class="section">
+            9.2 Tags
+        </h3>
+        <p>
+            A tag is written as <code>$tagname</code> followed by a comma-separated list of attributes, with the content indented below it:
+        </p>
+        <pre><code>
+$p hint, #intro
+    A paragraph with class and id.
+$a href:https://example.com, target:_blank
+    a link
+        </code></pre>
+        <pre><code>
+&lt;p class="hint" id="intro">
+    A paragraph with class and id.
+&lt;/p>
+&lt;a href="https://example.com" target="_blank">
+    a link
+&lt;/a>
+        </code></pre>
+        <p>
+            Each item in the attribute list is read by its form:
+        </p>
+        <table class="ref">
+            <tr>
+                <th>Form</th>
+                <th>Meaning</th>
+                <th>Example</th>
+            </tr>
+            <tr>
+                <td>bare word</td>
+                <td>CSS class</td>
+                <td>
+                    <code>$div note</code> → <code>class="note"</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&num;name</code>
+                </td>
+                <td>id</td>
+                <td>
+                    <code>$div &num;box</code> → <code>id="box"</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>key:value</code>
+                </td>
+                <td>attribute</td>
+                <td>
+                    <code>$img src:logo.png</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>"text"</code>
+                </td>
+                <td>short content on the same line</td>
+                <td>
+                    <code>$li "one"</code> → <code>&lt;li&gt;one&lt;/li&gt;</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>/</code>
+                </td>
+                <td>empty element</td>
+                <td>
+                    <code>$div &num;box&#44; /</code> → <code>&lt;div id="box"&gt;&lt;/div&gt;</code>
+                </td>
+            </tr>
+        </table>
+        <p>
+            <code>$img</code> and <code>$input</code> are written as self-closing tags. <code>$input</code> gets <code>type="text"</code> unless a type is given, and its quoted text becomes the <code>placeholder</code>.
+        </p>
+        <p>
+            Tags known by name are the common ones: <code>html head body h1-h5 p pre div span form label fieldset button input textarea select option table tr td th ol ul li img a center b style</code>. Any other tag is written with <code>$tag</code>: <code>$tag nav&#44; main-nav</code> gives <code>&lt;nav class="main-nav"&gt;</code>.
+        </p>
+        <p>
+            The attribute list is split at commas, and text in quotes is read as a <code>key:value</code> attribute if it contains a colon. When content has commas or colons -- including content produced by a macro -- put it in the indented block instead of quotes:
+        </p>
+        <pre><code>
+$td <span class="mydef-quote">"Note: see below"</span>      <span class="mydef-comment"> # wrong: read as an attribute <span class="mydef-quote">"Note"</span></span>
+$td
+    Note: see below        <span class="mydef-comment"> # right</span>
+        </code></pre>
+
+        <a name="www_css"></a>
+        <h3 class="section">
+            9.3 CSS
+        </h3>
+        <p>
+            <code>CSS:</code> lines add style rules. They can appear anywhere in the page, typically next to the elements they style, and are all gathered into one <code>&lt;style&gt;</code> block in the head. Rules for the same selector are merged, and a <code>.css</code> file name becomes a stylesheet link:
+        </p>
+        <pre><code>
+$p hint
+    <span class="mydef-preproc">CSS</span>: <span class="mydef-preproc">.hint {color: #888}</span>
+    <span class="mydef-preproc">CSS</span>: <span class="mydef-preproc">.hint {font-size: small}</span>
+    styled text
+<span class="mydef-preproc">CSS</span>: <span class="mydef-preproc">theme.css</span>
+        </code></pre>
+        <pre><code>
+&lt;link rel="stylesheet" type="text/css" href="theme.css" />
+&lt;style>
+    .hint {color: #888; font-size: small}
+&lt;/style>
+        </code></pre>
+        <p>
+            One catch: <code>CSS: ...</code> has the form of a page attribute, so <code>CSS:</code> lines placed right below the <code>page:</code> line, before any other code, are taken as page attributes and silently lost (see <code>Collisions with target-language syntax</code> in the Syntax chapter). Put them after the first line of content, or collect them in a subcode and <code>$call</code> it, as this manual does.
+        </p>
+
+        <a name="www_js"></a>
+        <h3 class="section">
+            9.4 JavaScript
+        </h3>
+        <p>
+            A <code>$script</code> block switches to JavaScript. Inside it, the code is handled by <code>output_js</code>, which gives JavaScript the same conveniences as the other modules -- optional semicolons, and <code>$if</code>, <code>$for</code>, <code>$while</code>, and <code>$function</code> without parentheses and braces:
+        </p>
+        <pre><code>
+$script
+    var n = 3
+    <span class="mydef-keyword">$if</span> n > 2
+        console.log(<span class="mydef-quote">"big"</span>)
+        </code></pre>
+        <pre><code>
+&lt;script type="text/javascript">
+    var n = 3;
+    if(n > 2){
+        console.log("big");
+    }
+&lt;/script>
+        </code></pre>
+        <p>
+            For pages with real scripting, use <code>js_frame</code>. It adds a <code>&lt;script&gt;</code> block to the head and runs the <code>js_onload</code> subcode when the page loads. Code in <code>jscode:</code> subcodes is JavaScript, and <code>$global</code> declares a global variable at the top of the script:
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">counter</span>, js_frame
+    <span class="mydef-label2">module</span>: www
+    <span class="mydef-label2">title</span>: Counter
+    $button #btn, <span class="mydef-quote">"Click me"</span>
+    $span #count, <span class="mydef-quote">"0"</span>
+
+<span class="mydef-label">jscode</span>:: <span class="mydef-label">js_onload</span>
+    <span class="mydef-keyword">$global</span> clicks = 0
+    <span class="mydef-keyword">&call</span> <strong>on_click,</strong> btn
+        clicks++
+        <span class="mydef-macro">$(id:count)</span>.innerHTML = clicks
+        </code></pre>
+        <pre><code>
+&lt;script type="text/javascript">
+    var clicks = 0;
+    window.onload = function(){
+        document.getElementById("btn").addEventListener("click", function(event){
+            clicks++;
+            document.getElementById('count').innerHTML = clicks;
+        }, false);
+    };
+&lt;/script>
+        </code></pre>
+        <p>
+            <code>std_js.def</code> provides these helpers. The macros <code>&dollar;(id:x)</code>, <code>&dollar;(value:x)</code>, <code>&dollar;(style:x)</code>, <code>&dollar;(show:x)</code>, and <code>&dollar;(hide:x)</code> are short for <code>document.getElementById</code> expressions. The block subcodes <code>on_click</code>, <code>on_change</code>, <code>setf</code>, <code>ajax_get</code>, and <code>ajax_post</code> wrap the usual event and request patterns. <code>js_frame</code> also calls the optional subcodes <code>js_global</code> and <code>css_global</code>.
+        </p>
+        <p>
+            A page with <code>module: js</code> produces a standalone <code>.js</code> file. Note that <code>$global</code> only works inside <code>js_frame</code>; in a standalone file, declare globals with plain <code>var</code>.
+        </p>
+
+        <a name="www_php"></a>
+        <h3 class="section">
+            9.5 PHP
+        </h3>
+        <p>
+            PHP support is simpler and less developed. A page with <code>type: php</code> is written as a <code>.php</code> file, and in its HTML text, a <code>$var</code> becomes <code>&lt;?php echo $var ?&gt;</code>:
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">greet</span>
+    <span class="mydef-label2">module</span>: www
+    <span class="mydef-label2">type</span>: php
+    $h1
+        Hello, $name!
+        </code></pre>
+        <pre><code>
+&lt;h1>
+    Hello, &lt;?php echo $name ?>!
+&lt;/h1>
+        </code></pre>
+        <p>
+            For a page that is all PHP, use <code>php_frame</code>, which compiles the page code as PHP. <code>phpcode:</code> subcodes are also PHP, but once a page switches into PHP it does not switch back to HTML, so keep PHP code in <code>php_frame</code> pages rather than mixing it into an HTML page. <code>$form</code> fills in <code>action</code> and <code>method="POST"</code> when they are not given; on a <code>type: php</code> page, give the <code>action</code> explicitly.
+        </p>
+
+        <a name="www_std"></a>
+        <h3 class="section">
+            9.6 <code>std_html.def</code> and other libraries
+        </h3>
+        <p>
+            <code>std_www.def</code> is loaded automatically and brings in <code>std_html.def</code>, <code>std_js.def</code>, and <code>std_php.def</code>. <code>std_html.def</code> has inline macros for the most common markup:
+        </p>
+        <table class="ref">
+            <tr>
+                <th>Macro</th>
+                <th>Output</th>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;(a:text&#44;url)</code>
+                </td>
+                <td>
+                    <code>&lt;a href="url"&gt;text&lt;/a&gt;</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;(url:u)</code>
+                </td>
+                <td>
+                    <code>&lt;a href="u"&gt;u&lt;/a&gt;</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;(anchor:name)</code>
+                </td>
+                <td>
+                    <code>&lt;a name="name"&gt;&lt;/a&gt;</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;(code:text)</code>
+                </td>
+                <td>
+                    <code>&lt;code&gt;text&lt;/code&gt;</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;(b:text)</code> / <code>&dollar;(em:text)</code>
+                </td>
+                <td>
+                    <code>&lt;strong&gt;</code> / <code>&lt;em&gt;</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;(img:src)</code>
+                </td>
+                <td>
+                    <code>&lt;img src="src" /&gt;</code>
+                </td>
+            </tr>
+        </table>
+        <p>
+            It also has form helpers (<code>input_text</code>, <code>input_pass</code>, <code>input_checkbox</code>, <code>input_radio</code>, <code>input_hidden</code>, <code>input_submit</code>, <code>input_option</code>) and <code>js_src</code> for loading a script file:
+        </p>
+        <pre><code>
+<span class="mydef-keyword">$call</span> <strong>js_src,</strong> app.js
+$form action:save.php
+    <span class="mydef-keyword">$call</span> <strong>input_text,</strong> username
+    <span class="mydef-keyword">$call</span> <strong>input_checkbox,</strong> remember, Remember me
+    <span class="mydef-keyword">$call</span> <strong>input_submit,</strong> Save
+        </code></pre>
+        <p>
+            Two optional libraries are included with <code>include:</code>. <code>html/code.def</code> provides <code>codeprint</code>, which formats code listings (with highlighting for <code>mydef</code> code) -- every code example in this manual goes through it:
+        </p>
+        <pre><code>
+<span class="mydef-preproc">include</span>: <span class="mydef-preproc">html/code.def</span>
+
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: www
+    <span class="mydef-keyword">$call</span> <strong>code_css</strong>
+    <span class="mydef-keyword">&call</span> <strong>codeprint,</strong> mydef
+        <span class="mydef-label2">page</span>: t
+            $print Hello
+        </code></pre>
+        <p>
+            <code>html/markdown.def</code> converts a block of Markdown to HTML, using an external <code>markdown_translate.pl</code> script.
         </p>
         <a name="python"></a>
         <h2 class="chapter">

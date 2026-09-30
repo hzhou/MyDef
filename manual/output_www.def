@@ -1,0 +1,235 @@
+subcode:: sections
+    $call section, www, $(code:output_www)
+    $p
+        $(code:output_www) lives in its own repository, $(a:github.com/hzhou/output_www,https://github.com/hzhou/output_www), and is installed the same way as $(code:output_c) ($(code:mydef_make), $(code:make), $(code:make install)). It provides three modules: $(code:module: www) for HTML pages, $(code:module: js) for JavaScript, and $(code:module: php) for PHP. This manual itself is written with $(code:output_www) -- see $(code:manual/mydef.def) in the $(code:MyDef) repository.
+    $p
+        HTML is a markup language. Most of its noise is closing tags, and indentation already shows the nesting, so the main thing $(code:output_www) adds is tags written as indented blocks.
+
+    $call subsection, www_page, A first page
+    &call codeprint, mydef
+        page: hello
+            module: www
+            title: Hello
+
+            $h1
+                Hello, World!
+            $p
+                My first MyDef page.
+    $p
+        $(code:mydef_page hello.def) writes $(code:hello.html):
+    &call codeprint, html
+        <!doctype html>
+        <html>
+            <head>
+                <meta charset="utf-8">
+                <title>Hello</title>
+            </head>
+            <body>
+                <h1>
+                    Hello, World!
+                </h1>
+                <p>
+                    My first MyDef page.
+                </p>
+            </body>
+        </html>
+    $p
+        As with $(code:output_c), the page gets a default frame: $(code:basic_frame) from $(code:std_www.def) writes the $(code:&lt;html&gt;), $(code:&lt;head&gt;), and $(code:&lt;body&gt;) skeleton and puts the page code in the body. $(code:title:) sets the page title. Plain text and raw HTML lines are passed through as they are.
+
+    $call subsection, www_tags, Tags
+    $p
+        A tag is written as $(code:$tagname) followed by a comma-separated list of attributes, with the content indented below it:
+    &call codeprint, mydef
+        $p hint, #intro
+            A paragraph with class and id.
+        $a href:https://example.com, target:_blank
+            a link
+    &call codeprint, html
+        <p class="hint" id="intro">
+            A paragraph with class and id.
+        </p>
+        <a href="https://example.com" target="_blank">
+            a link
+        </a>
+    $p
+        Each item in the attribute list is read by its form:
+    $table ref
+        $tr
+            $th "Form"
+            $th "Meaning"
+            $th "Example"
+        $tr
+            $td "bare word"
+            $td "CSS class"
+            $td
+                $(code:$div note) → $(code:class="note")
+        $tr
+            $td
+                $(code:&num;name)
+            $td "id"
+            $td
+                $(code:$div &num;box) → $(code:id="box")
+        $tr
+            $td
+                $(code:key:value)
+            $td "attribute"
+            $td
+                $(code:$img src:logo.png)
+        $tr
+            $td
+                $(code:"text")
+            $td "short content on the same line"
+            $td
+                $(code:$li "one") → $(code:&lt;li&gt;one&lt;/li&gt;)
+        $tr
+            $td
+                $(code:/)
+            $td "empty element"
+            $td
+                $(code:$div &num;box&#44; /) → $(code:&lt;div id="box"&gt;&lt;/div&gt;)
+    $p
+        $(code:$img) and $(code:$input) are written as self-closing tags. $(code:$input) gets $(code:type="text") unless a type is given, and its quoted text becomes the $(code:placeholder).
+    $p
+        Tags known by name are the common ones: $(code:html head body h1-h5 p pre div span form label fieldset button input textarea select option table tr td th ol ul li img a center b style). Any other tag is written with $(code:$tag): $(code:$tag nav&#44; main-nav) gives $(code:&lt;nav class="main-nav"&gt;).
+    $p
+        The attribute list is split at commas, and text in quotes is read as a $(code:key:value) attribute if it contains a colon. When content has commas or colons -- including content produced by a macro -- put it in the indented block instead of quotes:
+    &call codeprint, mydef
+        $td "Note: see below"       &num; wrong: read as an attribute "Note"
+        $td
+            Note: see below         &num; right
+
+    $call subsection, www_css, CSS
+    $p
+        $(code:CSS:) lines add style rules. They can appear anywhere in the page, typically next to the elements they style, and are all gathered into one $(code:&lt;style&gt;) block in the head. Rules for the same selector are merged, and a $(code:.css) file name becomes a stylesheet link:
+    &call codeprint, mydef
+        $p hint
+            CSS: .hint {color: #888}
+            CSS: .hint {font-size: small}
+            styled text
+        CSS: theme.css
+    &call codeprint, html
+        <link rel="stylesheet" type="text/css" href="theme.css" />
+        <style>
+            .hint {color: #888; font-size: small}
+        </style>
+    $p
+        One catch: $(code:CSS: ...) has the form of a page attribute, so $(code:CSS:) lines placed right below the $(code:page:) line, before any other code, are taken as page attributes and silently lost (see $(code:Collisions with target-language syntax) in the Syntax chapter). Put them after the first line of content, or collect them in a subcode and $(code:$call) it, as this manual does.
+
+    $call subsection, www_js, JavaScript
+    $p
+        A $(code:$script) block switches to JavaScript. Inside it, the code is handled by $(code:output_js), which gives JavaScript the same conveniences as the other modules -- optional semicolons, and $(code:$if), $(code:$for), $(code:$while), and $(code:$function) without parentheses and braces:
+    &call codeprint, mydef
+        $script
+            var n = 3
+            $if n > 2
+                console.log("big")
+    &call codeprint, html
+        <script type="text/javascript">
+            var n = 3;
+            if(n > 2){
+                console.log("big");
+            }
+        </script>
+    $p
+        For pages with real scripting, use $(code:js_frame). It adds a $(code:&lt;script&gt;) block to the head and runs the $(code:js_onload) subcode when the page loads. Code in $(code:jscode:) subcodes is JavaScript, and $(code:$global) declares a global variable at the top of the script:
+    &call codeprint, mydef
+        page: counter, js_frame
+            module: www
+            title: Counter
+            $button &num;btn, "Click me"
+            $span &num;count, "0"
+
+        jscode:: js_onload
+            $global clicks = 0
+            &call on_click, btn
+                clicks++
+                $(id:count).innerHTML = clicks
+    &call codeprint, html
+        <script type="text/javascript">
+            var clicks = 0;
+            window.onload = function(){
+                document.getElementById("btn").addEventListener("click", function(event){
+                    clicks++;
+                    document.getElementById('count').innerHTML = clicks;
+                }, false);
+            };
+        </script>
+    $p
+        $(code:std_js.def) provides these helpers. The macros $(code:&dollar;(id:x)), $(code:&dollar;(value:x)), $(code:&dollar;(style:x)), $(code:&dollar;(show:x)), and $(code:&dollar;(hide:x)) are short for $(code:document.getElementById) expressions. The block subcodes $(code:on_click), $(code:on_change), $(code:setf), $(code:ajax_get), and $(code:ajax_post) wrap the usual event and request patterns. $(code:js_frame) also calls the optional subcodes $(code:js_global) and $(code:css_global).
+    $p
+        A page with $(code:module: js) produces a standalone $(code:.js) file. Note that $(code:$global) only works inside $(code:js_frame); in a standalone file, declare globals with plain $(code:var).
+
+    $call subsection, www_php, PHP
+    $p
+        PHP support is simpler and less developed. A page with $(code:type: php) is written as a $(code:.php) file, and in its HTML text, a $(code:$var) becomes $(code:&lt;?php echo $var ?&gt;):
+    &call codeprint, mydef
+        page: greet
+            module: www
+            type: php
+            $h1
+                Hello, $name!
+    &call codeprint, html
+        <h1>
+            Hello, <?php echo $name ?>!
+        </h1>
+    $p
+        For a page that is all PHP, use $(code:php_frame), which compiles the page code as PHP. $(code:phpcode:) subcodes are also PHP, but once a page switches into PHP it does not switch back to HTML, so keep PHP code in $(code:php_frame) pages rather than mixing it into an HTML page. $(code:$form) fills in $(code:action) and $(code:method="POST") when they are not given; on a $(code:type: php) page, give the $(code:action) explicitly.
+
+    $call subsection, www_std, $(code:std_html.def) and other libraries
+    $p
+        $(code:std_www.def) is loaded automatically and brings in $(code:std_html.def), $(code:std_js.def), and $(code:std_php.def). $(code:std_html.def) has inline macros for the most common markup:
+    $table ref
+        $tr
+            $th "Macro"
+            $th "Output"
+        $tr
+            $td
+                $(code:&dollar;(a:text&#44;url))
+            $td
+                $(code:&lt;a href="url"&gt;text&lt;/a&gt;)
+        $tr
+            $td
+                $(code:&dollar;(url:u))
+            $td
+                $(code:&lt;a href="u"&gt;u&lt;/a&gt;)
+        $tr
+            $td
+                $(code:&dollar;(anchor:name))
+            $td
+                $(code:&lt;a name="name"&gt;&lt;/a&gt;)
+        $tr
+            $td
+                $(code:&dollar;(code:text))
+            $td
+                $(code:&lt;code&gt;text&lt;/code&gt;)
+        $tr
+            $td
+                $(code:&dollar;(b:text)) / $(code:&dollar;(em:text))
+            $td
+                $(code:&lt;strong&gt;) / $(code:&lt;em&gt;)
+        $tr
+            $td
+                $(code:&dollar;(img:src))
+            $td
+                $(code:&lt;img src="src" /&gt;)
+    $p
+        It also has form helpers ($(code:input_text), $(code:input_pass), $(code:input_checkbox), $(code:input_radio), $(code:input_hidden), $(code:input_submit), $(code:input_option)) and $(code:js_src) for loading a script file:
+    &call codeprint, mydef
+        $call js_src, app.js
+        $form action:save.php
+            $call input_text, username
+            $call input_checkbox, remember, Remember me
+            $call input_submit, Save
+    $p
+        Two optional libraries are included with $(code:include:). $(code:html/code.def) provides $(code:codeprint), which formats code listings (with highlighting for $(code:mydef) code) -- every code example in this manual goes through it:
+    &call codeprint, mydef
+        include: html/code.def
+
+        page: t
+            module: www
+            $call code_css
+            &call codeprint, mydef
+                page: t
+                    $print Hello
+    $p
+        $(code:html/markdown.def) converts a block of Markdown to HTML, using an external $(code:markdown_translate.pl) script.

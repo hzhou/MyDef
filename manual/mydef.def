@@ -8,6 +8,7 @@ include: syntax.def
 include: output_general.def
 include: output_perl.def
 include: output_c.def
+include: output_www.def
 
 page: mydef, basic_frame
     module: www
@@ -20,9 +21,6 @@ page: mydef, basic_frame
         $(title)
     $call TOC
     $call @sections
-    $call section, www, $(code:output_www)
-    $p
-        [To be continued.]
     $call section, python, $(code:output_python)
     $p
         [To be continued.]
