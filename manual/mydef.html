@@ -77,7 +77,7 @@
                 <li><a href="#syntax_dump_stub">4.11 <code>DUMP_STUB</code></a></li>
                 <li><a href="#macro_param">4.12 Inline macros with parameters</a></li>
                 <li><a href="#preproc_if">4.13 Preprocessing: <code>&dollar;(if:...)</code></a></li>
-                <li><a href="#preproc_set">4.14 Preprocessing: <code>&dollar;(for:...)</code></a></li>
+                <li><a href="#preproc_for">4.14 Preprocessing: <code>&dollar;(for:...)</code></a></li>
                 <li><a href="#preproc_set">4.15 Preprocessing: <code>&dollar;(set:...)</code></a></li>
                 <li><a href="#preproc_scope">4.16 Preprocessing: scope rules</a></li>
                 <li><a href="#macro_special">4.17 Special macro syntax</a></li>
@@ -161,6 +161,15 @@
                 <li><a href="#sh_plain">12.1 It is OK to write vanilla shell</a></li>
                 <li><a href="#sh_mydef">12.2 Macros and subcodes</a></li>
                 <li><a href="#sh_clash">12.3 Collisions with shell syntax</a></li>
+                </ul>
+                </li>
+                <li><a href="#reference">13 Reference</a>
+                <ul class="no-bullet id2">
+                <li><a href="#ref_page">13.1 Page attributes</a></li>
+                <li><a href="#ref_directive">13.2 Compile-time directives</a></li>
+                <li><a href="#ref_keyword">13.3 Keywords in the output stream</a></li>
+                <li><a href="#ref_tools">13.4 Tools</a></li>
+                <li><a href="#ref_glossary">13.5 Glossary</a></li>
                 </ul>
                 </li>
             </ul>
@@ -356,7 +365,7 @@ $ make install
             3 Getting Started
         </h2>
         <p>
-            This chapter walks through creating your first <code>MyDef</code> project step by step. By the end, you will understand the basic workflow and core concepts. We assume you have already installed <code>MyDef</code> following the instructions in the Installations chapter.
+            This chapter walks through creating your first <code>MyDef</code> project step by step. By the end, you will understand the basic workflow and core concepts. We assume you have already installed <code>MyDef</code> following the instructions in the <a href="#install">Installations</a> chapter.
         </p>
 
         <a name="started_general"></a>
@@ -444,7 +453,7 @@ print "Hello, World!\n";
             </code></pre>
         </p>
         <p>
-            <code>subcode: greet(name)</code> defines a block with one parameter. <code>$call greet</code> inlines that block with <code>&dollar;(name)</code> replaced by <code>Alice</code>. Running this produces:
+            <code>subcode: greet(name)</code> defines a block with one parameter (see <a href="#subcode_param">Subcode with parameters</a>). <code>$call greet</code> inlines that block with <code>&dollar;(name)</code> replaced by <code>Alice</code>. Running this produces:
             <pre><code>
 $ mydef_run greet.def
 PAGE: greet
@@ -683,7 +692,7 @@ $ make
             </tr>
         </table>
         <p>
-            With these basics, you can already start writing useful programs. The following chapters cover the full syntax and language-specific features in detail.
+            With these basics, you can already start writing useful programs. The following chapters cover the <a href="#syntax">full syntax</a> and language-specific features in detail&#44; and the <a href="#reference">Reference</a> chapter collects them in tables.
         </p>
         <a name="syntax"></a>
         <h2 class="chapter">
@@ -1115,7 +1124,7 @@ print "Hello, Carol!\n";
             </code></pre>
         </p>
         <p>
-            It should be noted that there are preprocessing directives that will be introduced in a later chapter to achieve a similar result.
+            It should be noted that the preprocessing directive <a href="#preproc_for"><code>&dollar;(for:...)</code></a>&#44; introduced later in this chapter&#44; achieves a similar result.
         </p>
         <a name="nest_call"></a>
         <h3 class="section">
@@ -1346,7 +1355,7 @@ feature B implementation
             4.13 Preprocessing: <code>&dollar;(if:...)</code>
         </h3>
         <p>
-            Basic switching logic is supported with preprocessing directives <code>&dollar;(if:...)</code>, <code>&dollar;(elif:...)</code>, <code>&dollar;(else)</code>, and <code>&dollar;(endif)</code>:
+            Basic switching logic is supported with preprocessing directives <code>&dollar;(if:...)</code>, <code>&dollar;(elif:...)</code>, and <code>&dollar;(else)</code>. Each takes the indented block below it; the block ends with the indentation, so there is no closing directive:
             <pre><code>
 $(if:!A)
     Code when macro A is not defined
@@ -1498,7 +1507,7 @@ $(else)
         <p>
             For the complete up-to-date implementation, see <code>macros_compile/preproc.def</code>, <code>fncode: testcondition</code>.
         </p>
-        <a name="preproc_set"></a>
+        <a name="preproc_for"></a>
         <h3 class="section">
             4.14 Preprocessing: <code>&dollar;(for:...)</code>
         </h3>
@@ -1673,7 +1682,7 @@ Perl one-liners: <span class="mydef-macro">$(eval:ucfirst(<span class="mydef-quo
             </code></pre>
         </p>
         <p>
-            <code>MyDef</code> is written in Perl, so it is trivial to add <code>eval</code> and expose the entire Perl engine. There is also a similar interface for <code>eval</code> subcode, which essentially allows direct perl code to manipulate text transformations. However, it is necessary to understand <code>MyDef</code>'s internal details to effectively work with the rest of <code>MyDef</code> processing. We'll discuss details in later chapters.
+            <code>MyDef</code> is written in Perl, so it is trivial to add <code>eval</code> and expose the entire Perl engine. There is also a similar interface for <code>eval</code> subcode, which essentially allows direct perl code to manipulate text transformations. However, it is necessary to understand <code>MyDef</code>'s internal details to effectively work with the rest of <code>MyDef</code> processing. The <a href="#general">output_general</a> chapter goes into those details.
         </p>
         <p>
             For more up-to-date details, please reference the source.
@@ -1818,7 +1827,7 @@ y = "a#b"
             </li>
         </ul>
         <p>
-            The exact behavior of <code>fncode:</code> depends on the output module. For example, <code>output_perl</code> generates <code>sub</code> definitions with automatic parameter unpacking from <code>@_</code>, and only includes functions that are actually used in <code>.pl</code> scripts. See the output module chapters for details.
+            The exact behavior of <code>fncode:</code> depends on the output module. For example, <code>output_perl</code> generates <code>sub</code> definitions with automatic parameter unpacking from <code>@_</code>, and only includes functions that are actually used in <code>.pl</code> scripts. See the output module chapters for details&#44; starting with <a href="#perl">output_perl</a> and <a href="#c">output_c</a>.
         </p>
         <a name="invoke"></a>
         <h2 class="chapter">
@@ -2024,13 +2033,14 @@ do not know how to run it
             For details of the heuristics or customization, refer to <code>mydef_run.def</code> in the source repository.
         </p>
         <p>
-            It is possible to directly set command line for <code>mydef_run</code> to run. For example:
+            It is possible to directly set the command for <code>mydef_run</code> to run with <code>cmd&#58;</code>. For example:
         </p>
         <pre><code>
 <span class="mydef-label">page</span>: <span class="mydef-label">t</span>
-    <span class="mydef-label2">run</span>: cat t.txt
+    <span class="mydef-label2">module</span>: general
+    <span class="mydef-label2">cmd</span>: cat t.txt
 
-    $print Hello World!
+    Hello World!
         </code></pre>
 
         <pre><code>
@@ -2038,8 +2048,11 @@ $ mydef_run t.def
 PAGE: t
     --> [./t.txt]
 cat t.txt
-$print Hello World!
+Hello World!
         </code></pre>
+        <p>
+            <code>run&#58;</code> instead puts a prefix in front of the usual command: with <code>run&#58; time</code>&#44; a Perl page runs as <code>time perl ./t.pl</code>.
+        </p>
 
         <p>
             Or you may simply specify an argument:
@@ -2058,9 +2071,9 @@ $ mydef_run t.def
 PAGE: t
     --> [./t.pl]
 perl ./t.pl P1 P2 P3
-arg: P1
-arg: P2
-arg: P3
+argument P1
+argument P2
+argument P3
         </code></pre>
         <p>
             As a bonus, do you know that you can directly use <code>mydef_run</code> on <code>.pl</code>, <code>.c</code>, or any source code with a known extension? Try it.
@@ -3397,7 +3410,7 @@ $p hint
 &lt;/style>
         </code></pre>
         <p>
-            One catch: <code>CSS: ...</code> has the form of a page attribute, so <code>CSS:</code> lines placed right below the <code>page:</code> line, before any other code, are taken as page attributes and silently lost (see <code>Collisions with target-language syntax</code> in the Syntax chapter). Put them after the first line of content, or collect them in a subcode and <code>$call</code> it, as this manual does.
+            One catch: <code>CSS: ...</code> has the form of a page attribute, so <code>CSS:</code> lines placed right below the <code>page:</code> line, before any other code, are taken as page attributes and silently lost (see <a href="#syntax_clash">Collisions with target-language syntax</a>). Put them after the first line of content, or collect them in a subcode and <code>$call</code> it, as this manual does.
         </p>
 
         <a name="www_js"></a>
@@ -3647,7 +3660,7 @@ n=4, n*7=28
             </li>
         </ul>
         <p>
-            The comment rules of the Syntax chapter apply: a <code>&num;</code> with spaces on both sides starts a <code>MyDef</code> comment, even inside a string. Write <code>"a &#92;x23 b"</code> for such a string.
+            The comment rules of <a href="#syntax_clash">Collisions with target-language syntax</a> apply: a <code>&num;</code> with spaces on both sides starts a <code>MyDef</code> comment, even inside a string. Write <code>"a &#92;x23 b"</code> for such a string.
         </p>
 
         <a name="python_print"></a>
@@ -3839,7 +3852,7 @@ count = 0
             10.5 Regex capture with <code>-></code>
         </h3>
         <p>
-            The Perl-style match and capture from <code>output_perl</code> (see its section on regex capture) works in <code>$if</code> and <code>$elif</code>, and becomes <code>re.search</code>:
+            The Perl-style match and capture from <code>output_perl</code> (see <a href="#perl_capture">Regex capture</a>) works in <code>$if</code> and <code>$elif</code>, and becomes <code>re.search</code>:
         </p>
         <pre><code>
 <span class="mydef-keyword">$if</span> s=~/Hello\s+(\w+)/ -> who
@@ -4008,7 +4021,7 @@ public class t {
 }
         </code></pre>
         <p>
-            Plain Java passes through. As in <code>output_c</code>, the semicolons are optional, <code>$if</code>/<code>$elif</code>/<code>$else</code>/<code>$while</code> supply the braces, and <code>$for i=0&#58;n</code> writes the counting loop. Local variables are declared at the top of the method, with types inferred the same way as in <code>output_c</code> (see its section on variables and type inference): from the value (<code>1.5</code> is a <code>double</code>&#44; a string literal is a <code>String</code>&#44; <code>new ArrayList&lt;String&gt;()</code> is an <code>ArrayList&lt;String&gt;</code>), or from the name. The Java name rules are:
+            Plain Java passes through. As in <code>output_c</code>, the semicolons are optional, <code>$if</code>/<code>$elif</code>/<code>$else</code>/<code>$while</code> supply the braces, and <code>$for i=0&#58;n</code> writes the counting loop. Local variables are declared at the top of the method, with types inferred the same way as in <code>output_c</code> (see <a href="#c_var">Variables and type inference</a>): from the value (<code>1.5</code> is a <code>double</code>&#44; a string literal is a <code>String</code>&#44; <code>new ArrayList&lt;String&gt;()</code> is an <code>ArrayList&lt;String&gt;</code>), or from the name. The Java name rules are:
         </p>
         <table class="ref">
             <tr>
@@ -4603,5 +4616,824 @@ ls /tmp/demo_prefix
         <p>
             Check the output of <code>mydef_page</code> for <code>Macro ... not defined</code> warnings; they usually mean a <code>&dollar;&#40;...</code>) was swallowed.
         </p>
+        <a name="reference"></a>
+        <h2 class="chapter">
+            13 Reference
+        </h2>
+        <p>
+            This chapter collects the attributes, directives, and tools of the earlier chapters in one place, as tables to look things up in. Each entry was checked against the source; the source repository remains the final word.
+        </p>
+
+        <a name="ref_page"></a>
+        <h3 class="section">
+            13.1 Page attributes
+        </h3>
+        <p>
+            Lines of the form <code>name&#58; value</code> right below a <code>page&#58;</code> line, before any other code, are page attributes (see <a href="#syntax_clash">Collisions with target-language syntax</a> for what that means for output text of the same form). They can also be given in the <code>config</code> file, where they apply to every page. These are the ones read by <code>MyDef</code> itself and its tools:
+        </p>
+        <table class="ref">
+            <tr>
+                <th>Attribute</th>
+                <th>Read by</th>
+                <th>Meaning</th>
+            </tr>
+            <tr>
+                <td>
+                    <code>module</code>
+                </td>
+                <td>
+                    all tools
+                </td>
+                <td>
+                    output module for the page, e.g. <code>module&#58; perl</code>. See <a href="#mydef_page">mydef_page</a> for how it combines with <code>-m</code> and <code>config</code>.
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>output_dir</code>
+                </td>
+                <td>
+                    <code>mydef_page</code>, <code>mydef_make</code>
+                </td>
+                <td>
+                    where the output file goes; a relative path is appended to the <code>-o</code> or <code>config</code> directory
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>type</code>
+                </td>
+                <td>
+                    all modules
+                </td>
+                <td>
+                    extension of the output file: <code>type&#58; md</code> writes <code>notes.md</code>, and an empty <code>type&#58;</code> writes a file without an extension. A page name with an extension, as in <code>page&#58; index.html</code>, works too.
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>package</code>
+                </td>
+                <td>
+                    <code>output_perl</code>, <code>output_java</code>
+                </td>
+                <td>
+                    Perl: the package name, and the page becomes a <code>.pm</code> module. Java: adds a <code>package</code> line.
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>autolist</code>
+                </td>
+                <td>
+                    output modules
+                </td>
+                <td>
+                    which <code>fncode</code> functions are included even when nothing calls them. <code>output_perl</code>: any value includes all of them (set automatically for a <code>.pm</code>). <code>output_c</code>: <code>global</code> includes the top-level ones, <code>page</code> the ones defined inside the page.
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>relax</code>
+                </td>
+                <td>
+                    <code>output_perl</code>
+                </td>
+                <td>
+                    leaves out <code>use strict;</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>subpage</code>
+                </td>
+                <td>
+                    <code>mydef_page</code>
+                </td>
+                <td>
+                    the page is compiled but not written
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>skiprun</code>
+                </td>
+                <td>
+                    <code>mydef_run</code>
+                </td>
+                <td>
+                    do not run this page (in a <code>.def</code> file with several pages)
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>arg</code>, <code>args</code>
+                </td>
+                <td>
+                    <code>mydef_run</code>
+                </td>
+                <td>
+                    command-line arguments for the program: <code>arg&#58; P1 P2</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>cmd</code>
+                </td>
+                <td>
+                    <code>mydef_run</code>
+                </td>
+                <td>
+                    the command to run instead of the default one: <code>cmd&#58; cat t.txt</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>run</code>
+                </td>
+                <td>
+                    <code>mydef_run</code>
+                </td>
+                <td>
+                    a prefix for the run command: <code>run&#58; time</code> runs <code>time perl t.pl</code>, or <code>time ./t</code> for a compiled program
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>exe</code>
+                </td>
+                <td>
+                    <code>mydef_run</code>
+                </td>
+                <td>
+                    the command that runs a compiled program, instead of <code>./t</code>; <code>exe&#58; none</code> only compiles
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>exe_type</code>
+                </td>
+                <td>
+                    <code>mydef_run</code>
+                </td>
+                <td>
+                    an extension for the compiled program: <code>exe_type&#58; exe</code> builds <code>t.exe</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>CC</code>, <code>CFLAGS</code>
+                </td>
+                <td>
+                    <code>mydef_run</code>, <code>mydef_make</code>
+                </td>
+                <td>
+                    the C compiler command and its flags: <code>CC&#58; gcc -O0</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>lib_list</code>
+                </td>
+                <td>
+                    <code>mydef_run</code>
+                </td>
+                <td>
+                    libraries for the link line: <code>lib_list&#58; -lm</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>make_dep</code>
+                </td>
+                <td>
+                    <code>mydef_make</code>
+                </td>
+                <td>
+                    extra dependencies for the page's rule in the <code>Makefile</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>make_cmd</code>
+                </td>
+                <td>
+                    <code>mydef_make</code>
+                </td>
+                <td>
+                    the command for the page's rule, instead of <code>mydef_page</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>LIB</code>, <code>other</code>
+                </td>
+                <td>
+                    <code>mydef_make</code>
+                </td>
+                <td>
+                    for C projects, <code>mydef_make</code> also writes a <code>Makefile</code> in each output directory: <code>LIB</code> sets its libraries, and <code>other</code> makes the page one of its targets
+                </td>
+            </tr>
+        </table>
+        <p>
+            Output modules and libraries read attributes of their own, such as <code>title&#58;</code> in <code>output_www</code> and <code>size&#58;</code> in <code>java/gui.def</code>; see their chapters. The second field of the page line, as in <code>page&#58; t&#44; basic_frame</code>, names the frame (see the <a href="#ref_glossary">glossary</a>).
+        </p>
+
+        <a name="ref_directive"></a>
+        <h3 class="section">
+            13.2 Compile-time directives
+        </h3>
+        <p>
+            Directives in <code>&dollar;&#40;...&#41;</code> are handled while the page is compiled; none of them reach the output. Three kinds of them are written on a line of their own and take the indented block below them:
+        </p>
+        <table class="ref">
+            <tr>
+                <th>Directive</th>
+                <th>Does</th>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;if&#58;cond&#41;</code>, <code>&dollar;&#40;elif&#58;cond&#41;</code>, <code>&dollar;&#40;else&#41;</code>
+                </td>
+                <td>
+                    compile the block when the condition holds. The block ends with the indentation; there is no <code>&dollar;&#40;endif&#41;</code>. Conditions are listed in <a href="#preproc_if">Preprocessing: if</a>.
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;for&#58;x in a&#44; b&#44; c&#41;</code>
+                </td>
+                <td>
+                    compile the block once for each item, with <code>&dollar;&#40;x&#41;</code> set. Ranges such as <code>1-3</code> and <code>a-z</code> work. See <a href="#preproc_for">Preprocessing: for</a>.
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;for&#58;x&#44; i in a&#44; b and 1&#44; 2&#41;</code>
+                </td>
+                <td>
+                    loop over several lists together
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;for&#58;a&#44; b and x&#44; y&#41;</code>
+                </td>
+                <td>
+                    the same without names: <code>&dollar;1</code>, <code>&dollar;2</code> in the block
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;block&#58;name&#41;</code>
+                </td>
+                <td>
+                    collect the block into the named block <code>name</code>, which a <code>DUMP_STUB name</code> line elsewhere puts out
+                </td>
+            </tr>
+        </table>
+        <p>
+            Others set macros. They are written on a line of their own too, and have no block:
+        </p>
+        <table class="ref">
+            <tr>
+                <th>Directive</th>
+                <th>Does</th>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;set&#58;name=value&#41;</code>
+                </td>
+                <td>
+                    set a macro in the current scope. See <a href="#preproc_set">Preprocessing: set</a>.
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;set&#58;n+=1&#41;</code>
+                </td>
+                <td>
+                    update a number with <code>+=</code>, <code>-=</code>, <code>*=</code>, or <code>/=</code>; <code>.=</code> appends text
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;set&#58;L[&#44; ]=item&#41;</code>
+                </td>
+                <td>
+                    append <code>item</code> to <code>L</code>, with <code>&#44;</code> between the items
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;set-1&#58;name=value&#41;</code>
+                </td>
+                <td>
+                    set it one scope up, in the code that called the subcode; <code>&dollar;&#40;export&#58;name=value&#41;</code> is the same
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;setmacro&#58;name=value&#41;</code>
+                </td>
+                <td>
+                    set it globally, as if under <code>macros&#58;</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;setpage&#58;name=value&#41;</code>
+                </td>
+                <td>
+                    set it for the rest of the page
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;reset&#58;name=value&#41;</code>
+                </td>
+                <td>
+                    change the macro in the scope where it is defined
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;mset&#58;a=1&#44; b=2&#41;</code>
+                </td>
+                <td>
+                    set several macros in the current scope; <code>&dollar;&#40;mexport&#58;...&#41;</code> sets them one scope up
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;unset&#58;a&#44; b&#41;</code>
+                </td>
+                <td>
+                    hide macros from the current scope down
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;eval&#58;name=expr&#41;</code>
+                </td>
+                <td>
+                    set <code>name</code> to the value of a Perl expression: <code>&dollar;&#40;eval&#58;E=&dollar;&#40;N&#41;*2&#41;</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;split&#58;name&#41;</code>
+                </td>
+                <td>
+                    split a comma-separated macro into <code>&dollar;&#40;p_n&#41;</code> (the count) and <code>&dollar;&#40;p_1&#41;</code>, <code>&dollar;&#40;p_2&#41;</code>, ...
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;assert&#58;cond&#41;</code>
+                </td>
+                <td>
+                    warn when the condition is false
+                </td>
+            </tr>
+        </table>
+        <p>
+            The rest are expanded in place, anywhere in a line:
+        </p>
+        <table class="ref">
+            <tr>
+                <th>Expansion</th>
+                <th>Gives</th>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;name&#41;</code>
+                </td>
+                <td>
+                    the value of the macro
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;name&#58;a&#44; b&#41;</code>
+                </td>
+                <td>
+                    the value, with <code>&dollar;1</code> and <code>&dollar;2</code> in it replaced by <code>a</code> and <code>b</code>. See <a href="#macro_param">Inline macros with parameters</a>.
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;name&#58;6&#58;&#41;</code>, <code>&dollar;&#40;name&#58;0&#58;5&#41;</code>
+                </td>
+                <td>
+                    a substring: from position 6 on, or 5 characters from position 0
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;name&#58;0&#58;word&#41;</code>, <code>&dollar;&#40;name&#58;0&#58;number&#41;</code>
+                </td>
+                <td>
+                    the first word or number from that position
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;name&#58;lc&#41;</code>, <code>&#117;c</code>, <code>&#117;cfirst</code>, <code>&#108;ength</code>
+                </td>
+                <td>
+                    the Perl function of the value
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;name&#58;strip&#41;</code>
+                </td>
+                <td>
+                    the value without its first and last character, e.g. the quotes
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;name&#58;regex&#58;pat&#41;</code>
+                </td>
+                <td>
+                    the first capture group of <code>pat</code> in the value
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;name&#58;list&#58;n&#41;</code>, <code>&dollar;&#40;name&#58;list&#58;1&#41;</code>
+                </td>
+                <td>
+                    the number of items in a comma-separated value, or the item at an index, counting from 0
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;name&#58;quote&#108;ist&#41;</code>
+                </td>
+                <td>
+                    the items in double quotes: <code>&quot;a&quot;&#44; &quot;b&quot;</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;x3&#58;ab&#41;</code>, <code>&dollar;&#40;x3&#44;&#58;ab&#41;</code>
+                </td>
+                <td>
+                    <code>ab</code> repeated: <code>ababab</code>, or with a separator: <code>ab&#44;ab&#44;ab</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;join&#58;v&dollar;1&#58; + &#58;1-3&#41;</code>
+                </td>
+                <td>
+                    a pattern joined over a list: <code>v1 + v2 + v3</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;subst&#58;name&#58;pat&#58;rep&#41;</code>
+                </td>
+                <td>
+                    the value with the regex <code>pat</code> replaced
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;eval&#58;expr&#41;</code>
+                </td>
+                <td>
+                    the value of a Perl expression: <code>&dollar;&#40;eval&#58;ucfirst&#40;&quot;&dollar;&#40;name&#41;&quot;&#41;&#41;</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;sym&#58;C++&#41;</code>
+                </td>
+                <td>
+                    a symbol name for a string: <code>CPlusPlus</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;&#40;def&#58;date&#41;</code>, <code>&dollar;&#40;def&#58;datetime&#41;</code>
+                </td>
+                <td>
+                    the modification date of the <code>.def</code> file
+                </td>
+            </tr>
+        </table>
+        <p>
+            For more on these, see <a href="#macro_special">Special macro syntax</a>.
+        </p>
+
+        <a name="ref_keyword"></a>
+        <h3 class="section">
+            13.3 Keywords in the output stream
+        </h3>
+        <p>
+            A few words written alone on a line are instructions to the output stage rather than output. Subcodes and output modules use them, and page code can too:
+        </p>
+        <table class="ref">
+            <tr>
+                <th>Keyword</th>
+                <th>Does</th>
+            </tr>
+            <tr>
+                <td>
+                    <code>BLOCK</code>
+                </td>
+                <td>
+                    in a subcode called with <code>&amp;call</code>, where the caller's block goes. See <a href="#block_call">Block call</a>.
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>DUMP_STUB name</code>
+                </td>
+                <td>
+                    puts out the named block <code>name</code>, which can be filled later. See <a href="#syntax_dump_stub">DUMP_STUB</a>.
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>INDENT</code>, <code>DEDENT</code>
+                </td>
+                <td>
+                    indent the following lines one more or one less level
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>PUSHDENT</code>, <code>POPDENT</code>
+                </td>
+                <td>
+                    start at the left margin, and return to the saved indentation
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>SOURCE_INDENT</code>, <code>SOURCE_DEDENT</code>
+                </td>
+                <td>
+                    the same as <code>INDENT</code> and <code>DEDENT</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>NEWLINE</code>
+                </td>
+                <td>
+                    an empty line
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>NEWLINE?</code>
+                </td>
+                <td>
+                    an empty line, unless the previous line is already empty
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>NOOP</code>
+                </td>
+                <td>
+                    nothing; a placeholder line
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>INCLUDE_FILE path</code>
+                </td>
+                <td>
+                    the contents of a file, as they are
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&lt;-|text</code>
+                </td>
+                <td>
+                    <code>text</code> at the left margin, whatever the indentation
+                </td>
+            </tr>
+        </table>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: general
+    start
+    INDENT
+    indented
+    DEDENT
+    back
+    &lt;-|left margin
+        </code></pre>
+        <pre><code>
+start
+    indented
+back
+left margin
+        </code></pre>
+
+        <a name="ref_tools"></a>
+        <h3 class="section">
+            13.4 Tools
+        </h3>
+        <p>
+            The <a href="#invoke">Invoking MyDef</a> chapter covers <code>mydef_page</code>, <code>mydef_make</code>, and <code>mydef_run</code> in detail. In short:
+        </p>
+        <table class="ref">
+            <tr>
+                <th>Tool</th>
+                <th>Does</th>
+            </tr>
+            <tr>
+                <td>
+                    <code>mydef_page [-mmodule] [-odir] t.def</code>
+                </td>
+                <td>
+                    compiles the pages of a <code>.def</code> file
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>mydef_make</code>
+                </td>
+                <td>
+                    writes a <code>Makefile</code> for the <code>.def</code> files in a directory tree (and a <code>config</code> the first time)
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>mydef_run [-mmodule] [-silent] t.def</code>
+                </td>
+                <td>
+                    compiles, then compiles and runs the output with the tool its extension calls for. It also runs a plain source file, e.g. <code>mydef_run t.c</code>.
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>mydef_test</code>
+                </td>
+                <td>
+                    runs <code>mydef_run</code> on each <code>.def</code> file listed in a <code>TESTS</code> file and reports the failures
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>mydef_install [-f] src dst ext</code>
+                </td>
+                <td>
+                    installs files, only those newer than the installed copy (<code>-f</code> installs them all)
+                </td>
+            </tr>
+        </table>
+        <p>
+            <code>mydef_test</code> checks a test with an expect block at the end of its <code>.def</code> file. <code>/* expect output&#58;</code> compares what the program prints; with any other word, as in <code>/* expect t.txt&#58;</code>, it compares the generated file. Blank lines and runs of spaces are ignored in the comparison, and a mismatch prints <code>not ok</code> and fails the test:
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: perl
+    $print hello
+
+/* expect output:
+hello
+*/
+        </code></pre>
+        <pre><code>
+$ cat TESTS
+t.def
+$ mydef_test
+*** [ t.def ] ***
+PAGE: t
+    --> [./t.pl]
+perl ./t.pl
+hello
+--------------------------
+    ok 1/1
+Ran 1 tests.
+        </code></pre>
+        <p>
+            <code>mydef_install</code> is what the <code>make install</code> of <code>MyDef</code> and its module repositories runs. The extension picks the destination:
+        </p>
+        <table class="ref">
+            <tr>
+                <th>Command</th>
+                <th>Installs</th>
+            </tr>
+            <tr>
+                <td>
+                    <code>mydef_install deflib . def</code>
+                </td>
+                <td>
+                    the <code>.def</code> files under <code>deflib</code> into <code>&dollar;MYDEFLIB</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>mydef_install out/lib . pm</code>
+                </td>
+                <td>
+                    the <code>.pm</code> files under <code>out/lib</code> into <code>&dollar;PERL5LIB</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>mydef_install - file ...</code>
+                </td>
+                <td>
+                    programs into <code>&dollar;MYDEFBIN</code>, or <code>~/bin</code> when it is on the <code>PATH</code>
+                </td>
+            </tr>
+        </table>
+
+        <a name="ref_glossary"></a>
+        <h3 class="section">
+            13.5 Glossary
+        </h3>
+        <table class="ref">
+            <tr>
+                <th>Term</th>
+                <th>Meaning</th>
+            </tr>
+            <tr>
+                <td>
+                    page
+                </td>
+                <td>
+                    a <code>page&#58; name</code> block; each page compiles to one output file. See <a href="#syntax_defile">Basic structure of .def file</a>.
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    module
+                </td>
+                <td>
+                    the output module that translates a page for one target language, chosen with <code>module&#58;</code>, e.g. <code>output_perl</code> for <code>module&#58; perl</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    subcode
+                </td>
+                <td>
+                    a named piece of code, <code>subcode&#58; name&#40;params&#41;</code>, expanded in place at compile time with <code>&dollar;call</code>. See <a href="#subcode_param">Subcode with parameters</a>.
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    block call
+                </td>
+                <td>
+                    a call with <code>&amp;call</code>, whose indented block replaces <code>BLOCK</code> in the subcode. See <a href="#call_vs_blockcall">call vs block call</a>.
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    fncode
+                </td>
+                <td>
+                    a function in the target language, <code>fncode&#58; name&#40;params&#41;</code>, called at run time. See <a href="#syntax_fncode">fncode</a>.
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    macro
+                </td>
+                <td>
+                    a named text value, defined under <code>macros&#58;</code> or with <code>&dollar;&#40;set&#58;...&#41;</code>, used as <code>&dollar;&#40;name&#41;</code>. See <a href="#dynamic_macro">Dynamic inline macros</a>.
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    frame
+                </td>
+                <td>
+                    a subcode that wraps the page code, named as <code>page&#58; t&#44; frame</code> or <code>basic_frame</code> by default; it calls <code>&dollar;call @main</code> where the page code goes
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    named block
+                </td>
+                <td>
+                    a block of output with a name, filled with <code>&dollar;&#40;block&#58;name&#41;</code> or by a module
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    DUMP_STUB
+                </td>
+                <td>
+                    the line <code>DUMP_STUB name</code>, which puts out a named block where it stands; the block can be filled after the line is written
+                </td>
+            </tr>
+        </table>
     </body>
 </html>

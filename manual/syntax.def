@@ -338,7 +338,7 @@ subcode:: sections
             print "Hello, Bob!\n";
             print "Hello, Carol!\n";
     $p
-        It should be noted that there are preprocessing directives that will be introduced in a later chapter to achieve a similar result.
+        It should be noted that the preprocessing directive $(a:$(code:&dollar;(for:...)),#preproc_for)&#44; introduced later in this chapter&#44; achieves a similar result.
 
 subcode:: sections
     $call subsection, nest_call, Nest call
@@ -527,7 +527,7 @@ subcode:: sections
 subcode:: sections
     $call subsection, preproc_if, Preprocessing: $(code:&dollar;(if:...))
     $p
-        Basic switching logic is supported with preprocessing directives $(code:&dollar;(if:...)), $(code:&dollar;(elif:...)), $(code:&dollar;(else)), and $(code:&dollar;(endif)):
+        Basic switching logic is supported with preprocessing directives $(code:&dollar;(if:...)), $(code:&dollar;(elif:...)), and $(code:&dollar;(else)). Each takes the indented block below it; the block ends with the indentation, so there is no closing directive:
         &call codeprint
             $(if:!A)
                 Code when macro A is not defined
@@ -631,7 +631,7 @@ subcode:: sections
         For the complete up-to-date implementation, see $(code:macros_compile/preproc.def), $(code:fncode: testcondition).
 
 subcode:: sections
-    $call subsection, preproc_set, Preprocessing: $(code:&dollar;(for:...))
+    $call subsection, preproc_for, Preprocessing: $(code:&dollar;(for:...))
     $p
         The $(code:&dollar;for...) syntax provides quick way to multiplex code:
         &call codeprint, mydef
@@ -765,7 +765,7 @@ subcode:: sections
             $(set:A=word)
             Perl one-liners: $(eval:ucfirst("$(A)")) &num; Word
     $p
-        $(code:MyDef) is written in Perl, so it is trivial to add $(code:eval) and expose the entire Perl engine. There is also a similar interface for $(code:eval) subcode, which essentially allows direct perl code to manipulate text transformations. However, it is necessary to understand $(code:MyDef)'s internal details to effectively work with the rest of $(code:MyDef) processing. We'll discuss details in later chapters.
+        $(code:MyDef) is written in Perl, so it is trivial to add $(code:eval) and expose the entire Perl engine. There is also a similar interface for $(code:eval) subcode, which essentially allows direct perl code to manipulate text transformations. However, it is necessary to understand $(code:MyDef)'s internal details to effectively work with the rest of $(code:MyDef) processing. The $(a:output_general,#general) chapter goes into those details.
     $p
         For more up-to-date details, please reference the source.
 
@@ -872,7 +872,7 @@ subcode:: sections
         $li
             Parameters are declared in the $(code:fncode:) line and automatically unpacked in the generated code.
     $p
-        The exact behavior of $(code:fncode:) depends on the output module. For example, $(code:output_perl) generates $(code:sub) definitions with automatic parameter unpacking from $(code:@_), and only includes functions that are actually used in $(code:.pl) scripts. See the output module chapters for details.
+        The exact behavior of $(code:fncode:) depends on the output module. For example, $(code:output_perl) generates $(code:sub) definitions with automatic parameter unpacking from $(code:@_), and only includes functions that are actually used in $(code:.pl) scripts. See the output module chapters for details&#44; starting with $(a:output_perl,#perl) and $(a:output_c,#c).
 
 #----------------------------------------
 subcode:: sections
@@ -1023,19 +1023,22 @@ subcode:: sections
     $p
         For details of the heuristics or customization, refer to $(code:mydef_run.def) in the source repository.
     $p
-        It is possible to directly set command line for $(code:mydef_run) to run. For example:
+        It is possible to directly set the command for $(code:mydef_run) to run with $(code:cmd&#58;). For example:
     &call codeprint, mydef
         page: t
-            run: cat t.txt
+            module: general
+            cmd: cat t.txt
 
-            $print Hello World!
+            Hello World!
 
     &call codeprint, sh
         $ mydef_run t.def
         PAGE: t
-            --> [./t.txt]
+          --> [./t.txt]
         cat t.txt
-        $print Hello World!
+        Hello World!
+    $p
+        $(code:run&#58;) instead puts a prefix in front of the usual command: with $(code:run&#58; time)&#44; a Perl page runs as $(code:time perl ./t.pl).
 
     $p
         Or you may simply specify an argument:
@@ -1052,9 +1055,9 @@ subcode:: sections
         PAGE: t
           --> [./t.pl]
         perl ./t.pl P1 P2 P3
-        arg: P1
-        arg: P2
-        arg: P3
+        argument P1
+        argument P2
+        argument P3
     $p
         As a bonus, do you know that you can directly use $(code:mydef_run) on $(code:.pl), $(code:.c), or any source code with a known extension? Try it.
 

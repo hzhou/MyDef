@@ -1,7 +1,7 @@
 subcode:: sections
     $call section, started, Getting Started
     $p
-        This chapter walks through creating your first $(code:MyDef) project step by step. By the end, you will understand the basic workflow and core concepts. We assume you have already installed $(code:MyDef) following the instructions in the Installations chapter.
+        This chapter walks through creating your first $(code:MyDef) project step by step. By the end, you will understand the basic workflow and core concepts. We assume you have already installed $(code:MyDef) following the instructions in the $(a:Installations,#install) chapter.
 
     $call subsection, started_general, Hello World with $(code:output_general)
     $p
@@ -62,7 +62,7 @@ subcode:: sections
             subcode: greet(name)
                 $print Hello, $(name)!
     $p
-        $(code:subcode: greet(name)) defines a block with one parameter. $(code:$call greet, Alice) inlines that block with $(code:&dollar;(name)) replaced by $(code:Alice). Running this produces:
+        $(code:subcode: greet(name)) defines a block with one parameter (see $(a:Subcode with parameters,#subcode_param)). $(code:$call greet, Alice) inlines that block with $(code:&dollar;(name)) replaced by $(code:Alice). Running this produces:
         &call codeprint, sh
             $ mydef_run greet.def
             PAGE: greet
@@ -230,4 +230,4 @@ subcode:: sections
                 $(code:module: perl) under page
             $td "Selects the output module"
     $p
-        With these basics, you can already start writing useful programs. The following chapters cover the full syntax and language-specific features in detail.
+        With these basics, you can already start writing useful programs. The following chapters cover the $(a:full syntax,#syntax) and language-specific features in detail&#44; and the $(a:Reference,#reference) chapter collects them in tables.

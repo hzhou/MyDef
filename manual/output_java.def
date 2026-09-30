@@ -58,7 +58,7 @@ subcode:: sections
             }
         }
     $p
-        Plain Java passes through. As in $(code:output_c), the semicolons are optional, $(code:$if)/$(code:$elif)/$(code:$else)/$(code:$while) supply the braces, and $(code:$for i=0&#58;n) writes the counting loop. Local variables are declared at the top of the method, with types inferred the same way as in $(code:output_c) (see its section on variables and type inference): from the value ($(code:1.5) is a $(code:double)&#44; a string literal is a $(code:String)&#44; $(code:new ArrayList&lt;String&gt;()) is an $(code:ArrayList&lt;String&gt;)), or from the name. The Java name rules are:
+        Plain Java passes through. As in $(code:output_c), the semicolons are optional, $(code:$if)/$(code:$elif)/$(code:$else)/$(code:$while) supply the braces, and $(code:$for i=0&#58;n) writes the counting loop. Local variables are declared at the top of the method, with types inferred the same way as in $(code:output_c) (see $(a:Variables and type inference,#c_var)): from the value ($(code:1.5) is a $(code:double)&#44; a string literal is a $(code:String)&#44; $(code:new ArrayList&lt;String&gt;()) is an $(code:ArrayList&lt;String&gt;)), or from the name. The Java name rules are:
     $table ref
         $tr
             $th "Name"

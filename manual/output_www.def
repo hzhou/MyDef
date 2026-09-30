@@ -113,7 +113,7 @@ subcode:: sections
             .hint {color: #888; font-size: small}
         </style>
     $p
-        One catch: $(code:CSS: ...) has the form of a page attribute, so $(code:CSS:) lines placed right below the $(code:page:) line, before any other code, are taken as page attributes and silently lost (see $(code:Collisions with target-language syntax) in the Syntax chapter). Put them after the first line of content, or collect them in a subcode and $(code:$call) it, as this manual does.
+        One catch: $(code:CSS: ...) has the form of a page attribute, so $(code:CSS:) lines placed right below the $(code:page:) line, before any other code, are taken as page attributes and silently lost (see $(a:Collisions with target-language syntax,#syntax_clash)). Put them after the first line of content, or collect them in a subcode and $(code:$call) it, as this manual does.
 
     $call subsection, www_js, JavaScript
     $p

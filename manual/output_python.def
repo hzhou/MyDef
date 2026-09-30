@@ -61,7 +61,7 @@ subcode:: sections
         $li
             $(code:$while cond; step) puts $(code:step) at the end of the loop body.
     $p
-        The comment rules of the Syntax chapter apply: a $(code:&num;) with spaces on both sides starts a $(code:MyDef) comment, even inside a string. Write $(code:"a &#92;x23 b") for such a string.
+        The comment rules of $(a:Collisions with target-language syntax,#syntax_clash) apply: a $(code:&num;) with spaces on both sides starts a $(code:MyDef) comment, even inside a string. Write $(code:"a &#92;x23 b") for such a string.
 
     $call subsection, python_print, $(code:$print)
     $p
@@ -197,7 +197,7 @@ subcode:: sections
 
     $call subsection, python_capture, Regex capture with $(code:->)
     $p
-        The Perl-style match and capture from $(code:output_perl) (see its section on regex capture) works in $(code:$if) and $(code:$elif), and becomes $(code:re.search):
+        The Perl-style match and capture from $(code:output_perl) (see $(a:Regex capture,#perl_capture)) works in $(code:$if) and $(code:$elif), and becomes $(code:re.search):
     &call codeprint, mydef
         $if s=~/Hello\s+(\w+)/ -> who
             $print Match: $who

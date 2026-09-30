@@ -1,0 +1,522 @@
+subcode:: sections
+    $call section, reference, Reference
+    $p
+        This chapter collects the attributes, directives, and tools of the earlier chapters in one place, as tables to look things up in. Each entry was checked against the source; the source repository remains the final word.
+
+    $call subsection, ref_page, Page attributes
+    $p
+        Lines of the form $(code:name&#58; value) right below a $(code:page&#58;) line, before any other code, are page attributes (see $(a:Collisions with target-language syntax,#syntax_clash) for what that means for output text of the same form). They can also be given in the $(code:config) file, where they apply to every page. These are the ones read by $(code:MyDef) itself and its tools:
+    $table ref
+        $tr
+            $th "Attribute"
+            $th "Read by"
+            $th "Meaning"
+        $tr
+            $td
+                $(code:module)
+            $td
+                all tools
+            $td
+                output module for the page, e.g. $(code:module&#58; perl). See $(a:mydef_page,#mydef_page) for how it combines with $(code:-m) and $(code:config).
+        $tr
+            $td
+                $(code:output_dir)
+            $td
+                $(code:mydef_page), $(code:mydef_make)
+            $td
+                where the output file goes; a relative path is appended to the $(code:-o) or $(code:config) directory
+        $tr
+            $td
+                $(code:type)
+            $td
+                all modules
+            $td
+                extension of the output file: $(code:type&#58; md) writes $(code:notes.md), and an empty $(code:type&#58;) writes a file without an extension. A page name with an extension, as in $(code:page&#58; index.html), works too.
+        $tr
+            $td
+                $(code:package)
+            $td
+                $(code:output_perl), $(code:output_java)
+            $td
+                Perl: the package name, and the page becomes a $(code:.pm) module. Java: adds a $(code:package) line.
+        $tr
+            $td
+                $(code:autolist)
+            $td
+                output modules
+            $td
+                which $(code:fncode) functions are included even when nothing calls them. $(code:output_perl): any value includes all of them (set automatically for a $(code:.pm)). $(code:output_c): $(code:global) includes the top-level ones, $(code:page) the ones defined inside the page.
+        $tr
+            $td
+                $(code:relax)
+            $td
+                $(code:output_perl)
+            $td
+                leaves out $(code:use strict;)
+        $tr
+            $td
+                $(code:subpage)
+            $td
+                $(code:mydef_page)
+            $td
+                the page is compiled but not written
+        $tr
+            $td
+                $(code:skiprun)
+            $td
+                $(code:mydef_run)
+            $td
+                do not run this page (in a $(code:.def) file with several pages)
+        $tr
+            $td
+                $(code:arg), $(code:args)
+            $td
+                $(code:mydef_run)
+            $td
+                command-line arguments for the program: $(code:arg&#58; P1 P2)
+        $tr
+            $td
+                $(code:cmd)
+            $td
+                $(code:mydef_run)
+            $td
+                the command to run instead of the default one: $(code:cmd&#58; cat t.txt)
+        $tr
+            $td
+                $(code:run)
+            $td
+                $(code:mydef_run)
+            $td
+                a prefix for the run command: $(code:run&#58; time) runs $(code:time perl t.pl), or $(code:time ./t) for a compiled program
+        $tr
+            $td
+                $(code:exe)
+            $td
+                $(code:mydef_run)
+            $td
+                the command that runs a compiled program, instead of $(code:./t); $(code:exe&#58; none) only compiles
+        $tr
+            $td
+                $(code:exe_type)
+            $td
+                $(code:mydef_run)
+            $td
+                an extension for the compiled program: $(code:exe_type&#58; exe) builds $(code:t.exe)
+        $tr
+            $td
+                $(code:CC), $(code:CFLAGS)
+            $td
+                $(code:mydef_run), $(code:mydef_make)
+            $td
+                the C compiler command and its flags: $(code:CC&#58; gcc -O0)
+        $tr
+            $td
+                $(code:lib_list)
+            $td
+                $(code:mydef_run)
+            $td
+                libraries for the link line: $(code:lib_list&#58; -lm)
+        $tr
+            $td
+                $(code:make_dep)
+            $td
+                $(code:mydef_make)
+            $td
+                extra dependencies for the page's rule in the $(code:Makefile)
+        $tr
+            $td
+                $(code:make_cmd)
+            $td
+                $(code:mydef_make)
+            $td
+                the command for the page's rule, instead of $(code:mydef_page)
+        $tr
+            $td
+                $(code:LIB), $(code:other)
+            $td
+                $(code:mydef_make)
+            $td
+                for C projects, $(code:mydef_make) also writes a $(code:Makefile) in each output directory: $(code:LIB) sets its libraries, and $(code:other) makes the page one of its targets
+    $p
+        Output modules and libraries read attributes of their own, such as $(code:title&#58;) in $(code:output_www) and $(code:size&#58;) in $(code:java/gui.def); see their chapters. The second field of the page line, as in $(code:page&#58; t&#44; basic_frame), names the frame (see the $(a:glossary,#ref_glossary)).
+
+    $call subsection, ref_directive, Compile-time directives
+    $p
+        Directives in $(code:&dollar;&#40;...&#41;) are handled while the page is compiled; none of them reach the output. Three kinds of them are written on a line of their own and take the indented block below them:
+    $table ref
+        $tr
+            $th "Directive"
+            $th "Does"
+        $tr
+            $td
+                $(code:&dollar;&#40;if&#58;cond&#41;), $(code:&dollar;&#40;elif&#58;cond&#41;), $(code:&dollar;&#40;else&#41;)
+            $td
+                compile the block when the condition holds. The block ends with the indentation; there is no $(code:&dollar;&#40;endif&#41;). Conditions are listed in $(a:Preprocessing: if,#preproc_if).
+        $tr
+            $td
+                $(code:&dollar;&#40;for&#58;x in a&#44; b&#44; c&#41;)
+            $td
+                compile the block once for each item, with $(code:&dollar;&#40;x&#41;) set. Ranges such as $(code:1-3) and $(code:a-z) work. See $(a:Preprocessing: for,#preproc_for).
+        $tr
+            $td
+                $(code:&dollar;&#40;for&#58;x&#44; i in a&#44; b and 1&#44; 2&#41;)
+            $td
+                loop over several lists together
+        $tr
+            $td
+                $(code:&dollar;&#40;for&#58;a&#44; b and x&#44; y&#41;)
+            $td
+                the same without names: $(code:&dollar;1), $(code:&dollar;2) in the block
+        $tr
+            $td
+                $(code:&dollar;&#40;block&#58;name&#41;)
+            $td
+                collect the block into the named block $(code:name), which a $(code:DUMP_STUB name) line elsewhere puts out
+    $p
+        Others set macros. They are written on a line of their own too, and have no block:
+    $table ref
+        $tr
+            $th "Directive"
+            $th "Does"
+        $tr
+            $td
+                $(code:&dollar;&#40;set&#58;name=value&#41;)
+            $td
+                set a macro in the current scope. See $(a:Preprocessing: set,#preproc_set).
+        $tr
+            $td
+                $(code:&dollar;&#40;set&#58;n+=1&#41;)
+            $td
+                update a number with $(code:+=), $(code:-=), $(code:*=), or $(code:/=); $(code:.=) appends text
+        $tr
+            $td
+                $(code:&dollar;&#40;set&#58;L[&#44; ]=item&#41;)
+            $td
+                append $(code:item) to $(code:L), with $(code:&#44; ) between the items
+        $tr
+            $td
+                $(code:&dollar;&#40;set-1&#58;name=value&#41;)
+            $td
+                set it one scope up, in the code that called the subcode; $(code:&dollar;&#40;export&#58;name=value&#41;) is the same
+        $tr
+            $td
+                $(code:&dollar;&#40;setmacro&#58;name=value&#41;)
+            $td
+                set it globally, as if under $(code:macros&#58;)
+        $tr
+            $td
+                $(code:&dollar;&#40;setpage&#58;name=value&#41;)
+            $td
+                set it for the rest of the page
+        $tr
+            $td
+                $(code:&dollar;&#40;reset&#58;name=value&#41;)
+            $td
+                change the macro in the scope where it is defined
+        $tr
+            $td
+                $(code:&dollar;&#40;mset&#58;a=1&#44; b=2&#41;)
+            $td
+                set several macros in the current scope; $(code:&dollar;&#40;mexport&#58;...&#41;) sets them one scope up
+        $tr
+            $td
+                $(code:&dollar;&#40;unset&#58;a&#44; b&#41;)
+            $td
+                hide macros from the current scope down
+        $tr
+            $td
+                $(code:&dollar;&#40;eval&#58;name=expr&#41;)
+            $td
+                set $(code:name) to the value of a Perl expression: $(code:&dollar;&#40;eval&#58;E=&dollar;&#40;N&#41;*2&#41;)
+        $tr
+            $td
+                $(code:&dollar;&#40;split&#58;name&#41;)
+            $td
+                split a comma-separated macro into $(code:&dollar;&#40;p_n&#41;) (the count) and $(code:&dollar;&#40;p_1&#41;), $(code:&dollar;&#40;p_2&#41;), ...
+        $tr
+            $td
+                $(code:&dollar;&#40;assert&#58;cond&#41;)
+            $td
+                warn when the condition is false
+    $p
+        The rest are expanded in place, anywhere in a line:
+    $table ref
+        $tr
+            $th "Expansion"
+            $th "Gives"
+        $tr
+            $td
+                $(code:&dollar;&#40;name&#41;)
+            $td
+                the value of the macro
+        $tr
+            $td
+                $(code:&dollar;&#40;name&#58;a&#44; b&#41;)
+            $td
+                the value, with $(code:&dollar;1) and $(code:&dollar;2) in it replaced by $(code:a) and $(code:b). See $(a:Inline macros with parameters,#macro_param).
+        $tr
+            $td
+                $(code:&dollar;&#40;name&#58;6&#58;&#41;), $(code:&dollar;&#40;name&#58;0&#58;5&#41;)
+            $td
+                a substring: from position 6 on, or 5 characters from position 0
+        $tr
+            $td
+                $(code:&dollar;&#40;name&#58;0&#58;word&#41;), $(code:&dollar;&#40;name&#58;0&#58;number&#41;)
+            $td
+                the first word or number from that position
+        $tr
+            $td
+                $(code:&dollar;&#40;name&#58;lc&#41;), $(code:&#117;c), $(code:&#117;cfirst), $(code:&#108;ength)
+            $td
+                the Perl function of the value
+        $tr
+            $td
+                $(code:&dollar;&#40;name&#58;strip&#41;)
+            $td
+                the value without its first and last character, e.g. the quotes
+        $tr
+            $td
+                $(code:&dollar;&#40;name&#58;regex&#58;pat&#41;)
+            $td
+                the first capture group of $(code:pat) in the value
+        $tr
+            $td
+                $(code:&dollar;&#40;name&#58;list&#58;n&#41;), $(code:&dollar;&#40;name&#58;list&#58;1&#41;)
+            $td
+                the number of items in a comma-separated value, or the item at an index, counting from 0
+        $tr
+            $td
+                $(code:&dollar;&#40;name&#58;quote&#108;ist&#41;)
+            $td
+                the items in double quotes: $(code:&quot;a&quot;&#44; &quot;b&quot;)
+        $tr
+            $td
+                $(code:&dollar;&#40;x3&#58;ab&#41;), $(code:&dollar;&#40;x3&#44;&#58;ab&#41;)
+            $td
+                $(code:ab) repeated: $(code:ababab), or with a separator: $(code:ab&#44;ab&#44;ab)
+        $tr
+            $td
+                $(code:&dollar;&#40;join&#58;v&dollar;1&#58; + &#58;1-3&#41;)
+            $td
+                a pattern joined over a list: $(code:v1 + v2 + v3)
+        $tr
+            $td
+                $(code:&dollar;&#40;subst&#58;name&#58;pat&#58;rep&#41;)
+            $td
+                the value with the regex $(code:pat) replaced
+        $tr
+            $td
+                $(code:&dollar;&#40;eval&#58;expr&#41;)
+            $td
+                the value of a Perl expression: $(code:&dollar;&#40;eval&#58;ucfirst&#40;&quot;&dollar;&#40;name&#41;&quot;&#41;&#41;)
+        $tr
+            $td
+                $(code:&dollar;&#40;sym&#58;C++&#41;)
+            $td
+                a symbol name for a string: $(code:CPlusPlus)
+        $tr
+            $td
+                $(code:&dollar;&#40;def&#58;date&#41;), $(code:&dollar;&#40;def&#58;datetime&#41;)
+            $td
+                the modification date of the $(code:.def) file
+    $p
+        For more on these, see $(a:Special macro syntax,#macro_special).
+
+    $call subsection, ref_keyword, Keywords in the output stream
+    $p
+        A few words written alone on a line are instructions to the output stage rather than output. Subcodes and output modules use them, and page code can too:
+    $table ref
+        $tr
+            $th "Keyword"
+            $th "Does"
+        $tr
+            $td
+                $(code:BLOCK)
+            $td
+                in a subcode called with $(code:&amp;call), where the caller's block goes. See $(a:Block call,#block_call).
+        $tr
+            $td
+                $(code:DUMP_STUB name)
+            $td
+                puts out the named block $(code:name), which can be filled later. See $(a:DUMP_STUB,#syntax_dump_stub).
+        $tr
+            $td
+                $(code:INDENT), $(code:DEDENT)
+            $td
+                indent the following lines one more or one less level
+        $tr
+            $td
+                $(code:PUSHDENT), $(code:POPDENT)
+            $td
+                start at the left margin, and return to the saved indentation
+        $tr
+            $td
+                $(code:SOURCE_INDENT), $(code:SOURCE_DEDENT)
+            $td
+                the same as $(code:INDENT) and $(code:DEDENT)
+        $tr
+            $td
+                $(code:NEWLINE)
+            $td
+                an empty line
+        $tr
+            $td
+                $(code:NEWLINE?)
+            $td
+                an empty line, unless the previous line is already empty
+        $tr
+            $td
+                $(code:NOOP)
+            $td
+                nothing; a placeholder line
+        $tr
+            $td
+                $(code:INCLUDE_FILE path)
+            $td
+                the contents of a file, as they are
+        $tr
+            $td
+                $(code:&lt;-|text)
+            $td
+                $(code:text) at the left margin, whatever the indentation
+    &call codeprint, mydef
+        page: t
+            module: general
+            start
+            INDENT
+            indented
+            DEDENT
+            back
+            <-|left margin
+    &call codeprint
+        start
+            indented
+        back
+        left margin
+
+    $call subsection, ref_tools, Tools
+    $p
+        The $(a:Invoking MyDef,#invoke) chapter covers $(code:mydef_page), $(code:mydef_make), and $(code:mydef_run) in detail. In short:
+    $table ref
+        $tr
+            $th "Tool"
+            $th "Does"
+        $tr
+            $td
+                $(code:mydef_page [-mmodule] [-odir] t.def)
+            $td
+                compiles the pages of a $(code:.def) file
+        $tr
+            $td
+                $(code:mydef_make)
+            $td
+                writes a $(code:Makefile) for the $(code:.def) files in a directory tree (and a $(code:config) the first time)
+        $tr
+            $td
+                $(code:mydef_run [-mmodule] [-silent] t.def)
+            $td
+                compiles, then compiles and runs the output with the tool its extension calls for. It also runs a plain source file, e.g. $(code:mydef_run t.c).
+        $tr
+            $td
+                $(code:mydef_test)
+            $td
+                runs $(code:mydef_run) on each $(code:.def) file listed in a $(code:TESTS) file and reports the failures
+        $tr
+            $td
+                $(code:mydef_install [-f] src dst ext)
+            $td
+                installs files, only those newer than the installed copy ($(code:-f) installs them all)
+    $p
+        $(code:mydef_test) checks a test with an expect block at the end of its $(code:.def) file. $(code:/* expect output&#58;) compares what the program prints; with any other word, as in $(code:/* expect t.txt&#58;), it compares the generated file. Blank lines and runs of spaces are ignored in the comparison, and a mismatch prints $(code:not ok) and fails the test:
+    &call codeprint, mydef
+        page: t
+            module: perl
+            $print hello
+
+        \x2f* expect output:
+        hello
+        */
+    &call codeprint, sh
+        $ cat TESTS
+        t.def
+        $ mydef_test
+        *** [ t.def ] ***
+        PAGE: t
+          --> [./t.pl]
+        perl ./t.pl
+        hello
+        --------------------------
+            ok 1/1
+        Ran 1 tests.
+    $p
+        $(code:mydef_install) is what the $(code:make install) of $(code:MyDef) and its module repositories runs. The extension picks the destination:
+    $table ref
+        $tr
+            $th "Command"
+            $th "Installs"
+        $tr
+            $td
+                $(code:mydef_install deflib . def)
+            $td
+                the $(code:.def) files under $(code:deflib) into $(code:&dollar;MYDEFLIB)
+        $tr
+            $td
+                $(code:mydef_install out/lib . pm)
+            $td
+                the $(code:.pm) files under $(code:out/lib) into $(code:&dollar;PERL5LIB)
+        $tr
+            $td
+                $(code:mydef_install - file ...)
+            $td
+                programs into $(code:&dollar;MYDEFBIN), or $(code:~/bin) when it is on the $(code:PATH)
+
+    $call subsection, ref_glossary, Glossary
+    $table ref
+        $tr
+            $th "Term"
+            $th "Meaning"
+        $tr
+            $td
+                page
+            $td
+                a $(code:page&#58; name) block; each page compiles to one output file. See $(a:Basic structure of .def file,#syntax_defile).
+        $tr
+            $td
+                module
+            $td
+                the output module that translates a page for one target language, chosen with $(code:module&#58;), e.g. $(code:output_perl) for $(code:module&#58; perl)
+        $tr
+            $td
+                subcode
+            $td
+                a named piece of code, $(code:subcode&#58; name&#40;params&#41;), expanded in place at compile time with $(code:&dollar;call). See $(a:Subcode with parameters,#subcode_param).
+        $tr
+            $td
+                block call
+            $td
+                a call with $(code:&amp;call), whose indented block replaces $(code:BLOCK) in the subcode. See $(a:call vs block call,#call_vs_blockcall).
+        $tr
+            $td
+                fncode
+            $td
+                a function in the target language, $(code:fncode&#58; name&#40;params&#41;), called at run time. See $(a:fncode,#syntax_fncode).
+        $tr
+            $td
+                macro
+            $td
+                a named text value, defined under $(code:macros&#58;) or with $(code:&dollar;&#40;set&#58;...&#41;), used as $(code:&dollar;&#40;name&#41;). See $(a:Dynamic inline macros,#dynamic_macro).
+        $tr
+            $td
+                frame
+            $td
+                a subcode that wraps the page code, named as $(code:page&#58; t&#44; frame) or $(code:basic_frame) by default; it calls $(code:&dollar;call @main) where the page code goes
+        $tr
+            $td
+                named block
+            $td
+                a block of output with a name, filled with $(code:&dollar;&#40;block&#58;name&#41;) or by a module
+        $tr
+            $td
+                DUMP_STUB
+            $td
+                the line $(code:DUMP_STUB name), which puts out a named block where it stands; the block can be filled after the line is written
