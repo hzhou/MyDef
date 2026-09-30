@@ -137,6 +137,14 @@
                 </ul>
                 </li>
                 <li><a href="#python">10 <code>output_python</code></a>
+                <ul class="no-bullet id2">
+                <li><a href="#python_plain">10.1 It is OK to write vanilla Python</a></li>
+                <li><a href="#python_print">10.2 <code>$print</code></a></li>
+                <li><a href="#python_for">10.3 <code>$for</code> and <code>$do</code></a></li>
+                <li><a href="#python_fn">10.4 Functions, <code>$global</code>, and <code>$import</code></a></li>
+                <li><a href="#python_capture">10.5 Regex capture with <code>-></code></a></li>
+                <li><a href="#python_std">10.6 <code>std_python.def</code></a></li>
+                </ul>
                 </li>
                 <li><a href="#java">11 <code>output_java</code></a>
                 </li>
@@ -3547,7 +3555,371 @@ $form action:save.php
             10 <code>output_python</code>
         </h2>
         <p>
-            [To be continued.]
+            <code>output_python</code> lives in its own repository, <a href="https://github.com/hzhou/output_python">github.com/hzhou/output_python</a>, and is installed the same way as <code>output_c</code> (<code>mydef_make</code>, <code>make</code>, <code>make install</code>). It provides <code>module: python</code>, which writes Python 3.
+        </p>
+        <p>
+            Python already has little syntax noise, so <code>output_python</code> adds less than the other modules. What it does add is the shared <code>MyDef</code> toolkit -- <code>$print</code>, <code>$for</code>, regex capture, and the file and <code>import</code> bookkeeping -- in the same form as in <code>output_perl</code> and <code>output_c</code>, so a program can move between them with few changes. Its companion script <code>perl_to_python</code> converts a <code>module: perl</code> page into a <code>module: python</code> one.
+        </p>
+
+        <a name="python_plain"></a>
+        <h3 class="section">
+            10.1 It is OK to write vanilla Python
+        </h3>
+        <p>
+            A page with <code>module: python</code> compiles to a <code>.py</code> file. As with <code>output_c</code>, the page code goes into a <code>main</code> function, from the default <code>basic_frame</code> in <code>std_python.def</code>. A <code>.def</code> file without a <code>page:</code> line works too, as a page named after the file.
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: python
+
+    n = 3
+    if n > 2
+        print(<span class="mydef-quote">"n is big"</span>)
+    <span class="mydef-keyword">$if</span> n > 5
+        print <span class="mydef-quote">"huge"</span>
+    <span class="mydef-keyword">$elif</span> !n
+        print <span class="mydef-quote">"zero"</span>
+    <span class="mydef-keyword">$else</span>
+        n++
+        $print n=$n, n*7=${n*7}
+        </code></pre>
+        <pre><code>
+$ mydef_run t.def
+PAGE: t
+    --> [./t.py]
+python ./t.py
+n is big
+n=4, n*7=28
+        </code></pre>
+        <p>
+            and <code>t.py</code> is:
+        </p>
+        <pre><code>
+<span class="mydef-keyword">def</span> main():
+    n = 3
+    <span class="mydef-keyword">if</span> n > 2:
+        print(<span class="mydef-quote">"n is big"</span>)
+    <span class="mydef-keyword">if</span> n > 5:
+        print(<span class="mydef-quote">"huge"</span>)
+    <span class="mydef-keyword">elif</span> not n:
+        print(<span class="mydef-quote">"zero"</span>)
+    <span class="mydef-keyword">else</span>:
+        n+=1
+        print(<span class="mydef-quote">"n=%s, n*7=%s"</span> % (n, n*7))
+
+<span class="mydef-comment"># ---------------------------------------------------------</span>
+<span class="mydef-keyword">if</span> __name__ == <span class="mydef-quote">"__main__"</span>:
+    main()
+        </code></pre>
+        <p>
+            Plain Python passes through, as long as it is indented properly. On top of it:
+        </p>
+        <ul>
+            <li>
+                The trailing colon after <code>if</code>, <code>elif</code>, <code>else</code>, <code>while</code>, <code>for</code>, and <code>def</code> is optional.
+            </li>
+            <li>
+                <code>print x</code> becomes <code>print(x)</code>.
+            </li>
+            <li>
+                <code>n++</code> and <code>n--</code> become <code>n+=1</code> and <code>n-=1</code>.
+            </li>
+            <li>
+                <code>$if</code>, <code>$elif</code>, <code>$else</code>, and <code>$while</code> work as in the other modules, and <code>!</code> in their condition becomes <code>not</code>.
+            </li>
+            <li>
+                <code>$while cond; step</code> puts <code>step</code> at the end of the loop body.
+            </li>
+        </ul>
+        <p>
+            The comment rules of the Syntax chapter apply: a <code>&num;</code> with spaces on both sides starts a <code>MyDef</code> comment, even inside a string. Write <code>"a &#92;x23 b"</code> for such a string.
+        </p>
+
+        <a name="python_print"></a>
+        <h3 class="section">
+            10.2 <code>$print</code>
+        </h3>
+        <p>
+            <code>$print</code> is for debug printing. It fills in <code>$var</code> and <code>${expr}</code> and adds a newline, as in the other modules. A trailing <code>-</code> leaves the newline out. <code>$print</code> writes a <code>%</code> format; since Python formats any value with <code>%s</code>, there is no type to infer. Related directives:
+        </p>
+        <pre><code>
+$print n=$n, root=${sqrt(n)}
+$print no newline-
+$dump n, L
+$warn cannot open $fname
+$die bad input: $s
+        </code></pre>
+        <pre><code>
+print(<span class="mydef-quote">"n=%s, root=%s"</span> % (n, sqrt(n)))
+print(<span class="mydef-quote">"no newline"</span>, end='')
+print(<span class="mydef-quote">"n = %s, L = %s"</span> % (n, L))
+print(<span class="mydef-quote">"cannot open %s"</span> % fname, file=sys.stderr)
+<span class="mydef-label">raise</span> Exception(<span class="mydef-quote">"bad input: %s"</span> % s)
+        </code></pre>
+        <p>
+            <code>import sys</code> is added for <code>$warn</code>. When one value needs a specific format, quote the text and give the format arguments after it, as in <code>output_c</code>:
+        </p>
+        <pre><code>
+$print <span class="mydef-quote">"x = %.2f, n = $n"</span>, x
+        </code></pre>
+        <pre><code>
+print(<span class="mydef-quote">"x = %.2f, n = %s"</span> % (x, n))
+        </code></pre>
+        <p>
+            Since a <code>%</code> can start a format, write <code>%%</code> for a literal percent sign: <code>$print done: 100%%</code>. (A lone <code>%</code> followed by a space and a letter, as in <code>50% done</code>, is read as the printf format <code>% d</code> and triggers a <code>Missing 1 fmt arguments</code> warning.) When <code>$print</code> gets in the way, write a plain <code>print()</code> or an f-string.
+        </p>
+
+        <a name="python_for"></a>
+        <h3 class="section">
+            10.3 <code>$for</code> and <code>$do</code>
+        </h3>
+        <p>
+            <code>$for</code> turns the usual loop forms into <code>range</code>&#44; <code>enumerate</code>&#44; and <code>zip</code>. <code>$foreach</code> is the same as <code>$for</code>.
+        </p>
+        <table class="ref">
+            <tr>
+                <th>MyDef</th>
+                <th>Python</th>
+            </tr>
+            <tr>
+                <td>
+                    <code>$for i=0&#58;10</code>
+                </td>
+                <td>
+                    <code>for i in range(10):</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>$for i=2&#58;10</code>
+                </td>
+                <td>
+                    <code>for i in range(2&#44;10):</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>$for i=0&#58;10&#58;2</code>
+                </td>
+                <td>
+                    <code>for i in range(0&#44;10&#44;2):</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>$for N</code>
+                </td>
+                <td>
+                    <code>for _i in range(N):</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>$for x in L</code>
+                </td>
+                <td>
+                    <code>for x in L:</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>$for i&#44; x in L</code>
+                </td>
+                <td>
+                    <code>for i&#44; x in enumerate(L):</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>$for x&#44; y in A&#44; B</code>
+                </td>
+                <td>
+                    <code>for x&#44; y in zip(A&#44; B):</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>$for i&#44; a&#44; b in A&#44; B</code>
+                </td>
+                <td>
+                    <code>for i&#44; a&#44; b in zip(range(len(A))&#44; A&#44; B):</code>
+                </td>
+            </tr>
+        </table>
+        <p>
+            With two variables and one list, <code>$for</code> uses <code>enumerate</code> when the first variable is named <code>i</code> through <code>n</code>; with as many lists as variables, it uses <code>zip</code>.
+        </p>
+        <p>
+            <code>$do</code> makes a block that runs once, which you can leave early with <code>break</code>:
+        </p>
+        <pre><code>
+<span class="mydef-keyword">$do</span>
+    <span class="mydef-keyword">$if</span> not ready
+        <span class="mydef-label">break</span>
+    process()
+        </code></pre>
+        <pre><code>
+<span class="mydef-keyword">while</span> 1: # $do:
+    <span class="mydef-keyword">if</span> not ready:
+        <span class="mydef-label">break</span>
+    process()
+    <span class="mydef-label">break</span>
+        </code></pre>
+
+        <a name="python_fn"></a>
+        <h3 class="section">
+            10.4 Functions, <code>$global</code>, and <code>$import</code>
+        </h3>
+        <p>
+            <code>fncode:</code> defines a module-level function, written after <code>main</code> in the order they are first called. As with <code>output_c</code>, a function is included only when the code calls it; unused ones are left out. A <code>def</code> inside the page code is an ordinary nested function.
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: python
+
+    $import sqrt from math
+    <span class="mydef-keyword">$global</span> count = 0
+    bump()
+    bump()
+    $print count = $count, root = ${sqrt(add(7, 9))}
+
+<span class="mydef-label">fncode</span>: <span class="mydef-label">add</span>(a, b)
+    <span class="mydef-label">return</span> a + b
+
+<span class="mydef-label">fncode</span>: <span class="mydef-label">bump</span>
+    <span class="mydef-keyword">$global</span> count
+    count += 1
+
+<span class="mydef-label">fncode</span>: <span class="mydef-label">unused</span>
+    pass
+        </code></pre>
+        <pre><code>
+<span class="mydef-preproc">from</span> math import sqrt
+
+count = 0
+
+<span class="mydef-keyword">def</span> main():
+    global count
+    bump()
+    bump()
+    print(<span class="mydef-quote">"count = %s, root = %s"</span> % (count, sqrt(add(7, 9))))
+
+<span class="mydef-comment"># ---- subroutines --------------------------------------------</span>
+<span class="mydef-keyword">def</span> bump():
+    global count
+    count += 1
+
+<span class="mydef-keyword">def</span> add(a, b):
+    <span class="mydef-label">return</span> a + b
+        </code></pre>
+        <p>
+            <code>$global count = 0</code> puts the assignment at module level and <code>global count</code> in the current function. Other functions that assign to it need their own <code>$global count</code>.
+        </p>
+        <p>
+            <code>$import</code> lines can appear anywhere; they are collected at the top of the file, with duplicates removed. <code>$import numpy as np</code> and <code>$import sqrt from math</code> (for <code>from math import sqrt</code>) are both accepted. <code>$try_import yaml</code> wraps the import in <code>try</code> and sets <code>has_yaml</code> to <code>True</code> or <code>False</code>. Modules used as <code>re.</code>&#44; <code>os.</code>&#44; <code>sys.</code>&#44; <code>copy.</code>&#44; or <code>glob.</code> are imported automatically.
+        </p>
+
+        <a name="python_capture"></a>
+        <h3 class="section">
+            10.5 Regex capture with <code>-></code>
+        </h3>
+        <p>
+            The Perl-style match and capture from <code>output_perl</code> (see its section on regex capture) works in <code>$if</code> and <code>$elif</code>, and becomes <code>re.search</code>:
+        </p>
+        <pre><code>
+<span class="mydef-keyword">$if</span> s=~/Hello\s+(\w+)/ -> who
+    $print Match: $who
+        </code></pre>
+        <pre><code>
+<span class="mydef-keyword">if</span> re.search(r'Hello\s+(\w+)', s):
+    m = re.search(r'Hello\s+(\w+)', s)
+    who = m.group(1)
+    print(<span class="mydef-quote">"Match: %s"</span> % who)
+        </code></pre>
+        <p>
+            A pattern anchored with <code>^</code> becomes <code>re.match</code>. For a lexer, <code>$if_match pattern</code> matches at position <code>src_pos</code> in <code>src</code>, precompiles the pattern, and on success advances <code>src_pos</code> and leaves the match in <code>m</code>.
+        </p>
+
+        <a name="python_std"></a>
+        <h3 class="section">
+            10.6 <code>std_python.def</code>
+        </h3>
+        <p>
+            <code>std_python.def</code> is loaded automatically. Its file subcodes take the file name as a Python expression, so a literal name needs quotes:
+        </p>
+        <pre><code>
+<span class="mydef-keyword">&call</span> <strong>open_W,</strong> <span class="mydef-quote">"words.txt"</span>
+    $print apple pie
+    $print banana split
+    $print apple tart
+counts = {}
+<span class="mydef-keyword">&call</span> <strong>open_r,</strong> <span class="mydef-quote">"words.txt"</span>
+    <span class="mydef-keyword">$if</span> line=~/^(\w+)/ -> fruit
+        <span class="mydef-keyword">$call</span> <strong>dict_inc,</strong> counts, fruit
+<span class="mydef-keyword">$for</span> k in sorted(counts)
+    $print $k: ${counts[k]}
+        </code></pre>
+        <pre><code>
+$ mydef_run t.def
+...
+    --> [words.txt]
+apple: 2
+banana: 1
+        </code></pre>
+        <table class="ref">
+            <tr>
+                <th>Subcode</th>
+                <th>Does</th>
+            </tr>
+            <tr>
+                <td>
+                    <code>&call open_r&#44; fname</code>
+                </td>
+                <td>
+                    loops over the lines of a file&#44; each in <code>line</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&call open_w&#44; fname</code>
+                </td>
+                <td>
+                    opens a file for writing as <code>Out</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&call open_W&#44; fname</code>
+                </td>
+                <td>
+                    same as <code>open_w</code>&#44; but also prints <code>--> [fname]</code> and sends <code>$print</code> to the file
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>$call dict_inc&#44; D&#44; key</code>
+                </td>
+                <td>
+                    counts <code>key</code> in dictionary <code>D</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>&dollar;(ternary:cond&#44; a&#44; b)</code>
+                </td>
+                <td>
+                    <code>a if cond else b</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <code>$call start_time</code> / <code>$call print_time&#44; msg</code>
+                </td>
+                <td>time a section of code</td>
+            </tr>
+        </table>
+        <p>
+            Two optional libraries can be loaded with an <code>include:</code> line: <code>python/parse.def</code> for writing parsers, and <code>python/tkinter.def</code> for Tk GUIs.
         </p>
         <a name="java"></a>
         <h2 class="chapter">
