@@ -3261,7 +3261,7 @@ struct point {
 &lt;/html>
         </code></pre>
         <p>
-            As with <code>output_c</code>, the page gets a default frame: <code>basic_frame</code> from <code>std_www.def</code> writes the <code>&lt;html&gt;</code>, <code>&lt;head&gt;</code>, and <code>&lt;body&gt;</code> skeleton and puts the page code in the body. <code>title:</code> sets the page title. Plain text and raw HTML lines are passed through as they are.
+            As with <code>output_c</code>, the page gets a default frame: <code>basic_frame</code> from <code>std_www.def</code> writes the <code>&lt;html&gt;</code>, <code>&lt;head&gt;</code>, and <code>&lt;body&gt;</code> skeleton and puts the page code in the body. <code>title:</code> sets the page title; without it, the title is the page name. Plain text and raw HTML lines are passed through as they are.
         </p>
 
         <a name="www_tags"></a>
@@ -3429,7 +3429,7 @@ $script
             <code>std_js.def</code> provides these helpers. The macros <code>&dollar;(id:x)</code>, <code>&dollar;(value:x)</code>, <code>&dollar;(style:x)</code>, <code>&dollar;(show:x)</code>, and <code>&dollar;(hide:x)</code> are short for <code>document.getElementById</code> expressions. The block subcodes <code>on_click</code>, <code>on_change</code>, <code>setf</code>, <code>ajax_get</code>, and <code>ajax_post</code> wrap the usual event and request patterns. <code>js_frame</code> also calls the optional subcodes <code>js_global</code> and <code>css_global</code>.
         </p>
         <p>
-            A page with <code>module: js</code> produces a standalone <code>.js</code> file. Note that <code>$global</code> only works inside <code>js_frame</code>; in a standalone file, declare globals with plain <code>var</code>.
+            A page with <code>module: js</code> produces a standalone <code>.js</code> file. <code>$global</code> works there too: the <code>var</code> declarations go at the top of the file.
         </p>
 
         <a name="www_php"></a>
@@ -3452,7 +3452,7 @@ $script
 &lt;/h1>
         </code></pre>
         <p>
-            For a page that is all PHP, use <code>php_frame</code>, which compiles the page code as PHP. <code>phpcode:</code> subcodes are also PHP, but once a page switches into PHP it does not switch back to HTML, so keep PHP code in <code>php_frame</code> pages rather than mixing it into an HTML page. <code>$form</code> fills in <code>action</code> and <code>method="POST"</code> when they are not given; on a <code>type: php</code> page, give the <code>action</code> explicitly.
+            For a page that is all PHP, use <code>php_frame</code>, which compiles the page code as PHP; tags in PHP code are written out with <code>echo</code>. <code>phpcode:</code> subcodes are also PHP, and can be called from an HTML page: the output switches into <code>&lt;?php ... ?&gt;</code> for the call and back to HTML after it. <code>$form</code> adds <code>method="POST"</code> when no method is given; without an <code>action</code>, the form submits to the current URL.
         </p>
 
         <a name="www_std"></a>

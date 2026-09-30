@@ -34,7 +34,7 @@ subcode:: sections
             </body>
         </html>
     $p
-        As with $(code:output_c), the page gets a default frame: $(code:basic_frame) from $(code:std_www.def) writes the $(code:&lt;html&gt;), $(code:&lt;head&gt;), and $(code:&lt;body&gt;) skeleton and puts the page code in the body. $(code:title:) sets the page title. Plain text and raw HTML lines are passed through as they are.
+        As with $(code:output_c), the page gets a default frame: $(code:basic_frame) from $(code:std_www.def) writes the $(code:&lt;html&gt;), $(code:&lt;head&gt;), and $(code:&lt;body&gt;) skeleton and puts the page code in the body. $(code:title:) sets the page title; without it, the title is the page name. Plain text and raw HTML lines are passed through as they are.
 
     $call subsection, www_tags, Tags
     $p
@@ -157,7 +157,7 @@ subcode:: sections
     $p
         $(code:std_js.def) provides these helpers. The macros $(code:&dollar;(id:x)), $(code:&dollar;(value:x)), $(code:&dollar;(style:x)), $(code:&dollar;(show:x)), and $(code:&dollar;(hide:x)) are short for $(code:document.getElementById) expressions. The block subcodes $(code:on_click), $(code:on_change), $(code:setf), $(code:ajax_get), and $(code:ajax_post) wrap the usual event and request patterns. $(code:js_frame) also calls the optional subcodes $(code:js_global) and $(code:css_global).
     $p
-        A page with $(code:module: js) produces a standalone $(code:.js) file. Note that $(code:$global) only works inside $(code:js_frame); in a standalone file, declare globals with plain $(code:var).
+        A page with $(code:module: js) produces a standalone $(code:.js) file. $(code:$global) works there too: the $(code:var) declarations go at the top of the file.
 
     $call subsection, www_php, PHP
     $p
@@ -173,7 +173,7 @@ subcode:: sections
             Hello, <?php echo $name ?>!
         </h1>
     $p
-        For a page that is all PHP, use $(code:php_frame), which compiles the page code as PHP. $(code:phpcode:) subcodes are also PHP, but once a page switches into PHP it does not switch back to HTML, so keep PHP code in $(code:php_frame) pages rather than mixing it into an HTML page. $(code:$form) fills in $(code:action) and $(code:method="POST") when they are not given; on a $(code:type: php) page, give the $(code:action) explicitly.
+        For a page that is all PHP, use $(code:php_frame), which compiles the page code as PHP; tags in PHP code are written out with $(code:echo). $(code:phpcode:) subcodes are also PHP, and can be called from an HTML page: the output switches into $(code:&lt;?php ... ?&gt;) for the call and back to HTML after it. $(code:$form) adds $(code:method="POST") when no method is given; without an $(code:action), the form submits to the current URL.
 
     $call subsection, www_std, $(code:std_html.def) and other libraries
     $p
