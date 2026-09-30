@@ -680,7 +680,7 @@ subcode:: sections
 subcode:: sections
     $call subsection, preproc_set, Preprocessing: $(code:&dollar;(set:...))
     $p
-        We already learned that $(code:&dollar;(set:...)) can be used to set local macros within the scope. What if we want to set macros to the parent scope? We can use $(code:&dollar;(set-1:...)):
+        We already learned that $(code:&dollar;(set:...)) can be used to set local macros within the scope. What if we want to set macros to the parent scope? We can use $(code:&dollar;(set-1&#58;...)):
         &call codeprint, mydef
             $call set_macros
             $print A = $(A)
@@ -702,7 +702,7 @@ subcode:: sections
     $p
         We haven't introduced the $(code:+=) operator yet. Intuitively, $(code:+=) increments the macro definition numerically.
     $p
-        $(code:+=) works for $(code:&dollar;(set:...)) and $(code:&dollar;(set-1:...)) as well. However, it is difficult to track consistent macros across scopes, therefore, it makes most sense to only use these operators in $(code:&dollar;(setmacro:...)).
+        $(code:+=) works for $(code:&dollar;(set:...)) and $(code:&dollar;(set-1&#58;...)) as well. However, it is difficult to track consistent macros across scopes, therefore, it makes most sense to only use these operators in $(code:&dollar;(setmacro:...)).
     $p
         In addition to $(code:+=), there are also $(code:-=), $(code:*=), and $(code:/=), which does their corresponding arithmetic updates. They are not as useful as $(code:+=) though.
     $p
@@ -719,7 +719,7 @@ subcode:: sections
                 $call add_name, Bob
                 We have gathered: $(namelist).
     $p
-        Because the scoping rules, very rarely we need unset macros. When we need it, it is often only needed to shield certain macros from child scopes. For that, we have the $(code:&dollar;(unset:...).
+        Because the scoping rules, very rarely we need unset macros. When we need it, it is often only needed to shield certain macros from child scopes. For that, we have the $(code:&dollar;(unset:...)).
         &call codeprint, mydef
             $(unset:A,B,C)
             $call subcode_that_checks_macros
