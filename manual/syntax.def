@@ -291,7 +291,21 @@ subcode:: sections
                 $print Hello $(name)!
 
             page: t
+                module: perl
                 $map greet, Alice, Bob, Carol
+
+    $p
+        The subcode is called once for each parameter. The output $(code:t.pl) would be:
+        &call codeprint, perl
+            &num;!/usr/bin/perl
+            use strict;
+
+            push @guests, "Alice";
+            print "Hello Alice!\n";
+            push @guests, "Bob";
+            print "Hello Bob!\n";
+            push @guests, "Carol";
+            print "Hello Carol!\n";
 
     $p
         Less often used, the $(code:&dollar;map) syntax can also be used with subcodes that need multiple parameters by sharing common parameters:
@@ -300,45 +314,75 @@ subcode:: sections
                 $print $(greet), $(name)!
 
             page: t
+                module: perl
                 $map A(Hello), Alice, Bob, Carol
 
     $p
+        Here $(code:Hello) is passed as the first parameter to every call, and the remaining parameters are mapped over one at a time.
+    $p
         One of the benefits of $(code:&dollar;map) call is to allow certain use of macros:
         &call codeprint, mydef
-            macros: 
+            macros:
                 Guests: Alice, Bob, Carol
 
             subcode: A(greet, name)
                 $print $(greet), $(name)!
 
             page: t
+                module: perl
                 $map A(Hello), $(Guests)
+    $p
+        The macro is expanded before mapping, so both of the last two examples produce the same statements:
+        &call codeprint, perl
+            print "Hello, Alice!\n";
+            print "Hello, Bob!\n";
+            print "Hello, Carol!\n";
     $p
         It should be noted that there are preprocessing directives that will be introduced in a later chapter to achieve a similar result.
 
 subcode:: sections
     $call subsection, nest_call, Nest call
     $p
-        A similar but even more exotic syntax is the $(code:&dollar;nest) call:
+        A similar but even more exotic syntax is the $(code:&dollar;nest) call. It works with a block subcode and nests the block calls, one level per parameter:
         &call codeprint, mydef
-            subcode: each(A)
-                for(int i_$(A)=0;i_$(A)<n_$(A);i_$(A)++){
-                    $(set:i=$(A)_list[i_$(A)])
-                    $call append_string, s, $(i) &num; assume append_string is defined elsewhere
+            subcode: each(x)
+                $foreach $$(x) in @$(x)s
                     BLOCK
 
             page: t
-                $map init_list, A, B, C, D &num; assume init_list is defined elsewhere
-                $nest each, A, B, C, D
-                    $print s
+                module: perl
+                my @sizes = ("small", "large")
+                my @colors = ("red", "blue")
+                $nest each, size, color
+                    $print $size $color
     $p
         $(code:&dollar;nest) is the syntax sugar for:
         &call codeprint, mydef
-            &call each, A
-                &call each, B
-                    &call each, C
-                        &call each, D
-                            $print s
+            &call each, size
+                &call each, color
+                    $print $size $color
+    $p
+        The output $(code:t.pl) would be:
+        &call codeprint, perl
+            &num;!/usr/bin/perl
+            use strict;
+
+            my @sizes = ("small", "large");
+            my @colors = ("red", "blue");
+            foreach my $size (@sizes) {
+                foreach my $color (@colors) {
+                    print "$size $color\n";
+                }
+            }
+    $p
+        Running it prints every combination:
+        &call codeprint
+            small red
+            small blue
+            large red
+            large blue
+    $p
+        $(code:&dollar;nest) is most useful when the nesting is deep, or when the list of levels comes from a macro: if a macro $(code:dims) holds the list of levels, $(code:&dollar;nest each) can simply take $(code:&dollar;(dims)) as its parameters.
 
 
 subcode:: sections
@@ -383,6 +427,35 @@ subcode:: sections
             page: t
                 $call @main_init
                 ...
+
+    $p
+        To see the effect, here is the same pattern in a single file:
+        &call codeprint, mydef
+            subcode:: main_init
+                feature A initialization
+
+            subcode:: main_init
+                feature B initialization
+
+            page: t
+                module: general
+                $call @main_init
+                main loop
+    $p
+        Both definitions are concatenated, so the output $(code:t.txt) is:
+        &call codeprint
+            feature A initialization
+            feature B initialization
+            main loop
+    $p
+        If the double colons are replaced with single colons, only the first definition is kept and $(code:mydef_page) warns about the second one:
+        &call codeprint
+            Not overwriting subcode main_init: [t.def - 1] -> [t.def - 4]
+    $p
+        and the output becomes:
+        &call codeprint
+            feature A initialization
+            main loop
 
     $p
         It should be mentioned that in addition to $(code:subcode::), signifying concatenation, there are also $(code:subcode:@) and $(code:subcode:-). Both advise $(code:MyDef) on what to do when $(code:subcode) names collide. $(code:subcode:@) signifies lower priority. This is used to supply a default subcode definition in a library, and any colliding subcode definition will overwrite it. $(code:subcode:-) is similar to $(code:subcode::) and signals that the code should be concatenated. Unlike the double colon, $(code:subcode:-) always prepends the code to whichever definition was loaded earlier. It goes without saying that the effect of these special syntaxes depends on the loading order of the $(code:MyDef) parser and can be difficult to follow. In general, their use should be discouraged.

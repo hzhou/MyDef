@@ -1015,7 +1015,23 @@ Line 2
     $print Hello <span class="mydef-macro">$(name)</span>!
 
 <span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: perl
     <span class="mydef-keyword">$map</span> <strong>greet,</strong> Alice, Bob, Carol
+            </code></pre>
+        </p>
+
+        <p>
+            The subcode is called once for each parameter. The output <code>t.pl</code> would be:
+            <pre><code>
+#!/usr/bin/perl
+use strict;
+
+push @guests, "Alice";
+print "Hello Alice!\n";
+push @guests, "Bob";
+print "Hello Bob!\n";
+push @guests, "Carol";
+print "Hello Carol!\n";
             </code></pre>
         </p>
 
@@ -1026,10 +1042,14 @@ Line 2
     $print <span class="mydef-macro">$(greet)</span>, <span class="mydef-macro">$(name)</span>!
 
 <span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: perl
     <span class="mydef-keyword">$map</span> <strong>A(Hello),</strong> Alice, Bob, Carol
             </code></pre>
         </p>
 
+        <p>
+            Here <code>Hello</code> is passed as the first parameter to every call, and the remaining parameters are mapped over one at a time.
+        </p>
         <p>
             One of the benefits of <code>&dollar;map</code> call is to allow certain use of macros:
             <pre><code>
@@ -1040,7 +1060,16 @@ Line 2
     $print <span class="mydef-macro">$(greet)</span>, <span class="mydef-macro">$(name)</span>!
 
 <span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: perl
     <span class="mydef-keyword">$map</span> <strong>A(Hello),</strong> <span class="mydef-macro">$(Guests)</span>
+            </code></pre>
+        </p>
+        <p>
+            The macro is expanded before mapping, so both of the last two examples produce the same statements:
+            <pre><code>
+print "Hello, Alice!\n";
+print "Hello, Bob!\n";
+print "Hello, Carol!\n";
             </code></pre>
         </p>
         <p>
@@ -1051,29 +1080,54 @@ Line 2
             4.8 Nest call
         </h3>
         <p>
-            A similar but even more exotic syntax is the <code>&dollar;nest</code> call:
+            A similar but even more exotic syntax is the <code>&dollar;nest</code> call. It works with a block subcode and nests the block calls, one level per parameter:
             <pre><code>
-<span class="mydef-label">subcode</span>: <span class="mydef-label">each</span>(A)
-    for(int i_<span class="mydef-macro">$(A)</span>=0;i_<span class="mydef-macro">$(A)</span>&lt;n_<span class="mydef-macro">$(A)</span>;i_<span class="mydef-macro">$(A)</span>++){
-        <span class="mydef-macro">$(set:i=$(A)</span>_list[i_<span class="mydef-macro">$(A)</span>])
-        $call append_string, s, <span class="mydef-macro">$(i)</span><span class="mydef-comment"> # assume append_string is defined elsewhere</span>
+<span class="mydef-label">subcode</span>: <span class="mydef-label">each</span>(x)
+    $foreach $<span class="mydef-macro">$(x)</span> in @<span class="mydef-macro">$(x)</span>s
         <span class="mydef-keyword">BLOCK</span>
 
 <span class="mydef-label">page</span>: <span class="mydef-label">t</span>
-    $map init_list, A, B, C, D<span class="mydef-comment"> # assume init_list is defined elsewhere</span>
-    $nest each, A, B, C, D
-        $print s
+    <span class="mydef-label2">module</span>: perl
+    my @sizes = (<span class="mydef-quote">"small"</span>, <span class="mydef-quote">"large"</span>)
+    my @colors = (<span class="mydef-quote">"red"</span>, <span class="mydef-quote">"blue"</span>)
+    $nest each, size, color
+        $print $size $color
             </code></pre>
         </p>
         <p>
             <code>&dollar;nest</code> is the syntax sugar for:
             <pre><code>
-<span class="mydef-keyword">&call</span> <strong>each,</strong> A
-    <span class="mydef-keyword">&call</span> <strong>each,</strong> B
-        <span class="mydef-keyword">&call</span> <strong>each,</strong> C
-            <span class="mydef-keyword">&call</span> <strong>each,</strong> D
-                $print s
+<span class="mydef-keyword">&call</span> <strong>each,</strong> size
+    <span class="mydef-keyword">&call</span> <strong>each,</strong> color
+        $print $size $color
             </code></pre>
+        </p>
+        <p>
+            The output <code>t.pl</code> would be:
+            <pre><code>
+#!/usr/bin/perl
+use strict;
+
+my @sizes = ("small", "large");
+my @colors = ("red", "blue");
+foreach my $size (@sizes) {
+    foreach my $color (@colors) {
+        print "$size $color\n";
+    }
+}
+            </code></pre>
+        </p>
+        <p>
+            Running it prints every combination:
+            <pre><code>
+small red
+small blue
+large red
+large blue
+            </code></pre>
+        </p>
+        <p>
+            <code>&dollar;nest</code> is most useful when the nesting is deep, or when the list of levels comes from a macro: if a macro <code>dims</code> holds the list of levels, <code>&dollar;nest each</code> can simply take <code>&dollar;(dims)</code> as its parameters.
         </p>
         <a name="milt_subcode"></a>
         <h3 class="section">
@@ -1126,6 +1180,43 @@ Line 2
 <span class="mydef-label">page</span>: <span class="mydef-label">t</span>
     <span class="mydef-keyword">$call</span> <strong>@main_init</strong>
     ...
+            </code></pre>
+        </p>
+
+        <p>
+            To see the effect, here is the same pattern in a single file:
+            <pre><code>
+<span class="mydef-label">subcode</span>:: <span class="mydef-label">main_init</span>
+    feature A initialization
+
+<span class="mydef-label">subcode</span>:: <span class="mydef-label">main_init</span>
+    feature B initialization
+
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: general
+    <span class="mydef-keyword">$call</span> <strong>@main_init</strong>
+    main loop
+            </code></pre>
+        </p>
+        <p>
+            Both definitions are concatenated, so the output <code>t.txt</code> is:
+            <pre><code>
+feature A initialization
+feature B initialization
+main loop
+            </code></pre>
+        </p>
+        <p>
+            If the double colons are replaced with single colons, only the first definition is kept and <code>mydef_page</code> warns about the second one:
+            <pre><code>
+Not overwriting subcode main_init: [t.def - 1] -> [t.def - 4]
+            </code></pre>
+        </p>
+        <p>
+            and the output becomes:
+            <pre><code>
+feature A initialization
+main loop
             </code></pre>
         </p>
 
