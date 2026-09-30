@@ -156,6 +156,13 @@
                 <li><a href="#java_gui">11.6 GUI programs with <code>java/gui.def</code></a></li>
                 </ul>
                 </li>
+                <li><a href="#sh">12 <code>output_sh</code></a>
+                <ul class="no-bullet id2">
+                <li><a href="#sh_plain">12.1 It is OK to write vanilla shell</a></li>
+                <li><a href="#sh_mydef">12.2 Macros and subcodes</a></li>
+                <li><a href="#sh_clash">12.3 Collisions with shell syntax</a></li>
+                </ul>
+                </li>
             </ul>
         </div>
         <a name="intro"></a>
@@ -4439,6 +4446,163 @@ public class Counter {
         </code></pre>
         <p>
             The field has to be declared outside the listener: <code>$private n_count = 0</code> inside it would reset the count on every click. The widgets are <code>add_label</code>&#44; <code>add_text</code>&#44; <code>add_button</code> (with <code>-</code> for an unnamed widget)&#44; <code>add_space</code>&#44; and <code>add_glue</code>; <code>&call add_listener&#44; widget</code> handles its action events. For drawing, <code>&call add_canvas&#44; canvas&#44; w&#44; h</code> gives the block a <code>Graphics2D g</code> to paint with, <code>&call animate&#44; millisec&#44; delay</code> runs its block on a timer, and <code>&call add_keypress</code> with <code>&call on_key&#44; VK_UP</code> handles keys. The <code>test/</code> directory of <code>output_java</code> has complete examples, such as a bouncing ball.
+        </p>
+        <a name="sh"></a>
+        <h2 class="chapter">
+            12 <code>output_sh</code>
+        </h2>
+        <p>
+            <code>output_sh</code> lives in its own repository, <a href="https://github.com/hzhou/output_sh">github.com/hzhou/output_sh</a>, and is installed the same way as <code>output_c</code> (<code>mydef_make</code>, <code>make</code>, <code>make install</code>). It provides <code>module: sh</code>, which writes a <code>.sh</code> file.
+        </p>
+        <p>
+            It is a thin module. Shell already has a compact syntax, so the lines of a page pass through as they are, and what <code>MyDef</code> adds is its general toolkit -- macros, subcodes, and indentation-based <code>$if</code> -- for organizing scripts that grow.
+        </p>
+
+        <a name="sh_plain"></a>
+        <h3 class="section">
+            12.1 It is OK to write vanilla shell
+        </h3>
+        <p>
+            A page with <code>module: sh</code> compiles to a shell script:
+        </p>
+        <pre><code>
+<span class="mydef-label">page</span>: <span class="mydef-label">t</span>
+    <span class="mydef-label2">module</span>: sh
+    $: #!/bin/sh
+
+    n=3
+    <span class="mydef-keyword">$if</span> [ $n -gt 5 ]
+        echo big
+    <span class="mydef-keyword">$elif</span> [ $n -gt 1 ]
+        echo <span class="mydef-quote">"mid: $n"</span>
+    <span class="mydef-keyword">$else</span>
+        echo small
+    for f in a b c; do
+        echo <span class="mydef-quote">"file $f"</span>
+    done
+    greet() {
+        echo <span class="mydef-quote">"Hello, $1"</span>
+    }
+    greet world
+        </code></pre>
+        <pre><code>
+$ mydef_run t.def
+PAGE: t
+    --> [./t.sh]
+sh ./t.sh
+mid: 3
+file a
+file b
+file c
+Hello, world
+        </code></pre>
+        <p>
+            and <code>t.sh</code> is:
+        </p>
+        <pre><code>
+#!/bin/sh
+
+n=3
+if [ $n -gt 5 ]; then
+    echo big
+elif [ $n -gt 1 ]; then
+    echo "mid: $n"
+else
+    echo small
+fi
+for f in a b c; do
+    echo "file $f"
+done
+greet() {
+    echo "Hello, $1"
+}
+greet world
+        </code></pre>
+        <p>
+            <code>$if</code>&#44; <code>$elif</code>&#44; and <code>$else</code> take the condition as written and supply <code>then</code> and <code>fi</code>. Everything else is plain shell. In particular&#44; <code>$for</code>&#44; <code>$while</code>&#44; and <code>$print</code> are not translated -- they would appear in the script literally -- so write <code>for ... do ... done</code>&#44; <code>while</code>&#44; and <code>echo</code>.
+        </p>
+        <p>
+            <code>output_sh</code> adds no shebang and does not make the file executable; <code>mydef_run</code> runs it with <code>sh</code>. A line starting with <code>&num;</code> is a <code>MyDef</code> comment, so write the shebang as <code>&dollar;: &num;!/bin/sh</code> (output literally) or with a hex escape&#44; <code>&#92;x23!/bin/sh</code>.
+        </p>
+
+        <a name="sh_mydef"></a>
+        <h3 class="section">
+            12.2 Macros and subcodes
+        </h3>
+        <p>
+            Where <code>MyDef</code> helps is in the parts of a script that repeat. A parameter becomes a macro, a check becomes a subcode, and a repeated line becomes <code>&dollar;(for:...)</code>:
+        </p>
+        <pre><code>
+<span class="mydef-label">macros</span>:
+    <span class="mydef-label2">prefix</span>: /tmp/demo_prefix
+
+<span class="mydef-label">page</span>: <span class="mydef-label">setup</span>
+    <span class="mydef-label2">module</span>: sh
+    $: #!/bin/sh
+    set -e
+
+    <span class="mydef-keyword">$call</span> <strong>need,</strong> perl
+    <span class="mydef-keyword">$call</span> <strong>need,</strong> make
+    <span class="mydef-macro">$(for:bin,lib,share)</span>
+        mkdir -p <span class="mydef-macro">$(prefix)</span>/$1
+    <span class="mydef-keyword">&call</span> <strong>step,</strong> copy files
+        touch <span class="mydef-macro">$(prefix)</span>/bin/hello
+    ls <span class="mydef-macro">$(prefix)</span>
+
+<span class="mydef-label">subcode</span>: <span class="mydef-label">need</span>(tool)
+    <span class="mydef-keyword">$if</span> ! command -v <span class="mydef-macro">$(tool)</span> >/dev/null
+        echo <span class="mydef-quote">"missing: <span class="mydef-macro">$(tool)</span>"</span> >&amp;2
+        exit 1
+
+<span class="mydef-label">subcode</span>: <span class="mydef-label">step</span>(name)
+    echo <span class="mydef-quote">"== <span class="mydef-macro">$(name)</span>"</span>
+    <span class="mydef-keyword">BLOCK</span>
+    echo <span class="mydef-quote">"== done"</span>
+        </code></pre>
+        <pre><code>
+#!/bin/sh
+set -e
+
+if ! command -v perl >/dev/null; then
+    echo "missing: perl" >&amp;2
+    exit 1
+fi
+if ! command -v make >/dev/null; then
+    echo "missing: make" >&amp;2
+    exit 1
+fi
+mkdir -p /tmp/demo_prefix/bin
+mkdir -p /tmp/demo_prefix/lib
+mkdir -p /tmp/demo_prefix/share
+echo "== copy files"
+touch /tmp/demo_prefix/bin/hello
+echo "== done"
+ls /tmp/demo_prefix
+        </code></pre>
+        <p>
+            Everything here happens at compile time: the script that runs has no functions or loops for it. Where a shell function or loop is the better fit, write one; the two mix freely. <code>std_sh.def</code> is loaded automatically but is empty for now, so there are no library subcodes yet.
+        </p>
+
+        <a name="sh_clash"></a>
+        <h3 class="section">
+            12.3 Collisions with shell syntax
+        </h3>
+        <p>
+            Shell uses <code>&num;</code> and <code>&dollar;&#40;</code> itself, so it runs into the collisions described in <a href="#syntax_clash">Collisions with target-language syntax</a> more than other languages do:
+        </p>
+        <ul>
+            <li>
+                <code>d=&dollar;(date)</code> is read as the macro <code>date</code>&#44; which expands to nothing with a <code>Macro ... not defined</code> warning. Write backticks (<code>d=`date`</code>)&#44; add a space (<code>d=&dollar;( date )</code>)&#44; or start the line with <code>&dollar;:</code> to output it literally. <code>&dollar;((n+1))</code>&#44; <code>&dollar;1</code>&#44; <code>&dollar;x</code>&#44; and <code>&dollar;{HOME}</code> are safe.
+            </li>
+            <li>
+                A <code>&num;</code> with spaces on both sides ends the line&#44; even inside quotes: <code>echo &quot;a &num; b&quot;</code> becomes <code>echo &quot;a</code>. A <code>&num;</code> without the spaces&#44; as in <code>&dollar;&num;</code> or <code>&dollar;{&num;s}</code>&#44; is safe.
+            </li>
+            <li>
+                A comment line meant for the script needs the hex escape: <code>&#92;x23 cleanup below</code>. (<code>&dollar;:</code> does not help here&#44; since the <code>&num;</code> is followed by a space.)
+            </li>
+        </ul>
+        <p>
+            Check the output of <code>mydef_page</code> for <code>Macro ... not defined</code> warnings; they usually mean a <code>&dollar;&#40;...</code>) was swallowed.
         </p>
     </body>
 </html>

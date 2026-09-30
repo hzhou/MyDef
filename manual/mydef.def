@@ -11,6 +11,7 @@ include: output_c.def
 include: output_www.def
 include: output_python.def
 include: output_java.def
+include: output_sh.def
 
 page: mydef, basic_frame
     module: www

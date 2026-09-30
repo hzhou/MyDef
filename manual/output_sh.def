@@ -1,0 +1,127 @@
+subcode:: sections
+    $call section, sh, $(code:output_sh)
+    $p
+        $(code:output_sh) lives in its own repository, $(a:github.com/hzhou/output_sh,https://github.com/hzhou/output_sh), and is installed the same way as $(code:output_c) ($(code:mydef_make), $(code:make), $(code:make install)). It provides $(code:module: sh), which writes a $(code:.sh) file.
+    $p
+        It is a thin module. Shell already has a compact syntax, so the lines of a page pass through as they are, and what $(code:MyDef) adds is its general toolkit -- macros, subcodes, and indentation-based $(code:$if) -- for organizing scripts that grow.
+
+    $call subsection, sh_plain, It is OK to write vanilla shell
+    $p
+        A page with $(code:module: sh) compiles to a shell script:
+    &call codeprint, mydef
+        page: t
+            module: sh
+            $: &num;!/bin/sh
+
+            n=3
+            $if [ $n -gt 5 ]
+                echo big
+            $elif [ $n -gt 1 ]
+                echo "mid: $n"
+            $else
+                echo small
+            for f in a b c; do
+                echo "file $f"
+            done
+            greet() {
+                echo "Hello, $1"
+            }
+            greet world
+    &call codeprint, sh
+        $ mydef_run t.def
+        PAGE: t
+          --> [./t.sh]
+        sh ./t.sh
+        mid: 3
+        file a
+        file b
+        file c
+        Hello, world
+    $p
+        and $(code:t.sh) is:
+    &call codeprint, sh
+        &num;!/bin/sh
+
+        n=3
+        if [ $n -gt 5 ]; then
+            echo big
+        elif [ $n -gt 1 ]; then
+            echo "mid: $n"
+        else
+            echo small
+        fi
+        for f in a b c; do
+            echo "file $f"
+        done
+        greet() {
+            echo "Hello, $1"
+        }
+        greet world
+    $p
+        $(code:$if)&#44; $(code:$elif)&#44; and $(code:$else) take the condition as written and supply $(code:then) and $(code:fi). Everything else is plain shell. In particular&#44; $(code:$for)&#44; $(code:$while)&#44; and $(code:$print) are not translated -- they would appear in the script literally -- so write $(code:for ... do ... done)&#44; $(code:while)&#44; and $(code:echo).
+    $p
+        $(code:output_sh) adds no shebang and does not make the file executable; $(code:mydef_run) runs it with $(code:sh). A line starting with $(code:&num;) is a $(code:MyDef) comment, so write the shebang as $(code:&dollar;: &num;!/bin/sh) (output literally) or with a hex escape&#44; $(code:&#92;x23!/bin/sh).
+
+    $call subsection, sh_mydef, Macros and subcodes
+    $p
+        Where $(code:MyDef) helps is in the parts of a script that repeat. A parameter becomes a macro, a check becomes a subcode, and a repeated line becomes $(code:&dollar;(for:...)):
+    &call codeprint, mydef
+        macros:
+            prefix: /tmp/demo_prefix
+
+        page: setup
+            module: sh
+            $: &num;!/bin/sh
+            set -e
+
+            $call need, perl
+            $call need, make
+            $(for:bin,lib,share)
+                mkdir -p $(prefix)/$1
+            &call step, copy files
+                touch $(prefix)/bin/hello
+            ls $(prefix)
+
+        subcode: need(tool)
+            $if ! command -v $(tool) >/dev/null
+                echo "missing: $(tool)" >&2
+                exit 1
+
+        subcode: step(name)
+            echo "== $(name)"
+            BLOCK
+            echo "== done"
+    &call codeprint, sh
+        &num;!/bin/sh
+        set -e
+
+        if ! command -v perl >/dev/null; then
+            echo "missing: perl" >&2
+            exit 1
+        fi
+        if ! command -v make >/dev/null; then
+            echo "missing: make" >&2
+            exit 1
+        fi
+        mkdir -p /tmp/demo_prefix/bin
+        mkdir -p /tmp/demo_prefix/lib
+        mkdir -p /tmp/demo_prefix/share
+        echo "== copy files"
+        touch /tmp/demo_prefix/bin/hello
+        echo "== done"
+        ls /tmp/demo_prefix
+    $p
+        Everything here happens at compile time: the script that runs has no functions or loops for it. Where a shell function or loop is the better fit, write one; the two mix freely. $(code:std_sh.def) is loaded automatically but is empty for now, so there are no library subcodes yet.
+
+    $call subsection, sh_clash, Collisions with shell syntax
+    $p
+        Shell uses $(code:&num;) and $(code:&dollar;&#40;) itself, so it runs into the collisions described in $(a:Collisions with target-language syntax,#syntax_clash) more than other languages do:
+    $ul
+        $li
+            $(code:d=&dollar;(date)) is read as the macro $(code:date)&#44; which expands to nothing with a $(code:Macro ... not defined) warning. Write backticks ($(code:d=`date`))&#44; add a space ($(code:d=&dollar;( date )))&#44; or start the line with $(code:&dollar;: ) to output it literally. $(code:&dollar;((n+1)))&#44; $(code:&dollar;1)&#44; $(code:&dollar;x)&#44; and $(code:&dollar;{HOME}) are safe.
+        $li
+            A $(code:&num;) with spaces on both sides ends the line&#44; even inside quotes: $(code:echo &quot;a &num; b&quot;) becomes $(code:echo &quot;a). A $(code:&num;) without the spaces&#44; as in $(code:&dollar;&num;) or $(code:&dollar;{&num;s})&#44; is safe.
+        $li
+            A comment line meant for the script needs the hex escape: $(code:&#92;x23 cleanup below). ($(code:&dollar;: ) does not help here&#44; since the $(code:&num;) is followed by a space.)
+    $p
+        Check the output of $(code:mydef_page) for $(code:Macro ... not defined) warnings; they usually mean a $(code:&dollar;&#40;...)) was swallowed.
