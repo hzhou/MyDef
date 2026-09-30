@@ -103,19 +103,19 @@ subcode:: sections
 
     $call subsection, java_print, $(code:$print)
     $p
-        $(code:$print) is for debug printing. It fills in $(code:$var) and $(code:${expr}) and adds a newline, and a trailing $(code:-) leaves the newline out. Since Java's $(code:%s) formats any value -- numbers as $(code:println) would print them&#44; objects with $(code:toString()) -- $(code:$print) uses $(code:%s) for every variable and expression; there is no type to get wrong. Text without variables becomes $(code:println).
+        $(code:$print) is a convenience for debug output. It fills in $(code:$var) and adds a newline, and a trailing $(code:-) leaves the newline out. Since Java's $(code:%s) formats any value -- numbers as $(code:println) would print them&#44; objects with $(code:toString()) -- the filled-in variables all get $(code:%s). Text without variables becomes $(code:println).
     &call codeprint, mydef
-        $print n=$n, root=${Math.sqrt(n)}
+        $print n=$n, s=$s
         $print no newline-
         $print
         $print "x = %.2f, n = $n", x
     &call codeprint, java
-        System.out.printf("n=%s, root=%s\n", n, Math.sqrt(n));
+        System.out.printf("n=%s, s=%s\n", n, s);
         System.out.printf("no newline");
         System.out.println();
         System.out.printf("x = %.2f, n = %s\n", x, n);
     $p
-        As in $(code:output_c), quote the text and give the format arguments after it when a value needs a specific format. When $(code:$print) gets in the way, write $(code:System.out.println) or $(code:printf) directly.
+        $(code:$print) is not meant to handle every case. When it doesn't do what you want -- a value needs a specific format&#44; or an expression is more than a variable -- quote the text and spell out the format&#44; with the arguments after it&#44; as in the last line above. Or write $(code:System.out.printf) directly.
 
     $call subsection, java_fn, Methods and $(code:$import)
     $p
@@ -129,8 +129,10 @@ subcode:: sections
             words.add("apple")
             words.add("pie")
             $foreach w in words
-                $print ${greet(w)}: ${w.length()} letters
-            $print 3 + 4 = ${add(3, 4)}
+                s = greet(w)
+                $print $s
+            n = add(3, 4)
+            $print 3 + 4 = $n
 
         fncode: add(int a, int b)
             return a + b
@@ -143,8 +145,8 @@ subcode:: sections
     &call codeprint, sh
         $ mydef_run fn.def
         ...
-        Hello apple: 5 letters
-        Hello pie: 3 letters
+        Hello apple
+        Hello pie
         3 + 4 = 7
     &call codeprint, java
         import java.util.ArrayList;
@@ -154,14 +156,18 @@ subcode:: sections
             public static void main(String[] args)
             {
                 ArrayList<String> words;
+                String s;
+                int n;
 
                 words = new ArrayList<String>();
                 words.add("apple");
                 words.add("pie");
                 for(var w : words){
-                    System.out.printf("%s: %s letters\n", greet(w), w.length());
+                    s = greet(w);
+                    System.out.println(s);
                 }
-                System.out.printf("3 + 4 = %s\n", add(3, 4));
+                n = add(3, 4);
+                System.out.printf("3 + 4 = %s\n", n);
             }
 
             public static int add(int a, int b)
@@ -191,8 +197,9 @@ subcode:: sections
 
             pt_a = new Point(3, 4)
             pt_a.move(1, 1)
-            $print a = ${pt_a.show()}, |a|^2 = ${pt_a.norm2()}
-            $print dot = ${dot(pt_a, new Point(1, 2))}
+            s = pt_a.show()
+            n = dot(pt_a, new Point(1, 2))
+            $print a = $s, dot = $n
 
             fncode: Point.__init(int x0, int y0)
                 x = x0
@@ -202,9 +209,6 @@ subcode:: sections
                 x += dx
                 y += dy
 
-            fncode: Point.norm2
-                return x*x + y*y
-
             fncode: Point.show
                 return "(" + x + ", " + y + ")"
 
@@ -213,19 +217,21 @@ subcode:: sections
     &call codeprint, sh
         $ mydef_run pt.def
         ...
-        a = (4, 5), |a|^2 = 41
-        dot = 14
+        a = (4, 5), dot = 14
     &call codeprint, java
         public class pt {
 
             public static void main(String[] args)
             {
                 Point pt_a;
+                String s;
+                int n;
 
                 pt_a = new Point(3, 4);
                 pt_a.move(1, 1);
-                System.out.printf("a = %s, |a|^2 = %s\n", pt_a.show(), pt_a.norm2());
-                System.out.printf("dot = %s\n", dot(pt_a, new Point(1, 2)));
+                s = pt_a.show();
+                n = dot(pt_a, new Point(1, 2));
+                System.out.printf("a = %s, dot = %s\n", s, n);
             }
 
             public static int dot(Point pt_p, Point pt_q)
@@ -248,10 +254,6 @@ subcode:: sections
                 x += dx;
                 y += dy;
             }
-            public int norm2()
-            {
-                return x * x + y * y;
-            }
             public String show()
             {
                 return "(" + x + ", " + y + ")";
@@ -273,7 +275,8 @@ subcode:: sections
             $print $n: $s
         $call init_random
         k = $(irand:10)
-        $print atoi: ${$(atoi:"42") + 1}
+        m = $(atoi:"42") + 1
+        $print atoi: $m
     &call codeprint, sh
         $ mydef_run io.def
         ...
