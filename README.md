@@ -157,6 +157,31 @@ cd output_c
 mydef_make && make && make install
 ```
 
+## AI Assistant Skills
+
+[`ai_skills/`](ai_skills/) has skills that teach an AI coding assistant, such
+as [Claude Code](https://claude.com/claude-code), to write and build MyDef
+code:
+
+| Skill | For |
+|-------|-----|
+| [mydef](ai_skills/mydef/SKILL.md) | General MyDef syntax, directives, and tools |
+| [mydef-c](ai_skills/mydef-c/SKILL.md) | C with `module: c` (output_c) |
+| [mydef-html](ai_skills/mydef-html/SKILL.md) | HTML, PHP, and JavaScript with output_www |
+| [mydef-python](ai_skills/mydef-python/SKILL.md) | Python with `module: python` (output_python) |
+| [mydef-sh](ai_skills/mydef-sh/SKILL.md) | Shell scripts with `module: sh` (output_sh) |
+| [mydef-modules](ai_skills/mydef-modules/SKILL.md) | Installing or rebuilding an output module |
+
+To use them with Claude Code, copy the folders into `~/.claude/skills/`:
+
+```sh
+cp -r ai_skills/* ~/.claude/skills/
+```
+
+They assume the environment from [Installation](#installation) (`PERL5LIB`,
+`MYDEFLIB`, `MYDEFSRC`) and module repositories cloned under
+`$HOME/projects/`; edit them to match your own setup.
+
 ## Vim Setup
 
 ```vim
