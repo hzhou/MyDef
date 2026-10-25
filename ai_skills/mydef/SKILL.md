@@ -111,9 +111,10 @@ The indented code under `&call` replaces `BLOCK` in the subcode definition.
 
 ### $call @name — optional call
 `$call @name` calls the subcode if it is defined, silently skips if not. Useful for extensibility hooks.
+A plain `$call name` of a subcode that doesn't exist is a fatal error: `mydef_page` stops with `Code name not found!` and writes no output.
 
 ### Nested subcodes
-Subcodes can be defined inside other subcodes (indented under them). They are scoped to the parent.
+Subcodes can be defined inside other subcodes (indented under them). They are scoped to the parent. A nested subcode can't be called from outside its parent; move it to the top level to share it.
 
 ## Compile-time vs Runtime Directives
 

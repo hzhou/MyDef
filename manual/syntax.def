@@ -1019,15 +1019,20 @@ subcode:: sections
     $p
         If multiple pages are being compiled, each of them will be listed.
     $p
-        If $(code:MyDef) encounters errors, there will be error messages:
+        If $(code:MyDef) encounters problems, there will be messages. A missing macro is reported, and the output file is still produced, so it is important to pay attention to these messages:
+        &call codeprint t.def
+            $ mydef_page t.def
+            PAGE: t
+            [t.def:5] Macro B not defined
+            --> [./t.pl]
+    $p
+        Calling a subcode that doesn't exist is a fatal error: $(code:mydef_page) stops with an error and no output file is written.
         &call codeprint t.def
             $ mydef_page t.def
             PAGE: t
             [t.def:4] Code A not found!
-            [t.def:5] Macro B not defined
-            --> [./t.pl]
     $p
-        The output file will still be produced despite the errors. It is important to pay attention to error messages.
+        To call a subcode that may or may not be defined, prefix its name with $(code:@), as in $(code:$call @A): it is skipped quietly when missing.
     $p
         File locations are usually reported along with errors. However, it should be noted that the current implementation of file location tracking is imprecise and can often be off by a few lines. Nevertheless, you should be able to locate the error with the information given in the error message. This will certainly get fixed at some point. However, since it does not affect the actual compilation, only the error reporting, it is currently not a high priority.
 

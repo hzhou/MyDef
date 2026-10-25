@@ -173,10 +173,11 @@ subcode: call_sub_frame(type)
         subcode: check_codelib
             $if !$codelib
                 set_current_macro("notfound", 1)
+                # a missing subcode is an error; $call @name makes it optional
                 $if !$attr or $attr ne '@'
-                    $print [$cur_file:$cur_line] Code $codename not found!
                     $if $debug
                         debug_def_stack()
+                    die "[$cur_file:$cur_line] Code $codename not found!\n"
             $else
                 set_current_macro("notfound", 0)
                 $(if:type!=callback)
