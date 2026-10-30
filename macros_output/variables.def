@@ -48,8 +48,12 @@ subcode:: parsecode_func_other
 subcode: parse_add_vars(has_type)
     # $param=~s/\s*;\s*$//
     # my @vlist=MyDef::utils::proper_split($param)
+    $global $custom_split_add_vars
     my @vlist
-    $if $param=~/[({<][^)}>]*,/
+    $if $custom_split_add_vars
+        # the output module splits the whole line itself
+        @vlist = $custom_split_add_vars->($param)
+    $elif $param=~/[({<][^)}>]*,/
         # complex init, assume single decl.
         @vlist = ($param)
     $elif $param=~/=\s*['"][^'"]*,/
